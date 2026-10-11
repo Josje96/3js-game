@@ -1,23 +1,28 @@
 {
   "name": "family-dungeon",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
+  "packageManager": "bun@1.4.2",
   "scripts": {
-    "sync-assets": "node scripts/sync-assets.mjs",
-    "make-anims": "flatpak run org.blender.Blender -b --python tools/blender/make_attacks.py -- assets/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Medium/Rig_Medium_General.glb assets/generated/Rig_Medium_Combat.glb && node scripts/sync-assets.mjs",
-    "predev": "node scripts/sync-assets.mjs",
-    "dev": "vite --host",
-    "prebuild": "node scripts/sync-assets.mjs",
-    "build": "vite build",
-    "preview": "vite preview --host",
-    "test": "node --test test/*.test.js"
+    "sync-assets": "bun scripts/sync-assets.mjs",
+    "make-anims": "flatpak run org.blender.Blender -b --python tools/blender/make_attacks.py -- assets/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Medium/Rig_Medium_General.glb assets/generated/Rig_Medium_Combat.glb && bun scripts/sync-assets.mjs",
+    "make-props": "flatpak run org.blender.Blender -b --python tools/blender/make_props.py -- assets/generated/props && bun scripts/sync-assets.mjs",
+    "dev": "bun scripts/sync-assets.mjs && bun --bun vite --host",
+    "build": "bun scripts/sync-assets.mjs && bun --bun vite build",
+    "preview": "bun --bun vite preview --host",
+    "test": "bun test",
+    "lint": "bun --bun eslint .",
+    "check": "bun run lint && bun test && bun run build"
   },
   "dependencies": {
     "peerjs": "^1.5.5",
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.13.0",
     "vite": "^8.3.4"
   }
 }

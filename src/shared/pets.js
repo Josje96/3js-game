@@ -95,6 +95,6 @@ export function newPet(species, name) {
 }
 
 export function cleanPetName(name) {
-  const n = String(name ?? '').replace(/[^\p{L}\p{N} '\-]/gu, '').trim().slice(0, 16);
+  const n = String(name ?? '').replace(/[^\p{L}\p{N} '-]/gu, '').trim().slice(0, 16);
   return n || null;
 }

@@ -52,40 +52,60 @@ export function newPlayerRecord({ name, cls }) {
   };
 }
 
-/** Upgrade old saves here when SAVE_VERSION changes. */
+/**
+ * Save upgrades, oldest first. Each step brings a save up to `version`.
+ * NEVER edit a step that has shipped: add a new one at the end and bump SAVE_VERSION to match.
+ * A step runs once, on saves older than its version (unless it says `always: true`).
+ * test/saves.test.js loads every file in test/fixtures/ through these, so add a fixture of the
+ * current format before changing it (see docs/SAVES.md).
+ */
+export const MIGRATIONS = [
+  {
+    version: 5, // everything up to the first release: shields, closet, pets with levels + health, skills, gear bag
+    always: true, // these were added without version bumps, so tidy every save with them (safe: only fills gaps)
+    up(save) {
+      for (const id of Object.keys(DUNGEONS)) save.dungeons[id] ??= { deepest: 0 };
+      save.house ??= { level: 1, storage: {} };
+      save.house.storage ??= {};
+      for (const rec of Object.values(save.players ?? {})) {
+        rec.shield ??= null;
+        rec.closet ??= [];
+        rec.pets ??= [];
+        rec.pet ??= null;
+        // pets were just species names; now each one levels up on its own
+        if (rec.pets.some((x) => typeof x === 'string')) {
+          const active = rec.pet;
+          rec.pets = rec.pets.filter((x) => typeof x !== 'string' || PET_SPECIES[x]).map((x) => (typeof x === 'string' ? newPet(x) : x));
+          rec.pet = rec.pets.find((x) => x.species === active)?.id ?? null;
+        }
+        for (const pet of rec.pets) { // pets have health (and can faint)
+          pet.hp ??= petMaxHp(pet.species, pet.level);
+          pet.fainted ??= false;
+        }
+        if (rec.cls === 'Ranger' && rec.weapon === 'dagger') rec.weapon = 'bow'; // Rangers shoot now
+        rec.level ??= 1;
+        rec.xp ??= 0;
+        rec.points ??= 0;
+        rec.stats ??= freshStats(rec.cls);
+        rec.gear ??= [rec.weapon, rec.shield].filter(Boolean);
+        rec.blueprints ??= [];
+        rec.maxHp = maxHpFor(rec.level, rec.stats);
+        rec.hp = Math.min(rec.hp ?? rec.maxHp, rec.maxHp);
+      }
+    },
+  },
+];
+
+if (MIGRATIONS.at(-1).version !== SAVE_VERSION) throw new Error('SAVE_VERSION must equal the last migration\'s version');
+
+/** Bring any older save up to date. Throws on things that aren't saves, or saves from a newer game. */
 export function migrate(save) {
-  if (!save || typeof save !== 'object') throw new Error('Not a save file');
-  if (save.version > SAVE_VERSION) throw new Error('This save is from a newer version of the game');
-  for (const id of Object.keys(DUNGEONS)) save.dungeons[id] ??= { deepest: 0 };
-  // v2: shields + wardrobe closet
-  for (const rec of Object.values(save.players ?? {})) {
-    rec.shield ??= null;
-    rec.closet ??= [];
-    rec.pets ??= [];
-    rec.pet ??= null;
-    // v4: pets were just species names; now each one levels up on its own
-    if (rec.pets.some((x) => typeof x === 'string')) {
-      const active = rec.pet;
-      rec.pets = rec.pets.filter((x) => typeof x !== 'string' || PET_SPECIES[x]).map((x) => (typeof x === 'string' ? newPet(x) : x));
-      rec.pet = rec.pets.find((x) => x.species === active)?.id ?? null;
-    }
-    // pets have health now (and can faint)
-    for (const pet of rec.pets) {
-      pet.hp ??= petMaxHp(pet.species, pet.level);
-      pet.fainted ??= false;
-    }
-    if (rec.cls === 'Ranger' && rec.weapon === 'dagger') rec.weapon = 'bow'; // Rangers shoot now
-    // levels + skill points + gear bag
-    rec.level ??= 1;
-    rec.xp ??= 0;
-    rec.points ??= 0;
-    rec.stats ??= freshStats(rec.cls);
-    rec.gear ??= [rec.weapon, rec.shield].filter(Boolean);
-    rec.blueprints ??= [];
-    rec.maxHp = maxHpFor(rec.level, rec.stats);
-    rec.hp = Math.min(rec.hp ?? rec.maxHp, rec.maxHp);
+  if (!save || typeof save !== 'object' || !save.players || !save.seed) throw new Error('Not a save file');
+  if (save.version > SAVE_VERSION) throw new Error('This save is from a newer version of the game — update the game first');
+  for (const step of MIGRATIONS) {
+    if ((save.version ?? 0) < step.version || step.always) step.up(save);
+    save.version = Math.max(save.version ?? 0, step.version);
   }
-  save.version = SAVE_VERSION;
   return save;
 }
 
