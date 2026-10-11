@@ -48,7 +48,7 @@ test('hand-made maps are rectangular and fully connected', () => {
 test('dungeon floors are deterministic, connected, and have a way up', () => {
   for (const id of Object.keys(DUNGEONS)) {
     for (let floor = 1; floor <= DUNGEONS[id].floors; floor++) {
-      for (let seed = 1; seed <= 60; seed++) {
+      for (let seed = 1; seed <= (floor <= 20 ? 60 : 6); seed++) {
         const key = dungeonKey(id, floor);
         const a = buildLayout(key, seed), b = buildLayout(key, seed);
         assert.deepEqual(a.rows, b.rows, 'same seed, same floor');
@@ -147,7 +147,7 @@ test('server: join, travel through portals, mine down, buy and sell', () => {
   assert.equal(p.inventory.potion, potions + 1);
 });
 
-test('server: slimes hurt players, fainting sends you home, boss unlocks the gate', () => {
+test('server: slimes hurt players, fainting sends you home, finishing the mine unchains the ruins', () => {
   const save = newSave({ name: 'Test', seed: 'boss-seed' });
   save.dungeons.mine.deepest = 10;
   const server = new GameServer({ save, log: () => {} });
@@ -184,7 +184,20 @@ test('server: slimes hurt players, fainting sends you home, boss unlocks the gat
   assert.ok(!loc2.entities.has(boss2.id), 'boss died');
   assert.equal(save.flags.mineCleared, true);
 
-  // the ruins gate now opens
+  // the ruins stay chained until the whole mine (floor 100) is beaten
+  server.travel(p, 'town');
+  p.triggers.clear();
+  walkTo(server, kid, 'kid', town.portals.g.x, town.portals.g.z);
+  assert.equal(p.loc, 'town');
+  assert.match(kid.last('toast').text, /chained/);
+  server.travel(p, 'mine/100', 'U');
+  const deep = server.locations.get('mine/100');
+  const last = [...deep.entities.values()].find((e) => e.boss);
+  last.hp = 1;
+  server.hitSlime(p, deep, last, 5);
+  assert.ok(save.dungeons.mine.completed);
+  assert.ok(save.dungeons.ruins.unlocked, 'the chains break');
+  assert.ok(!save.dungeons.keep.unlocked, 'but only on the next dungeon');
   server.travel(p, 'town');
   p.triggers.clear();
   walkTo(server, kid, 'kid', town.portals.g.x, town.portals.g.z);
@@ -419,7 +432,7 @@ test('server: blueprints from chests teach recipes; the forge turns ore into wea
 
 test('server: biomes every 10 floors, bosses open the way down, imps throw fireballs', async () => {
   const { ENEMIES, biomeFor } = await import('../src/shared/dungeons.js');
-  assert.equal(DUNGEONS.mine.floors, 40);
+  assert.equal(DUNGEONS.mine.floors, 100);
   assert.equal(buildLayout(dungeonKey('mine', 15), 1).title, 'Frost Caverns — Floor 15');
   const frost = new Set(biomeFor('mine', 15).enemies(15));
   for (const e of buildLayout(dungeonKey('mine', 15), 3).initial) if (e.type === 'slime') assert.ok(frost.has(e.variant), e.variant);

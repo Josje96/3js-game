@@ -20,7 +20,8 @@ export function newSave({ name, seed }) {
     updatedAt: Date.now(),
     day: 1,
     flags: {},                     // e.g. { mineCleared: true }
-    dungeons: Object.fromEntries(Object.keys(DUNGEONS).map((id) => [id, { deepest: 0 }])),
+    // per dungeon: deepest floor reached (elevator stops), unlocked (chains broken), completed (floor-100 boss)
+    dungeons: Object.fromEntries(Object.entries(DUNGEONS).map(([id, d]) => [id, { deepest: 0, unlocked: !d.unlockedBy, completed: false }])),
     players: {},                   // playerId -> player record (see newPlayerRecord)
     house: {
       level: 1,
@@ -133,6 +134,17 @@ export const MIGRATIONS = [
       h.owned ??= {};
       h.wall ??= 'stone';
       h.floor ??= 'oak';
+    },
+  },
+  {
+    version: 8, // dungeons are 100 floors; each one's chains break when the one before is completed
+    up(save) {
+      for (const [id, d] of Object.entries(DUNGEONS)) {
+        const s = (save.dungeons[id] ??= { deepest: 0 });
+        s.completed ??= false;
+        // the Ruins used to open after the King Slime: anyone who had them open keeps them open
+        s.unlocked ??= !d.unlockedBy || (id === 'ruins' && !!save.flags?.mineCleared);
+      }
     },
   },
 ];

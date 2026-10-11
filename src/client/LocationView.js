@@ -7,6 +7,8 @@ import { CharacterView, makeGlow } from './views.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { makeGrass, makeWater, makeTrees, makeSpringRing } from './nature.js';
 import { PetView } from './pets.js';
+import { DECORATIONS } from './decorations.js';
+import { THEMES } from './themes.js';
 
 /** The healing spring's round pool: its radius, and how far above the grass its surface sits. */
 const POND_RADIUS = 5.6;
@@ -105,16 +107,6 @@ function makeWardrobe() {
   return g;
 }
 
-const THEMES = {
-  dungeon: { floors: ['dungeon/floor_tile_large', 'dungeon/floor_tile_large', 'dungeon/floor_tile_large', 'dungeon/floor_tile_large', 'dungeon/floor_tile_large', 'dungeon/floor_tile_large_rocks'], walls: ['dungeon/wall', 'dungeon/wall', 'dungeon/wall', 'dungeon/wall_cracked'], bg: 0x120e18, ambient: 0.35, sun: 0.25 },
-  ruins:   { floors: ['dungeon/floor_dirt_large', 'dungeon/floor_dirt_large_rocky'], walls: ['dungeon/wall_cracked', 'dungeon/wall_broken', 'dungeon/wall'], bg: 0x0d1a16, ambient: 0.35, sun: 0.25 },
-  // deeper biomes: the mine's tiles, recoloured, plus their own decorations along the walls
-  frost:   { floors: ['dungeon/floor_tile_large', 'dungeon/floor_tile_large_rocks'], walls: ['dungeon/wall', 'dungeon/wall_cracked'], tint: 0xb8dcff, bg: 0x0c1824, ambient: 0.5, sun: 0.3, lantern: 0xcfe8ff, deco: 'ice' },
-  grotto:  { floors: ['dungeon/floor_dirt_large', 'dungeon/floor_dirt_large_rocky'], walls: ['dungeon/wall', 'dungeon/wall_broken'], tint: 0xc9a8e8, bg: 0x140c1e, ambient: 0.4, sun: 0.2, lantern: 0xe4c8ff, deco: 'mushroom' },
-  lava:    { floors: ['dungeon/floor_tile_large_rocks', 'dungeon/floor_dirt_large_rocky'], walls: ['dungeon/wall_cracked', 'dungeon/wall'], tint: 0xc07060, bg: 0x1e0a06, ambient: 0.45, sun: 0.25, lantern: 0xffb070, deco: 'ember' },
-  wood:    { floors: ['dungeon/floor_wood_large'], walls: ['dungeon/wall', 'dungeon/wall_shelves', 'dungeon/wall'], bg: 0x1b1410, ambient: 1.0, sun: 0.9 },
-  outdoor: { bg: 0x8fd3ff, ambient: 1.3, sun: 2.2 },
-};
 
 const N = [0, -1], E = [1, 0], S = [0, 1], W = [-1, 0];
 // wall rotation so its front faces into the walkable cell
@@ -219,49 +211,25 @@ export class LocationView {
         });
       }
     }
+    const deco = DECORATIONS[kind];
+    if (!deco) return;
     const lights = [];
     for (const s of spots) {
       const g = new THREE.Group();
       g.position.set(s.x, 0, s.z);
       g.rotation.y = s.r * Math.PI * 2;
-      if (kind === 'ice') {
-        const m = new THREE.MeshStandardMaterial({ color: 0x9fe8ff, emissive: 0x3a9fd8, emissiveIntensity: 0.8, roughness: 0.1, transparent: true, opacity: 0.85, flatShading: true });
-        for (let i = 0; i < 3; i++) {
-          const h = 0.8 + ((s.r * 7 + i) % 1) * 1.2;
-          const c = new THREE.Mesh(new THREE.ConeGeometry(0.22, h, 5), m);
-          c.position.set((i - 1) * 0.3, h / 2, (i % 2) * 0.2);
-          c.rotation.z = (i - 1) * 0.3;
-          g.add(c);
-        }
-      } else if (kind === 'mushroom') {
-        const colors = [0xff7ad9, 0x7affe8, 0xb48cff];
-        for (let i = 0; i < 2 + Math.floor(s.r * 3); i++) {
-          const h = 0.4 + ((s.r * 13 + i * 0.37) % 1) * 0.9, col = colors[(i + Math.floor(s.r * 3)) % 3];
-          const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, h, 6), new THREE.MeshStandardMaterial({ color: 0xf5ead6 }));
-          stem.position.set((i - 1) * 0.35, h / 2, (i % 2) * 0.25);
-          const cap = new THREE.Mesh(new THREE.SphereGeometry(0.25 + h * 0.15, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2),
-            new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.7 }));
-          cap.position.set(stem.position.x, h, stem.position.z);
-          g.add(stem, cap);
-        }
-      } else if (kind === 'ember') {
-        const rock = new THREE.MeshStandardMaterial({ color: 0x3a2a24, flatShading: true, roughness: 1 });
-        const hot = new THREE.MeshStandardMaterial({ color: 0xff6a1a, emissive: 0xff4a0a, emissiveIntensity: 1.4 });
-        for (let i = 0; i < 3; i++) {
-          const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25 + i * 0.08, 0), i === 1 ? hot : rock);
-          r.position.set((i - 1) * 0.4, 0.15, (i % 2) * 0.2);
-          g.add(r);
-        }
-      }
+      deco.build(g, s.r);
       this.group.add(g);
+      if (deco.update) this.animated.push({ update: () => deco.update(g, this.uTime.value) });
       if (lights.length < 5 && s.r > 0.6) lights.push(s);
     }
     // a few real lights so the glow spills onto the floor
-    const color = { ice: 0x7fd4ff, mushroom: 0xd08aff, ember: 0xff7a2a }[kind];
-    for (const s of lights) {
-      const light = new THREE.PointLight(color, 10, 9, 1.6);
-      light.position.set(s.x, 1.2, s.z);
-      this.group.add(light);
+    if (deco.light != null) {
+      for (const s of lights) {
+        const light = new THREE.PointLight(deco.light, 10, 9, 1.6);
+        light.position.set(s.x, 1.2, s.z);
+        this.group.add(light);
+      }
     }
   }
 

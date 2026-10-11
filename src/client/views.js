@@ -7,6 +7,7 @@ import { cloneCharacter, cloneModel, characterClips, characterScene } from './as
 import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, skinSplit } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
+import { ENEMIES } from '../shared/dungeons.js';
 import { FurnitureView } from './furniture.js';
 
 const ANIMS = {
@@ -432,7 +433,7 @@ export class SlimeView {
     this.root = new THREE.Group();
     this.body = new THREE.Group();
     this.mat = new THREE.MeshStandardMaterial({
-      color: SLIME_COLORS[e.variant] ?? 0x88ff88, roughness: 0.25, metalness: 0, transparent: true, opacity: 0.6,
+      color: ENEMIES[e.variant]?.color ?? SLIME_COLORS[e.variant] ?? 0x88ff88, roughness: 0.25, metalness: 0, transparent: true, opacity: 0.6,
       emissive: 0x000000,
     });
     const blob = new THREE.Mesh(slimeGeo, this.mat);
@@ -505,11 +506,14 @@ export class SlimeView {
 // ------------------------------------------------------------------ simple props
 
 const ROCK_MODELS = { stone: 'blocks/stone', copper: 'blocks/stone_with_copper', silver: 'blocks/stone_with_silver', goldore: 'blocks/stone_with_gold' };
+// rocks of the deeper ores reuse a block model, recoloured like the ore's item
+const ROCK_LOOKS = (ore) => ({ model: ROCK_MODELS[ore] ?? ITEMS[ore]?.model ?? 'blocks/stone', tint: ROCK_MODELS[ore] ? null : ITEMS[ore]?.tint });
 
 export class RockView {
   constructor(e) {
     this.root = new THREE.Group();
-    const model = cloneModel(ROCK_MODELS[e.ore] ?? 'blocks/stone');
+    const look = ROCK_LOOKS(e.ore);
+    const model = tintModel(cloneModel(look.model), look.tint);
     const s = 0.85;
     model.scale.setScalar(s);
     model.position.y = s;

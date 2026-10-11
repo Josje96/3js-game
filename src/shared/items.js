@@ -90,6 +90,9 @@ export const ITEMS = {
   silver:      { name: 'Silver Ore',      kind: 'loot', sell: 8,  model: 'blocks/stone_with_silver' },
   goldore:     { name: 'Gold Ore',        kind: 'loot', sell: 18, model: 'blocks/stone_with_gold' },
   slimegoo:    { name: 'Slime Goo',       kind: 'loot', sell: 2,  model: 'dungeon/bottle_B_green' },
+  mythril:     { name: 'Mythril Ore',     kind: 'loot', sell: 30, model: 'blocks/stone_with_silver', tint: 0x7fd8ff },
+  obsidian:    { name: 'Obsidian',        kind: 'loot', sell: 55, model: 'blocks/stone_dark', tint: 0x9a6ad0 },
+  starstone:   { name: 'Starstone',       kind: 'loot', sell: 90, model: 'blocks/stone_with_gold', tint: 0xfff6c0 },
 
   // a blueprint teaches its recipe when picked up (see FORGE_RECIPES)
   blueprint:   { name: 'Blueprint',       kind: 'blueprint', model: 'items/spellbook_closed', tint: 0x6fa8ff },

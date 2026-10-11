@@ -3,11 +3,12 @@
 // things travel over the network.
 
 import { CELL } from './config.js';
-import { ROCK_HP, BARREL_STYLES, biomeFor, isBossFloor, makeEnemy } from './dungeons.js';
+import { DUNGEONS, ROCK_HP, BARREL_STYLES, biomeFor, isBossFloor, makeEnemy, depthOf, oresFor } from './dungeons.js';
 import { makeRng } from './rng.js';
 
 export function generateFloor(dungeonId, floor, seed) {
   const biome = biomeFor(dungeonId, floor);
+  const depth = depthOf(dungeonId, floor); // how tough things are (later dungeons start deeper)
   const rng = makeRng(seed);
   const isBoss = isBossFloor(floor);
   const size = Math.min(14 + floor, 26);
@@ -102,7 +103,7 @@ export function generateFloor(dungeonId, floor, seed) {
     return null;
   };
 
-  const oreWeights = biome.ores(floor);
+  const oreWeights = biome.ores?.(floor) ?? oresFor(depth);
   const rollOre = () => {
     const total = Object.values(oreWeights).reduce((a, b) => a + b, 0);
     let roll = rng.next() * total;
@@ -111,7 +112,7 @@ export function generateFloor(dungeonId, floor, seed) {
   };
 
   const kinds = biome.enemies(floor);
-  const slime = (p) => makeEnemy(rng.pick(kinds), floor, p.x, p.z);
+  const slime = (p) => makeEnemy(rng.pick(kinds), depth, p.x, p.z);
 
   if (isBoss) {
     const arena = rooms[1];
@@ -119,7 +120,7 @@ export function generateFloor(dungeonId, floor, seed) {
     const [ax, az] = centre(arena);
     const p = cellCentre(ax, az);
     taken.push({ ...p, r: 3 });
-    initial.push({ ...makeEnemy(b.variant, floor, p.x, p.z, true), boss: true, name: b.name });
+    initial.push({ ...makeEnemy(b.variant, depth, p.x, p.z, true), boss: true, name: b.name });
     for (let i = 0; i < 4; i++) {
       const q = place(arena, 0.8);
       if (q) initial.push(slime(q));
@@ -130,7 +131,7 @@ export function generateFloor(dungeonId, floor, seed) {
       if (q) props.push({ type: 'pillar', x: q.x, z: q.z, rot: 0 });
     }
   } else {
-    let enemies = Math.min(2 + floor, 12);
+    let enemies = Math.min(2 + floor, 12) + (DUNGEONS[dungeonId].depth ? 2 : 0);
     for (const room of rest) {
       const area = room.w * room.h;
       const rocks = Math.floor(area * rng.range(0.5, 1.1));
@@ -147,7 +148,7 @@ export function generateFloor(dungeonId, floor, seed) {
     }
     if (rest.length && rng.chance(0.4)) {
       const p = place(rng.pick(rest), 1.0);
-      if (p) initial.push({ type: 'chest', gold: 9 * floor + rng.int(0, 12), x: p.x, z: p.z });
+      if (p) initial.push({ type: 'chest', gold: 9 * depth + rng.int(0, 12), x: p.x, z: p.z });
     }
     // clutter in room corners: crates are scenery, barrels can be smashed for loot
     for (const room of rest) {
@@ -183,7 +184,7 @@ export function generateFloor(dungeonId, floor, seed) {
     }
   }
 
-  portals.U = { to: 'town', portal: dungeonId === 'mine' ? 'm' : 'g' };
+  portals.U = { to: 'town', portal: DUNGEONS[dungeonId].entrance };
 
   return {
     w, h,

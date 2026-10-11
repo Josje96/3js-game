@@ -11,6 +11,10 @@ const MOODS = {
   frost: { scale: 'lydian',  root: 69, bpm: 80,  lead: ['bell', 'musicbox'], arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.45, sparkle: 0.45 },
   grotto:{ scale: 'dorian',  root: 60, bpm: 92,  lead: ['marimba', 'flute'], arp: 'pluck', bass: true,  pad: true, drums: true,  density: 0.55, sparkle: 0.2 },
   lava:  { scale: 'aeolian', root: 57, bpm: 112, lead: ['flute', 'marimba'], arp: 'pluck', bass: true,  pad: true, drums: true,  density: 0.6,  sparkle: 0.05 },
+  crystal:{ scale: 'lydian', root: 71, bpm: 88,  lead: ['bell', 'harp'],     arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.5,  sparkle: 0.5 },
+  spooky:{ scale: 'aeolian', root: 59, bpm: 70,  lead: ['musicbox', 'bell'], arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.35, sparkle: 0.2 },
+  sea:   { scale: 'dorian',  root: 64, bpm: 78,  lead: ['flute', 'harp'],    arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.45, sparkle: 0.35 },
+  keep:  { scale: 'aeolian', root: 60, bpm: 96,  lead: ['flute', 'marimba'], arp: 'pluck', bass: true,  pad: true, drums: true,  density: 0.55, sparkle: 0.1 },
   boss:  { scale: 'aeolian', root: 62, bpm: 128, lead: ['marimba', 'flute'], arp: 'pluck', bass: true,  pad: false, drums: true, density: 0.8,  sparkle: 0.05 },
 };
 
@@ -359,6 +363,12 @@ export class Music {
 /** Which mood fits a layout. */
 export function moodFor(layout) {
   if (layout.isBoss) return 'boss';
-  if (layout.kind === 'dungeon') return { ruins: 'ruins', frost: 'frost', grotto: 'grotto', lava: 'lava' }[layout.theme] ?? 'mine';
+  if (layout.kind === 'dungeon') {
+    return {
+      ruins: 'ruins', frost: 'frost', grotto: 'grotto', nest: 'grotto', kelp: 'grotto', lava: 'lava', magma: 'lava',
+      crystal: 'crystal', pearl: 'crystal', gold: 'crystal', bone: 'spooky', shadow: 'spooky', library: 'spooky',
+      coral: 'sea', abyss: 'sea', keep: 'keep', throne: 'keep',
+    }[layout.theme] ?? 'mine';
+  }
   return layout.theme === 'wood' ? 'home' : 'town';
 }

@@ -9,7 +9,7 @@ import { CLIENT_MESSAGES, checkClientMessage } from '../src/shared/protocol.js';
 import { GameServer, INTERACTIONS } from '../src/server/GameServer.js';
 import { migrate, newSave, MIGRATIONS } from '../src/server/saves.js';
 import { ITEMS, SHOP_STOCK, FORGE_RECIPES, DROP_TIERS } from '../src/shared/items.js';
-import { DUNGEONS, ENEMIES } from '../src/shared/dungeons.js';
+import { DUNGEONS, ENEMIES, ROCK_HP, oresFor, depthOf } from '../src/shared/dungeons.js';
 import { PROPS } from '../src/shared/props.js';
 import { MAPS, LEGEND } from '../src/shared/maps.js';
 import { PET_SPECIES } from '../src/shared/pets.js';
@@ -57,6 +57,9 @@ test('content: every model the game loads exists in the asset packs', async () =
   const missing = allModelPaths().filter((id) => !id.startsWith('characters/') && !id.startsWith('anims/') && !modelExists(id));
   assert.deepEqual(missing, [], 'models referenced in items/props/assets.js but not on disk');
   for (const c of Object.values(CLASSES)) assert.ok(modelExists(`characters/${c.model}`), c.model);
+  // every biome's theme exists on the client
+  const { THEMES } = await import('../src/client/themes.js');
+  for (const d of Object.values(DUNGEONS)) for (const b of d.biomes) assert.ok(THEMES[b.theme], `${b.name}: no theme '${b.theme}' in client/themes.js`);
 });
 
 test('content: shops, drops, recipes, biomes and maps only point at things that exist', () => {
@@ -70,7 +73,7 @@ test('content: shops, drops, recipes, biomes and maps only point at things that 
     for (let floor = 1; floor <= d.floors; floor++) {
       const biome = d.biomes[Math.floor((floor - 1) / 10)];
       for (const e of biome.enemies(floor)) assert.ok(ENEMIES[e], `${id} floor ${floor}: unknown enemy '${e}'`);
-      for (const ore of Object.keys(biome.ores(floor))) assert.ok(ITEMS[ore], `${id} floor ${floor}: unknown ore '${ore}'`);
+      for (const ore of Object.keys(oresFor(depthOf(id, floor)))) assert.ok(ITEMS[ore] && ROCK_HP[ore], `${id} floor ${floor}: unknown ore '${ore}'`);
       assert.ok(ENEMIES[biome.boss.variant], `${id}: unknown boss '${biome.boss.variant}'`);
     }
   }
@@ -115,4 +118,20 @@ test('saves: every old save in test/fixtures loads, upgrades and plays', () => {
 test('saves: a save from a newer game, or something that is not a save, is refused', () => {
   assert.throws(() => migrate({ ...newSave({ name: 'x', seed: 1 }), version: SAVE_VERSION + 1 }), /newer/);
   assert.throws(() => migrate({ hello: 1 }), /Not a save/);
+});
+
+test('dungeons: 100 floors each, a boss every 10, and each dungeon is harder than the last', async () => {
+  const { enemyPower, makeEnemy, biomeFor } = await import('../src/shared/dungeons.js');
+  for (const [id, d] of Object.entries(DUNGEONS)) {
+    assert.equal(d.floors, 100, id);
+    assert.equal(new Set(d.biomes.map((b) => b.boss.flag)).size, 10, `${id}: every boss has its own flag`);
+    for (const b of d.biomes) for (const e of b.enemies(1)) assert.ok(ENEMIES[e], `${id}/${b.name}: unknown enemy ${e}`);
+    if (d.unlockedBy) assert.equal(DUNGEONS[d.unlockedBy].next, id);
+  }
+  const flags = Object.values(DUNGEONS).flatMap((d) => d.biomes.map((b) => b.boss.flag));
+  assert.equal(new Set(flags).size, flags.length, 'boss flags are unique across dungeons');
+  assert.ok(enemyPower(101).hp > enemyPower(100).hp);
+  // the same slime is much tougher in the ruins than at the top of the mine
+  assert.ok(makeEnemy('green', depthOf('ruins', 1), 0, 0).hp > makeEnemy('green', depthOf('mine', 1), 0, 0).hp * 4);
+  assert.equal(biomeFor('keep', 100).boss.variant, 'shadowking');
 });

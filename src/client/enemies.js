@@ -24,6 +24,94 @@ function eyes(parent, y, z, spread, r, color = 0x111111) {
 
 // Each builder returns { group, parts, height } — `parts` are what the animation moves.
 const BODIES = {
+  skeleton() {
+    const g = new THREE.Group();
+    const bone = mat(0xf0e8d6, { roughness: 0.8 }), dark = new THREE.MeshBasicMaterial({ color: 0x141414 });
+    const head = new THREE.Group();
+    head.position.set(0, 1.85, 0);
+    g.add(head);
+    add(head, ball(0.34, 14), bone, 0, 0, 0, 1, 0.95, 1);
+    add(head, new THREE.BoxGeometry(0.4, 0.16, 0.3), bone, 0, -0.27, 0.06); // jaw
+    for (const s of [-1, 1]) add(head, ball(0.09, 8), glow(0xff5a3a), s * 0.13, 0.03, 0.27); // glowing eyes
+    add(head, new THREE.BoxGeometry(0.06, 0.08, 0.05), dark, 0, -0.1, 0.32);
+    add(g, new THREE.CylinderGeometry(0.06, 0.06, 0.9, 6), bone, 0, 1.15, 0); // spine
+    for (let i = 0; i < 4; i++) add(g, new THREE.TorusGeometry(0.26 - i * 0.03, 0.035, 5, 14, Math.PI * 1.4), bone, 0, 1.5 - i * 0.13, 0.02).rotation.set(Math.PI / 2, 0, Math.PI * 0.8);
+    add(g, new THREE.BoxGeometry(0.45, 0.12, 0.2), bone, 0, 0.72, 0); // hips
+    const arms = [], legs = [];
+    for (const s of [-1, 1]) {
+      const arm = new THREE.Group();
+      arm.position.set(s * 0.32, 1.55, 0);
+      add(arm, new THREE.CylinderGeometry(0.045, 0.04, 0.75, 6), bone, 0, -0.38, 0);
+      add(arm, ball(0.07, 6), bone, 0, -0.78, 0.02);
+      g.add(arm);
+      arms.push(arm);
+      const leg = new THREE.Group();
+      leg.position.set(s * 0.15, 0.68, 0);
+      add(leg, new THREE.CylinderGeometry(0.055, 0.045, 0.65, 6), bone, 0, -0.33, 0);
+      add(leg, new THREE.BoxGeometry(0.14, 0.06, 0.24), bone, 0, -0.66, 0.06);
+      g.add(leg);
+      legs.push(leg);
+    }
+    // a rusty sword
+    const sword = new THREE.Group();
+    add(sword, new THREE.BoxGeometry(0.07, 0.8, 0.02), mat(0x9a8a7a, { metalness: 0.5 }), 0, -0.45, 0.25);
+    add(sword, new THREE.BoxGeometry(0.25, 0.05, 0.05), mat(0x6b4a2c), 0, -0.05, 0.25);
+    arms[1].add(sword);
+    sword.position.y = -0.75;
+    return { group: g, parts: { arms, legs, head }, height: 2.3 };
+  },
+  ghost() {
+    const g = new THREE.Group();
+    const sheet = mat(0xeef4ff, { transparent: true, opacity: 0.8, emissive: 0x8aa0c0, emissiveIntensity: 0.35, side: THREE.DoubleSide });
+    add(g, ball(0.45, 16), sheet, 0, 0.35, 0, 1, 1.05, 1);
+    const skirt = add(g, new THREE.CylinderGeometry(0.45, 0.6, 0.6, 16, 1, true), sheet, 0, -0.05, 0);
+    const tails = [];
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      tails.push(add(g, new THREE.ConeGeometry(0.14, 0.35, 6), sheet, Math.cos(a) * 0.48, -0.45, Math.sin(a) * 0.48));
+      tails.at(-1).rotation.x = Math.PI;
+    }
+    const dark = new THREE.MeshBasicMaterial({ color: 0x1a1a2a });
+    for (const s of [-1, 1]) add(g, ball(0.09, 8), dark, s * 0.15, 0.45, 0.38, 1, 1.4, 0.5);
+    add(g, ball(0.08, 8), dark, 0, 0.22, 0.42, 1.2, 1, 0.5); // "ooo" mouth
+    const arms = [];
+    for (const s of [-1, 1]) {
+      const arm = new THREE.Group();
+      arm.position.set(s * 0.42, 0.25, 0.1);
+      add(arm, new THREE.ConeGeometry(0.12, 0.45, 8), sheet, s * 0.15, 0, 0.1).rotation.z = s * 1.9;
+      g.add(arm);
+      arms.push(arm);
+    }
+    return { group: g, parts: { arms, skirt, tails }, height: 1.3 };
+  },
+  crab() {
+    const g = new THREE.Group();
+    const shell = mat(0xe0553a, { roughness: 0.5 }), under = mat(0xffb28a);
+    add(g, ball(0.5, 16), shell, 0, 0.5, 0, 1.35, 0.6, 1);
+    add(g, ball(0.42, 12), under, 0, 0.42, 0.05, 1.25, 0.45, 0.9);
+    for (const s of [-1, 1]) { // eyes on stalks
+      add(g, new THREE.CylinderGeometry(0.03, 0.03, 0.3, 6), shell, s * 0.18, 0.85, 0.3);
+      add(g, ball(0.08, 8), mat(0xffffff), s * 0.18, 1.02, 0.3);
+      add(g, ball(0.045, 6), new THREE.MeshBasicMaterial({ color: 0x111111 }), s * 0.18, 1.03, 0.37);
+    }
+    const claws = [], legs = [];
+    for (const s of [-1, 1]) {
+      const claw = new THREE.Group();
+      claw.position.set(s * 0.6, 0.55, 0.35);
+      add(claw, new THREE.CylinderGeometry(0.07, 0.07, 0.4, 6), shell, s * 0.15, 0, 0.1).rotation.z = s * 1.2;
+      add(claw, ball(0.2, 10), shell, s * 0.35, 0.12, 0.25, 1, 0.7, 1.3);
+      const pincer = add(claw, new THREE.ConeGeometry(0.08, 0.25, 6), shell, s * 0.35, 0.22, 0.45);
+      pincer.rotation.x = Math.PI / 2;
+      g.add(claw);
+      claws.push(claw);
+      for (let i = 0; i < 3; i++) {
+        const leg = add(g, new THREE.CylinderGeometry(0.04, 0.03, 0.55, 5), shell, s * 0.62, 0.25, -0.2 + i * 0.22);
+        leg.rotation.z = s * 0.9;
+        legs.push(leg);
+      }
+    }
+    return { group: g, parts: { claws, legs }, height: 1.3 };
+  },
   bat(fire) {
     const g = new THREE.Group();
     const fur = mat(fire ? 0x8a2a1a : 0x4a3a5e), wing = mat(fire ? 0xff7a2a : 0x6a4f86, { side: THREE.DoubleSide });
@@ -194,12 +282,38 @@ function makeHpBar(width) {
 
 const smooth = (dt, rate) => 1 - Math.exp(-dt * rate);
 
+/** Recolour a body (eyes and other near-black / near-white bits keep their colours). */
+function tintBody(group, tint) {
+  const c = new THREE.Color(tint);
+  group.traverse((o) => {
+    if (!o.isMesh || !o.material.color) return;
+    const hsl = {};
+    o.material.color.getHSL(hsl);
+    if (hsl.l < 0.1 || hsl.l > 0.93) return;
+    o.material = o.material.clone();
+    o.material.color.lerp(c, 0.7);
+    if (o.material.emissive && o.material.emissive.getHex()) o.material.emissive.lerp(c, 0.5);
+  });
+}
+
+/** Bosses wear a crown. */
+function addCrown(group, height) {
+  const gold = mat(0xffd23f, { metalness: 0.8, roughness: 0.3, side: THREE.DoubleSide });
+  const crown = new THREE.Group();
+  add(crown, new THREE.CylinderGeometry(0.28, 0.25, 0.18, 10, 1, true), gold);
+  for (let i = 0; i < 5; i++) add(crown, new THREE.ConeGeometry(0.06, 0.18, 4), gold, Math.cos((i / 5) * Math.PI * 2) * 0.27, 0.17, Math.sin((i / 5) * Math.PI * 2) * 0.27);
+  crown.position.y = height * 0.92;
+  group.add(crown);
+}
+
 export class MobView {
   constructor(e, makeLabel) {
     const def = ENEMIES[e.variant] ?? {};
     this.kind = def.body;
     this.fly = !!def.fly;
-    const built = BODIES[def.body](e.variant === 'firebat');
+    const built = BODIES[def.body](!!def.fire);
+    if (def.tint != null) tintBody(built.group, def.tint);
+    if (def.crown) addCrown(built.group, built.height);
     this.root = new THREE.Group();
     this.body = built.group;
     this.parts = built.parts;
@@ -282,6 +396,22 @@ export class MobView {
         b.position.y += Math.sin(t * 2.5) * 0.25;
         for (const [i, w] of P.wings.entries()) w.rotation.y = (i ? -1 : 1) * Math.sin(t * 14) * 0.5;
         P.flame.scale.setScalar(1 + Math.sin(t * 20) * 0.2);
+        break;
+      case 'skeleton':
+        b.position.y += moving ? Math.abs(Math.sin(t * 8)) * 0.06 : 0;
+        for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 8 + i * Math.PI) * 0.7 : -0.2 + Math.sin(t * 2) * 0.05;
+        for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 8 + i * Math.PI + Math.PI) * 0.6 : 0;
+        P.head.rotation.z = Math.sin(t * 3) * 0.06; // rattle
+        break;
+      case 'ghost':
+        b.position.y += Math.sin(t * 2) * 0.25 - 0.6;
+        for (const [i, tl] of P.tails.entries()) tl.position.y = -0.45 + Math.sin(t * 6 + i) * 0.06;
+        for (const [i, a] of P.arms.entries()) a.rotation.z = (i ? -1 : 1) * Math.sin(t * 3) * 0.3;
+        break;
+      case 'crab':
+        b.rotation.z = moving ? Math.sin(t * 14) * 0.05 : 0;
+        for (const [i, c] of P.claws.entries()) c.rotation.x = Math.sin(t * (moving ? 10 : 3) + i * 1.5) * 0.25;
+        for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 18 + i) * 0.4 : 0;
         break;
       case 'dragon':
         b.position.y += Math.sin(t * 1.5) * 0.1;

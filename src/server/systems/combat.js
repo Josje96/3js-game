@@ -1,6 +1,6 @@
 // combat — part of the GameServer (see systems/index.js). Methods run with `this` = the GameServer.
 import { ATTACK_RANGE, SHOT_SPEED, SHOT_RANGE, ROLL_IFRAMES, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, SPELL_DAMAGE, DEATH_GOLD_PENALTY } from '../../shared/config.js';
-import { ENEMIES, biomeFor, makeEnemy } from '../../shared/dungeons.js';
+import { ENEMIES, biomeFor, makeEnemy, oresFor } from '../../shared/dungeons.js';
 import { ITEMS, weaponCooldown, weaponImpact, rollGearDrop, rollBlueprint, isGear } from '../../shared/items.js';
 import { XP, attackDamage } from '../../shared/progression.js';
 import { dist2 } from '../../shared/physics.js';
@@ -90,7 +90,7 @@ export const methods = {
     if (e.hp > 0) return;
     loc.remove(e.id);
     const [lo, hi] = ENEMIES[e.variant].gold;
-    this.dropItem(loc, e, 'gold', lo + Math.floor(Math.random() * (hi - lo + 1)));
+    this.dropItem(loc, e, 'gold', Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (e.goldMul ?? 1)));
     if (Math.random() < 0.3) this.dropItem(loc, e, 'slimegoo', 1);
     if (e.boss || Math.random() < 0.035) this.dropGear(loc, e, e.boss ? 4 : 0);
     if (e.boss) this.dropBlueprint(loc, e, 4);
@@ -109,16 +109,16 @@ export const methods = {
     this.sendToLocation(loc.key, { t: 'fx', kind: 'smash', x: e.x, z: e.z });
     this.shareXp(loc, XP.barrel);
     // what's inside? deeper floors hide better things
-    const floor = loc.layout.floor ?? 1;
+    const floor = loc.layout.floor ?? 1, depth = loc.layout.depth ?? floor;
     const roll = Math.random();
     if (roll < 0.04) this.dropGear(loc, e);
-    else if (roll < 0.45) this.dropItem(loc, e, 'gold', 1 + Math.floor(Math.random() * (3 + floor)));
-    else if (roll < 0.62) this.dropItem(loc, e, floor >= 6 ? 'silver' : floor >= 3 ? 'copper' : 'stone', 1 + Math.floor(Math.random() * 2));
+    else if (roll < 0.45) this.dropItem(loc, e, 'gold', 1 + Math.floor(Math.random() * (3 + depth)));
+    else if (roll < 0.62) this.dropItem(loc, e, rollOre(depth), 1 + Math.floor(Math.random() * 2));
     else if (roll < 0.74) this.dropItem(loc, e, 'slimegoo', 1);
     else if (roll < 0.84) this.dropItem(loc, e, 'potion', 1);
     else if (roll < 0.91) { // surprise!
       const kinds = biomeFor(loc.layout.dungeonId, floor).enemies(floor);
-      loc.spawn(makeEnemy(kinds[Math.floor(Math.random() * kinds.length)], floor, e.x, e.z));
+      loc.spawn(makeEnemy(kinds[Math.floor(Math.random() * kinds.length)], loc.layout.depth ?? floor, e.x, e.z));
       this.sendToLocation(loc.key, { t: 'toast', text: 'Something was hiding in the barrel!' });
     } // else: empty, just splinters
   },
@@ -135,12 +135,12 @@ export const methods = {
   /** A blueprint scroll; which recipe is decided when someone picks it up (so it's new to them). */
   dropBlueprint(loc, at, bonusDepth = 0) {
     const a = Math.random() * Math.PI * 2;
-    loc.spawn({ type: 'drop', item: 'blueprint', qty: 1, depth: (loc.layout.floor ?? 1) + bonusDepth, x: at.x + Math.cos(a) * 0.6, z: at.z + Math.sin(a) * 0.6 });
+    loc.spawn({ type: 'drop', item: 'blueprint', qty: 1, depth: (loc.layout.depth ?? 1) + bonusDepth, x: at.x + Math.cos(a) * 0.6, z: at.z + Math.sin(a) * 0.6 });
   },
 
   /** A weapon or shield on the floor; how good depends on how deep we are. */
   dropGear(loc, at, bonusDepth = 0) {
-    this.dropItem(loc, at, rollGearDrop((loc.layout.floor ?? 1) + bonusDepth), 1);
+    this.dropItem(loc, at, rollGearDrop((loc.layout.depth ?? 1) + bonusDepth), 1);
   },
 
   dropItem(loc, at, item, qty) {
@@ -206,3 +206,11 @@ export const methods = {
     this.sendToLocation(p.loc, { t: 'fx', kind: 'heal', id: p.id, x: p.x, z: p.z, amount: def.heal });
   },
 };
+
+/** A random ore that can be found this deep (weighted like the rocks). */
+function rollOre(depth) {
+  const weights = Object.entries(oresFor(depth));
+  let roll = Math.random() * weights.reduce((a, [, w]) => a + w, 0);
+  for (const [ore, w] of weights) if ((roll -= w) < 0) return ore;
+  return 'stone';
+}

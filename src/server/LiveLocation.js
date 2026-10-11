@@ -194,7 +194,7 @@ export class LiveLocation {
           if (e._summon <= 0 && this.count('slime') < 10) {
             e._summon = 7;
             const a = Math.random() * Math.PI * 2;
-            this.spawn(makeEnemy(def.summon, this.layout.floor ?? 1, e.x + Math.cos(a) * 2.5, e.z + Math.sin(a) * 2.5));
+            this.spawn(makeEnemy(def.summon, this.layout.depth ?? 1, e.x + Math.cos(a) * 2.5, e.z + Math.sin(a) * 2.5));
           }
         }
       } else {

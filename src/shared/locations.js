@@ -4,7 +4,7 @@
 
 import { CELL } from './config.js';
 import { MAPS, LEGEND } from './maps.js';
-import { biomeFor, parseKey } from './dungeons.js';
+import { biomeFor, parseKey, depthOf } from './dungeons.js';
 import { generateFloor } from './mapgen.js';
 import { PROPS } from './props.js';
 
@@ -29,6 +29,7 @@ export function buildLayout(key, seed) {
       dark: true,
       dungeonId: info.dungeonId,
       floor: info.floor,
+      depth: depthOf(info.dungeonId, info.floor),
     };
   } else {
     base = parseAsciiMap(MAPS[info.kind]);
