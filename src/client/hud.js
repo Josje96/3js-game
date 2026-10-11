@@ -1,5 +1,5 @@
 // HTML overlay on top of the 3D canvas.
-import { ITEMS, FORGE_RECIPES } from '../shared/items.js';
+import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_SHOP_STOCK, shopTier, sellValue, isGear } from '../shared/items.js';
 import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
 import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle } from '../shared/config.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost } from '../shared/pets.js';
@@ -62,7 +62,7 @@ export class Hud {
     const frac = s ? (s.hp / s.maxHp) * 100 : 100;
     this.renderXp();
     // your pet's health, right under yours
-    const pet = s?.pets?.find((x) => x.id === s.pet);
+    const pet = s?.pets?.find((x) => x.id === s?.pet);
     let petRow = '';
     if (pet) {
       const max = petMaxHp(pet.species, pet.level), pf = pet.fainted ? 0 : (pet.hp / max) * 100;
@@ -72,7 +72,7 @@ export class Hud {
     this.status.innerHTML = `
       <div class="loc">${esc(this.locTitle)}</div>
       <div class="hpbar"><div style="width:${frac}%"></div><span>❤ ${hp}</span></div>${petRow}
-      <div class="row"><span class="gold">🪙 ${w?.gold ?? 0}</span><span>Day ${w?.day ?? 1}</span></div>
+      <div class="row"><span class="gold">🪙 ${s?.gold ?? 0}</span><span>Day ${w?.day ?? 1}</span></div>
       <div class="row ${w?.night ? 'night' : ''}"><span>${w?.night ? '🌙 Night — get home!' : `🌅 Night in ${clock(w?.dayLeft ?? 0)}`}</span></div>`;
   }
 
@@ -90,14 +90,22 @@ export class Hud {
   renderInv() {
     const s = this.self;
     if (!s) return;
-    const weapon = ITEMS[s.weapon];
-    const items = Object.entries(s.inventory)
-      .filter(([, n]) => n > 0)
-      .map(([id, n]) => `<span class="slot" title="${esc(ITEMS[id]?.name ?? id)}">${esc(ITEMS[id]?.name ?? id)} ×${n}</span>`)
-      .join('');
-    const shield = ITEMS[s.shield];
-    const shieldSlot = shield ? `<span class="slot weapon">🛡 ${esc(shield.name)}</span>` : '';
-    this.inv.innerHTML = `<span class="slot weapon">⚔ ${esc(weapon?.name ?? s.weapon)} (${weapon?.damage ?? 1})</span>${shieldSlot}${items}`;
+    // what you're holding, then what the keys use (with the key on it), then the rest of your bag
+    const weapon = ITEMS[s.weapon], shield = ITEMS[s.shield], armor = ITEMS[s.armor];
+    const inv = Object.entries(s.inventory ?? {}).filter(([id, n]) => n > 0 && ITEMS[id]);
+    const slot = (cls, text, title = '') => `<span class="slot ${cls}" title="${esc(title)}">${text}</span>`;
+    const group = (key, label, ids) => (ids.length
+      ? `<span class="slot-group" title="${esc(`${key}: ${label}`)}"><kbd>${key}</kbd>${ids.map(([id, n]) => slot('use', `${esc(ITEMS[id].name)} ×${n}`, itemStat(ITEMS[id]))).join('')}</span>` : '');
+    const heals = inv.filter(([id]) => ITEMS[id].heal), treats = inv.filter(([id]) => ITEMS[id].petHeal);
+    const loot = inv.filter(([id]) => !ITEMS[id].heal && !ITEMS[id].petHeal);
+    this.inv.innerHTML = [
+      slot('weapon', `⚔ ${esc(weapon?.name ?? s.weapon)} (${weapon?.damage ?? 1})`),
+      shield ? slot('weapon', `🛡 ${esc(shield.name)}`) : '',
+      armor ? slot('weapon', `🥋 ${esc(armor.name)}`) : '',
+      group('Q', 'eat / drink', heals),
+      group('G', 'feed pet', treats),
+      loot.length ? slot('bag', `🎒 ${loot.reduce((a, [, n]) => a + n, 0)}`, loot.map(([id, n]) => `${ITEMS[id].name} ×${n}`).join('\n')) : '',
+    ].join('');
   }
 
   setInvite({ code, status, isHost }) {
@@ -200,13 +208,19 @@ export class Hud {
     this.refreshModal?.();
   }
 
+  askToSell(label, price, run) {
+    this.pendingBuy = { label, price, run, sell: true };
+    this.refreshModal?.();
+  }
+
   confirmBar() {
     const q = this.pendingBuy;
     if (!q) return null;
-    const bar = el('div', 'confirm-bar', `<span>${q.label.startsWith('forge ') ? 'Pay to' : 'Buy'} <b>${esc(q.label)}</b> for <span class="gold">🪙 ${q.price}</span>?</span>`);
-    const yes = el('button', 'primary', 'Buy it!');
+    const verb = q.sell ? 'Sell' : q.label.startsWith('forge ') ? 'Pay to' : 'Buy';
+    const bar = el('div', 'confirm-bar', `<span>${verb} <b>${esc(q.label)}</b> for <span class="gold">🪙 ${q.price}</span>?</span>`);
+    const yes = el('button', 'primary', q.sell ? 'Sell it' : 'Buy it!');
     const no = el('button', '', 'Cancel');
-    yes.disabled = (this.world?.gold ?? 0) < q.price;
+    yes.disabled = !q.sell && (this.self?.gold ?? 0) < q.price;
     yes.addEventListener('click', () => { this.pendingBuy = null; q.run(); this.refreshModal?.(); });
     no.addEventListener('click', () => { this.pendingBuy = null; this.refreshModal?.(); });
     bar.append(yes, no);
@@ -220,12 +234,19 @@ export class Hud {
     this.modal.classList.toggle('side', side);
     this.onCloseModal = onClose;
     this.refreshModal = () => {
+      // re-rendering replaces every element, so remember how far each scrolling part was scrolled
+      const old = this.modal.firstChild;
+      const scrolls = old ? [old, ...old.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll ?? 'box', e.scrollTop]) : [];
       this.modal.innerHTML = '';
       const box = el('div', 'modal panel');
       render(box);
       const confirm = this.confirmBar();
       if (confirm) box.append(confirm);
       this.modal.append(box);
+      for (const [key, top] of scrolls) {
+        const e = key === 'box' ? box : box.querySelector(`[data-scroll="${key}"]`);
+        if (e) e.scrollTop = top;
+      }
     };
     this.refreshModal();
     this.onModalChange?.(true);
@@ -241,50 +262,77 @@ export class Hud {
     this.onModalChange?.(false);
   }
 
-  openShop({ stock, onBuy, onSell, onBuyStyle }) {
-    this.shopTab ??= 'gear';
+  /** The town shop: a tab per section, Fashion, and Sell. Better gear unlocks every 20 levels. */
+  openShop({ onBuy, onSell, onBuyStyle }) {
+    this.shopTab ??= 'weapons';
     this.openModal((box) => {
-      const gold = this.world?.gold ?? 0;
+      const gold = this.self?.gold ?? 0, level = this.self?.level ?? 1, tier = shopTier(level);
       box.append(el('h2', null, `Pebble Town Shop <span class="gold">🪙 ${gold}</span>`));
       const tabs = el('div', 'tabs');
-      for (const [id, label] of [['gear', '⚔ Gear'], ['fashion', '👑 Fashion']]) {
+      for (const [id, label] of [...SHOP_SECTIONS.map((sec) => [sec.id, `${sec.icon} ${sec.name}`]), ['fashion', '👑 Fashion'], ['sell', '💰 Sell']]) {
         const t = el('button', this.shopTab === id ? 'selected' : '', label);
         t.addEventListener('click', () => { this.shopTab = id; this.refreshModal?.(); });
         tabs.append(t);
       }
       box.append(tabs);
-      if (this.shopTab === 'fashion') {
-        box.append(this.fashionShop(gold, onBuyStyle), closeButton(this));
-        return;
+      const body = el('div', 'shop-body');
+      body.dataset.scroll = `shop-${this.shopTab}`;
+      if (this.shopTab === 'fashion') body.append(this.fashionShop(gold, onBuyStyle));
+      else if (this.shopTab === 'sell') body.append(this.sellList(onSell));
+      else {
+        const sec = SHOP_SECTIONS.find((x) => x.id === this.shopTab);
+        const items = SHOP_STOCK.filter((id) => sec.kinds.includes(ITEMS[id].kind)).sort((x, y) => ITEMS[x].tier - ITEMS[y].tier || ITEMS[x].price - ITEMS[y].price);
+        let shownTier = -1;
+        for (const id of items) {
+          const it = ITEMS[id];
+          if (it.tier > tier + 1) continue; // only tease the next tier
+          if (it.tier !== shownTier) {
+            shownTier = it.tier;
+            body.append(el('h3', 'tier-head', it.tier > tier ? `🔒 Unlocks at level ${it.tier * SHOP_TIER_LEVELS}` : it.tier ? `Level ${it.tier * SHOP_TIER_LEVELS}+` : 'For everyone'));
+          }
+          const owned = isGear(id) && (this.self?.gear ?? []).includes(id);
+          const locked = it.tier > tier;
+          const row = el('button', `shop-row${locked ? ' locked' : ''}`, `<span>${esc(it.name)} <small>${itemStat(it)}</small></span><span class="gold">${owned ? '✓' : locked ? '🔒' : it.price}</span>`);
+          row.disabled = locked || owned || gold < it.price;
+          row.addEventListener('click', () => this.askToBuy(it.name, it.price, () => onBuy(id)));
+          body.append(row);
+        }
       }
-      const cols = el('div', 'shop-cols');
-      const buy = el('div', 'shop-col', '<h3>Buy</h3>');
-      for (const id of stock) {
-        const it = ITEMS[id];
-        const stat = it.kind === 'weapon' ? `⚔ ${it.damage}` : it.kind === 'shield' ? `🛡 blocks ${Math.round(it.block * 100)}%` : it.heal ? `❤ +${it.heal}` : '';
-        const owned = (it.kind === 'weapon' || it.kind === 'shield') && (this.self?.gear ?? []).includes(id);
-        const row = el('button', 'shop-row', `<span>${esc(it.name)} <small>${stat}</small></span><span class="gold">${owned ? '✓' : it.price}</span>`);
-        row.disabled = gold < it.price || owned;
-        row.addEventListener('click', () => this.askToBuy(it.name, it.price, () => onBuy(id)));
-        buy.append(row);
-      }
-      const sell = el('div', 'shop-col', '<h3>Sell</h3>');
-      const loot = Object.entries(this.self?.inventory ?? {}).filter(([id, n]) => ITEMS[id]?.sell && n > 0);
-      if (!loot.length) sell.append(el('p', 'muted', 'Nothing to sell. Go mining!'));
+      box.append(body, closeButton(this));
+    });
+  }
+
+  /** The Sell tab: loot from your bag, and gear you aren't wearing. */
+  sellList(onSell) {
+    const wrap = el('div', 'sell-list');
+    const s = this.self ?? {};
+    const loot = Object.entries(s.inventory ?? {}).filter(([id, n]) => ITEMS[id]?.sell && n > 0);
+    const spare = (s.gear ?? []).filter((id) => id !== s.weapon && id !== s.shield && id !== s.armor);
+    if (!loot.length && !spare.length) wrap.append(el('p', 'muted', 'Nothing to sell. Go mining!'));
+    if (loot.length) {
+      wrap.append(el('h3', null, 'Loot'));
       for (const [id, n] of loot) {
         const it = ITEMS[id];
-        const row = el('button', 'shop-row', `<span>${esc(it.name)} ×${n}</span><span class="gold">${it.sell} ea</span>`);
+        const row = el('button', 'shop-row', `<span>${esc(it.name)} ×${n}</span><span class="gold">${it.sell} each · ${it.sell * n}</span>`);
         row.addEventListener('click', () => onSell(id, n));
-        sell.append(row);
+        wrap.append(row);
       }
       if (loot.length > 1) {
-        const all = el('button', 'primary', `Sell everything (${loot.reduce((a, [id, n]) => a + ITEMS[id].sell * n, 0)} gold)`);
+        const all = el('button', 'primary', `Sell all loot (${loot.reduce((a, [id, n]) => a + ITEMS[id].sell * n, 0)} gold)`);
         all.addEventListener('click', () => loot.forEach(([id, n]) => onSell(id, n)));
-        sell.append(all);
+        wrap.append(all);
       }
-      cols.append(buy, sell);
-      box.append(cols, closeButton(this));
-    });
+    }
+    if (spare.length) {
+      wrap.append(el('h3', null, 'Spare gear'), el('p', 'muted', 'Things you have but aren’t using. (Take something off with C to sell it.)'));
+      for (const id of spare) {
+        const it = ITEMS[id];
+        const row = el('button', 'shop-row', `<span>${esc(it.name)} <small>${itemStat(it)}</small></span><span class="gold">${sellValue(id)}</span>`);
+        row.addEventListener('click', () => this.askToSell(it.name, sellValue(id), () => onSell(id, 1)));
+        wrap.append(row);
+      }
+    }
+    return wrap;
   }
 
   /** The shop's fashion tab: everything with a price, grouped by slot. */
@@ -391,16 +439,18 @@ export class Hud {
       box.append(stats);
       box.append(el('h3', null, 'Gear bag'), el('p', 'muted', 'Anyone can use anything! Damage = weapon + half the matching skill.'));
       const bag = el('div', 'fashion-grid');
-      const gear = [...(s.gear ?? [])].sort((a, b) => (ITEMS[a].kind > ITEMS[b].kind ? -1 : 1));
+      const order = { weapon: 0, shield: 1, armor: 2 };
+      const gear = [...(s.gear ?? [])].sort((a, b) => order[ITEMS[a].kind] - order[ITEMS[b].kind] || (ITEMS[a].damage ?? 0) - (ITEMS[b].damage ?? 0));
       for (const id of gear) {
         const it = ITEMS[id];
-        const on = id === s.weapon || id === s.shield;
+        const on = id === s.weapon || id === s.shield || id === s.armor;
         const stat = it.kind === 'weapon'
           ? `⚔ ${attackDamage(id, s.stats)} <small>${STATS[weaponStat(id)].icon}${it.ranged ? ' ranged' : ''}</small>`
-          : `🛡 ${Math.round(it.block * 100)}%`;
+          : itemStat(it);
         const b = el('button', `shop-row${on ? ' selected' : ''}`, `<span>${esc(it.name)}</span><span>${stat}</span>`);
-        b.addEventListener('click', () => (on && it.kind === 'shield' ? onEquip(null, 'shield') : onEquip(id)));
-        b.title = on ? (it.kind === 'shield' ? 'Click to put it away' : 'Equipped') : 'Click to equip';
+        const removable = it.kind === 'shield' || it.kind === 'armor';
+        b.addEventListener('click', () => (on && removable ? onEquip(null, it.kind) : onEquip(id)));
+        b.title = on ? (removable ? 'Click to take it off' : 'Equipped') : 'Click to equip';
         bag.append(b);
       }
       box.append(bag, closeButton(this));
@@ -409,7 +459,7 @@ export class Hud {
 
   openForge({ onForge }) {
     this.openModal((box) => {
-      const s = this.self, gold = this.world?.gold ?? 0;
+      const s = this.self, gold = this.self?.gold ?? 0;
       box.append(el('h2', null, `The Forge <span class="gold">🪙 ${gold}</span>`),
         el('p', 'muted', 'Find blueprints in dungeon chests and from bosses, then bring ore here.'));
       const list = el('div', 'forge-list');
@@ -438,10 +488,10 @@ export class Hud {
   }
 
   /** Your pets (level, evolution, pick who follows you, rename) and, at the Pet Keeper, adopting. */
-  openPets({ shop, onBuy, onPick, onRename, onRevive }) {
+  openPets({ shop, onBuy, onBuyItem, onPick, onRename, onRevive }) {
     const ICONS = PET_ICONS;
     this.openModal((box) => {
-      const gold = this.world?.gold ?? 0, mine = this.self?.pets ?? [], current = this.self?.pet ?? null;
+      const gold = this.self?.gold ?? 0, mine = this.self?.pets ?? [], current = this.self?.pet ?? null;
       box.append(el('h2', null, `${shop ? 'Pet Keeper' : 'My pets'} <span class="gold">🪙 ${gold}</span>`));
       if (mine.length) {
         box.append(el('p', 'muted', `Pets fight beside you and get a new look every ${TIER_EVERY} levels (they evolve at ${EVOLVE_AT[0]} and ${EVOLVE_AT[1]}). If a pet faints, the Pet Keeper can revive it.`));
@@ -499,6 +549,16 @@ export class Hud {
         box.append(el('p', 'muted', 'No pets yet! Visit the Pet Keeper in town. Maple the Maltipoo is free!'));
       }
       if (shop) {
+        box.append(el('h3', null, 'Treats (press G to feed your pet)'));
+        const treats = el('div', 'fashion-grid');
+        for (const id of PET_SHOP_STOCK) {
+          const it = ITEMS[id], have = this.self?.inventory?.[id] ?? 0;
+          const b = el('button', 'shop-row', `<span>${esc(it.name)} <small>${itemStat(it)}${have ? ` · you have ${have}` : ''}</small></span><span class="gold">${it.price}</span>`);
+          b.disabled = gold < it.price;
+          b.addEventListener('click', () => this.askToBuy(it.name, it.price, () => onBuyItem(id)));
+          treats.append(b);
+        }
+        box.append(treats);
         box.append(el('h3', null, 'Adopt a friend'));
         const grid = el('div', 'pet-grid');
         for (const [species, def] of Object.entries(PET_SPECIES)) {
@@ -597,6 +657,16 @@ export class Hud {
     });
     this.refreshModal = null;
   }
+}
+
+/** One line about what an item does: damage, block, armor, healing. */
+function itemStat(it) {
+  if (it.kind === 'weapon') return `⚔ ${it.damage}${it.ranged ? ' ranged' : ''}`;
+  if (it.kind === 'shield') return `🛡 blocks ${Math.round(it.block * 100)}%`;
+  if (it.kind === 'armor') return `🥋 −${Math.round(it.armor * 100)}% damage`;
+  if (it.heal) return it.heal >= 9999 ? '❤ full heal' : `❤ +${it.heal}`;
+  if (it.petHeal) return `🐾 +${it.petHeal}`;
+  return '';
 }
 
 /** 125 seconds → "2:05". */

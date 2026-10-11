@@ -18,8 +18,9 @@ import * as home from './home.js';
 import * as pets from './pets.js';
 import * as progression from './progression.js';
 import * as shop from './shop.js';
+import * as wallet from './wallet.js';
 
-export const SYSTEMS = { combat, day, dungeons, home, pets, progression, shop };
+export const SYSTEMS = { combat, day, dungeons, home, pets, progression, shop, wallet };
 
 /** Copy every system's methods onto the class; collect interactions and tick hooks. */
 export function installSystems(cls) {

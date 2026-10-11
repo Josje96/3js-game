@@ -4,7 +4,7 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES } from '
 import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, hairlessHead, skinSplit } from './cosmetics.js';
+import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, skinSplit } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 
@@ -98,7 +98,7 @@ const LOW_HP = 0.3;              // flash red at or below this share of max heal
 const CAPE_PART = /_Cape$/;
 
 export class CharacterView {
-  constructor({ cls, look, name, weapon, shield = null, isLocal = false }) {
+  constructor({ cls, look, name, weapon, shield = null, armor = null, isLocal = false }) {
     this.root = new THREE.Group();
     this.cls = cls;
     this.model = cloneCharacter((CLASSES[cls] ?? CLASSES.Knight).model);
@@ -133,6 +133,7 @@ export class CharacterView {
     this.setWeapon(weapon);
     this.offHand = this.model.getObjectByName('handslotl') ?? this.model.getObjectByName('handslot.l');
     this.setShield(shield);
+    this.setArmor(armor);
 
     if (name) {
       this.label = makeLabel(name, isLocal ? '#ffe680' : '#ffffff');
@@ -152,6 +153,23 @@ export class CharacterView {
       this.weaponObj = tintModel(cloneModel(model), ITEMS[id].tint);
       this.hand.add(this.weaponObj);
     }
+  }
+
+  /** Armor: shoulder pads and a chest plate in the armor's colour (built in cosmetics.js). */
+  setArmor(id) {
+    if (this.armorId === id) return;
+    this.armorId = id;
+    for (const h of this.armorParts ?? []) h.removeFromParent();
+    this.armorParts = [];
+    const def = ITEMS[id];
+    if (!def?.color) return;
+    const parts = buildArmor(def.color, def.tier ?? 0);
+    const before = this.borrowed.length;
+    this.attach('front', parts.chest);
+    this.attach('shoulderl', parts.left);
+    this.attach('shoulderr', parts.right);
+    this.armorParts = this.borrowed.splice(before); // not part of the look: survives setLook
+    this.flashMats = null;
   }
 
   setShield(id) {
@@ -198,6 +216,10 @@ export class CharacterView {
       const b = new THREE.Box3().setFromObject(body);
       out.back = anchor('chest', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * 0.62, b.min.z + 0.05), b.max.x - b.min.x);
       out.front = anchor('chest', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * 0.55, b.max.z - 0.02), b.max.x - b.min.x);
+      for (const side of ['l', 'r']) { // shoulder pads sit on top of the upper arms
+        const arm = this.model.getObjectByName(`upperarm${side}`) ?? this.model.getObjectByName(`upperarm.${side}`);
+        if (arm) out[`shoulder${side}`] = anchor(arm.name, arm.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.1, 0)), (b.max.x - b.min.x) * 0.5);
+      }
       out.hips = anchor('hips', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + 0.08, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
     }
     return out;

@@ -1,5 +1,5 @@
 // progression — part of the GameServer (see systems/index.js). Methods run with `this` = the GameServer.
-import { ITEMS, duplicateValue } from '../../shared/items.js';
+import { ITEMS, duplicateValue, isGear } from '../../shared/items.js';
 import { STATS, POINTS_PER_LEVEL, MAX_LEVEL, xpToNext, maxHpFor, attackDamage } from '../../shared/progression.js';
 
 export const methods = {
@@ -41,16 +41,15 @@ export const methods = {
 
   /** Equip something from your gear bag (or take your shield off with item: null, slot: 'shield'). */
   on_equip(p, { item, slot }) {
-    if (item === null && slot === 'shield') p.shield = null;
+    if (item == null && (slot === 'shield' || slot === 'armor')) p[slot] = null; // take it off
     else {
       const def = ITEMS[item];
-      if (!def || !p.gear.includes(item)) return;
-      if (def.kind === 'weapon') p.weapon = item;
-      else if (def.kind === 'shield') p.shield = item;
-      else return;
+      if (!def || !p.gear.includes(item) || !isGear(item)) return;
+      p[def.kind] = item; // weapon / shield / armor
     }
     this.writeRecord(p);
     this.sendSelf(p);
+    this.broadcastRoster();
   },
 
   /** Found or bought a weapon/shield: into the bag, and on if it's better than what you hold. */
@@ -58,18 +57,14 @@ export const methods = {
     const def = ITEMS[item];
     if (p.gear.includes(item)) {
       const gold = duplicateValue(item);
-      this.save.gold += gold;
-      this.broadcastWorld();
+      this.earn(p, gold);
       this.toast(p, `Another ${def.name}! You already have one, so it's worth ${gold} gold.`);
       return;
     }
     p.gear.push(item);
-    const better = def.kind === 'weapon'
-      ? attackDamage(item, p.stats) > attackDamage(p.weapon, p.stats)
-      : (def.block ?? 0) > (ITEMS[p.shield]?.block ?? 0);
-    if (better) {
-      if (def.kind === 'weapon') p.weapon = item; else p.shield = item;
-    }
+    const score = (id) => (def.kind === 'weapon' ? attackDamage(id, p.stats) : def.kind === 'shield' ? ITEMS[id]?.block ?? 0 : ITEMS[id]?.armor ?? 0);
+    const better = score(item) > score(p[def.kind]);
+    if (better) p[def.kind] = item;
     this.toast(p, `New ${def.kind}: ${def.name}!${better ? ' Equipped.' : ' Press C to equip it.'}`);
     this.writeRecord(p);
     this.sendSelf(p);

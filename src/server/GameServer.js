@@ -11,7 +11,7 @@ import { xpToNext, maxHpFor } from '../shared/progression.js';
 import { hashSeed } from '../shared/rng.js';
 import { dist2 } from '../shared/physics.js';
 import { LiveLocation } from './LiveLocation.js';
-import { newPlayerRecord } from './saves.js';
+import { newPlayerRecord, PLAYER_FIELDS } from './saves.js';
 import { installSystems } from './systems/index.js';
 import { checkClientMessage } from '../shared/protocol.js';
 
@@ -101,11 +101,7 @@ export class GameServer {
 
   writeRecord(p) {
     const rec = this.save.players[p.id];
-    Object.assign(rec, {
-      name: p.name, cls: p.cls, look: p.look, level: p.level, xp: p.xp, points: p.points, stats: p.stats,
-      hp: p.hp, maxHp: p.maxHp, weapon: p.weapon, shield: p.shield, gear: p.gear, blueprints: p.blueprints,
-      closet: p.closet, pets: p.pets, pet: p.pet, inventory: p.inventory,
-    });
+    for (const f of PLAYER_FIELDS) rec[f] = p[f];
   }
 
   // ------------------------------------------------------------------ main loop
@@ -146,15 +142,15 @@ export class GameServer {
 
   sendSelf(p) {
     this.send(p, {
-      t: 'self', hp: p.hp, maxHp: p.maxHp, level: p.level, xp: p.xp, xpNext: xpToNext(p.level), points: p.points, stats: p.stats,
-      weapon: p.weapon, shield: p.shield, gear: p.gear, blueprints: p.blueprints, closet: p.closet, pets: p.pets, pet: p.pet, inventory: p.inventory,
+      t: 'self', hp: p.hp, maxHp: p.maxHp, level: p.level, xp: p.xp, xpNext: xpToNext(p.level), points: p.points, stats: p.stats, gold: p.gold,
+      weapon: p.weapon, shield: p.shield, armor: p.armor, gear: p.gear, blueprints: p.blueprints, closet: p.closet, pets: p.pets, pet: p.pet, inventory: p.inventory,
     });
   }
 
   broadcastWorld() {
     const s = this.save;
     const dayLeft = this.night ? 0 : Math.max(0, Math.ceil(DAY_SECONDS - this.dayClock));
-    this.broadcast({ t: 'world', name: s.name, seed: s.seed, day: s.day, gold: s.gold, flags: s.flags, dungeons: s.dungeons, night: this.night, dayLeft });
+    this.broadcast({ t: 'world', name: s.name, seed: s.seed, day: s.day, flags: s.flags, dungeons: s.dungeons, night: this.night, dayLeft });
   }
 
   broadcastRoster() {
@@ -200,14 +196,14 @@ export class GameServer {
     const look = cleanLook(msg.look ?? rec.look, rec.closet);
     // the profile can change between sessions (new name / class / outfit)
     rec.name = name; rec.cls = cls; rec.look = look;
+    // the saved fields (a copy: the record is only updated by writeRecord), plus things that only live while playing
     const p = {
-      id, name, cls, look,
-      level: rec.level, xp: rec.xp, points: rec.points, stats: { ...rec.stats },
-      hp: Math.max(1, rec.hp), maxHp: maxHpFor(rec.level, rec.stats),
-      weapon: rec.weapon, shield: rec.shield ?? null, gear: [...rec.gear], blueprints: [...(rec.blueprints ?? [])], closet: [...rec.closet], pets: (rec.pets ?? []).map((x) => ({ ...x })), pet: rec.pet ?? null, inventory: { ...rec.inventory },
+      id, ...structuredClone(Object.fromEntries(PLAYER_FIELDS.map((f) => [f, rec[f]]))),
       x: 0, z: 0, rot: 0, anim: 'idle', act: 0,
       loc: null, epoch: 0, lastAttack: -1, triggers: new Set(),
     };
+    p.maxHp = maxHpFor(p.level, p.stats);
+    p.hp = Math.max(1, Math.min(p.hp, p.maxHp));
     c.playerId = id;
     this.players.set(id, p);
     c.conn.send({ t: 'welcome', you: id, isHost: !!msg.isHost });
@@ -346,7 +342,7 @@ export { INTERACTIONS };
 
 function publicPlayer(p) {
   return {
-    id: p.id, name: p.name, cls: p.cls, look: p.look, weapon: p.weapon, shield: p.shield,
+    id: p.id, name: p.name, cls: p.cls, look: p.look, weapon: p.weapon, shield: p.shield, armor: p.armor,
     x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100,
     rot: Math.round(p.rot * 100) / 100, anim: p.anim, act: p.act, hp: p.hp, maxHp: p.maxHp,
   };

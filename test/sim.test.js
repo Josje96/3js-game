@@ -136,12 +136,13 @@ test('server: join, travel through portals, mine down, buy and sell', () => {
   assert.equal(p.loc, 'mine/2');
   assert.ok(!server.locations.has('mine/1'), 'empty floors are discarded');
 
-  // sell everything, buy a potion
-  const before = save.gold;
+  // back in town: sell everything, buy a potion (with your own gold)
+  server.travel(p, 'town');
+  const before = p.gold;
   for (const [item, qty] of Object.entries(p.inventory)) if (item !== 'potion') mom.say({ t: 'sell', item, qty });
-  assert.ok(save.gold > before, 'selling earns gold');
+  assert.ok(p.gold > before, 'selling earns gold');
   const potions = p.inventory.potion;
-  save.gold += 100;
+  p.gold += 100;
   mom.say({ t: 'buy', item: 'potion' });
   assert.equal(p.inventory.potion, potions + 1);
 });
@@ -379,9 +380,9 @@ test('server: XP levels you up, skill points raise stats, found weapons go in th
   assert.equal(p.weapon, 'staff');
   c.say({ t: 'equip', item: 'royalsword' }); // not owned
   assert.equal(p.weapon, 'staff');
-  const gold = server.save.gold;
+  const gold = p.gold;
   server.gainGear(p, 'greatsword'); // duplicate -> gold
-  assert.ok(server.save.gold > gold);
+  assert.ok(p.gold > gold);
   assert.equal(p.gear.filter((g) => g === 'greatsword').length, 1);
   assert.equal(attackDamage('staff', p.stats), 2 + 1, 'magic stat boosts the staff');
 
@@ -406,12 +407,12 @@ test('server: blueprints from chests teach recipes; the forge turns ore into wea
   c.say({ t: 'forge', recipe: 'copperblade' });
   assert.ok(!p.gear.includes('copperblade'), 'no ore yet');
   p.inventory.copper = 7; p.inventory.stone = 4;
-  server.save.gold = 100;
+  p.gold = 100;
   c.say({ t: 'forge', recipe: 'copperblade' });
   assert.ok(p.gear.includes('copperblade'));
   assert.equal(p.weapon, 'copperblade', 'stronger than the starter sword, so equipped');
   assert.deepEqual(p.inventory, { potion: 2, copper: 1 });
-  assert.equal(server.save.gold, 52);
+  assert.equal(p.gold, 52);
   c.say({ t: 'forge', recipe: 'dragonsword' }); // blueprint not found
   assert.ok(!p.gear.includes('dragonsword'));
 });
@@ -519,13 +520,13 @@ test('server: pets have health, faint, and are revived at the Pet Keeper for gol
   server.travel(p, 'house');
   assert.ok(![...server.locations.get('house').entities.values()].some((e) => e.type === 'pet'));
   server.travel(p, 'town');
-  server.save.gold = 10;
+  p.gold = 10;
   c.say({ t: 'revivePet', id: pet.id });
   assert.ok(pet.fainted, 'too poor');
-  server.save.gold = 100;
+  p.gold = 100;
   c.say({ t: 'revivePet', id: pet.id });
   assert.ok(!pet.fainted);
-  assert.equal(server.save.gold, 100 - reviveCost(1));
+  assert.equal(p.gold, 100 - reviveCost(1));
   assert.equal(pet.hp, petMaxHp('maple', 1));
   assert.ok([...server.locations.get('town').entities.values()].some((e) => e.type === 'pet'), 'back at your side');
 

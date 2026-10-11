@@ -1,7 +1,7 @@
 // combat — part of the GameServer (see systems/index.js). Methods run with `this` = the GameServer.
 import { ATTACK_RANGE, SHOT_SPEED, SHOT_RANGE, ROLL_IFRAMES, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, SPELL_DAMAGE, DEATH_GOLD_PENALTY } from '../../shared/config.js';
 import { ENEMIES, biomeFor, makeEnemy } from '../../shared/dungeons.js';
-import { ITEMS, weaponCooldown, weaponImpact, rollGearDrop, rollBlueprint } from '../../shared/items.js';
+import { ITEMS, weaponCooldown, weaponImpact, rollGearDrop, rollBlueprint, isGear } from '../../shared/items.js';
 import { XP, attackDamage } from '../../shared/progression.js';
 import { dist2 } from '../../shared/physics.js';
 
@@ -151,9 +151,8 @@ export const methods = {
   pickup(p, drop) {
     const kind = ITEMS[drop.item]?.kind;
     if (drop.item === 'gold') {
-      this.save.gold += drop.qty;
-      this.broadcastWorld();
-    } else if (kind === 'weapon' || kind === 'shield') {
+      this.earn(p, drop.qty);
+    } else if (isGear(drop.item)) {
       this.gainGear(p, drop.item);
     } else if (kind === 'blueprint') {
       const recipe = rollBlueprint(drop.depth ?? 1, p.blueprints);
@@ -163,8 +162,7 @@ export const methods = {
         this.writeRecord(p);
         this.sendSelf(p);
       } else {
-        this.save.gold += 25;
-        this.broadcastWorld();
+        this.earn(p, 25);
         this.toast(p, 'An old blueprint you already know. Sold it for 25 gold.');
       }
     } else {
@@ -184,16 +182,16 @@ export const methods = {
       this.sendToLocation(p.loc, { t: 'fx', kind: 'block', id: p.id, x: p.x, z: p.z });
       return;
     }
+    amount = Math.max(1, Math.round(amount * (1 - (ITEMS[p.armor]?.armor ?? 0)))); // armor softens every hit
     p.hp = Math.max(0, p.hp - amount);
     this.sendSelf(p);
     this.sendToLocation(p.loc, { t: 'fx', kind: 'hurt', id: p.id, x: p.x, z: p.z, amount });
     if (p.hp > 0) return;
-    const lost = Math.floor(this.save.gold * DEATH_GOLD_PENALTY);
-    this.save.gold -= lost;
+    const lost = Math.floor(p.gold * DEATH_GOLD_PENALTY);
+    p.gold -= lost;
     this.toast(p, `You fainted! Someone carried you home.${lost ? ` (dropped ${lost} gold)` : ''}`);
     p.hp = p.maxHp;
     this.sendSelf(p);
-    this.broadcastWorld();
     this.travel(p, 'house');
   },
 

@@ -19,7 +19,6 @@ export function newSave({ name, seed }) {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     day: 1,
-    gold: 50,                      // the family purse, shared by everyone
     flags: {},                     // e.g. { mineCleared: true }
     dungeons: Object.fromEntries(Object.keys(DUNGEONS).map((id) => [id, { deepest: 0 }])),
     players: {},                   // playerId -> player record (see newPlayerRecord)
@@ -39,18 +38,27 @@ export function newPlayerRecord({ name, cls }) {
     stats,                         // { str, dex, int, vit } — the class only picks the starting ones
     hp: maxHpFor(1, stats),
     maxHp: maxHpFor(1, stats),
+    gold: 50,                      // everyone has their own purse
     weapon: c.weapon,
     gear: [c.weapon],              // every weapon/shield you own; `weapon`/`shield` are the equipped ones
     blueprints: [],                // forge recipes you've found
     inventory: { potion: 2 },
     shield: null,
+    armor: null,
     closet: [],                    // bought styles, e.g. ['hat:crown', 'dye:sky']
     pets: [],                      // owned pets: [{ id, species, name, level, xp }]
     pet: null,                     // id of the one following you around
     look: { hat: 'own', cape: 'own', back: 'none', dye: 'none' },
-    location: 'house',
   };
 }
+
+/**
+ * Player fields that live in the save: copied into the live player when they join and back
+ * (GameServer.writeRecord) when the world saves. A new saved field goes here, in newPlayerRecord,
+ * and in a migration that fills it in for old saves.
+ */
+export const PLAYER_FIELDS = ['name', 'cls', 'look', 'level', 'xp', 'points', 'stats', 'hp', 'maxHp', 'gold',
+  'weapon', 'shield', 'armor', 'gear', 'blueprints', 'inventory', 'closet', 'pets', 'pet'];
 
 /**
  * Save upgrades, oldest first. Each step brings a save up to `version`.
@@ -94,6 +102,19 @@ export const MIGRATIONS = [
       }
     },
   },
+  {
+    version: 6, // gold is per player now: the old family purse is split evenly; armor slot
+    up(save) {
+      const players = Object.values(save.players ?? {});
+      const share = players.length ? Math.floor((save.gold ?? 0) / players.length) : 0;
+      for (const rec of players) {
+        rec.gold ??= share;
+        rec.armor ??= null;
+        delete rec.location; // never used
+      }
+      delete save.gold;
+    },
+  },
 ];
 
 if (MIGRATIONS.at(-1).version !== SAVE_VERSION) throw new Error('SAVE_VERSION must equal the last migration\'s version');
@@ -120,7 +141,7 @@ export class SaveStore {
       .map((id) => {
         try {
           const s = JSON.parse(this.storage.getItem(SLOT_KEY(id)));
-          return { id, name: s.name, day: s.day, gold: s.gold, updatedAt: s.updatedAt, players: Object.values(s.players).map((p) => p.name) };
+          return { id, name: s.name, day: s.day, updatedAt: s.updatedAt, players: Object.values(s.players).map((p) => p.name) };
         } catch { return null; }
       })
       .filter(Boolean)

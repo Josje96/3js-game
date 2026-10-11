@@ -21,14 +21,12 @@ export const interactions = {
   },
   spring(p) {
     if (p.hp >= p.maxHp) return this.toast(p, 'You splash about. You already feel great!');
-    if (this.save.gold < SPRING_COST) return this.toast(p, `The spring asks for ${SPRING_COST} gold...`);
-    this.save.gold -= SPRING_COST;
+    if (!this.spend(p, SPRING_COST, 'the healing spring')) return;
     const healed = p.maxHp - p.hp;
     p.hp = p.maxHp;
     const pet = p.pets.find((x) => x.id === p.pet && !x.fainted);
     if (pet) { pet.hp = petMaxHp(pet.species, pet.level); this.syncPetEnt(p); } // a splash for the pet too
     this.sendSelf(p);
-    this.broadcastWorld();
     this.sendToLocation(p.loc, { t: 'fx', kind: 'heal', id: p.id, x: p.x, z: p.z, amount: healed });
     this.toast(p, `The spring sparkles... fully healed! (-${SPRING_COST} gold)`);
   },

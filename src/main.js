@@ -64,7 +64,7 @@ function renderTitle() {
     row.className = 'save-row';
     row.innerHTML = `<div><b></b><br><small class="muted"></small></div>`;
     row.querySelector('b').textContent = s.name;
-    row.querySelector('small').textContent = `Day ${s.day} · ${s.gold} gold · ${s.players.join(', ') || 'nobody yet'}`;
+    row.querySelector('small').textContent = `Day ${s.day} · ${s.players.join(', ') || 'nobody yet'}`;
     const play = button('Play', 'primary', () => start(() => store.load(s.id)));
     const exp = button('⬇', 'small', () => exportSave(store.load(s.id)));
     exp.title = 'Download save file';

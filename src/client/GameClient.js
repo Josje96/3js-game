@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
 import { buildLayout } from '../shared/locations.js';
 import { moveCircle } from '../shared/physics.js';
-import { ITEMS, weaponCooldown } from '../shared/items.js';
+import { ITEMS, weaponCooldown, bestHeal } from '../shared/items.js';
 import { LocationView } from './LocationView.js';
 import { CharacterView, Debris, makeEntityView } from './views.js';
 import { NovaBlast } from './effects.js';
@@ -101,6 +101,7 @@ export class GameClient {
         this.hud.setSelf(msg);
         this.me?.setWeapon(msg.weapon);
         this.me?.setShield(msg.shield);
+        this.me?.setArmor(msg.armor);
         this.me?.setHealth(msg.hp / msg.maxHp);
         this.hud.setDanger(msg.hp / msg.maxHp);
         break;
@@ -151,7 +152,7 @@ export class GameClient {
   }
 
   makeMe() {
-    const me = new CharacterView({ cls: this.profile.cls, look: this.profile.look, name: this.profile.name, weapon: this.self?.weapon, shield: this.self?.shield, isLocal: true });
+    const me = new CharacterView({ cls: this.profile.cls, look: this.profile.look, name: this.profile.name, weapon: this.self?.weapon, shield: this.self?.shield, armor: this.self?.armor, isLocal: true });
     if (this.self) me.setHealth(this.self.hp / this.self.maxHp);
     return me;
   }
@@ -216,6 +217,7 @@ export class GameClient {
     v.setWeapon(p.weapon);
     v.setLook(p.look);
     v.setShield(p.shield);
+    v.setArmor(p.armor);
     if (p.act !== v.lastAct) { v.lastAct = p.act; v.play('attack'); }
   }
 
@@ -280,7 +282,6 @@ export class GameClient {
   openUi(msg) {
     if (msg.kind === 'shop') {
       this.hud.openShop({
-        stock: msg.stock,
         onBuy: (item) => this.conn.send({ t: 'buy', item }),
         onSell: (item, qty) => this.conn.send({ t: 'sell', item, qty }),
         onBuyStyle: (slot, id) => this.conn.send({ t: 'buyStyle', slot, id }),
@@ -318,6 +319,7 @@ export class GameClient {
     this.hud.openPets({
       shop,
       onBuy: (species) => this.conn.send({ t: 'buyPet', species }),
+      onBuyItem: (item) => this.conn.send({ t: 'buy', item }),
       onPick: (id) => this.conn.send({ t: 'pickPet', id }),
       onRename: (id, name) => this.conn.send({ t: 'renamePet', id, name }),
       onRevive: (id) => this.conn.send({ t: 'revivePet', id }),
@@ -425,10 +427,9 @@ export class GameClient {
     }
     this.hud.setSpell(this.spellCooldown);
     if (input.consume('potion')) {
-      const inv = this.self?.inventory ?? {};
-      const item = ['potion', 'bigpotion', 'cocoa'].find((id) => inv[id]) ?? null;
+      const item = bestHeal(this.self?.inventory, (this.self?.maxHp ?? 0) - (this.self?.hp ?? 0));
       if (item) this.conn.send({ t: 'use', item });
-      else this.hud.toast('No potions! Buy some in town.');
+      else this.hud.toast('Nothing to eat or drink! The shop has food and potions.');
     }
     const near = this.nearestInteractable();
     this.hud.prompt(near && !this.hud.modalOpen ? near.prompt : null);

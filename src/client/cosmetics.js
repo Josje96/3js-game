@@ -403,6 +403,36 @@ const CLOTHES_BUILDERS = {
   },
 };
 
+/**
+ * Armor: a chest plate (built like the 'front' clothes extras) and two shoulder pads (a unit-wide
+ * dome sitting on each upper arm). Better tiers get a rim and a little gem.
+ */
+export function buildArmor(color, tier = 0) {
+  const metal = mat(color, { metalness: 0.65, roughness: 0.35 });
+  const trim = mat(tier >= 2 ? 0xffd23f : 0x6b4a2c, { metalness: 0.5, roughness: 0.4 });
+  // a breastplate: a curved shell wrapped round the front of the chest, with a ridge down the middle
+  const chest = new THREE.Group();
+  const shell = new THREE.CylinderGeometry(0.5, 0.44, 0.52, 20, 1, true, -Math.PI * 0.42, Math.PI * 0.84);
+  const plate = mesh(shell, metal, 0, 0.02, -0.44);
+  plate.material = metal.clone();
+  plate.material.side = THREE.DoubleSide;
+  chest.add(plate);
+  chest.add(mesh(new THREE.BoxGeometry(0.05, 0.5, 0.06), trim, 0, 0.02, 0.05));
+  const belt = mesh(new THREE.CylinderGeometry(0.47, 0.47, 0.07, 20, 1, true, -Math.PI * 0.42, Math.PI * 0.84), trim, 0, -0.24, -0.44);
+  belt.material = trim.clone();
+  belt.material.side = THREE.DoubleSide;
+  chest.add(belt);
+  if (tier >= 1) chest.add(mesh(new THREE.OctahedronGeometry(0.06, 0), mat(tier >= 3 ? 0xb48cff : 0x7fd8ff, { emissive: 0x223355, roughness: 0.2 }), 0, 0.1, 0.09));
+  const pad = () => {
+    const g = new THREE.Group();
+    g.add(mesh(new THREE.SphereGeometry(0.5, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), metal, 0, -0.1, 0, 1, 0.75, 1));
+    g.add(mesh(new THREE.TorusGeometry(0.5, 0.06, 6, 18), trim, 0, -0.1, 0)).children.at(-1).rotation.x = Math.PI / 2;
+    if (tier >= 3) g.add(mesh(new THREE.ConeGeometry(0.1, 0.35, 6), trim, 0, 0.3, 0));
+    return g;
+  };
+  return { chest, left: pad(), right: pad() };
+}
+
 export function buildClothes(extra, color) {
   const built = CLOTHES_BUILDERS[extra]?.() ?? {};
   if (color != null && extra === 'gown') built.hips?.children[0]?.material.color.set(color);
