@@ -130,6 +130,8 @@ export const ENEMIES = {
   kelpshroom: { hp: 26,  damage: 3,  speed: 2.4, gold: [8, 12], ai: 'chase', body: 'shroom', tint: 0x4fae6a },
   pearlslime: { hp: 24,  damage: 3,  speed: 3.4, gold: [10, 15], ai: 'chase', color: 0xffe0ee },
 
+  // the training yard's slime in town: never hurts anyone (see server/systems/town.js)
+  practice:   { hp: 40,  damage: 0,  speed: 2.0, gold: [0, 0],  ai: 'chase', color: 0xffa8d8, harmless: true },
   // bosses (one per biome; much tougher than their floor)
   king:          { hp: 85,  damage: 3, speed: 2.4, gold: [90, 90],   ai: 'chase', scale: 3.2 },
   frostgiant:    { hp: 245, damage: 5, speed: 2.4, gold: [160, 160], ai: 'chase', body: 'yeti', scale: 2.4, r: 1.0 },

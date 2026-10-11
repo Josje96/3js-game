@@ -3,7 +3,8 @@
 //
 //   Move: WASD / arrows / left stick        Attack: Space / J / click / (A)
 //   Interact: E / (X)    Potion: Q / (Y)    Menu: Esc / (Start)    Chat: Enter    Music: M
-//   Roll: Shift / K / (B)    Character sheet: C / I / (Back)    Pets: P
+//   Roll: Shift / K / (B)    Character sheet: C / I / (Back)    Pets: P    Area spell: R    Feed pet: G
+//   At home: B = build mode (place furniture; R rotates, E places, X picks up)
 
 const KEY_ACTIONS = {
   Space: 'attack', KeyJ: 'attack',
@@ -12,7 +13,7 @@ const KEY_ACTIONS = {
   Escape: 'menu',
   Enter: 'chat',
   KeyM: 'music',
-  KeyC: 'sheet', KeyI: 'sheet', KeyP: 'pets',
+  KeyC: 'sheet', KeyI: 'sheet', KeyP: 'pets', KeyB: 'build', KeyX: 'pickup',
   ShiftLeft: 'roll', ShiftRight: 'roll', KeyK: 'roll',
 };
 const PAD_ACTIONS = { 0: 'attack', 1: 'roll', 2: 'interact', 3: 'potion', 4: 'spell', 5: 'feed', 8: 'sheet', 9: 'menu' };

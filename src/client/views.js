@@ -613,6 +613,38 @@ export class DropView {
   dispose() { this.root.removeFromParent(); }
 }
 
+/** The training dummy in town: a straw man on a post with a target on his chest. Wobbles when hit. */
+export class DummyView {
+  constructor(e) {
+    this.root = new THREE.Group();
+    this.root.position.set(e.x, 0, e.z);
+    this.inner = new THREE.Group();
+    this.root.add(this.inner);
+    const wood = new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.9 });
+    const straw = new THREE.MeshStandardMaterial({ color: 0xe0c070, roughness: 1 });
+    const sack = new THREE.MeshStandardMaterial({ color: 0xc8a878, roughness: 1 });
+    const part = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; this.inner.add(o); return o; };
+    part(new THREE.CylinderGeometry(0.1, 0.12, 2.2, 8), wood, 0, 1.1, 0);
+    part(new THREE.CylinderGeometry(0.5, 0.42, 1.0, 12), sack, 0, 1.45, 0);
+    part(new THREE.SphereGeometry(0.34, 12, 10), sack, 0, 2.25, 0);
+    part(new THREE.CylinderGeometry(0.07, 0.07, 1.8, 6), wood, 0, 1.75, 0).rotation.z = Math.PI / 2; // arms
+    for (const s of [-1, 1]) part(new THREE.ConeGeometry(0.18, 0.4, 8), straw, s * 0.95, 1.75, 0).rotation.z = s * Math.PI / 2;
+    const ring = (r, c) => part(new THREE.RingGeometry(r * 0.6, r, 24), new THREE.MeshStandardMaterial({ color: c, side: THREE.DoubleSide }), 0, 1.5, 0.51);
+    ring(0.36, 0xffffff); ring(0.22, 0xe0393b);
+    part(new THREE.CircleGeometry(0.1, 16), new THREE.MeshStandardMaterial({ color: 0xe0393b }), 0, 1.5, 0.52);
+    for (const s of [-1, 1]) part(new THREE.BoxGeometry(0.08, 0.08, 0.02), new THREE.MeshBasicMaterial({ color: 0x3a2a1c }), s * 0.12, 2.3, 0.33); // stitched eyes
+    this.wobble = 0;
+  }
+  apply() {}
+  hit() { this.wobble = 1; }
+  update(dt) {
+    this.wobble = Math.max(0, this.wobble - dt * 1.5);
+    this.inner.rotation.x = Math.sin(this.wobble * 18) * this.wobble * 0.35;
+    this.inner.rotation.z = Math.cos(this.wobble * 13) * this.wobble * 0.15;
+  }
+  dispose() { this.root.removeFromParent(); }
+}
+
 export class ChestView {
   constructor(e) {
     this.root = cloneModel('dungeon/chest_gold');
@@ -800,6 +832,7 @@ export function makeEntityView(e) {
     case 'pet': return new PetEntityView(e, makeLabel);
     case 'ladder': return new LadderView(e);
     case 'furniture': return new FurnitureView(e, makeLabel);
+    case 'dummy': return new DummyView(e);
     default: return null;
   }
 }

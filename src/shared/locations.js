@@ -67,13 +67,17 @@ function parseAsciiMap(map) {
   const h = map.rows.length, w = map.rows[0].length;
   const props = [];
   const bedSlots = [];
-  let spawn = null;
+  const decor = [];          // flower beds etc: looks only
+  const spots = {};          // named points (training dummy, practice slime...)
+  let spawn = null, folk = 0;
   const rows = map.rows.map((row, cz) =>
     [...row].map((ch, cx) => {
       const leg = LEGEND[ch];
       if (!leg) throw new Error(`unknown map char '${ch}'`);
       const pos = { x: cx * CELL + CELL / 2, z: cz * CELL + CELL / 2 };
-      if (leg.prop) props.push({ type: leg.prop, ...pos, rot: 0 });
+      if (leg.prop) props.push({ type: leg.prop, ...pos, rot: 0, ...(leg.prop === 'townsfolk' ? { folk: folk++ } : {}) });
+      if (leg.decor) decor.push({ kind: leg.decor, ...pos });
+      if (leg.spot) spots[leg.spot] = pos;
       if (leg.spawn) spawn = pos;
       if (leg.bedSlot) bedSlots.push({ x: pos.x, z: pos.z - 0.6 });
       return leg.portal ? ch : leg.base;
@@ -86,6 +90,8 @@ function parseAsciiMap(map) {
     portals: structuredClone(map.portals),
     props,
     bedSlots,
+    decor,
+    spots,
     initial: [],
     spawn: spawn ?? { x: w * CELL / 2, z: h * CELL / 2 },
   };

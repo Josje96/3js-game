@@ -3,6 +3,9 @@
 import * as THREE from 'three';
 import { PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
 import { buildLayout } from '../shared/locations.js';
+import { DUNGEONS } from '../shared/dungeons.js';
+import { FURNITURE, DECORATOR_FLAG } from '../shared/furniture.js';
+import { FurnitureView } from './furniture.js';
 import { moveCircle } from '../shared/physics.js';
 import { ITEMS, weaponCooldown, bestHeal } from '../shared/items.js';
 import { LocationView } from './LocationView.js';
@@ -90,12 +93,17 @@ export class GameClient {
   onMessage(msg) {
     switch (msg.t) {
       case 'welcome': this.you = msg.you; break;
-      case 'world':
+      case 'world': {
+        const restyle = this.layout?.key === 'house' && (msg.house?.wall !== this.world?.house?.wall || msg.house?.floor !== this.world?.house?.floor);
         this.world = msg;
         this.dayLeft = msg.dayLeft;
+        if (restyle) this.rebuildScenery();
         this.hud.setWorld(msg);
-        this.locView?.setFlags(msg.flags);
+        this.locView?.setWorld(msg);
+        this.checkUnlocks();
         break;
+      }
+      case 'house': this.house = msg; this.hud.refreshModal?.(); this.hud.renderBuild?.(this); break;
       case 'self':
         if (this.self && msg.hp < this.self.hp) this.me?.play('hurt');
         this.self = msg;
@@ -120,6 +128,7 @@ export class GameClient {
   }
 
   enterLocation(msg) {
+    if (this.building) this.stopBuilding();
     // tear down the old place
     this.locView?.dispose();
     for (const { view } of this.ents.values()) view?.dispose();
@@ -131,6 +140,7 @@ export class GameClient {
     this.epoch = msg.epoch;
     this.layout = buildLayout(msg.key, msg.seed);
     this.locView = new LocationView(this.layout, this.world);
+    this.unlockShown = new Set();
     this.scene.add(this.locView.group);
     for (const e of msg.ents) this.addEnt(e);
 
@@ -149,8 +159,16 @@ export class GameClient {
     this.me.root.position.set(msg.x, 0, msg.z);
     this.snapCamera = true;
     this.hud.setLocation(this.layout.title);
+    this.checkUnlocks();
     this.music.setMood(moodFor(this.layout));
     for (const p of msg.players) if (p.id !== this.you) this.updateOther(p);
+  }
+
+  /** Rebuild the walls and floors of where we are (e.g. the fort got new wallpaper). Entities stay. */
+  rebuildScenery() {
+    this.locView?.dispose();
+    this.locView = new LocationView(this.layout, this.world);
+    this.scene.add(this.locView.group);
   }
 
   makeMe() {
@@ -318,6 +336,14 @@ export class GameClient {
       });
     } else if (msg.kind === 'chest') {
       this.hud.openChest({ storage: msg.storage, onStash: (item, qty, dir) => this.conn.send({ t: 'stash', item, qty, dir }) });
+    } else if (msg.kind === 'talk') {
+      this.hud.speech(msg.name, msg.text);
+    } else if (msg.kind === 'decorator') {
+      this.hud.openDecorator({
+        house: () => this.house,
+        onBuy: (item) => this.conn.send({ t: 'buyFurniture', item }),
+        onStyle: (kind, id) => this.conn.send({ t: 'houseStyle', kind, id }),
+      });
     } else if (msg.kind === 'elevator') {
       this.hud.openElevator({ name: msg.name, floors: msg.floors, onPick: (floor) => this.conn.send({ t: 'elevator', dungeon: msg.dungeon, floor }) });
     }
@@ -355,6 +381,29 @@ export class GameClient {
     this.renderer.render(this.scene, this.camera);
   }
 
+  /**
+   * The first time you're in town after a dungeon is completed, the camera swings over to the
+   * next dungeon's gate and you watch its chains break. Remembered per world in this browser.
+   */
+  checkUnlocks() {
+    if (this.layout?.key !== 'town' || !this.world || this.cinematic) return;
+    const key = `fdg.unlocksSeen.${this.world.seed}.${this.world.name}`;
+    let seen = [];
+    try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
+    for (const [id, d] of Object.entries(this.world.dungeons ?? {})) {
+      if (!d.unlocked || seen.includes(id) || this.unlockShown.has(id) || !DUNGEONS[id]?.unlockedBy) continue;
+      // a world that already had this gate open before chains existed: nothing to show
+      if (d.unlockedOnDay == null) { seen.push(id); continue; }
+      const at = this.locView.holdChains(id);
+      if (!at) continue;
+      this.unlockShown.add(id);
+      this.cinematic = { t: 0, at, id, broke: false, done: () => { seen.push(id); try { localStorage.setItem(key, JSON.stringify(seen)); } catch {} } };
+      this.hud.toast(`The chains on the ${DUNGEONS[id].name} are breaking!`, true);
+      break;
+    }
+    try { localStorage.setItem(key, JSON.stringify(seen)); } catch {}
+  }
+
   /** Outdoors, the last two minutes before night turn the sky orange, then purple. */
   updateSky(dt) {
     if (!this.layout || this.layout.theme !== 'outdoor' || !this.locView) return;
@@ -368,6 +417,7 @@ export class GameClient {
     this.sun.intensity = theme.sun * (1 - dusk * 0.85);
     this.sun.color.setRGB(1, 0.95 - dusk * 0.4, 0.87 - dusk * 0.55);
     this.hemi.intensity = theme.ambient * (1 - dusk * 0.5);
+    for (const l of this.locView.lampLights) l.intensity = 14 * Math.min(1, dusk * 1.5); // lamps come on at dusk
     this.hemi.color.setRGB(1, 1, 1).lerp(new THREE.Color(0xffa070), Math.min(1, dusk * 2)).lerp(new THREE.Color(0x7a6ad0), Math.max(0, dusk * 2 - 1));
   }
 
@@ -436,6 +486,8 @@ export class GameClient {
     const r = this.me.root.rotation;
     r.y += (((this.pos.rot - r.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 18);
 
+    this.updateBuild(dt);
+
     // actions
     this.attackTimer -= dt;
     if (input.consume('attack') && this.attackTimer <= 0 && this.rolling <= 0) {
@@ -445,7 +497,7 @@ export class GameClient {
     }
     if (input.consume('feed')) this.conn.send({ t: 'feedPet' });
     this.spellCooldown -= dt;
-    if (input.consume('spell') && this.rolling <= 0 && this.self?.hp > 0) {
+    if (!this.building && input.consume('spell') && this.rolling <= 0 && this.self?.hp > 0) {
       if (this.spellCooldown > 0) this.hud.toast(`Area spell ready in ${Math.ceil(this.spellCooldown)}s`);
       else {
         this.spellCooldown = SPELL_COOLDOWN;
@@ -458,8 +510,8 @@ export class GameClient {
       if (item) this.conn.send({ t: 'use', item });
       else this.hud.toast('Nothing to eat or drink! The shop has food and potions.');
     }
-    const near = this.nearestInteractable();
-    this.hud.prompt(near && !this.hud.modalOpen ? near.prompt : null);
+    const near = this.building ? null : this.nearestInteractable();
+    if (!this.building) this.hud.prompt(near && !this.hud.modalOpen ? near.prompt : null);
     if (input.consume('interact') && near) this.conn.send({ t: 'interact', id: near.id });
 
     // tell the host where we are
@@ -472,6 +524,54 @@ export class GameClient {
     }
 
     this.lantern.position.set(this.pos.x, 4, this.pos.z + 1);
+  }
+
+  /**
+   * Build mode (B, at home): pick a piece of the family's furniture, see a see-through copy in front
+   * of you, R turns it, E puts it down. X picks up the furniture you're standing next to.
+   */
+  updateBuild() {
+    const input = this.input;
+    const home = this.layout.key === 'house';
+    if (input.consume('build')) {
+      if (this.building) this.stopBuilding();
+      else if (!home) this.hud.toast('Build mode is for decorating the fort — press B at home.');
+      else if (!this.world?.flags?.[DECORATOR_FLAG]) this.hud.toast('The Decorator comes to town once the King Slime is beaten. Then you can buy furniture!');
+      else { this.building = { item: null, rot: 0 }; this.hud.openBuild(this); }
+    }
+    if (!this.building) return;
+    if (!home) return this.stopBuilding();
+    const b = this.building;
+    if (input.consume('spell')) b.rot = (b.rot + Math.PI / 2) % (Math.PI * 2);
+    // where it would go: a step in front of you, on a half-unit grid
+    const fx = Math.round((this.pos.x + Math.sin(this.pos.rot) * 2.6) * 2) / 2, fz = Math.round((this.pos.z + Math.cos(this.pos.rot) * 2.6) * 2) / 2;
+    if (b.item && (!b.ghost || b.ghostItem !== b.item)) {
+      b.ghost?.dispose();
+      b.ghost = new FurnitureView({ item: b.item, x: fx, z: fz, rot: b.rot }, () => new THREE.Group());
+      b.ghost.root.traverse((o) => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.55; o.material.emissive?.setHex(0x2a6a2a); } });
+      b.ghostItem = b.item;
+      this.scene.add(b.ghost.root);
+    }
+    if (b.ghost) { b.ghost.root.position.set(fx, 0.02, fz); b.ghost.root.rotation.y = b.rot; }
+    // the closest placed piece you could pick up
+    let pick = null, best = 3;
+    for (const { data } of this.ents.values()) {
+      if (data.type !== 'furniture' || data.item === 'bed') continue;
+      const d = Math.hypot(data.x - this.pos.x, data.z - this.pos.z) - (data.r ?? 0);
+      if (d < best) { best = d; pick = data; }
+    }
+    this.hud.prompt(b.item ? `[E] Place ${FURNITURE[b.item].name} · [R] Turn · [B] Done` : pick ? `[X] Pick up ${FURNITURE[pick.item].name} · [B] Done` : 'Pick something to place · [B] Done');
+    if (b.item && input.consume('interact')) {
+      this.conn.send({ t: 'placeFurniture', item: b.item, x: fx, z: fz, rot: b.rot });
+      if (!((this.house?.owned?.[b.item] ?? 0) > 1)) { b.item = null; b.ghost?.dispose(); b.ghost = null; }
+    }
+    if (pick && input.consume('pickup')) this.conn.send({ t: 'pickUpFurniture', id: pick.id });
+  }
+
+  stopBuilding() {
+    this.building?.ghost?.dispose();
+    this.building = null;
+    this.hud.closeBuild();
   }
 
   /** The closest thing you can use with E: a map prop, or an entity like a bed. Has a `prompt`. */
@@ -495,6 +595,18 @@ export class GameClient {
   }
 
   updateCamera(dt) {
+    if (this.cinematic) {
+      const c = this.cinematic;
+      c.t += dt;
+      // stand out in town in front of the gate, a little to the side, looking at it
+      const want = new THREE.Vector3(c.at.x + c.at.dx * 9 - c.at.dz * 3, 8, c.at.z + c.at.dz * 9 + c.at.dx * 3 + 2);
+      this.camera.position.lerp(want, 1 - Math.exp(-dt * 3));
+      this.camera.lookAt(c.at.x, 1.8, c.at.z);
+      if (c.t > 1.2 && !c.broke) { c.broke = true; this.locView.playUnlock(c.id); }
+      if (c.t > 2.3 && c.t - dt <= 2.3) { this.shake(0.6); this.addEffect(new Debris(c.at.x, c.at.z, [0xffd23f, 0x9aa3ad, 0xffffff], 22)); }
+      if (c.t > 5) { c.done(); this.cinematic = null; this.snapCamera = false; }
+      return;
+    }
     // debug/screenshot hook: window.game.client.camOverride = { pos: [x, y, z], look: [x, y, z] }
     if (this.camOverride) {
       this.camera.position.set(...this.camOverride.pos);

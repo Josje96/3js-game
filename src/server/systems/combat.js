@@ -65,6 +65,7 @@ export const methods = {
     else if (e.type === 'slime') this.hitSlime(p, loc, e, dmg, from);
     else if (e.type === 'barrel') this.hitBarrel(loc, e, dmg);
     else if (e.type === 'chest') this.openChest(p, loc, e);
+    else if (e.type === 'dummy') this.hitDummy(p, loc, e, dmg);
   },
 
   hitRock(p, loc, e, dmg) {
@@ -89,6 +90,10 @@ export const methods = {
     this.sendToLocation(loc.key, { t: 'fx', kind: 'dmg', id: e.id, x: e.x, z: e.z, amount: dmg });
     if (e.hp > 0) return;
     loc.remove(e.id);
+    if (e.practice) { // the training yard's slime: no loot or XP, it just comes back
+      this.sendToLocation(loc.key, { t: 'fx', kind: 'pop', x: e.x, z: e.z, variant: e.variant });
+      return this.practiceSlimeBeaten(loc);
+    }
     const [lo, hi] = ENEMIES[e.variant].gold;
     this.dropItem(loc, e, 'gold', Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (e.goldMul ?? 1)));
     if (Math.random() < 0.3) this.dropItem(loc, e, 'slimegoo', 1);

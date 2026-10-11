@@ -2,6 +2,7 @@
 import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_SHOP_STOCK, shopTier, sellValue, isGear } from '../shared/items.js';
 import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
 import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle } from '../shared/config.js';
+import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost } from '../shared/pets.js';
 
 const el = (tag, cls, html) => {
@@ -607,6 +608,83 @@ export class Hud {
       }
       box.append(closeButton(this));
     });
+  }
+
+  /** A townsperson says something: a speech box at the bottom that fades after a few seconds. */
+  speech(name, text) {
+    this.speechEl?.remove();
+    const s = el('div', 'speech panel', `<b>${esc(name)}</b><p>${esc(text)}</p>`);
+    this.root.append(s);
+    this.speechEl = s;
+    clearTimeout(this.speechTimer);
+    this.speechTimer = setTimeout(() => { s.classList.add('fade'); setTimeout(() => s.remove(), 500); }, 5000);
+  }
+
+  /** The Decorator's stall: furniture for the fort (shared by the family), wall colours and floors. */
+  openDecorator({ house, onBuy, onStyle }) {
+    this.decoTab ??= 'furniture';
+    this.openModal((box) => {
+      const gold = this.self?.gold ?? 0, h = house() ?? {};
+      box.append(el('h2', null, `The Decorator <span class="gold">🪙 ${gold}</span>`),
+        el('p', 'muted', 'Everything here is for the whole family’s fort. At home, press B to place furniture.'));
+      const tabs = el('div', 'tabs');
+      for (const [id, label] of [['furniture', '🛋 Furniture'], ['wall', '🎨 Walls'], ['floor', '🪵 Floors']]) {
+        const t = el('button', this.decoTab === id ? 'selected' : '', label);
+        t.addEventListener('click', () => { this.decoTab = id; this.refreshModal?.(); });
+        tabs.append(t);
+      }
+      box.append(tabs);
+      const body = el('div', 'shop-body');
+      body.dataset.scroll = `deco-${this.decoTab}`;
+      if (this.decoTab === 'furniture') {
+        for (const [id, def] of Object.entries(FURNITURE)) {
+          if (def.notForSale) continue;
+          const have = h.owned?.[id] ?? 0;
+          const row = el('button', 'shop-row', `<span>${esc(def.name)}${have ? ` <small>${have} waiting at home</small>` : ''}</span><span class="gold">${def.price}</span>`);
+          row.disabled = gold < def.price;
+          row.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuy(id)));
+          body.append(row);
+        }
+      } else {
+        const table = this.decoTab === 'wall' ? WALL_STYLES : FLOOR_STYLES;
+        for (const [id, def] of Object.entries(table)) {
+          const owned = !def.price || (h.styles ?? []).includes(`${this.decoTab}:${id}`);
+          const on = h[this.decoTab] === id;
+          const sw = def.tint != null ? `<i class="swatch" style="background:#${def.tint.toString(16).padStart(6, '0')}"></i>` : '';
+          const row = el('button', `shop-row${on ? ' selected' : ''}`, `<span>${sw}${esc(def.name)}</span><span class="gold">${on ? 'in use' : owned ? 'use' : def.price}</span>`);
+          row.disabled = on || (!owned && gold < def.price);
+          row.addEventListener('click', () => (owned ? onStyle(this.decoTab, id) : this.askToBuy(def.name, def.price, () => onStyle(this.decoTab, id))));
+          body.append(row);
+        }
+      }
+      box.append(body, closeButton(this));
+    });
+  }
+
+  /** Build mode's panel (not a modal: you keep walking around while you choose). */
+  openBuild(client) {
+    this.buildEl?.remove();
+    this.buildEl = el('div', 'build-panel panel');
+    this.root.append(this.buildEl);
+    this.renderBuild(client);
+  }
+
+  renderBuild(client) {
+    if (!this.buildEl || !client.building) return;
+    const owned = Object.entries(client.house?.owned ?? {}).filter(([, n]) => n > 0);
+    this.buildEl.innerHTML = '<h3>🔨 Decorate the fort</h3>';
+    if (!owned.length) this.buildEl.append(el('p', 'muted', 'No furniture waiting. Buy some from the Decorator in town!'));
+    for (const [id, n] of owned) {
+      const b = el('button', client.building.item === id ? 'selected' : '', `${esc(FURNITURE[id]?.name ?? id)} ×${n}`);
+      b.addEventListener('click', () => { client.building.item = id; this.renderBuild(client); });
+      this.buildEl.append(b);
+    }
+    this.buildEl.append(el('p', 'muted small-note', 'E place · R turn · X pick up · B done'));
+  }
+
+  closeBuild() {
+    this.buildEl?.remove();
+    this.buildEl = null;
   }
 
   /** The family chest: move things between your bag and the shared chest. */

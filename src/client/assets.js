@@ -6,7 +6,7 @@ import { ITEMS } from '../shared/items.js';
 import { PROPS } from '../shared/props.js';
 import { CLASSES } from '../shared/config.js';
 import { FURNITURE, FLOOR_STYLES } from '../shared/furniture.js';
-import { THEMES } from './themes.js';
+import { THEMES, EXTRA_MODELS } from './themes.js';
 
 const BASE = './models/';
 const loader = new GLTFLoader();
@@ -50,6 +50,7 @@ export function allModelPaths() {
   for (const f of Object.values(FURNITURE)) if (f.model) paths.add(f.model);
   for (const f of Object.values(FLOOR_STYLES)) if (f.model) paths.add(f.model);
   for (const t of Object.values(THEMES)) for (const m of [...(t.floors ?? []), ...(t.walls ?? [])]) paths.add(m);
+  for (const m of EXTRA_MODELS) paths.add(m);
   return [...paths];
 }
 

@@ -35,6 +35,10 @@ export const CLIENT_MESSAGES = {
   wardrobe:  { cls: 'str', look: 'obj' },
   elevator:  { dungeon: 'str', floor: 'int' },
   chat:      { text: 'str' },
+  buyFurniture:    { item: 'str' },
+  placeFurniture:  { item: 'str', x: 'num', z: 'num', rot: 'num' },
+  pickUpFurniture: { id: 'str' },
+  houseStyle:      { kind: 'str', id: 'str' },
 };
 
 /**
@@ -51,8 +55,10 @@ export const CLIENT_MESSAGES = {
  *   ui       { kind, ... }                   open a window (shop, forge, pets, wardrobe, mirror, chest, elevator)
  *   fx       { kind, x, z, id?, ... }        one-off effects (damage numbers, level ups, debris...)
  *   chestState { storage }                   the family chest changed
+ *   night    { day, reason, fainted }        the day ended: show the night screen
+ *   house    { owned, styles, wall, floor }  the family's furniture and fort styles changed
  */
-export const SERVER_MESSAGES = ['welcome', 'kicked', 'world', 'self', 'enter', 'snap', 'roster', 'toast', 'chat', 'ui', 'fx', 'chestState'];
+export const SERVER_MESSAGES = ['welcome', 'kicked', 'world', 'self', 'enter', 'snap', 'roster', 'toast', 'chat', 'ui', 'fx', 'chestState', 'night', 'house'];
 
 const CHECKS = {
   num: (v) => typeof v === 'number' && Number.isFinite(v),

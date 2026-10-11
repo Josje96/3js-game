@@ -29,6 +29,7 @@ export function newSave({ name, seed }) {
       beds: {},                    // playerId -> bed slot in the fort
       furniture: [],               // placed furniture: [{ id, item, x, z, rot }]
       owned: {},                   // furniture bought but not placed yet: { item: count }
+      styles: [],                  // wall / floor styles bought, e.g. ['wall:rose']
       wall: 'stone',
       floor: 'oak',
     },
@@ -132,6 +133,7 @@ export const MIGRATIONS = [
       Object.keys(save.players).forEach((id, i) => { h.beds[id] ??= i; });
       h.furniture ??= [];
       h.owned ??= {};
+      h.styles ??= [];
       h.wall ??= 'stone';
       h.floor ??= 'oak';
     },

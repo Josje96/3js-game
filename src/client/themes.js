@@ -26,3 +26,10 @@ export const THEMES = {
   wood:    { floors: ['dungeon/floor_wood_large'], walls: ['dungeon/wall', 'dungeon/wall_shelves', 'dungeon/wall'], bg: 0x1b1410, ambient: 1.0, sun: 0.9 },
   outdoor: { bg: 0x8fd3ff, ambient: 1.3, sun: 2.2 },
 };
+
+/**
+ * Models that client code uses directly (outdoor buildings, stalls, fallbacks...). Anything written
+ * as 'dungeon/...', 'blocks/...' or 'items/...' in src/client must be preloaded: list it here
+ * (a test fails if you forget).
+ */
+export const EXTRA_MODELS = ['blocks/bricks_B', 'dungeon/box_small', 'dungeon/banner_patternA_red', 'dungeon/banner_patternA_yellow', 'dungeon/banner_patternA_green', 'dungeon/banner_shield_blue'];

@@ -11,9 +11,9 @@ import { petDamage } from '../shared/pets.js';
 import { XP } from '../shared/progression.js';
 
 const RADIUS = { rock: 1.0, chest: 1.0, barrel: 0.75, slime: 0.7, drop: 0.3, ladder: 1.1, shot: 0.3, pet: 0.35 }; // ladder = trigger radius
-export const SOLID_TYPES = new Set(['rock', 'chest', 'barrel', 'furniture']);
+export const SOLID_TYPES = new Set(['rock', 'chest', 'barrel', 'furniture', 'dummy']);
 
-const HITTABLE = new Set(['rock', 'slime', 'chest', 'barrel']);
+const HITTABLE = new Set(['rock', 'slime', 'chest', 'barrel', 'dummy']);
 
 export class LiveLocation {
   constructor(server, key, seed) {
@@ -137,20 +137,21 @@ export class LiveLocation {
   tickSlime(e, dt, players, solids) {
     e._atkCd = Math.max(0, (e._atkCd ?? 0) - dt);
     e._stun = Math.max(0, (e._stun ?? 0) - dt);
+    const def = ENEMIES[e.variant] ?? {};
     const aggro = e.boss ? 40 : 18;
     let target = null, best = aggro * aggro;
     for (const p of players) {
+      if (e._home && dist2(p, e._home) > (e._home.r + 2) ** 2) continue; // leashed: only plays with people in its yard
       const d = dist2(e, p);
       if (d < best) { best = d; target = p; }
     }
     // pets fighting nearby are fair game too
     for (const pet of this.entities.values()) {
-      if (pet.type !== 'pet') continue;
+      if (pet.type !== 'pet' || def.harmless) continue;
       const d = dist2(e, pet);
       if (d < best && d < 6 * 6) { best = d; target = pet; }
     }
 
-    const def = ENEMIES[e.variant] ?? {};
     let vx = 0, vz = 0;
     if (e._stun <= 0) {
       if (target) {
@@ -197,6 +198,11 @@ export class LiveLocation {
             this.spawn(makeEnemy(def.summon, this.layout.depth ?? 1, e.x + Math.cos(a) * 2.5, e.z + Math.sin(a) * 2.5));
           }
         }
+      } else if (e._home && dist2(e, e._home) > e._home.r ** 2) {
+        // wandered out of its yard: hop back home
+        const d = Math.sqrt(dist2(e, e._home)) || 1;
+        vx = ((e._home.x - e.x) / d) * e.speed;
+        vz = ((e._home.z - e.z) / d) * e.speed;
       } else {
         // lazy wander
         e._wanderT = (e._wanderT ?? 0) - dt;
@@ -221,7 +227,7 @@ export class LiveLocation {
       if (Math.abs(vx) + Math.abs(vz) > 0.1) e.rot = Math.atan2(vx, vz);
     }
 
-    if (target && e._atkCd <= 0 && e._stun <= 0) {
+    if (target && e._atkCd <= 0 && e._stun <= 0 && !def.harmless) {
       const reach = e.r + (target.type === 'pet' ? target.r : PLAYER_RADIUS) + 0.25;
       if (dist2(e, target) < reach * reach) {
         e._atkCd = 1.0;

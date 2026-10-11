@@ -135,3 +135,15 @@ test('dungeons: 100 floors each, a boss every 10, and each dungeon is harder tha
   assert.ok(makeEnemy('green', depthOf('ruins', 1), 0, 0).hp > makeEnemy('green', depthOf('mine', 1), 0, 0).hp * 4);
   assert.equal(biomeFor('keep', 100).boss.variant, 'shadowking');
 });
+
+test('content: every model id written in client code is preloaded (or the game throws when it is shown)', async () => {
+  const { allModelPaths } = await import('../src/client/assets.js');
+  const preloaded = new Set(allModelPaths());
+  const missing = [];
+  for (const f of readdirSync(join(ROOT, 'src/client'))) {
+    if (!f.endsWith('.js')) continue;
+    const src = readFileSync(join(ROOT, 'src/client', f), 'utf8');
+    for (const [, id] of src.matchAll(/'((?:dungeon|blocks|items)\/[A-Za-z0-9_]+)'/g)) if (!preloaded.has(id)) missing.push(`${f}: ${id}`);
+  }
+  assert.deepEqual(missing, [], 'add these to EXTRA_MODELS in client/themes.js (and check they exist)');
+});
