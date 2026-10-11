@@ -735,7 +735,14 @@ export class Hud {
     });
   }
 
-  openMenu({ isHost, music, onSave, onExport, onQuit }) {
+  /** The stats overlay (F3): frame rate, ping, updates per second. null hides it. */
+  setStats(text) {
+    if (!this.statsEl) { this.statsEl = el('div', 'hud-stats'); this.root.append(this.statsEl); }
+    this.statsEl.textContent = text ?? '';
+    this.statsEl.style.display = text ? 'block' : 'none';
+  }
+
+  openMenu({ isHost, music, graphics, stats, onSave, onExport, onQuit }) {
     this.openModal((box) => {
       box.append(el('h2', null, 'Paused'), el('p', 'muted', isHost
         ? 'You are the host. Keep this tab open — the world lives here! It autosaves every 30s and when you sleep.'
@@ -746,6 +753,20 @@ export class Hud {
       if (isHost) { add('Save now', onSave); add('Download save file', onExport); }
       add(isHost ? 'Save & quit to title' : 'Leave game', onQuit);
       box.append(actions);
+      if (graphics) {
+        const row = el('div', 'gfx-row', '<span>🖥 Graphics</span>');
+        for (const [level, label] of [['high', 'High'], ['medium', 'Medium'], ['low', 'Fast']]) {
+          const b = el('button', `small${graphics.level === level ? ' selected' : ''}`, label);
+          b.addEventListener('click', () => { graphics.set(level); graphics.level = level; this.refreshModal?.(); });
+          row.append(b);
+        }
+        box.append(row);
+      }
+      if (stats) {
+        const row = el('label', 'gfx-row', `<input type="checkbox" ${stats.on ? 'checked' : ''}> Show speed &amp; connection (F3)`);
+        row.querySelector('input').addEventListener('change', () => { stats.toggle(); stats.on = !stats.on; });
+        box.append(row);
+      }
       if (music) {
         const row = el('label', 'music-row', `🎵 Music <input type="range" min="0" max="1" step="0.05" value="${music.muted ? 0 : music.volume}">`);
         row.querySelector('input').addEventListener('input', (e) => {

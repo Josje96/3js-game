@@ -113,11 +113,17 @@ export class GameServer {
       if (p.pendingHit && this.time >= p.pendingHit.at) { const hit = p.pendingHit; p.pendingHit = null; this.resolveAttack(p, hit); }
     }
     for (const loc of this.locations.values()) loc.tick(dt);
-    // one snapshot per location per tick, sent to everyone standing in it
+    // Every tick, per location, to everyone standing in it:
+    //  - 'pos' (fast lane, may be dropped): where every moving thing is right now
+    //  - 'snap' (reliable, only when something changed): new / changed / removed things, and
+    //    players whose looks changed. Losing a 'pos' is harmless: the next one replaces it.
+    const t = Math.round(this.time * 1000) / 1000;
     for (const loc of this.locations.values()) {
-      const { ents, gone } = loc.takeDelta();
-      const players = loc.livePlayersAll().map(publicPlayer);
-      this.sendToLocation(loc.key, { t: 'snap', players, ents, gone });
+      const { ents, gone, moving } = loc.takeDelta();
+      const all = loc.livePlayersAll();
+      const players = all.filter((p) => loc.lookChanged(p, appearanceKey(p))).map(publicPlayer);
+      if (ents.length || gone.length || players.length) this.sendToLocation(loc.key, { t: 'snap', players, ents, gone });
+      this.sendToLocation(loc.key, { t: 'pos', time: t, players: all.map(playerPos), ents: moving }, true);
     }
     this.saveTimer -= dt;
     if (this.saveTimer <= 0) { this.saveTimer = AUTOSAVE_SECONDS; this.persist(); }
@@ -133,10 +139,11 @@ export class GameServer {
     for (const c of this.conns.values()) if (c.playerId) c.conn.send(msg);
   }
 
-  sendToLocation(key, msg) {
+  /** `fast` = may be dropped or arrive out of order (positions); goes over the unreliable lane if there is one. */
+  sendToLocation(key, msg, fast = false) {
     for (const c of this.conns.values()) {
       const p = c.playerId && this.players.get(c.playerId);
-      if (p && p.loc === key) c.conn.send(msg);
+      if (p && p.loc === key) (fast && c.conn.sendFast ? c.conn.sendFast(msg) : c.conn.send(msg));
     }
   }
 
@@ -238,6 +245,7 @@ export class GameServer {
     if (!loc) return;
     if (p.petEnt) { loc.remove(p.petEnt); p.petEnt = null; }
     loc.players.delete(p.id);
+    loc.looks?.delete(p.id); // so their look is sent again if they come back
     if (loc.players.size === 0 && loc.layout.kind === 'dungeon') this.locations.delete(loc.key);
     p.loc = null;
   }
@@ -309,8 +317,10 @@ export class GameServer {
 
   // ------------------------------------------------------------------ player messages
 
-  on_move(p, { x, z, rot, anim, epoch }) {
+  on_move(p, { x, z, rot, anim, epoch, seq }) {
     if (epoch !== p.epoch || !Number.isFinite(x) || !Number.isFinite(z)) return;
+    // moves come over the fast lane and can arrive out of order: ignore older ones
+    if (seq != null) { if (seq <= (p.moveSeq ?? -1) && seq > (p.moveSeq ?? 0) - 1e6) return; p.moveSeq = seq; }
     p.x = x; p.z = z;
     p.rot = Number(rot) || 0;
     p.anim = String(anim || 'idle').slice(0, 16);
@@ -334,6 +344,10 @@ export class GameServer {
     else this.log(`[server] nothing handles interact '${target.interact}'`);
   }
 
+  on_ping(p, { id }) {
+    this.send(p, { t: 'pong', id });
+  }
+
   on_chat(p, { text }) {
     const clean = String(text || '').slice(0, 120).trim();
     if (clean) this.broadcast({ t: 'chat', from: p.name, text: clean });
@@ -345,6 +359,16 @@ GameServer.prototype.runHooks = function (name, ...args) {
   for (const fn of HOOKS[name]) fn.call(this, ...args);
 };
 export { INTERACTIONS };
+
+/** Everything about how a player looks; when it changes, everyone nearby gets the full details again. */
+function appearanceKey(p) {
+  return `${p.name}|${p.cls}|${JSON.stringify(p.look)}|${p.weapon}|${p.shield}|${p.armor}|${p.maxHp}`;
+}
+
+/** A player in a 'pos' message: [id, x, z, rot, anim, act, hp]. */
+function playerPos(p) {
+  return [p.id, Math.round(p.x * 100) / 100, Math.round(p.z * 100) / 100, Math.round(p.rot * 100) / 100, p.anim, p.act, p.hp];
+}
 
 function publicPlayer(p) {
   return {

@@ -14,7 +14,8 @@
 /** Client → server. */
 export const CLIENT_MESSAGES = {
   hello:     { protocol: 'int', playerId: 'str', name: 'str', cls: 'str', look: 'obj?', isHost: 'bool?' },
-  move:      { epoch: 'int', x: 'num', z: 'num', rot: 'num', anim: 'str' },
+  move:      { epoch: 'int', x: 'num', z: 'num', rot: 'num', anim: 'str', seq: 'int?' },
+  ping:      { id: 'int' },
   attack:    { rot: 'num' },
   roll:      {},
   spell:     {},
@@ -48,7 +49,11 @@ export const CLIENT_MESSAGES = {
  *   world    { name, seed, day, flags, dungeons, night, dayLeft, ... }   world-wide state, ~1/s
  *   self     { hp, maxHp, level, xp, gear, inventory, pets, ... }        your own character
  *   enter    { key, seed, epoch, x, z, ents, players }  you arrived somewhere: rebuild the scene
- *   snap     { players, ents, gone }         20×/s: moving things in your location
+ *   snap     { players, ents, gone }         reliable, when something changed: new/changed entities in full,
+ *                                            removed ids, players whose looks changed (in full)
+ *   pos      { time, players, ents }         20×/s over the fast lane (may be lost): players as
+ *                                            [id, x, z, rot, anim, act, hp], enemies/pets as [id, x, z, rot, hp, anim]
+ *   pong     { id }                          answer to a ping (the stats overlay shows the round trip)
  *   roster   { players: [{ id, name, cls, level, loc }] }
  *   toast    { text, big? }                  a message on screen
  *   chat     { from, text }
@@ -58,7 +63,7 @@ export const CLIENT_MESSAGES = {
  *   night    { day, reason, fainted }        the day ended: show the night screen
  *   house    { owned, styles, wall, floor }  the family's furniture and fort styles changed
  */
-export const SERVER_MESSAGES = ['welcome', 'kicked', 'world', 'self', 'enter', 'snap', 'roster', 'toast', 'chat', 'ui', 'fx', 'chestState', 'night', 'house'];
+export const SERVER_MESSAGES = ['welcome', 'kicked', 'world', 'self', 'enter', 'snap', 'pos', 'pong', 'roster', 'toast', 'chat', 'ui', 'fx', 'chestState', 'night', 'house'];
 
 const CHECKS = {
   num: (v) => typeof v === 'number' && Number.isFinite(v),

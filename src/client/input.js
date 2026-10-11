@@ -13,7 +13,7 @@ const KEY_ACTIONS = {
   Escape: 'menu',
   Enter: 'chat',
   KeyM: 'music',
-  KeyC: 'sheet', KeyI: 'sheet', KeyP: 'pets', KeyB: 'build', KeyX: 'pickup',
+  KeyC: 'sheet', KeyI: 'sheet', KeyP: 'pets', KeyB: 'build', KeyX: 'pickup', F3: 'stats',
   ShiftLeft: 'roll', ShiftRight: 'roll', KeyK: 'roll',
 };
 const PAD_ACTIONS = { 0: 'attack', 1: 'roll', 2: 'interact', 3: 'potion', 4: 'spell', 5: 'feed', 8: 'sheet', 9: 'menu' };
@@ -72,7 +72,7 @@ export class Input {
   consume(action) {
     const had = this.pressed.has(action);
     this.pressed.delete(action);
-    return had && (this.enabled || action === 'menu' || action === 'sheet' || action === 'pets');
+    return had && (this.enabled || action === 'menu' || action === 'sheet' || action === 'pets' || action === 'stats');
   }
 
   takeWheel() {

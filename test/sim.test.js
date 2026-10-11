@@ -210,12 +210,24 @@ test('server: two players see each other only in the same location', () => {
   const a = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
   const b = fakeClient(server, { playerId: 'b', name: 'B', cls: 'Rogue' });
   server.step(0.05);
-  assert.equal(a.last('snap').players.length, 2);
+  assert.equal(a.last('pos').players.length, 2);
+  assert.equal(a.last('snap').players.length, 2, 'looks are sent the first time');
+  a.clear();
+  server.step(0.05);
+  assert.equal(a.last('snap'), undefined, 'nothing changed: no reliable snapshot');
+  assert.equal(a.last('pos').players.length, 2, 'positions every tick');
   server.travel(server.players.get('b'), 'town');
   a.clear(); b.clear();
   server.step(0.05);
-  assert.equal(a.last('snap').players.length, 1);
-  assert.equal(b.last('snap').players[0].id, 'b');
+  assert.equal(a.last('pos').players.length, 1);
+  assert.equal(b.last('pos').players[0][0], 'b');
+  // a new hat is sent to everyone nearby
+  server.travel(server.players.get('b'), 'house');
+  server.step(0.05);
+  a.clear();
+  server.players.get('b').look = { ...server.players.get('b').look, hat: 'none' };
+  server.step(0.05);
+  assert.equal(a.last('snap').players[0].id, 'b');
   // records survive a reconnect
   server.players.get('b').inventory.copper = 7;
   server.dropConnection(2);

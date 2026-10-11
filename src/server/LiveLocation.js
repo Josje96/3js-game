@@ -323,16 +323,27 @@ export class LiveLocation {
   }
 
   /** Changes since last snapshot. Slimes always move, so always send them. */
+  /**
+   * What changed since the last tick: `ents` = new or changed things in full (reliable), `gone` =
+   * removed ids, `moving` = compact positions of enemies and pets, [id, x, z, rot, hp, anim].
+   */
   takeDelta() {
-    const ents = [];
+    const ents = [], moving = [];
     for (const e of this.entities.values()) {
       if (e._dirty) { ents.push(publicEnt(e)); e._dirty = false; }
-      else if (e.type === 'slime') ents.push({ id: e.id, x: round(e.x), z: round(e.z), rot: round(e.rot), hp: e.hp, anim: e.anim ?? null });
-      else if (e.type === 'pet') ents.push({ id: e.id, x: round(e.x), z: round(e.z), rot: round(e.rot), hp: e.hp });
+      if (e.type === 'slime' || e.type === 'pet') moving.push([e.id, round(e.x), round(e.z), round(e.rot), e.hp, e.anim ?? null]);
     }
     const gone = this.gone;
     this.gone = [];
-    return { ents, gone };
+    return { ents, gone, moving };
+  }
+
+  /** Has this player's look changed since we last told everyone here? (New arrivals count as changed.) */
+  lookChanged(p, key) {
+    this.looks ??= new Map();
+    if (this.looks.get(p.id) === key) return false;
+    this.looks.set(p.id, key);
+    return true;
   }
 }
 
