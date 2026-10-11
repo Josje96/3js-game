@@ -1,0 +1,40 @@
+# To do
+
+Most important first. Tick things off in the same commit that does them.
+
+## Check before going live
+- [ ] Play on two real devices on the home Wi-Fi as a guest: is the stutter gone? (F3 shows fps, ping and
+      whether the "fast lane" is up.) If a tablet is slow, try Esc → Graphics → Medium/Fast.
+- [ ] Balance pass: 100-floor dungeons, enemy scaling (`enemyPower` in shared/dungeons.js), shop prices
+      per tier, armor values, nightfall penalty. All first guesses.
+- [ ] Old saves: load a real family save (back it up first) and check the gold split, beds and dungeon
+      unlocks look right. The Ruins are now much harder for saves that already had them open.
+- [ ] Merge branch `round-2` into `main`, push, let GitHub Actions run `bun run check`.
+
+## Asked for, not done yet
+- [ ] **Blender assets** to make places less repetitive. Plan: `tools/blender/make_props.py` builds
+      props with bpy and exports `.glb` into `assets/generated/props/`; add `['generated/props', 'props']`
+      to `scripts/asset-map.mjs`, a `make-props` script in package.json, and make `client/assets.js`
+      load `props/` as `.glb`. Ideas: mine carts + rails, wooden supports, stalagmites, crystal
+      clusters, bone piles, market produce crates, a well, hay bales, signposts.
+- [ ] Decide the discussion items (below) before building any of them.
+
+## Ideas / smaller things
+- [ ] Dungeons still look samey within a biome: more room shapes in `shared/mapgen.js` (caves, halls, bridges).
+- [ ] Unique boss attacks (currently chase / pounce / shoot + summons).
+- [ ] Forge recipes for deeper ores (mythril, obsidian, starstone) — they only sell for now.
+- [ ] Sound effects (hits, coins, chains breaking, night chime).
+- [ ] Touch controls for tablets/phones.
+- [ ] Villagers are only on each player's own screen; fine, but they can't be talked to.
+- [ ] Run `GameServer` in a Web Worker so the host's rendering never stalls the world.
+- [ ] Code-split the build (it's ~850 KB of JS in one file).
+
+## To discuss (no code yet)
+- **Desktop app (Electrobun) vs web**: recommendation was to stay web-first (works on every device,
+  nothing to install, one build) and maybe wrap later; mobile = PWA (add to home screen) before any app store.
+- **Accounts + server saves** and **dedicated server / MMO**: a small always-on server (Bun) that runs the
+  same `GameServer` would solve "the world lives in the host's tab", enable accounts and cloud saves, and
+  remove WebRTC/NAT issues. Needs hosting, logins, moderation and child-privacy care (COPPA if kids
+  outside the family play). A full MMO is a much bigger step.
+- **Ads + $1.99/month premium**: ads aimed at children have strict rules (COPPA, app-store kids policies);
+  consider a one-time purchase or cosmetic-only supporter pack instead. Needs accounts first.

@@ -8,5 +8,4 @@ export const ASSET_SOURCES = [
   ['KayKit_Adventurers_2.0_FREE/Characters/gltf', 'characters'],
   ['KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Medium', 'anims'],
   ['generated', 'anims'],        // our own animation clips (bun run make-anims)
-  ['generated/props', 'props'],  // our own Blender-made props (bun run make-props, tools/blender/make_props.py)
 ];

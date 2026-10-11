@@ -7,7 +7,6 @@
   "scripts": {
     "sync-assets": "bun scripts/sync-assets.mjs",
     "make-anims": "flatpak run org.blender.Blender -b --python tools/blender/make_attacks.py -- assets/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Medium/Rig_Medium_General.glb assets/generated/Rig_Medium_Combat.glb && bun scripts/sync-assets.mjs",
-    "make-props": "flatpak run org.blender.Blender -b --python tools/blender/make_props.py -- assets/generated/props && bun scripts/sync-assets.mjs",
     "dev": "bun scripts/sync-assets.mjs && bun --bun vite --host",
     "build": "bun scripts/sync-assets.mjs && bun --bun vite build",
     "preview": "bun --bun vite preview --host",
