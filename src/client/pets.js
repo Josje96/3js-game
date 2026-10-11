@@ -59,29 +59,6 @@ const BUILDERS = {
     part(body, new THREE.ConeGeometry(0.04, 0.14, 6), skin, 0, 0.1, -0.44).rotation.x = -Math.PI / 2;
     return { body, parts: { head, legs }, headTop: [0, 0.36, 0.46] };
   },
-  cat() {
-    const body = new THREE.Group(), fur = std(0xff9f45), light = std(0xffe3c2);
-    part(body, ball(0.2), fur, 0, 0.26, -0.05, 0.9, 0.85, 1.45);
-    const head = new THREE.Group();
-    head.position.set(0, 0.5, 0.24);
-    body.add(head);
-    part(head, ball(0.2), fur, 0, 0, 0);
-    part(head, ball(0.1), light, 0, -0.06, 0.13, 1.2, 0.8, 0.8);
-    part(head, ball(0.03, 6), PINK, 0, -0.02, 0.21);
-    eyes(head, 0.04, 0.15, 0.08, 0.045);
-    for (const s of [-1, 1]) {
-      const ear = part(head, new THREE.ConeGeometry(0.075, 0.14, 4), fur, s * 0.11, 0.17, 0);
-      ear.rotation.set(0, Math.PI / 4, -s * 0.25);
-    }
-    const legs = [];
-    for (const [x, z] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) legs.push(part(body, new THREE.CylinderGeometry(0.045, 0.05, 0.2, 8), x < 0 && z < 0 ? light : fur, x * 0.1, 0.1, z * 0.16 - 0.04));
-    // tail: a chain of balls that sways
-    const tail = new THREE.Group();
-    tail.position.set(0, 0.32, -0.32);
-    body.add(tail);
-    for (let i = 0; i < 6; i++) part(tail, ball(0.045 - i * 0.003, 8), i === 5 ? light : fur, 0, i * 0.06, -i * 0.03);
-    return { body, parts: { head, legs, tail }, headTop: [0, 0.7, 0.24] };
-  },
   mouse() {
     const body = new THREE.Group(), fur = std(0xb8b0b8), pink = PINK;
     part(body, ball(0.17), fur, 0, 0.16, -0.03, 0.95, 0.85, 1.35);
@@ -105,98 +82,211 @@ const BUILDERS = {
 
 // ------------------------------------------------------------------ the critter kit
 
+// Four-legged critters are built from proportions (all in units; characters are ~2.5 tall):
+//   body: [radius, length]  legs: [length, thickness]  neck: [length, tilt up]  head: radius
+//   snout: [length, radius, 'round' | 'pointy' | 'flat' | 'long']  ears / tail: styles below
 const LOOKS = {
-  maple:    { shape: 'quad', body: 0xf2b27a, belly: 0xf8d2a8, ears: 'floppy', tail: 'puff', fluffy: true, nose: 0x3a2a20 },
-  bunny:    { shape: 'quad', body: 0xffffff, belly: 0xfff0f5, ears: 'long', tail: 'puff', inner: 0xffb3c9, nose: 0xff8aa8 },
-  hamster:  { shape: 'round', body: 0xf0b060, belly: 0xfff3dd, ears: 'round', cheeks: true, nose: 0xff9ab8 },
-  hedgehog: { shape: 'round', body: 0xd9b48a, belly: 0xf5e2c8, ears: 'round', spikes: 0x6b4a2c, nose: 0x2a1a10 },
-  chick:    { shape: 'bird', body: 0xffe066, beak: 0xff9a2a, small: true },
-  duck:     { shape: 'bird', body: 0xfff07a, beak: 0xff8a1a, bill: true },
-  penguin:  { shape: 'bird', body: 0x2a2a3a, belly: 0xffffff, beak: 0xffb02a, upright: true },
-  owl:      { shape: 'bird', body: 0x9a6a3c, belly: 0xe9d2a8, beak: 0xffb02a, tufts: true, bigEyes: true },
-  fox:      { shape: 'quad', body: 0xff8a3a, belly: 0xffffff, ears: 'pointy', tail: 'fluffy', tip: 0xffffff, nose: 0x2a1a10 },
-  piglet:   { shape: 'quad', body: 0xffb3c6, ears: 'pointy', tail: 'curl', snout: 0xff8aa8 },
-  panda:    { shape: 'quad', body: 0xffffff, limbs: 0x26262e, ears: 'round', earColor: 0x26262e, patches: true, nose: 0x26262e },
-  axolotl:  { shape: 'quad', body: 0xffb3d1, belly: 0xffd6e6, ears: 'none', gills: 0xff5a9e, tail: 'fin', low: true },
-  dragon:   { shape: 'quad', body: 0x5fcf6a, belly: 0xfff0a0, ears: 'none', horns: 0xfff3c0, wings: 0x3f9a4a, tail: 'spiky' },
-  unicorn:  { shape: 'quad', body: 0xffffff, belly: 0xfff6ff, ears: 'pointy', mane: [0xff7ab0, 0xffd23f, 0x7fd4ff, 0xb48cff], tail: 'mane', tall: true, horn: 0xffd23f },
-  bee:      { shape: 'bee', body: 0xffd23f, stripes: 0x2a2a2a },
-  snail:    { shape: 'snail', body: 0xd9e8a0, shell: 0xc0703a },
+  maple:    { shape: 'quad', body: [0.15, 0.24], legs: [0.15, 0.05], neck: [0.08, 0.9], head: 0.16, snout: [0.08, 0.075, 'round'],
+              fur: 0xf2b27a, belly: 0xf8d2a8, ears: 'floppy', earColor: 0xe39a62, tail: 'puff', fluffy: true, nose: 0x3a2a20 },
+  fox:      { shape: 'quad', body: [0.13, 0.3], legs: [0.2, 0.04], neck: [0.1, 0.7], head: 0.14, snout: [0.13, 0.06, 'pointy'],
+              fur: 0xff8a3a, belly: 0xffffff, limbs: 0x3a2418, ears: 'tall', earInner: 0x3a2418, tail: 'bushy', tip: 0xffffff, nose: 0x2a1a10 },
+  cat:      { shape: 'quad', body: [0.12, 0.28], legs: [0.17, 0.04], neck: [0.06, 0.8], head: 0.14, snout: [0.05, 0.065, 'round'],
+              fur: 0xff9f45, belly: 0xffe3c2, ears: 'pointy', earInner: 0xffb3c9, tail: 'long', nose: 0xff8aa8, whiskers: true },
+  bunny:    { shape: 'quad', body: [0.15, 0.2], legs: [0.09, 0.05], hind: 1.6, neck: [0.04, 1.1], head: 0.13, snout: [0.05, 0.07, 'round'],
+              fur: 0xffffff, belly: 0xfff0f5, ears: 'long', earInner: 0xffb3c9, tail: 'puff', nose: 0xff8aa8, hop: true },
+  piglet:   { shape: 'quad', body: [0.18, 0.26], legs: [0.11, 0.05], neck: [0.02, 0.3], head: 0.15, snout: [0.06, 0.075, 'flat'],
+              fur: 0xffb3c6, belly: 0xffc9d6, snoutColor: 0xff8aa8, ears: 'flop', tail: 'curl' },
+  panda:    { shape: 'quad', body: [0.2, 0.24], legs: [0.15, 0.075], neck: [0.04, 0.6], head: 0.17, snout: [0.05, 0.08, 'round'],
+              fur: 0xffffff, belly: 0xffffff, limbs: 0x26262e, shoulders: 0x26262e, ears: 'round', earColor: 0x26262e, patches: true, nose: 0x26262e, tail: 'puff' },
+  axolotl:  { shape: 'quad', body: [0.1, 0.36], legs: [0.06, 0.03], splay: true, neck: [0.02, 0.1], head: 0.14, headFlat: true, snout: [0.02, 0.1, 'flat'],
+              fur: 0xffb3d1, belly: 0xffd6e6, gills: 0xff5a9e, tail: 'fin', smile: true },
+  dragon:   { shape: 'quad', body: [0.15, 0.3], legs: [0.15, 0.055], neck: [0.16, 0.9], head: 0.13, snout: [0.12, 0.07, 'long'],
+              fur: 0x5fcf6a, belly: 0xfff0a0, horns: 0xfff3c0, wings: 0x3f9a4a, tail: 'dragon', spines: 0x3f9a4a },
+  unicorn:  { shape: 'quad', body: [0.15, 0.36], legs: [0.3, 0.045], hooves: 0xd8c2ff, neck: [0.2, 1.05], head: 0.12, snout: [0.14, 0.075, 'long'],
+              fur: 0xffffff, belly: 0xfff6ff, ears: 'pointy', mane: [0xff7ab0, 0xffd23f, 0x7fd4ff, 0xb48cff], tail: 'mane', horn: 0xffd23f },
+  hamster:  { shape: 'round', fur: 0xf0b060, belly: 0xfff3dd, ears: 'round', cheeks: true, nose: 0xff9ab8 },
+  hedgehog: { shape: 'hog', fur: 0xd9b48a, belly: 0xf5e2c8, spikes: 0x6b4a2c, nose: 0x2a1a10 },
+  chick:    { shape: 'bird', fur: 0xffe066, beak: 0xff9a2a, small: true },
+  duck:     { shape: 'bird', fur: 0xfff07a, beak: 0xff8a1a, bill: true, long: true },
+  penguin:  { shape: 'bird', fur: 0x2a2a3a, belly: 0xffffff, beak: 0xffb02a, upright: true, flippers: true },
+  owl:      { shape: 'bird', fur: 0x9a6a3c, belly: 0xe9d2a8, beak: 0xffb02a, tufts: true, bigEyes: true, upright: true, disc: 0xe9d2a8 },
+  bee:      { shape: 'bee', fur: 0xffd23f, stripes: 0x2a2a2a },
+  snail:    { shape: 'snail', fur: 0xd9e8a0, shell: 0xc0703a },
 };
+
+/** A capsule lying along z (for bodies, snouts, legs...). */
+const capsuleZ = (r, len) => new THREE.CapsuleGeometry(r, Math.max(0.001, len), 6, 14).rotateX(Math.PI / 2);
+
+/**
+ * A four-legged animal from its LOOKS proportions: a long body with chest and haunches,
+ * legs that swing from the hip, a neck, a head with a snout, ears and a tail.
+ */
+function makeQuad(L, stage) {
+  const g = new THREE.Group();
+  const fur = std(L.fur), belly = std(L.belly ?? L.fur), limbs = std(L.limbs ?? L.fur);
+  const [bodyR, bodyLen] = L.body, [legLen, legR] = L.legs;
+  const parts = { legs: [] };
+  const hipY = legLen + bodyR * 0.75;
+  const front = bodyLen / 2, back = -bodyLen / 2;
+
+  // body: a capsule, a deeper chest at the front and round haunches at the back
+  part(g, capsuleZ(bodyR, bodyLen), fur, 0, hipY, 0, 1, 0.95, 1);
+  part(g, ball(bodyR * 1.08), fur, 0, hipY + bodyR * 0.05, front * 0.75, 1, 1.05, 0.9);
+  part(g, ball(bodyR * (L.hind ? 1.25 : 1.02)), fur, 0, hipY + (L.hind ? bodyR * 0.15 : 0), back * 0.8, 1, 1, 1);
+  part(g, capsuleZ(bodyR * 0.75, bodyLen * 0.8), belly, 0, hipY - bodyR * 0.35, 0, 1, 0.6, 1);
+  if (L.shoulders) part(g, capsuleZ(bodyR * 1.04, bodyLen * 0.12), std(L.shoulders), 0, hipY, front * 0.45);
+  if (L.fluffy) for (let i = 0; i < 14; i++) { // Maple's curls
+    const a = i * 2.4, along = (i / 13 - 0.5) * bodyLen;
+    part(g, ball(bodyR * 0.42, 8), fur, Math.cos(a) * bodyR * 0.85, hipY + Math.abs(Math.sin(a)) * bodyR * 0.75, along);
+  }
+  if (L.spines) for (let i = 0; i < 5; i++) {
+    const sp = part(g, new THREE.ConeGeometry(0.035, 0.1, 4), std(L.spines), 0, hipY + bodyR * 0.95, front * 0.6 - i * bodyLen * 0.28);
+    sp.rotation.x = -0.3;
+  }
+
+  // legs hang from pivots at the hip, so swinging them looks like walking
+  for (const [x, z] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
+    const hind = z < 0 && L.hind;
+    const pivot = new THREE.Group();
+    pivot.position.set(x * bodyR * (L.splay ? 1.15 : 0.6), hipY - bodyR * 0.3, z > 0 ? front * 0.7 : back * 0.75);
+    if (L.splay) pivot.rotation.z = -x * 0.9;
+    const len = legLen + bodyR * 0.3;
+    part(pivot, new THREE.CapsuleGeometry(legR * (hind ? 1.5 : 1), len * 0.8, 4, 10), limbs, 0, -len / 2, 0);
+    part(pivot, ball(legR * 1.25, 10), L.hooves ? std(L.hooves) : limbs, 0, -len + legR * 0.4, legR * 0.5, 1, 0.6, 1.4); // paw / hoof
+    g.add(pivot);
+    parts.legs.push(pivot);
+  }
+
+  // neck + head
+  const [neckLen, tilt] = L.neck;
+  const neckBase = new THREE.Vector3(0, hipY + bodyR * 0.35, front + bodyR * 0.3);
+  const headPos = neckBase.clone().add(new THREE.Vector3(0, Math.sin(tilt) * (neckLen + L.head * 0.6), Math.cos(tilt) * (neckLen + L.head * 0.4)));
+  if (neckLen > 0.03) {
+    const neck = part(g, new THREE.CapsuleGeometry(bodyR * 0.55, neckLen, 4, 10), L.mane ? fur : fur, 0, 0, 0);
+    neck.position.copy(neckBase).lerp(headPos, 0.5);
+    neck.rotation.x = Math.PI / 2 - tilt;
+  }
+  const head = new THREE.Group();
+  head.position.copy(headPos);
+  g.add(head);
+  parts.head = head;
+  const hr = L.head;
+  part(head, ball(hr), fur, 0, 0, 0, L.headFlat ? 1.35 : 1, L.headFlat ? 0.75 : 1, 1);
+  if (L.fluffy) for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; part(head, ball(hr * 0.38, 8), fur, Math.cos(a) * hr * 0.7, hr * 0.45 + Math.sin(a * 2) * hr * 0.12, Math.sin(a) * hr * 0.6 - hr * 0.1); }
+  if (L.patches) for (const sx of [-1, 1]) part(head, ball(hr * 0.33, 8), std(0x26262e), sx * hr * 0.4, hr * 0.12, hr * 0.78, 1, 1.25, 0.5);
+  const [snLen, snR, snKind] = L.snout;
+  const snoutMat = std(L.snoutColor ?? L.belly ?? L.fur);
+  let noseZ = hr * 0.8;
+  if (snKind === 'pointy') {
+    const sn = part(head, new THREE.ConeGeometry(snR, snLen + hr * 0.5, 10), fur, 0, -hr * 0.25, hr * 0.62 + snLen * 0.5);
+    sn.rotation.x = Math.PI / 2;
+    part(head, ball(snR * 0.8), belly, 0, -hr * 0.38, hr * 0.6, 1, 0.6, 1.1);
+    noseZ = hr * 0.85 + snLen;
+  } else if (snKind === 'flat') {
+    part(head, new THREE.CylinderGeometry(snR, snR * 1.05, snLen + 0.03, 14), snoutMat, 0, -hr * 0.2, hr * 0.9 + snLen * 0.3).rotation.x = Math.PI / 2;
+    if (L.snoutColor) for (const sx of [-1, 1]) part(head, ball(snR * 0.18, 6), std(0x9a4a5a), sx * snR * 0.38, -hr * 0.2, hr * 0.95 + snLen * 0.8);
+    noseZ = null;
+  } else { // round muzzle, or a long horse/dragon face
+    part(head, capsuleZ(snR, snLen), snoutMat, 0, -hr * 0.3, hr * 0.55 + snLen * 0.5);
+    noseZ = hr * 0.6 + snLen + snR * 0.9;
+  }
+  if (L.nose && noseZ) part(head, ball(Math.max(0.022, snR * 0.38), 8), std(L.nose), 0, -hr * 0.22, noseZ);
+  if (L.whiskers) for (const sx of [-1, 1]) for (const dy of [-0.01, 0.02]) {
+    const w = part(head, new THREE.CylinderGeometry(0.004, 0.004, 0.16, 3), std(0xffffff), sx * 0.09, -hr * 0.3 + dy, hr * 0.85);
+    w.rotation.z = Math.PI / 2 + sx * dy * 6;
+  }
+  if (L.smile) part(head, new THREE.TorusGeometry(hr * 0.35, 0.008, 4, 12, Math.PI), std(0x7a2a4a), 0, -hr * 0.18, hr * 0.98).rotation.z = Math.PI;
+  eyes(head, hr * 0.18, hr * 0.78, hr * (L.headFlat ? 0.62 : 0.45), hr * 0.24);
+  // ears
+  const earMat = std(L.earColor ?? L.fur);
+  for (const sx of [-1, 1]) {
+    if (L.ears === 'floppy') { const e = part(head, ball(hr * 0.42), earMat, sx * hr * 0.88, -hr * 0.15, -hr * 0.05, 0.45, 1.3, 0.8); e.rotation.z = sx * 0.25; }
+    else if (L.ears === 'flop') { const e = part(head, new THREE.ConeGeometry(hr * 0.35, hr * 0.6, 4), earMat, sx * hr * 0.55, hr * 0.75, hr * 0.15); e.rotation.set(0.9, 0, -sx * 0.4); }
+    else if (L.ears === 'long') {
+      const e = part(head, capsuleZ(hr * 0.2, hr * 1.4), earMat, sx * hr * 0.35, hr * 1.25, -hr * 0.1, 1, 1, 0.45); e.rotation.set(-Math.PI / 2 + 0.25, 0, -sx * 0.15);
+      if (L.earInner) { const i2 = part(head, capsuleZ(hr * 0.11, hr * 1.2), std(L.earInner), sx * hr * 0.35, hr * 1.25, -hr * 0.02, 1, 1, 0.3); i2.rotation.copy(e.rotation); }
+    } else if (L.ears === 'pointy' || L.ears === 'tall') {
+      const tall = L.ears === 'tall' ? 1.5 : 1;
+      const e = part(head, new THREE.ConeGeometry(hr * 0.32, hr * 0.7 * tall, 4), earMat, sx * hr * 0.55, hr * 0.8 + hr * 0.15 * tall, 0); e.rotation.set(0, Math.PI / 4, -sx * 0.25);
+      if (L.earInner) { const i2 = part(head, new THREE.ConeGeometry(hr * 0.17, hr * 0.45 * tall, 4), std(L.earInner), sx * hr * 0.55, hr * 0.76 + hr * 0.15 * tall, hr * 0.08); i2.rotation.copy(e.rotation); }
+    } else if (L.ears === 'round') part(head, ball(hr * 0.32), earMat, sx * hr * 0.72, hr * 0.72, -hr * 0.05, 1, 1, 0.55);
+  }
+  if (L.gills) for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
+    const gl = part(head, new THREE.CapsuleGeometry(0.018, 0.12, 3, 6), std(L.gills), sx * hr * 1.25, hr * 0.35 - i * hr * 0.35, -hr * 0.2);
+    gl.rotation.z = -sx * (0.7 + i * 0.35);
+  }
+  if (L.horns) for (const sx of [-1, 1]) { const hn = part(head, new THREE.ConeGeometry(0.025, 0.14, 6), std(L.horns), sx * hr * 0.45, hr * 0.85, -hr * 0.3); hn.rotation.x = -0.6; }
+  if (L.horn && stage >= 1) { const hn = part(head, new THREE.ConeGeometry(0.03, 0.24, 8), std(L.horn, { emissive: 0x664400 }), 0, hr * 1.05, hr * 0.45); hn.rotation.x = 0.4; }
+  if (L.mane) {
+    L.mane.forEach((c, i) => part(head, ball(hr * 0.32, 8), std(c), 0, hr * 0.85 - i * hr * 0.05, -hr * 0.25 - i * hr * 0.3)); // forelock + top of the neck
+    for (let i = 0; i < 5; i++) part(g, ball(bodyR * 0.32, 8), std(L.mane[i % L.mane.length]), 0, neckBase.y + (headPos.y - neckBase.y) * (i / 5) + bodyR * 0.4, neckBase.z + (headPos.z - neckBase.z) * (i / 5) - bodyR * 0.3);
+  }
+
+  // tail, from the rump
+  const tail = new THREE.Group();
+  tail.position.set(0, hipY + bodyR * 0.3, back - bodyR * 0.9);
+  g.add(tail);
+  parts.tail = tail;
+  if (L.tail === 'puff') part(tail, ball(bodyR * 0.45), L.fluffy ? fur : std(0xffffff), 0, 0, 0);
+  else if (L.tail === 'bushy') { const t = part(tail, capsuleZ(bodyR * 0.55, bodyLen * 0.7), fur, 0, 0.02, -bodyLen * 0.45); t.rotation.x = 0.5; part(tail, ball(bodyR * 0.5), std(L.tip), 0, -0.13, -bodyLen * 0.9); }
+  else if (L.tail === 'long') for (let i = 0; i < 7; i++) part(tail, ball(0.035 - i * 0.002, 8), fur, 0, Math.sin(i * 0.4) * 0.12, -i * 0.045);
+  else if (L.tail === 'curl') part(tail, new THREE.TorusGeometry(0.045, 0.016, 6, 12), fur, 0, 0.02, -0.02);
+  else if (L.tail === 'fin') { const f = part(tail, capsuleZ(bodyR * 0.6, bodyLen * 0.8), std(L.gills ?? L.fur), 0, -bodyR * 0.4, -bodyLen * 0.35, 0.25, 1.2, 1); f.rotation.x = 0.1; }
+  else if (L.tail === 'dragon') { const t = part(tail, new THREE.ConeGeometry(bodyR * 0.55, bodyLen * 1.4, 8), fur, 0, -bodyR * 0.3, -bodyLen * 0.6); t.rotation.x = -Math.PI / 2 - 0.25; part(tail, new THREE.ConeGeometry(0.06, 0.12, 3), std(L.spines), 0, -bodyR * 0.65, -bodyLen * 1.25).rotation.x = -Math.PI / 2; }
+  else if (L.tail === 'mane') L.mane.forEach((c, i) => part(tail, ball(bodyR * 0.36, 8), std(c), 0, -i * bodyR * 0.45, -0.04 - i * bodyR * 0.2));
+  if (L.wings) {
+    parts.wings = [];
+    for (const sx of [-1, 1]) {
+      const pivot = new THREE.Group();
+      pivot.position.set(sx * bodyR * 0.6, hipY + bodyR * 0.7, front * 0.3);
+      const w = part(pivot, new THREE.ConeGeometry(0.16, 0.42, 3), std(L.wings), sx * 0.2, 0.06, 0, 1, 1, 0.2);
+      w.rotation.z = -sx * 1.2;
+      g.add(pivot);
+      parts.wings.push(pivot);
+    }
+  }
+  return { body: g, parts, headTop: [0, headPos.y + hr, headPos.z], hop: L.hop };
+}
+
+/** A hedgehog: a low teardrop body, spines only on its back, and a pointy little nose. */
+function makeHog(L) {
+  const g = new THREE.Group(), fur = std(L.fur), belly = std(L.belly);
+  const parts = { legs: [] };
+  part(g, ball(0.22), fur, 0, 0.2, -0.02, 1, 0.8, 1.3);
+  part(g, ball(0.16), belly, 0, 0.14, 0.06, 0.95, 0.6, 1.2);
+  const spike = new THREE.ConeGeometry(0.035, 0.15, 5), spikeMat = std(L.spikes);
+  for (let i = 0; i < 34; i++) { // spines fanned over the back, pointing backwards and out
+    const a = (i * 2.399) % (Math.PI * 2), r = Math.sqrt((i + 0.5) / 34);
+    const x = Math.cos(a) * r * 0.2, z = -0.1 + Math.sin(a) * r * 0.25;
+    if (z > 0.13) continue;
+    const sp = part(g, spike, spikeMat, x, 0.28 + (1 - r) * 0.06, z);
+    sp.lookAt(x * 3, 0.5 + (1 - r) * 0.2, z * 2 - 0.5);
+    sp.rotateX(Math.PI / 2);
+  }
+  const head = new THREE.Group();
+  head.position.set(0, 0.2, 0.24);
+  g.add(head);
+  parts.head = head;
+  part(head, ball(0.11), belly, 0, 0, 0, 1, 0.95, 1.1);
+  const snout = part(head, new THREE.ConeGeometry(0.07, 0.16, 10), belly, 0, -0.02, 0.13);
+  snout.rotation.x = Math.PI / 2;
+  part(head, ball(0.028, 8), std(L.nose), 0, -0.02, 0.21);
+  eyes(head, 0.03, 0.08, 0.06, 0.03);
+  for (const sx of [-1, 1]) part(head, ball(0.03, 8), fur, sx * 0.08, 0.08, -0.02, 1, 1, 0.5);
+  for (const [x, z] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) parts.legs.push(part(g, ball(0.045, 8), belly, x * 0.12, 0.03, z * 0.15, 1, 0.6, 1.3));
+  return { body: g, parts, headTop: [0, 0.34, 0.2] };
+}
 
 /** Builds a critter from its LOOKS entry. Returns the same shape as the hand-made builders. */
 function makeCritter(L, stage) {
   const g = new THREE.Group();
-  const fur = std(L.body), belly = std(L.belly ?? L.body), dark = std(L.limbs ?? L.body);
+  const fur = std(L.fur), belly = std(L.belly ?? L.fur);
   const parts = { legs: [] };
   let headTop = [0, 0.6, 0.2];
 
-  const fluff = (parent, x, y, z, r) => { // curly fluff for Maple
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * Math.PI * 2;
-      part(parent, ball(r * 0.45, 8), fur, x + Math.cos(a) * r * 0.75, y + Math.sin(a * 2) * r * 0.25, z + Math.sin(a) * r * 0.75);
-    }
-  };
-
-  if (L.shape === 'quad') {
-    const h = L.low ? 0.18 : L.tall ? 0.42 : 0.28; // body height off the ground
-    const bodyLen = L.low ? 1.5 : 1.25;
-    part(g, ball(0.22), fur, 0, h + 0.05, -0.02, 1, 0.9, bodyLen);
-    part(g, ball(0.17), belly, 0, h - 0.02, 0.04, 0.95, 0.7, bodyLen * 0.9);
-    if (L.fluffy) fluff(g, 0, h + 0.12, -0.02, 0.22);
-    for (const [x, z] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
-      const leg = part(g, new THREE.CylinderGeometry(0.05, 0.055, h, 8), L.limbs ? dark : fur, x * 0.11, h / 2, z * 0.16);
-      parts.legs.push(leg);
-    }
-    const head = new THREE.Group();
-    head.position.set(0, h + 0.28, 0.27);
-    g.add(head);
-    parts.head = head;
-    part(head, ball(0.2), fur, 0, 0, 0);
-    if (L.fluffy) fluff(head, 0, 0.08, -0.02, 0.17);
-    if (L.patches) for (const sx of [-1, 1]) part(head, ball(0.065, 8), std(0x26262e), sx * 0.08, 0.03, 0.15, 1, 1.2, 0.5);
-    eyes(head, 0.03, 0.16, 0.08, 0.042);
-    part(head, ball(0.09), belly, 0, -0.07, 0.14, 1.1, 0.8, 0.9); // muzzle
-    if (L.nose) part(head, ball(0.035, 8), std(L.nose), 0, -0.03, 0.23);
-    if (L.snout) { part(head, new THREE.CylinderGeometry(0.07, 0.08, 0.06, 12), std(L.snout), 0, -0.05, 0.2).rotation.x = Math.PI / 2; }
-    const ear = (sx) => {
-      if (L.ears === 'floppy') { const e = part(head, ball(0.09), std(0xe39a62), sx * 0.17, -0.02, 0, 0.5, 1.3, 0.8); e.rotation.z = sx * 0.3; }
-      else if (L.ears === 'long') { part(head, ball(0.06), fur, sx * 0.08, 0.27, -0.02, 0.8, 3, 0.5); if (L.inner) part(head, ball(0.035), std(L.inner), sx * 0.08, 0.27, 0.01, 0.8, 3, 0.4); }
-      else if (L.ears === 'pointy') { const e = part(head, new THREE.ConeGeometry(0.06, 0.13, 4), fur, sx * 0.11, 0.17, 0); e.rotation.z = -sx * 0.25; }
-      else if (L.ears === 'round') part(head, ball(0.06), std(L.earColor ?? L.body), sx * 0.13, 0.15, 0, 1, 1, 0.5);
-    };
-    if (L.ears !== 'none') for (const sx of [-1, 1]) ear(sx);
-    if (L.gills) for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
-      const gl = part(head, new THREE.ConeGeometry(0.03, 0.16, 5), std(L.gills), sx * 0.19, 0.08 - i * 0.07, -0.02);
-      gl.rotation.z = -sx * (1.0 + i * 0.25);
-    }
-    if (L.horns) for (const sx of [-1, 1]) { const hn = part(head, new THREE.ConeGeometry(0.03, 0.14, 6), std(L.horns), sx * 0.08, 0.2, -0.05); hn.rotation.x = -0.4; }
-    if (L.horn && stage >= 1) { const hn = part(head, new THREE.ConeGeometry(0.035, 0.26, 8), std(L.horn, { emissive: 0x664400 }), 0, 0.24, 0.08); hn.rotation.x = 0.35; }
-    if (L.mane) L.mane.forEach((c, i) => part(g, ball(0.06, 8), std(c), 0, h + 0.33 - i * 0.07, 0.15 - i * 0.09));
-    // tails
-    const tail = new THREE.Group();
-    tail.position.set(0, h + 0.1, -0.3);
-    g.add(tail);
-    parts.tail = tail;
-    if (L.tail === 'puff') part(tail, ball(0.08), L.fluffy ? fur : std(0xffffff), 0, 0.02, 0);
-    else if (L.tail === 'fluffy') { part(tail, ball(0.1), fur, 0, 0.1, -0.1, 1, 1, 1.8); part(tail, ball(0.07), std(L.tip), 0, 0.14, -0.26); }
-    else if (L.tail === 'curl') part(tail, new THREE.TorusGeometry(0.05, 0.018, 6, 12), fur, 0, 0.04, -0.02);
-    else if (L.tail === 'fin') { const f = part(tail, ball(0.1), std(L.gills ?? L.body), 0, -0.02, -0.12, 0.25, 0.9, 1.6); f.rotation.x = 0.2; }
-    else if (L.tail === 'spiky') { const t = part(tail, new THREE.ConeGeometry(0.07, 0.4, 8), fur, 0, -0.02, -0.15); t.rotation.x = -Math.PI / 2; }
-    else if (L.tail === 'mane') L.mane.forEach((c, i) => part(tail, ball(0.05, 8), std(c), 0, -0.03 * i, -0.05 - i * 0.05));
-    if (L.wings) {
-      parts.wings = [];
-      for (const sx of [-1, 1]) {
-        const pivot = new THREE.Group();
-        pivot.position.set(sx * 0.12, h + 0.2, -0.02);
-        const w = part(pivot, new THREE.ConeGeometry(0.15, 0.4, 3), std(L.wings), sx * 0.2, 0.05, 0, 1, 1, 0.2);
-        w.rotation.z = -sx * 1.2;
-        g.add(pivot);
-        parts.wings.push(pivot);
-      }
-    }
-    headTop = [0, h + 0.28 + 0.2, 0.27];
-  } else if (L.shape === 'round') {
+  if (L.shape === 'quad') return makeQuad(L, stage);
+  if (L.shape === 'hog') return makeHog(L);
+  if (L.shape === 'round') {
     part(g, ball(0.27), fur, 0, 0.26, 0, 1.05, 0.95, 1.1);
     part(g, ball(0.2), belly, 0, 0.22, 0.1, 1, 0.9, 0.8);
     if (L.spikes) for (let i = 0; i < 16; i++) {
@@ -213,29 +303,34 @@ function makeCritter(L, stage) {
     parts.head = g;
     headTop = [0, 0.55, 0.05];
   } else if (L.shape === 'bird') {
-    const up = L.upright ? 1.3 : 1;
-    part(g, ball(0.24), fur, 0, 0.27 * up, 0, 1, up, 1.05);
-    if (L.belly) part(g, ball(0.19), belly, 0, 0.24 * up, 0.09, 1, up, 0.8);
-    const headY = L.small ? 0.42 : 0.5 * up;
+    const up = L.upright ? 1.35 : 1;
+    const body = L.long ? [0.2, 0.85, 1.45] : [0.24, up, 1.05]; // ducks are longer than they are tall
+    part(g, ball(body[0]), fur, 0, 0.27 * up, 0, 1, body[1], body[2]);
+    if (L.belly) part(g, ball(body[0] * 0.8), belly, 0, 0.24 * up, 0.08, 0.95, body[1] * 0.95, body[2] * 0.75);
+    if (L.long) { const tl = part(g, new THREE.ConeGeometry(0.08, 0.16, 6), fur, 0, 0.36, -0.3); tl.rotation.x = -2.2; } // perky tail
+    const headY = L.small ? 0.42 : L.long ? 0.55 : 0.5 * up;
     const head = new THREE.Group();
-    head.position.set(0, headY, 0.06);
+    head.position.set(0, headY, L.long ? 0.2 : 0.06);
     g.add(head);
     parts.head = head;
-    if (!L.small) part(head, ball(0.17), fur, 0, 0, 0);
-    eyes(head, 0.04, 0.13, L.bigEyes ? 0.08 : 0.07, L.bigEyes ? 0.06 : 0.035);
-    if (L.bill) part(head, ball(0.07), std(L.beak), 0, -0.03, 0.18, 1.2, 0.4, 1.4);
-    else { const bk = part(head, new THREE.ConeGeometry(0.045, 0.1, 6), std(L.beak), 0, -0.02, 0.18); bk.rotation.x = Math.PI / 2; }
-    if (L.tufts) for (const sx of [-1, 1]) { const t = part(head, new THREE.ConeGeometry(0.04, 0.12, 4), fur, sx * 0.1, 0.16, -0.02); t.rotation.z = -sx * 0.4; }
+    if (L.long) part(g, new THREE.CapsuleGeometry(0.075, 0.16, 4, 8), fur, 0, 0.42, 0.18).rotation.x = 0.4; // neck
+    if (!L.small) part(head, ball(0.16), fur, 0, 0, 0);
+    if (L.disc) part(head, ball(0.13), std(L.disc), 0, -0.01, 0.07, 1.2, 1, 0.5); // owl face
+    eyes(head, 0.03, L.disc ? 0.13 : 0.12, L.bigEyes ? 0.07 : 0.07, L.bigEyes ? 0.055 : 0.035);
+    if (L.bill) part(head, ball(0.07), std(L.beak), 0, -0.04, 0.17, 1.2, 0.4, 1.5);
+    else { const bk = part(head, new THREE.ConeGeometry(0.04, 0.1, 6), std(L.beak), 0, -0.03, 0.17); bk.rotation.x = Math.PI / 2; }
+    if (L.tufts) for (const sx of [-1, 1]) { const t = part(head, new THREE.ConeGeometry(0.04, 0.13, 4), fur, sx * 0.1, 0.16, -0.02); t.rotation.z = -sx * 0.4; }
     parts.wings = [];
     for (const sx of [-1, 1]) {
       const pivot = new THREE.Group();
-      pivot.position.set(sx * 0.22, 0.3 * up, -0.02);
-      part(pivot, ball(0.1), fur, 0, -0.04, 0, 0.35, 1.1, 1);
+      pivot.position.set(sx * body[0] * 0.92, 0.32 * up, -0.02);
+      if (L.flippers) part(pivot, capsuleZ(0.045, 0.12), fur, 0, -0.1, 0, 1, 1, 0.4).rotation.set(1.3, 0, sx * 0.2);
+      else part(pivot, ball(0.1), fur, 0, -0.04, -0.02, 0.32, 1, 1.25);
       g.add(pivot);
       parts.wings.push(pivot);
     }
     for (const sx of [-1, 1]) parts.legs.push(part(g, ball(0.05), std(L.beak), sx * 0.09, 0.025, 0.08, 1.2, 0.4, 1.6));
-    headTop = [0, headY + (L.small ? 0.1 : 0.17), 0.06];
+    headTop = [0, headY + (L.small ? 0.1 : 0.16), head.position.z];
   } else if (L.shape === 'bee') {
     const body = part(g, ball(0.2), fur, 0, 0.55, -0.05, 1, 1, 1.3);
     for (const z of [-0.12, 0.02]) part(g, new THREE.CylinderGeometry(0.205, 0.205, 0.06, 16), std(L.stripes), 0, 0.55, z).rotation.x = Math.PI / 2;
@@ -355,47 +450,9 @@ function decorate(built, level) {
 
 const STAGE_SCALE = [1, 1.3, 1.6];
 
-/**
- * Every 5 levels a pet's colours shift to a new hue, and its markings change
- * (spots, then stripes, and so on). Greys, whites and blacks keep their colour.
- */
-function applyTierLook(built, tier) {
-  if (tier < 1) return;
-  const shift = tier * 0.13;
-  built.body.traverse((o) => {
-    if (!o.isMesh || !o.material?.color) return;
-    o.material = o.material.clone(); // shared materials (eyes, cheeks) must not change for everyone
-    const hsl = {};
-    o.material.color.getHSL(hsl);
-    if (hsl.s > 0.12 && hsl.l > 0.08 && hsl.l < 0.92) o.material.color.setHSL((hsl.h + shift) % 1, hsl.s, hsl.l);
-  });
-  const mark = tier % 2 ? 'spots' : 'stripes';
-  const box = new THREE.Box3().setFromObject(built.body);
-  const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
-  const width = Math.max(s.x, s.z);
-  const ink = std(mark === 'spots' ? 0x2b2118 : 0x221a14, { roughness: 0.7 });
-  if (mark === 'spots') {
-    for (let i = 0; i < 8; i++) {
-      const a = i * 2.4 + tier, phi = 0.35 + ((i * 0.37 + tier * 0.11) % 0.9);
-      const spot = new THREE.Mesh(new THREE.SphereGeometry(width * 0.07, 8, 6), ink);
-      spot.scale.set(1, 0.5, 0.7);
-      spot.position.set(c.x + Math.cos(a) * Math.sin(phi) * width * 0.5, c.y + Math.cos(phi) * s.y * 0.45, c.z + Math.sin(a) * Math.sin(phi) * width * 0.5);
-      built.body.add(spot);
-    }
-  } else {
-    for (let k = 0; k < 3; k++) {
-      const band = new THREE.Mesh(new THREE.TorusGeometry(width * 0.49, width * 0.045, 6, 24), ink);
-      band.rotation.x = Math.PI / 2;
-      band.position.set(c.x, c.y + (k - 1) * s.y * 0.22, c.z);
-      built.body.add(band);
-    }
-  }
-}
-
 export function buildPet(kind, level = 1) {
   const stage = petStage(level);
   const built = BUILDERS[kind]?.() ?? makeCritter(LOOKS[kind] ?? LOOKS.maple, stage);
-  applyTierLook(built, petTier(level));
   decorate(built, level);
   return built;
 }
@@ -410,8 +467,9 @@ export class PetView {
     this.root.scale.setScalar(STAGE_SCALE[petStage(level)]);
     this.body = built.body;
     this.parts = built.parts;
+    this.hop = !!built.hop; // bunnies bounce along
     this.t = Math.random() * 10;
-    this.hop = 0;        // frog jump progress
+    this.jump = 0;       // frog jump progress
   }
 
   animate(dt, moving) {
@@ -421,10 +479,10 @@ export class PetView {
     switch (this.shape) {
       case 'frog': {
         // hop when moving; an occasional little hop when idle
-        if (this.hop <= 0 && (moving || Math.sin(t * 0.7) > 0.995)) this.hop = 0.45;
-        if (this.hop > 0) {
-          this.hop -= dt;
-          const u = 1 - this.hop / 0.45;
+        if (this.jump <= 0 && (moving || Math.sin(t * 0.7) > 0.995)) this.jump = 0.45;
+        if (this.jump > 0) {
+          this.jump -= dt;
+          const u = 1 - this.jump / 0.45;
           b.position.y = Math.sin(u * Math.PI) * 0.35;
           b.scale.set(1 - Math.sin(u * Math.PI) * 0.1, 1 + Math.sin(u * Math.PI) * 0.15, 1);
           for (const l of P.legs) l.scale.z = 1.5 + Math.sin(u * Math.PI) * 1.2;
@@ -457,9 +515,10 @@ export class PetView {
         break;
       }
       case 'quad':
-      case 'round': {
+      case 'round':
+      case 'hog': {
         const w = t * 12;
-        b.position.y = moving ? Math.abs(Math.sin(w)) * 0.04 : 0;
+        b.position.y = moving ? Math.abs(Math.sin(w * (this.hop ? 0.6 : 1))) * (this.hop ? 0.16 : 0.04) : 0;
         P.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(w + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.5 : 0; });
         if (P.tail) P.tail.rotation.y = Math.sin(t * (moving ? 10 : 3)) * 0.5; // wag
         if (P.head && P.head !== b) P.head.rotation.z = moving ? 0 : Math.sin(t * 0.9) * 0.12;
