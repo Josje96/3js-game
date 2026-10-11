@@ -16,16 +16,25 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #120e18; }
 .muted { color: var(--muted); }
 .error { color: var(--danger); min-height: 1.2em; }
 .gold { color: var(--gold); font-weight: 700; }
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; backdrop-filter: blur(6px); }
+/* Panels are carved stone; buttons are planks of wood (textures from client/ui-textures.js). */
+.panel {
+  background: linear-gradient(rgba(18, 14, 24, 0.55), rgba(18, 14, 24, 0.72)), var(--stone, none) 0 0 / 256px 256px;
+  border: 2px solid #15111c; border-radius: 10px; backdrop-filter: blur(4px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07), 0 6px 18px rgba(0, 0, 0, 0.45);
+}
 
 button {
-  font: inherit; color: var(--text); background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  font: inherit; color: var(--text); text-shadow: 0 1px 2px #000;
+  background: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.3)), var(--wood, none) 0 0 / 128px 128px;
+  background-color: #6b4423;
+  border: 2px solid #3b2612; border-radius: 7px; padding: 7px 14px; cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 4px rgba(0, 0, 0, 0.4);
 }
-button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); }
+button:hover:not(:disabled) { filter: brightness(1.15); }
+button:active:not(:disabled) { transform: translateY(1px); }
 button:disabled { opacity: 0.45; cursor: default; }
-button.primary { background: var(--accent); color: #2a1600; border-color: var(--accent-dark); font-weight: 700; }
-button.primary:hover:not(:disabled) { background: #ffc673; }
+button.primary { background: linear-gradient(#ffd27a, #e89a2e); color: #2a1600; border-color: #7a4a10; font-weight: 700; text-shadow: none; }
+button.primary:hover:not(:disabled) { background: linear-gradient(#ffe0a0, #f0aa40); filter: none; }
 button.small { padding: 4px 10px; font-size: 0.85em; }
 input {
   font: inherit; color: var(--text); background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border);
@@ -56,6 +65,12 @@ summary { cursor: pointer; color: var(--accent); margin-bottom: 6px; }
 #hud { position: fixed; inset: 0; pointer-events: none; }
 #hud > * { pointer-events: auto; }
 .hud-status { position: absolute; top: 12px; left: 12px; padding: 10px 14px; min-width: 220px; }
+.hud-status .night { color: #b9a8ff; font-weight: 700; }
+.stash-row { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+.stash-row > span { flex: 1; }
+.stash-row button { min-width: 44px; }
+.hud-spell { position: absolute; bottom: 56px; left: 12px; padding: 6px 12px; font-size: 0.9em; color: var(--muted); }
+.hud-spell.ready { color: #9fe8ff; font-weight: 700; text-shadow: 0 0 8px rgba(159, 232, 255, 0.6); }
 .hud-status .loc { font-weight: 700; margin-bottom: 6px; }
 .hud-status .row { display: flex; justify-content: space-between; margin-top: 6px; }
 .hpbar { position: relative; height: 20px; background: #3a0d12; border-radius: 6px; overflow: hidden; }

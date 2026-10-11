@@ -355,9 +355,47 @@ function decorate(built, level) {
 
 const STAGE_SCALE = [1, 1.3, 1.6];
 
+/**
+ * Every 5 levels a pet's colours shift to a new hue, and its markings change
+ * (spots, then stripes, and so on). Greys, whites and blacks keep their colour.
+ */
+function applyTierLook(built, tier) {
+  if (tier < 1) return;
+  const shift = tier * 0.13;
+  built.body.traverse((o) => {
+    if (!o.isMesh || !o.material?.color) return;
+    o.material = o.material.clone(); // shared materials (eyes, cheeks) must not change for everyone
+    const hsl = {};
+    o.material.color.getHSL(hsl);
+    if (hsl.s > 0.12 && hsl.l > 0.08 && hsl.l < 0.92) o.material.color.setHSL((hsl.h + shift) % 1, hsl.s, hsl.l);
+  });
+  const mark = tier % 2 ? 'spots' : 'stripes';
+  const box = new THREE.Box3().setFromObject(built.body);
+  const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
+  const width = Math.max(s.x, s.z);
+  const ink = std(mark === 'spots' ? 0x2b2118 : 0x221a14, { roughness: 0.7 });
+  if (mark === 'spots') {
+    for (let i = 0; i < 8; i++) {
+      const a = i * 2.4 + tier, phi = 0.35 + ((i * 0.37 + tier * 0.11) % 0.9);
+      const spot = new THREE.Mesh(new THREE.SphereGeometry(width * 0.07, 8, 6), ink);
+      spot.scale.set(1, 0.5, 0.7);
+      spot.position.set(c.x + Math.cos(a) * Math.sin(phi) * width * 0.5, c.y + Math.cos(phi) * s.y * 0.45, c.z + Math.sin(a) * Math.sin(phi) * width * 0.5);
+      built.body.add(spot);
+    }
+  } else {
+    for (let k = 0; k < 3; k++) {
+      const band = new THREE.Mesh(new THREE.TorusGeometry(width * 0.49, width * 0.045, 6, 24), ink);
+      band.rotation.x = Math.PI / 2;
+      band.position.set(c.x, c.y + (k - 1) * s.y * 0.22, c.z);
+      built.body.add(band);
+    }
+  }
+}
+
 export function buildPet(kind, level = 1) {
   const stage = petStage(level);
   const built = BUILDERS[kind]?.() ?? makeCritter(LOOKS[kind] ?? LOOKS.maple, stage);
+  applyTierLook(built, petTier(level));
   decorate(built, level);
   return built;
 }

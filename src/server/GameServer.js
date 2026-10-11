@@ -6,8 +6,8 @@
 // owns everything else (enemies, loot, gold, hp, progression, saves).
 
 import {
-  TICK_HZ, ATTACK_RANGE, INTERACT_RANGE, ELEVATOR_STEP, SHOT_SPEED, SHOT_RANGE, ROLL_IFRAMES, ROLL_COOLDOWN,
-  DEATH_GOLD_PENALTY, SPRING_COST, AUTOSAVE_SECONDS, PROTOCOL_VERSION, CLASSES, cleanLook, STYLE_SLOTS, ownsStyle,
+  TICK_HZ, ATTACK_RANGE, INTERACT_RANGE, ELEVATOR_STEP, DAY_SECONDS, NIGHT_WARNING, SHOT_SPEED, SHOT_RANGE, ROLL_IFRAMES, ROLL_COOLDOWN,
+  SPELL_COOLDOWN, SPELL_RADIUS, SPELL_DAMAGE, DEATH_GOLD_PENALTY, SPRING_COST, AUTOSAVE_SECONDS, PROTOCOL_VERSION, CLASSES, cleanLook, STYLE_SLOTS, ownsStyle,
 } from '../shared/config.js';
 import { DUNGEONS, ENEMIES, dungeonKey, parseKey, biomeFor, makeEnemy } from '../shared/dungeons.js';
 import { ITEMS, SHOP_STOCK, FORGE_RECIPES, weaponCooldown, weaponImpact, rollGearDrop, rollBlueprint, duplicateValue } from '../shared/items.js';
@@ -36,6 +36,10 @@ export class GameServer {
     this.nextEntityId = 1;
     this.nextConnId = 1;
     this.time = 0;
+    this.dayClock = 0;            // seconds into today; night falls at DAY_SECONDS
+    this.night = false;
+    this.nightHomeAt = null;      // dayClock value when whoever is underground gets sent home
+    this.worldTimer = 0;
     this.saveTimer = AUTOSAVE_SECONDS;
     this.interval = null;
   }
@@ -111,6 +115,7 @@ export class GameServer {
 
   step(dt) {
     this.time += dt;
+    this.tickDay(dt);
     for (const p of this.players.values()) {
       if (p.pendingHit && this.time >= p.pendingHit.at) { const hit = p.pendingHit; p.pendingHit = null; this.resolveAttack(p, hit); }
     }
@@ -151,7 +156,29 @@ export class GameServer {
 
   broadcastWorld() {
     const s = this.save;
-    this.broadcast({ t: 'world', name: s.name, seed: s.seed, day: s.day, gold: s.gold, flags: s.flags, dungeons: s.dungeons });
+    const dayLeft = this.night ? 0 : Math.max(0, Math.ceil(DAY_SECONDS - this.dayClock));
+    this.broadcast({ t: 'world', name: s.name, seed: s.seed, day: s.day, gold: s.gold, flags: s.flags, dungeons: s.dungeons, night: this.night, dayLeft });
+  }
+
+  /** The day clock: night falls every DAY_SECONDS; then the mine shuts and everyone underground goes home. */
+  tickDay(dt) {
+    this.dayClock += dt;
+    this.worldTimer -= dt;
+    if (this.worldTimer <= 0) { this.worldTimer = 1; this.broadcastWorld(); }
+    if (!this.night && this.dayClock >= DAY_SECONDS) {
+      this.night = true;
+      this.nightHomeAt = this.dayClock + NIGHT_WARNING;
+      this.broadcast({ t: 'toast', text: `Night is falling! Get back to the fort within ${NIGHT_WARNING} seconds.`, big: true });
+      this.broadcastWorld();
+    }
+    if (this.nightHomeAt !== null && this.dayClock >= this.nightHomeAt) {
+      this.nightHomeAt = null;
+      for (const p of [...this.players.values()]) {
+        if (parseKey(p.loc ?? '').kind !== 'dungeon') continue;
+        this.toast(p, 'Night has fallen. Someone carried you home.');
+        this.travel(p, 'house');
+      }
+    }
   }
 
   broadcastRoster() {
@@ -240,6 +267,11 @@ export class GameServer {
 
   /** Move a player to a location, arriving at a portal (or the default spawn). */
   travel(p, key, portalId = null) {
+    if (this.night && parseKey(key).kind === 'dungeon') {
+      this.toast(p, 'The mine is closed for the night. Sleep in your bed to see the morning!');
+      key = 'house';
+      portalId = null;
+    }
     this.leaveLocation(p);
     const loc = this.getLocation(key);
     const arrive = (portalId && loc.layout.portals[portalId]?.arrive) || loc.layout.spawn;
@@ -383,6 +415,20 @@ export class GameServer {
     }
   }
 
+  /** Area spell: a burst that hurts every enemy around you (not your family). Once a minute. */
+  on_spell(p) {
+    if (this.time - (p.lastSpell ?? -Infinity) < SPELL_COOLDOWN * 0.98 || p.hp <= 0) return;
+    const loc = this.locations.get(p.loc);
+    if (!loc) return;
+    p.lastSpell = this.time;
+    const dmg = attackDamage(p.weapon, p.stats) * SPELL_DAMAGE;
+    for (const e of [...loc.entities.values()]) {
+      if (e.type !== 'slime' || dist2(e, p) > SPELL_RADIUS * SPELL_RADIUS) continue;
+      this.hitEntity(p, loc, e, dmg, p);
+    }
+    this.sendToLocation(loc.key, { t: 'fx', kind: 'nova', x: p.x, z: p.z });
+  }
+
   /** Something got hit by `p` (up close, or by their arrow/bolt coming from `from`). */
   hitEntity(p, loc, e, dmg, from = p) {
     if (e.type === 'rock') this.hitRock(p, loc, e, dmg);
@@ -436,7 +482,7 @@ export class GameServer {
     const floor = loc.layout.floor ?? 1;
     const roll = Math.random();
     if (roll < 0.04) this.dropGear(loc, e);
-    else if (roll < 0.45) this.dropItem(loc, e, 'gold', 2 + Math.floor(Math.random() * (4 + floor * 2)));
+    else if (roll < 0.45) this.dropItem(loc, e, 'gold', 1 + Math.floor(Math.random() * (3 + floor)));
     else if (roll < 0.62) this.dropItem(loc, e, floor >= 6 ? 'silver' : floor >= 3 ? 'copper' : 'stone', 1 + Math.floor(Math.random() * 2));
     else if (roll < 0.74) this.dropItem(loc, e, 'slimegoo', 1);
     else if (roll < 0.84) this.dropItem(loc, e, 'potion', 1);
@@ -638,6 +684,9 @@ export class GameServer {
       for (const pet of p.pets) if (!pet.fainted) pet.hp = petMaxHp(pet.species, pet.level); // fainted ones need the Pet Keeper
       this.syncPetEnt(p);
       this.save.day++;
+      this.dayClock = 0;
+      this.night = false;
+      this.nightHomeAt = null;
       this.sendSelf(p);
       this.persist();
       this.broadcastWorld();
@@ -665,8 +714,34 @@ export class GameServer {
     } else if (prop.interact === 'mirror') {
       this.send(p, { t: 'ui', kind: 'mirror' });
     } else if (prop.interact === 'storage') {
-      this.toast(p, 'The family chest is empty... (storage coming soon!)');
+      this.send(p, { t: 'ui', kind: 'chest', storage: this.chestStorage() });
     }
+  }
+
+  /** The family chest's contents: shared by everyone, kept in the save. */
+  chestStorage() {
+    return (this.save.house.storage ??= {});
+  }
+
+  /** Move items between your bag and the family chest (`dir` = 'in' or 'out'). Only at the chest. */
+  on_stash(p, { item, qty, dir }) {
+    const loc = this.locations.get(p.loc);
+    const chest = loc?.layout.props.find((q) => q.interact === 'storage');
+    if (!chest || dist2(p, chest) > (INTERACT_RANGE + chest.radius) ** 2) return;
+    if (dir !== 'in' && dir !== 'out') return;
+    const def = ITEMS[item], n = Math.floor(Number(qty));
+    if (!def || def.kind === 'currency' || !(n > 0)) return;
+    const store = this.chestStorage();
+    const from = dir === 'in' ? p.inventory : store;
+    const to = dir === 'in' ? store : p.inventory;
+    const count = Math.min(n, from[item] ?? 0);
+    if (count <= 0) return;
+    from[item] -= count;
+    if (!from[item]) delete from[item];
+    to[item] = (to[item] ?? 0) + count;
+    this.sendSelf(p);
+    this.sendToLocation(loc.key, { t: 'chestState', storage: store });
+    this.persist();
   }
 
   on_buy(p, { item }) {
@@ -859,9 +934,27 @@ export class GameServer {
     this.broadcastWorld();
   }
 
+  /** Feed your out-and-about pet a treat, right where you are. */
+  on_feedPet(p) {
+    const loc = this.locations.get(p.loc);
+    const pet = p.pets.find((x) => x.id === p.pet && !x.fainted);
+    const ent = pet && p.petEnt && loc?.entities.get(p.petEnt);
+    if (!ent) return this.toast(p, 'Bring a pet along first (P) to feed it.');
+    if (!p.inventory.petfood) return this.toast(p, 'No pet treats. Buy some in the shop.');
+    const max = petMaxHp(pet.species, pet.level);
+    if (pet.hp >= max) return this.toast(p, `${pet.name} is already full!`);
+    p.inventory.petfood--;
+    if (!p.inventory.petfood) delete p.inventory.petfood;
+    const before = pet.hp;
+    pet.hp = Math.min(max, pet.hp + ITEMS.petfood.petHeal + pet.level);
+    this.syncPetEnt(p);
+    this.sendSelf(p);
+    this.sendToLocation(loc.key, { t: 'fx', kind: 'heal', id: ent.id, x: ent.x, z: ent.z, amount: pet.hp - before });
+  }
+
   on_use(p, { item }) {
     const def = ITEMS[item];
-    if (def?.kind !== 'consumable' || !p.inventory[item]) return;
+    if (def?.kind !== 'consumable' || !def.heal || !p.inventory[item]) return;
     if (p.hp >= p.maxHp) return this.toast(p, 'Already at full health!');
     p.inventory[item]--;
     if (!p.inventory[item]) delete p.inventory[item];

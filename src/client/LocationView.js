@@ -1,12 +1,16 @@
 // Builds the static 3D scene for a layout: floors, walls, buildings, props, lights.
 import * as THREE from 'three';
-import { CELL } from '../shared/config.js';
+import { CELL, SPRING_COST } from '../shared/config.js';
 import { hashSeed } from '../shared/rng.js';
 import { instanced, cloneModel } from './assets.js';
 import { CharacterView, makeGlow } from './views.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
-import { makeGrass, makeWater, makeTrees } from './nature.js';
+import { makeGrass, makeWater, makeTrees, makeSpringRing } from './nature.js';
 import { PetView } from './pets.js';
+
+/** The healing spring's round pool: its radius, and how far above the grass its surface sits. */
+const POND_RADIUS = 5.6;
+const POND_SURFACE = 0.05;
 
 /** Wooden signpost for the healing spring. */
 function makeSpringSign() {
@@ -15,23 +19,28 @@ function makeSpringSign() {
   const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.6, 0.18), wood);
   post.position.y = 0.8;
   const c = document.createElement('canvas');
-  c.width = 256; c.height = 128;
+  c.width = 512; c.height = 256;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#c99a63';
-  ctx.fillRect(0, 0, 256, 128);
+  ctx.fillRect(0, 0, 512, 256);
   ctx.strokeStyle = '#7a5030';
-  ctx.lineWidth = 8;
-  ctx.strokeRect(4, 4, 248, 120);
+  ctx.lineWidth = 14;
+  ctx.strokeRect(7, 7, 498, 242);
   ctx.textAlign = 'center';
   ctx.fillStyle = '#e8456b';
-  ctx.font = 'bold 44px system-ui, sans-serif';
-  ctx.fillText('♥ Spring', 128, 58);
+  ctx.font = 'bold 76px system-ui, sans-serif';
+  ctx.fillText('♥ Healing Spring', 256, 110);
   ctx.fillStyle = '#5a3a1c';
-  ctx.font = 'bold 34px system-ui, sans-serif';
-  ctx.fillText('5 gold', 128, 104);
+  ctx.font = 'bold 60px system-ui, sans-serif';
+  ctx.fillText(`${SPRING_COST} gold`, 256, 190);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  const board = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.75, 0.08), [wood, wood, wood, wood, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }), wood]);
+  // the words are on both faces, so it reads from either side of the pond (the back copy is flipped back the right way round)
+  const back = tex.clone();
+  back.repeat.x = -1; back.offset.x = 1; back.needsUpdate = true;
+  const front = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 });
+  const behind = new THREE.MeshStandardMaterial({ map: back, roughness: 0.9 });
+  const board = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.75, 0.08), [wood, wood, wood, wood, front, behind]);
   board.position.y = 1.55;
   for (const m of [post, board]) { m.castShadow = true; g.add(m); }
   return g;
@@ -262,12 +271,30 @@ export class LocationView {
     const block = (path, cx, cz, y, s = 2, extra = {}) =>
       b.add(path, { x: cx * CELL + CELL / 2 + (extra.dx ?? 0), z: cz * CELL + CELL / 2 + (extra.dz ?? 0), y, s, rot: extra.rot ?? 0 });
 
+    // the healing spring's pool is round: a disc of water over grass, ringed with stones
+    const pondCells = [];
+    for (let cz = 0; cz < L.h; cz++) for (let cx = 0; cx < L.w; cx++) if (L.cell(cx, cz) === '~') pondCells.push([cx, cz]);
+    const spring = L.props.some((p) => p.interact === 'spring') && pondCells.length > 0;
+    const pond0 = spring ? {
+      x: pondCells.reduce((a, [cx]) => a + (cx + 0.5) * CELL, 0) / pondCells.length,
+      z: pondCells.reduce((a, [, cz]) => a + (cz + 0.5) * CELL, 0) / pondCells.length,
+    } : null;
+
     for (let cz = 0; cz < L.h; cz++) {
       for (let cx = 0; cx < L.w; cx++) {
         const ch = L.cell(cx, cz);
         // ground (top surface at y = 0)
-        if (ch === '~') block('blocks/water', cx, cz, -2.9); // pond bed, under the animated surface
-        else if (ch === '=') block('blocks/gravel', cx, cz, -2);
+        if (ch === '~' && !spring) block('blocks/water', cx, cz, -2.9); // pond bed, under the animated surface
+        else if (ch === '~') { // the spring's courtyard: cobblestone around the round pool, not grass
+          block('blocks/gravel', cx, cz, -2);
+          b.add('dungeon/floor_tile_large', { x: cx * CELL + CELL / 2, z: cz * CELL + CELL / 2, y: 0, rot: Math.floor(this.rand(cx, cz, 'cr') * 4) * Math.PI / 2 });
+        }
+        else if (ch === '=') { // cobblestone: flat stone tiles, turned at random
+          block('blocks/gravel', cx, cz, -2);
+          b.add('dungeon/floor_tile_large', {
+            x: cx * CELL + CELL / 2, z: cz * CELL + CELL / 2, y: 0, rot: Math.floor(this.rand(cx, cz, 'cr') * 4) * Math.PI / 2,
+          });
+        }
         else if (ch === 'R' || ch === 'm') block('blocks/sand_A', cx, cz, -2);
         else block('blocks/dirt_with_grass', cx, cz, -2);
 
@@ -302,9 +329,15 @@ export class LocationView {
     }
     this.group.add(makeGrass(grass, this.rand, this.uTime));
     this.group.add(makeTrees(trees, this.rand, this.uTime));
-    const pond = makeWater(water, this.rand, this.uTime, { healing: L.props.some((p) => p.interact === 'spring') });
+    const disc = spring ? { x: pond0.x, y: POND_SURFACE, z: pond0.z, r: POND_RADIUS } : null;
+    const pond = makeWater(water, this.rand, this.uTime, { healing: spring, disc, lilyPads: !spring });
     this.group.add(pond);
     this.animated.push({ update: () => pond.userData.update(this.uTime.value) });
+    if (spring) {
+      const ring = makeSpringRing(pond0.x, pond0.z, POND_RADIUS, this.rand);
+      this.group.add(ring);
+      this.animated.push({ update: () => ring.userData.update(this.uTime.value) });
+    }
 
     // faces for the portals
     for (const portal of Object.values(L.portals)) {

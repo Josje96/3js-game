@@ -244,6 +244,29 @@ const HAIR_BUILDERS = {
   },
 };
 
+// The outfit's own hair is part of its head mesh, so a new hairstyle would sit on top of it.
+// Cut the top band of the head out (triangles entirely above the cut line); the hairstyle covers that band.
+const hairlessCache = new WeakMap();
+export function hairlessHead(geo) {
+  if (hairlessCache.has(geo)) return hairlessCache.get(geo);
+  geo.computeBoundingBox();
+  const { min, max } = geo.boundingBox;
+  const cut = max.y - (max.y - min.y) * 0.36;
+  const pos = geo.attributes.position, index = geo.index?.array ?? null;
+  const n = index ? index.length : pos.count;
+  const keep = [];
+  for (let t = 0; t < n; t += 3) {
+    const a = index ? index[t] : t, b = index ? index[t + 1] : t + 1, c = index ? index[t + 2] : t + 2;
+    if (pos.getY(a) > cut && pos.getY(b) > cut && pos.getY(c) > cut) continue;
+    keep.push(a, b, c);
+  }
+  const out = new THREE.BufferGeometry();
+  for (const name of Object.keys(geo.attributes)) out.setAttribute(name, geo.attributes[name]);
+  out.setIndex(keep); // a plain array: three wraps it in a BufferAttribute (a raw typed array would leave the index empty)
+  hairlessCache.set(geo, out);
+  return out;
+}
+
 export function buildHair(style, color) {
   const b = HAIR_BUILDERS[style];
   return b ? b(mat(color, { roughness: 0.8 })) : null;

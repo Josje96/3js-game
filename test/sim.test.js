@@ -2,9 +2,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildLayout, isWalkableChar } from '../src/shared/locations.js';
-import { DUNGEONS, dungeonKey } from '../src/shared/dungeons.js';
+import { DUNGEONS, dungeonKey, parseKey } from '../src/shared/dungeons.js';
 import { MAPS } from '../src/shared/maps.js';
-import { CELL, PROTOCOL_VERSION } from '../src/shared/config.js';
+import { CELL, PROTOCOL_VERSION, DAY_SECONDS } from '../src/shared/config.js';
 import { blocked } from '../src/shared/physics.js';
 import { GameServer } from '../src/server/GameServer.js';
 import { newSave } from '../src/server/saves.js';
@@ -411,7 +411,7 @@ test('server: blueprints from chests teach recipes; the forge turns ore into wea
   assert.ok(p.gear.includes('copperblade'));
   assert.equal(p.weapon, 'copperblade', 'stronger than the starter sword, so equipped');
   assert.deepEqual(p.inventory, { potion: 2, copper: 1 });
-  assert.equal(server.save.gold, 60);
+  assert.equal(server.save.gold, 52);
   c.say({ t: 'forge', recipe: 'dragonsword' }); // blueprint not found
   assert.ok(!p.gear.includes('dragonsword'));
 });
@@ -531,4 +531,82 @@ test('server: pets have health, faint, and are revived at the Pet Keeper for gol
 
   // a new look every 5 levels
   assert.deepEqual([1, 4, 5, 9, 10, 15, 20, 50].map(petTier), [0, 0, 1, 1, 2, 3, 4, 10]);
+});
+
+test('server: the family chest moves items between your bag and the shared store', () => {
+  const server = new GameServer({ save: newSave({ name: 't', seed: 'chest' }), log: () => {} });
+  const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
+  const p = server.players.get('a');
+  server.travel(p, 'house');
+  const loc = server.locations.get(p.loc);
+  const chest = loc.layout.props.find((q) => q.interact === 'storage');
+  assert.ok(chest, 'the fort has a chest');
+  p.inventory.copper = 5;
+  p.x = chest.x + 9; p.z = chest.z; // too far away to use it
+  c.say({ t: 'stash', item: 'copper', qty: 5, dir: 'in' });
+  assert.equal(p.inventory.copper, 5, 'nothing moves from across the room');
+  p.x = chest.x; p.z = chest.z;
+  c.say({ t: 'stash', item: 'copper', qty: 3, dir: 'in' });
+  assert.deepEqual([p.inventory.copper, server.save.house.storage.copper], [2, 3]);
+  c.say({ t: 'stash', item: 'copper', qty: 10, dir: 'out' });
+  assert.deepEqual([p.inventory.copper, server.save.house.storage.copper], [5, undefined], 'take back all there is');
+  c.say({ t: 'stash', item: 'gold', qty: 1, dir: 'in' });
+  assert.equal(server.save.house.storage.gold, undefined, 'gold is not stashable');
+});
+
+test('server: night falls every ten minutes, the mine shuts, and whoever is underground goes home', () => {
+  const server = new GameServer({ save: newSave({ name: 't', seed: 'night' }), log: () => {} });
+  const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
+  const p = server.players.get('a');
+  server.travel(p, dungeonKey('mine', 1), 'U');
+  assert.equal(server.night, false);
+  server.dayClock = DAY_SECONDS - 0.1;
+  server.step(0.2);
+  assert.equal(server.night, true, 'night has fallen');
+  assert.equal(parseKey(p.loc).kind, 'dungeon', 'still underground during the warning');
+  for (let i = 0; i < 40 * 20; i++) server.step(0.05);
+  assert.equal(p.loc, 'house', 'sent home after the warning');
+  server.travel(p, dungeonKey('mine', 1), 'U');
+  assert.equal(p.loc, 'house', 'the mine stays shut at night');
+  server.save.day++; server.dayClock = 0; server.night = false;
+  server.travel(p, dungeonKey('mine', 1), 'U');
+  assert.equal(parseKey(p.loc).kind, 'dungeon', 'open again in the morning');
+});
+
+test('server: pets can be fed a treat anywhere, to heal them', () => {
+  const server = new GameServer({ save: newSave({ name: 't', seed: 'feed' }), log: () => {} });
+  const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
+  const p = server.players.get('a');
+  c.say({ t: 'buyPet', species: 'maple' });
+  const pet = p.pets[0];
+  pet.hp = 5;
+  c.say({ t: 'feedPet' });
+  assert.equal(pet.hp, 5, 'no treat, no heal');
+  p.inventory.petfood = 2;
+  c.say({ t: 'feedPet' });
+  assert.ok(pet.hp > 5, 'the treat healed the pet');
+  assert.equal(p.inventory.petfood, 1);
+  c.say({ t: 'use', item: 'petfood' });
+  assert.equal(p.inventory.petfood, 1, 'a treat is not a potion');
+});
+
+test('server: the area spell hits every enemy around you, once a minute', () => {
+  const server = new GameServer({ save: newSave({ name: 't', seed: 'nova' }), log: () => {} });
+  const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
+  const p = server.players.get('a');
+  const loc = server.locations.get(p.loc);
+  const { x, z } = loc.layout.spawn;
+  p.x = x; p.z = z;
+  const near = loc.spawn({ type: 'slime', variant: 'green', x: x + 2, z, hp: 50, maxHp: 50, damage: 0, speed: 0 });
+  const far = loc.spawn({ type: 'slime', variant: 'green', x: x + 9, z, hp: 50, maxHp: 50, damage: 0, speed: 0 });
+  server.time += 100;
+  c.say({ t: 'spell' });
+  assert.ok(near.hp < 50, 'the nearby slime was hit');
+  assert.equal(far.hp, 50, 'the far slime was out of range');
+  const after = near.hp;
+  c.say({ t: 'spell' });
+  assert.equal(near.hp, after, 'still on cooldown');
+  server.time += 60;
+  c.say({ t: 'spell' });
+  assert.ok(near.hp < after, 'ready again after a minute');
 });

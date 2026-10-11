@@ -1,12 +1,12 @@
 // One player's view of the game. Renders whatever location the server says
 // we're in, moves our own character locally, and sends intents to the host.
 import * as THREE from 'three';
-import { PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, cleanLook } from '../shared/config.js';
+import { PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
 import { buildLayout } from '../shared/locations.js';
 import { moveCircle } from '../shared/physics.js';
 import { ITEMS, weaponCooldown } from '../shared/items.js';
 import { LocationView } from './LocationView.js';
-import { CharacterView, Debris, makeEntityView } from './views.js';
+import { CharacterView, Debris, NovaRing, makeEntityView } from './views.js';
 import { Input } from './input.js';
 import { Hud } from './hud.js';
 import { Music, moodFor } from './music.js';
@@ -32,6 +32,7 @@ export class GameClient {
     this.attackTimer = 0;
     this.rolling = 0;             // seconds left in a dodge roll
     this.rollCooldown = 0;
+    this.spellCooldown = 0;       // the area spell: seconds until it's ready again
     this.lastSent = '';
     this.zoom = 1.1;
     this.time = 0;
@@ -104,6 +105,7 @@ export class GameClient {
       case 'snap': this.applySnapshot(msg); break;
       case 'fx': this.onFx(msg); break;
       case 'toast': this.hud.toast(msg.text, msg.big); break;
+      case 'chestState': this.hud.setChest(msg.storage); break;
       case 'chat': this.hud.chat(msg.from, msg.text); break;
       case 'roster': this.hud.setRoster(msg.players); break;
       case 'ui': this.openUi(msg); break;
@@ -244,6 +246,7 @@ export class GameClient {
       case 'pickup': this.floatAt(this.pos, `+${msg.qty} ${msg.item === 'gold' ? 'gold' : ITEMS[msg.item]?.name ?? msg.item}`, msg.item === 'gold' ? '#ffd23f' : '#bfe7ff'); break;
       case 'chest': this.floatAt(msg, 'Treasure!', '#ffd23f'); break;
       case 'smash': this.addEffect(new Debris(msg.x, msg.z, [0x9a6a3c, 0x7a5030, 0xb58250, 0x5a5a5a])); break;
+      case 'nova': this.addEffect(new NovaRing(msg.x, msg.z, SPELL_RADIUS)); break;
       case 'break': this.addEffect(new Debris(msg.x, msg.z, [0x8d8d8d, 0x6e6e6e, 0xa8a29a], 10)); break;
     }
   }
@@ -289,6 +292,8 @@ export class GameClient {
         onChange: (cls, look) => this.changeOutfit(cls, look),
         onClose: () => { this.closeUp = false; },
       });
+    } else if (msg.kind === 'chest') {
+      this.hud.openChest({ storage: msg.storage, onStash: (item, qty, dir) => this.conn.send({ t: 'stash', item, qty, dir }) });
     } else if (msg.kind === 'elevator') {
       this.hud.openElevator({ name: msg.name, floors: msg.floors, onPick: (floor) => this.conn.send({ t: 'elevator', dungeon: msg.dungeon, floor }) });
     }
@@ -395,6 +400,16 @@ export class GameClient {
       this.me.play('attack');
       this.conn.send({ t: 'attack', rot: this.pos.rot });
     }
+    if (input.consume('feed')) this.conn.send({ t: 'feedPet' });
+    this.spellCooldown -= dt;
+    if (input.consume('spell') && this.rolling <= 0 && this.self?.hp > 0) {
+      if (this.spellCooldown > 0) this.hud.toast(`Area spell ready in ${Math.ceil(this.spellCooldown)}s`);
+      else {
+        this.spellCooldown = SPELL_COOLDOWN;
+        this.conn.send({ t: 'spell' });
+      }
+    }
+    this.hud.setSpell(this.spellCooldown);
     if (input.consume('potion')) {
       const inv = this.self?.inventory ?? {};
       const item = ['potion', 'bigpotion', 'cocoa'].find((id) => inv[id]) ?? null;

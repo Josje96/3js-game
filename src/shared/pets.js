@@ -28,25 +28,25 @@ export const PET_MAX_LEVEL = 50;
  */
 export const PET_SPECIES = {
   maple:    { name: 'Maltipoo',  price: 0,   atk: 2, forms: ['Maple', 'Brave Maple', 'Mighty Maple'], fixedName: 'Maple' },
-  mouse:    { name: 'Mouse',     price: 60,  atk: 1, forms: ['Mouse', 'Squeakster', 'Mouse King'] },
-  hamster:  { name: 'Hamster',   price: 50,  atk: 1, forms: ['Hamster', 'Hamster Hero', 'Hamster Lord'] },
-  snail:    { name: 'Snail',     price: 30,  atk: 1, forms: ['Snail', 'Speedy Snail', 'Turbo Snail'] },
-  chick:    { name: 'Chick',     price: 40,  atk: 1, forms: ['Chick', 'Hen', 'Phoenix'] },
-  frog:     { name: 'Frog',      price: 80,  atk: 2, forms: ['Frog', 'Bullfrog', 'Frog Prince'] },
-  bunny:    { name: 'Bunny',     price: 70,  atk: 2, forms: ['Bunny', 'Jackrabbit', 'Moon Rabbit'] },
-  duck:     { name: 'Duckling',  price: 60,  atk: 2, forms: ['Duckling', 'Duck', 'Swan Knight'] },
-  piglet:   { name: 'Piglet',    price: 60,  atk: 2, forms: ['Piglet', 'Pig', 'Boar Chief'] },
-  bee:      { name: 'Bee',       price: 70,  atk: 2, forms: ['Bee', 'Bumblebee', 'Queen Bee'] },
-  hedgehog: { name: 'Hedgehog',  price: 90,  atk: 2, forms: ['Hoglet', 'Hedgehog', 'Spike Lord'] },
-  turtle:   { name: 'Turtle',    price: 120, atk: 2, forms: ['Turtle', 'Shellguard', 'Elder Tortoise'] },
-  penguin:  { name: 'Penguin',   price: 100, atk: 2, forms: ['Penguin Chick', 'Penguin', 'Emperor Penguin'] },
-  owl:      { name: 'Owl',       price: 120, atk: 3, forms: ['Owlet', 'Owl', 'Wise Owl'] },
-  axolotl:  { name: 'Axolotl',   price: 130, atk: 3, forms: ['Axolotl', 'Axo Diver', 'Axolotl Sage'] },
-  fox:      { name: 'Fox',       price: 140, atk: 3, forms: ['Fox Kit', 'Fox', 'Nine-Tail Fox'] },
-  cat:      { name: 'Cat',       price: 150, atk: 3, forms: ['Kitten', 'Cat', 'Royal Cat'] },
-  panda:    { name: 'Panda',     price: 160, atk: 3, forms: ['Panda Cub', 'Panda', 'Master Panda'] },
-  dragon:   { name: 'Dragon',    price: 300, atk: 4, forms: ['Baby Dragon', 'Dragon', 'Elder Dragon'] },
-  unicorn:  { name: 'Unicorn',   price: 300, atk: 4, forms: ['Pony', 'Unicorn', 'Alicorn'] },
+  mouse:    { name: 'Mouse',     price: 72,  atk: 1, forms: ['Mouse', 'Squeakster', 'Mouse King'] },
+  hamster:  { name: 'Hamster',   price: 60,  atk: 1, forms: ['Hamster', 'Hamster Hero', 'Hamster Lord'] },
+  snail:    { name: 'Snail',     price: 36,  atk: 1, forms: ['Snail', 'Speedy Snail', 'Turbo Snail'] },
+  chick:    { name: 'Chick',     price: 48,  atk: 1, forms: ['Chick', 'Hen', 'Phoenix'] },
+  frog:     { name: 'Frog',      price: 96,  atk: 2, forms: ['Frog', 'Bullfrog', 'Frog Prince'] },
+  bunny:    { name: 'Bunny',     price: 84,  atk: 2, forms: ['Bunny', 'Jackrabbit', 'Moon Rabbit'] },
+  duck:     { name: 'Duckling',  price: 72,  atk: 2, forms: ['Duckling', 'Duck', 'Swan Knight'] },
+  piglet:   { name: 'Piglet',    price: 72,  atk: 2, forms: ['Piglet', 'Pig', 'Boar Chief'] },
+  bee:      { name: 'Bee',       price: 84,  atk: 2, forms: ['Bee', 'Bumblebee', 'Queen Bee'] },
+  hedgehog: { name: 'Hedgehog',  price: 108, atk: 2, forms: ['Hoglet', 'Hedgehog', 'Spike Lord'] },
+  turtle:   { name: 'Turtle',    price: 144, atk: 2, forms: ['Turtle', 'Shellguard', 'Elder Tortoise'] },
+  penguin:  { name: 'Penguin',   price: 120, atk: 2, forms: ['Penguin Chick', 'Penguin', 'Emperor Penguin'] },
+  owl:      { name: 'Owl',       price: 144, atk: 3, forms: ['Owlet', 'Owl', 'Wise Owl'] },
+  axolotl:  { name: 'Axolotl',   price: 156, atk: 3, forms: ['Axolotl', 'Axo Diver', 'Axolotl Sage'] },
+  fox:      { name: 'Fox',       price: 168, atk: 3, forms: ['Fox Kit', 'Fox', 'Nine-Tail Fox'] },
+  cat:      { name: 'Cat',       price: 180, atk: 3, forms: ['Kitten', 'Cat', 'Royal Cat'] },
+  panda:    { name: 'Panda',     price: 192, atk: 3, forms: ['Panda Cub', 'Panda', 'Master Panda'] },
+  dragon:   { name: 'Dragon',    price: 360, atk: 4, forms: ['Baby Dragon', 'Dragon', 'Elder Dragon'] },
+  unicorn:  { name: 'Unicorn',   price: 360, atk: 4, forms: ['Pony', 'Unicorn', 'Alicorn'] },
 };
 
 export function petStage(level) {
@@ -78,7 +78,7 @@ export function petMaxHp(species, level) {
 
 /** Gold to revive a fainted pet at the Pet Keeper. */
 export function reviveCost(level) {
-  return 15 + level * 5;
+  return 18 + level * 6;
 }
 
 export function newPet(species, name) {

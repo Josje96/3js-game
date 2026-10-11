@@ -8,6 +8,9 @@ import { SaveStore, newSave } from './server/saves.js';
 import { createLocalPair, hostPeer, joinPeer, hostTabs, joinTabs } from './net/transports.js';
 import { GameClient } from './client/GameClient.js';
 import { preloadAll } from './client/assets.js';
+import { applyUiTextures } from './client/ui-textures.js';
+
+applyUiTextures();
 
 const params = new URLSearchParams(location.search);
 // ?net=tabs uses BroadcastChannel instead of WebRTC (test two tabs offline)

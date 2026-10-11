@@ -147,7 +147,7 @@ export function generateFloor(dungeonId, floor, seed) {
     }
     if (rest.length && rng.chance(0.4)) {
       const p = place(rng.pick(rest), 1.0);
-      if (p) initial.push({ type: 'chest', gold: 15 * floor + rng.int(0, 20), x: p.x, z: p.z });
+      if (p) initial.push({ type: 'chest', gold: 9 * floor + rng.int(0, 12), x: p.x, z: p.z });
     }
     // clutter in room corners: crates are scenery, barrels can be smashed for loot
     for (const room of rest) {

@@ -27,6 +27,7 @@ export class Hud {
     this.inv = el('div', 'hud-inv panel');
     this.xp = el('div', 'hud-xp');
     this.promptEl = el('div', 'hud-prompt');
+    this.spell = el('div', 'hud-spell panel');
     this.toasts = el('div', 'hud-toasts');
     this.chatLog = el('div', 'hud-chat');
     this.chatInput = el('input', 'hud-chat-input');
@@ -34,8 +35,8 @@ export class Hud {
     this.chatInput.maxLength = 120;
     this.floats = el('div', 'hud-floats');
     this.modal = el('div', 'modal-backdrop hidden');
-    this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · E interact · Q potion · C character · P pets · Enter chat · M music · Esc menu');
-    root.append(this.status, this.invite, this.xp, this.inv, this.promptEl, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
+    this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · E interact · Q potion · G feed pet · R area spell · C character · P pets · Enter chat · M music · Esc menu');
+    root.append(this.status, this.invite, this.xp, this.inv, this.promptEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
     this.self = null;
     this.world = null;
     this.locTitle = '';
@@ -65,7 +66,8 @@ export class Hud {
     this.status.innerHTML = `
       <div class="loc">${esc(this.locTitle)}</div>
       <div class="hpbar"><div style="width:${frac}%"></div><span>❤ ${hp}</span></div>${petRow}
-      <div class="row"><span class="gold">🪙 ${w?.gold ?? 0}</span><span>Day ${w?.day ?? 1}</span></div>`;
+      <div class="row"><span class="gold">🪙 ${w?.gold ?? 0}</span><span>Day ${w?.day ?? 1}</span></div>
+      <div class="row ${w?.night ? 'night' : ''}"><span>${w?.night ? '🌙 Night — get home!' : `🌅 Night in ${clock(w?.dayLeft ?? 0)}`}</span></div>`;
   }
 
   /** The level-up bar: a wide XP bar above the item bar with your level in the middle. */
@@ -118,6 +120,14 @@ export class Hud {
       if (navigator.clipboard) navigator.clipboard.writeText(link).then(() => this.toast('Invite link copied!'), () => this.toast(link));
       else this.toast(link);
     });
+  }
+
+  /** The area spell's status: counts down, then says it's ready. */
+  setSpell(left) {
+    const ready = left <= 0;
+    const text = ready ? '✨ Area spell ready · R' : `✨ Area spell · ${Math.ceil(left)}s`;
+    if (this.spell.textContent !== text) this.spell.textContent = text;
+    this.spell.classList.toggle('ready', ready);
   }
 
   prompt(text) {
@@ -499,6 +509,39 @@ export class Hud {
     });
   }
 
+  /** The family chest: move things between your bag and the shared chest. */
+  openChest({ storage, onStash }) {
+    this.chestStorage = storage;
+    this.openModal((box) => {
+      box.append(el('h2', null, 'Family chest'), el('p', 'muted', 'Everyone in the family shares this. Move things across with 1 or All.'));
+      const cols = el('div', 'shop-cols');
+      cols.append(this.stashCol('Your bag', this.self?.inventory ?? {}, 'in', onStash), this.stashCol('In the chest', this.chestStorage ?? {}, 'out', onStash));
+      box.append(cols, closeButton(this));
+    });
+  }
+
+  setChest(storage) {
+    this.chestStorage = storage;
+    this.refreshModal?.();
+  }
+
+  stashCol(title, items, dir, onStash) {
+    const col = el('div', 'shop-col', `<h3>${title}</h3>`);
+    const rows = Object.entries(items).filter(([id, n]) => n > 0 && ITEMS[id] && ITEMS[id].kind !== 'currency');
+    if (!rows.length) col.append(el('p', 'muted', dir === 'in' ? 'Nothing in your bag.' : 'The chest is empty.'));
+    for (const [id, n] of rows) {
+      const row = el('div', 'stash-row');
+      row.append(el('span', null, `${esc(ITEMS[id].name)} ×${n}`));
+      const one = el('button', '', '1');
+      one.addEventListener('click', () => onStash(id, 1, dir));
+      const all = el('button', 'primary', 'All');
+      all.addEventListener('click', () => onStash(id, n, dir));
+      row.append(one, all);
+      col.append(row);
+    }
+    return col;
+  }
+
   openElevator({ name, floors, onPick }) {
     this.openModal((box) => {
       box.append(el('h2', null, esc(name)), el('p', 'muted', 'Where to?'));
@@ -547,6 +590,12 @@ export class Hud {
     });
     this.refreshModal = null;
   }
+}
+
+/** 125 seconds → "2:05". */
+function clock(seconds) {
+  const s = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 function closeButton(hud) {

@@ -4,7 +4,7 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS } from '../shared
 import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { buildHat, buildBack, buildHair, buildFace } from './cosmetics.js';
+import { buildHat, buildBack, buildHair, buildFace, hairlessHead } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 
@@ -227,6 +227,8 @@ export class CharacterView {
     if (hair !== 'none') this.attach('hat', buildHair(hair, hc));
     if (face !== 'none') this.attach('face', buildFace(face, hc));
     if (this.headMesh) {
+      this.headMesh.userData.baseGeo ??= this.headMesh.geometry;
+      this.headMesh.geometry = hair !== 'none' ? hairlessHead(this.headMesh.userData.baseGeo) : this.headMesh.userData.baseGeo;
       this.headMesh.userData.baseMat ??= this.headMesh.material;
       const tone = SKINS[skin]?.color;
       if (this.headMesh.material !== this.headMesh.userData.baseMat) this.headMesh.material.dispose();
@@ -342,7 +344,7 @@ export class SlimeView {
     this.root = new THREE.Group();
     this.body = new THREE.Group();
     this.mat = new THREE.MeshStandardMaterial({
-      color: SLIME_COLORS[e.variant] ?? 0x88ff88, roughness: 0.25, metalness: 0, transparent: true, opacity: 0.88,
+      color: SLIME_COLORS[e.variant] ?? 0x88ff88, roughness: 0.25, metalness: 0, transparent: true, opacity: 0.6,
       emissive: 0x000000,
     });
     const blob = new THREE.Mesh(slimeGeo, this.mat);
@@ -461,6 +463,25 @@ export class BarrelView {
 
 /** Bits flying off smashed barrels and rocks. */
 const debrisGeo = new THREE.BoxGeometry(1, 1, 1);
+/** The area spell: a ring of light that swells out from you and fades. */
+export class NovaRing {
+  constructor(x, z, radius) {
+    this.root = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 56), new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.root.rotation.x = -Math.PI / 2;
+    this.root.position.set(x, 0.12, z);
+    this.radius = radius;
+    this.life = 0.6;
+  }
+  get done() { return this.life <= 0; }
+  update(dt) {
+    this.life -= dt;
+    const t = 1 - Math.max(0, this.life) / 0.6;
+    this.root.scale.setScalar(this.radius * (0.2 + 0.8 * t));
+    this.root.material.opacity = Math.max(0, this.life / 0.6);
+  }
+  dispose() { this.root.geometry.dispose(); this.root.material.dispose(); this.root.removeFromParent(); }
+}
+
 export class Debris {
   constructor(x, z, colors, count = 14) {
     this.root = new THREE.Group();

@@ -218,19 +218,27 @@ function sparkleTexture() {
  * Moving water surface for every water cell, plus a few bobbing lily pads.
  * `healing` adds pink sparkles drifting up off the water (the healing spring).
  */
-export function makeWater(cells, rand, uTime, { healing = false } = {}) {
+export function makeWater(cells, rand, uTime, { healing = false, disc = null, lilyPads = true } = {}) {
   const group = new THREE.Group();
   // subdivide each cell so the vertex waves have something to bend
   const geos = [];
-  for (const [cx, cz] of cells) {
+  if (disc) { // a round pool: one disc instead of square cells
+    const g = new THREE.CircleGeometry(disc.r, 48);
+    g.rotateX(-Math.PI / 2);
+    g.translate(disc.x, disc.y, disc.z);
+    geos.push(g);
+  } else for (const [cx, cz] of cells) {
     const g = new THREE.PlaneGeometry(CELL, CELL, 8, 8);
     g.rotateX(-Math.PI / 2);
     g.translate(cx * CELL + CELL / 2, WATER_Y, cz * CELL + CELL / 2);
-    const p = g.attributes.position, uv = g.attributes.uv;
-    for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / 6, -p.getZ(i) / 6);
     geos.push(g);
   }
+  for (const g of geos) {
+    const p = g.attributes.position, uv = g.attributes.uv;
+    for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / 6, -p.getZ(i) / 6);
+  }
   const geo = mergeGeometries(geos);
+  const level = disc ? disc.y : WATER_Y; // where the surface is (a round pool sits just above the grass)
   const mat = new THREE.MeshStandardMaterial({
     color: 0x3aa6dd, map: waterTexture(), roughness: 0.15, metalness: 0.05, transparent: true, opacity: 0.88,
   });
@@ -258,7 +266,7 @@ export function makeWater(cells, rand, uTime, { healing = false } = {}) {
   const flowerMat = new THREE.MeshStandardMaterial({ color: 0xffb7d5, roughness: 0.6 });
   const pads = [];
   for (const [cx, cz] of cells) {
-    if (rand(cx, cz, 'lily') < 0.45) continue;
+    if (!lilyPads || rand(cx, cz, 'lily') < 0.45) continue;
     const r = 0.45 + rand(cx, cz, 'lr') * 0.3;
     const pad = new THREE.Mesh(new THREE.CircleGeometry(r, 20, 0.35, Math.PI * 2 - 0.35), padMat);
     pad.rotation.x = -Math.PI / 2;
@@ -270,7 +278,7 @@ export function makeWater(cells, rand, uTime, { healing = false } = {}) {
       flower.position.set(r * 0.2, 0.06, 0);
       holder.add(flower);
     }
-    holder.position.set(cx * CELL + 0.8 + rand(cx, cz, 'lx') * (CELL - 1.6), WATER_Y + 0.03, cz * CELL + 0.8 + rand(cx, cz, 'lz') * (CELL - 1.6));
+    holder.position.set(cx * CELL + 0.8 + rand(cx, cz, 'lx') * (CELL - 1.6), level + 0.03, cz * CELL + 0.8 + rand(cx, cz, 'lz') * (CELL - 1.6));
     holder.rotation.y = rand(cx, cz, 'la') * Math.PI * 2;
     holder.userData.phase = rand(cx, cz, 'lp') * 10;
     group.add(holder);
@@ -291,12 +299,12 @@ export function makeWater(cells, rand, uTime, { healing = false } = {}) {
   group.userData.update = (time) => {
     for (const s of sparkles) { // float up, fade out, start again
       const u = (time * 0.35 + s.userData.phase) % 1;
-      s.position.set(s.userData.x + Math.sin(time * 2 + s.userData.phase * 9) * 0.25, WATER_Y + u * 2.4, s.userData.z);
+      s.position.set(s.userData.x + Math.sin(time * 2 + s.userData.phase * 9) * 0.25, level + u * 2.4, s.userData.z);
       s.material.opacity = Math.sin(u * Math.PI) * 0.9;
       s.scale.setScalar(0.35 + 0.3 * Math.sin(u * Math.PI));
     }
     for (const p of pads) {
-      p.position.y = WATER_Y + 0.05 + Math.sin(time * 1.3 + p.userData.phase) * 0.04;
+      p.position.y = level + 0.05 + Math.sin(time * 1.3 + p.userData.phase) * 0.04;
       p.rotation.y += Math.sin(time * 0.3 + p.userData.phase) * 0.0015;
     }
   };
@@ -433,5 +441,37 @@ export function makeTrees(cells, rand, uTime) {
     inst.castShadow = inst.receiveShadow = true;
     group.add(inst);
   }
+  return group;
+}
+
+/**
+ * The healing spring's magic: a glowing ring around the pool's edge, and a ring of flowers
+ * outside the stone rim. `rim` = the radius the pool's stones sit on.
+ */
+export function makeSpringRing(cx, cz, radius, rand) {
+  const group = new THREE.Group();
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x8ff3ff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false });
+  // a soft glow lying on the water's edge
+  const glow = new THREE.Mesh(new THREE.RingGeometry(radius - 0.25, radius, 64), glowMat);
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.set(cx, 0.07, cz);
+  group.add(glow);
+
+  // glowing orbs around the pool (no green, so they read as magic rather than plants)
+  const colors = [0xff8ac6, 0xffe066, 0x9fe8ff, 0xb48cff];
+  const orbGeo = new THREE.SphereGeometry(0.1, 10, 8);
+  const count = 12;
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2 + rand(i, 0, 'fa') * 0.2;
+    const r = radius + 0.9 + rand(i, 0, 'fr') * 0.6;
+    const color = colors[i % colors.length];
+    const orb = new THREE.Mesh(orbGeo, new THREE.MeshStandardMaterial({ color, roughness: 0.3, emissive: color, emissiveIntensity: 0.6 }));
+    orb.position.set(cx + Math.cos(a) * r, 0.14, cz + Math.sin(a) * r);
+    group.add(orb);
+  }
+
+  group.userData.update = (time) => {
+    glowMat.opacity = 0.55 + 0.25 * Math.sin(time * 2.2);
+  };
   return group;
 }

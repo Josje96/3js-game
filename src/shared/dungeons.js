@@ -65,25 +65,25 @@ for (const d of Object.values(DUNGEONS)) d.floors = d.biomes.length * BIOME_FLOO
  * hp/damage are for the first floor the enemy shows up on; deeper floors scale them up.
  */
 export const ENEMIES = {
-  green:      { hp: 6,    damage: 1,  speed: 2.6, gold: [2, 5],      ai: 'chase' },
-  blue:       { hp: 12,   damage: 2,  speed: 3.0, gold: [4, 9],      ai: 'chase' },
-  red:        { hp: 20,   damage: 3,  speed: 3.4, gold: [8, 15],     ai: 'chase' },
-  purple:     { hp: 30,   damage: 4,  speed: 3.4, gold: [12, 20],    ai: 'chase' },
-  black:      { hp: 45,   damage: 5,  speed: 3.8, gold: [18, 30],    ai: 'chase' },
-  bat:        { hp: 8,    damage: 2,  speed: 5.2, gold: [3, 8],      ai: 'flutter', body: 'bat', fly: true },
-  iceslime:   { hp: 40,   damage: 5,  speed: 3.2, gold: [15, 25],    ai: 'chase' },
-  yeti:       { hp: 70,   damage: 7,  speed: 2.4, gold: [25, 40],    ai: 'chase', body: 'yeti', r: 1.0 },
-  shroom:     { hp: 60,   damage: 7,  speed: 2.2, gold: [25, 40],    ai: 'chase', body: 'shroom' },
-  spider:     { hp: 50,   damage: 8,  speed: 3.0, gold: [25, 45],    ai: 'pounce', body: 'spider' },
-  imp:        { hp: 60,   damage: 8,  speed: 3.2, gold: [35, 55],    ai: 'shooter', body: 'imp', fly: true },
-  golem:      { hp: 160,  damage: 12, speed: 1.9, gold: [50, 80],    ai: 'chase', body: 'golem', r: 1.1 },
-  firebat:    { hp: 45,   damage: 8,  speed: 5.6, gold: [30, 50],    ai: 'flutter', body: 'bat', fly: true },
+  green:      { hp: 6,    damage: 1,  speed: 2.6, gold: [1, 3],      ai: 'chase' },
+  blue:       { hp: 12,   damage: 2,  speed: 3.0, gold: [2, 5],      ai: 'chase' },
+  red:        { hp: 20,   damage: 3,  speed: 3.4, gold: [5, 9],      ai: 'chase' },
+  purple:     { hp: 30,   damage: 4,  speed: 3.4, gold: [7, 12],     ai: 'chase' },
+  black:      { hp: 45,   damage: 5,  speed: 3.8, gold: [11, 18],    ai: 'chase' },
+  bat:        { hp: 8,    damage: 2,  speed: 5.2, gold: [2, 5],      ai: 'flutter', body: 'bat', fly: true },
+  iceslime:   { hp: 40,   damage: 5,  speed: 3.2, gold: [9, 15],     ai: 'chase' },
+  yeti:       { hp: 70,   damage: 7,  speed: 2.4, gold: [15, 24],    ai: 'chase', body: 'yeti', r: 1.0 },
+  shroom:     { hp: 60,   damage: 7,  speed: 2.2, gold: [15, 24],    ai: 'chase', body: 'shroom' },
+  spider:     { hp: 50,   damage: 8,  speed: 3.0, gold: [15, 27],    ai: 'pounce', body: 'spider' },
+  imp:        { hp: 60,   damage: 8,  speed: 3.2, gold: [21, 33],    ai: 'shooter', body: 'imp', fly: true },
+  golem:      { hp: 160,  damage: 12, speed: 1.9, gold: [30, 48],    ai: 'chase', body: 'golem', r: 1.1 },
+  firebat:    { hp: 45,   damage: 8,  speed: 5.6, gold: [18, 30],    ai: 'flutter', body: 'bat', fly: true },
   // bosses
-  king:       { hp: 120,  damage: 4,  speed: 2.4, gold: [150, 150],  ai: 'chase', scale: 3.2 },
-  emperor:    { hp: 300,  damage: 7,  speed: 2.8, gold: [400, 400],  ai: 'chase', scale: 3.8 },
-  frostgiant: { hp: 450,  damage: 10, speed: 2.4, gold: [500, 500],  ai: 'chase', body: 'yeti', scale: 2.4, r: 1.0 },
-  shroomking: { hp: 800,  damage: 12, speed: 2.2, gold: [800, 800],  ai: 'chase', body: 'shroom', scale: 2.8, summon: 'shroom' },
-  dragon:     { hp: 1400, damage: 15, speed: 2.6, gold: [1500, 1500], ai: 'shooter', body: 'dragon', scale: 2.2, r: 1.2 },
+  king:       { hp: 120,  damage: 4,  speed: 2.4, gold: [90, 90],    ai: 'chase', scale: 3.2 },
+  emperor:    { hp: 300,  damage: 7,  speed: 2.8, gold: [240, 240],  ai: 'chase', scale: 3.8 },
+  frostgiant: { hp: 450,  damage: 10, speed: 2.4, gold: [300, 300],  ai: 'chase', body: 'yeti', scale: 2.4, r: 1.0 },
+  shroomking: { hp: 800,  damage: 12, speed: 2.2, gold: [480, 480],  ai: 'chase', body: 'shroom', scale: 2.8, summon: 'shroom' },
+  dragon:     { hp: 1400, damage: 15, speed: 2.6, gold: [900, 900],  ai: 'shooter', body: 'dragon', scale: 2.2, r: 1.2 },
 };
 export const SLIME_STATS = ENEMIES; // older name
 

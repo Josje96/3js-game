@@ -8,14 +8,14 @@
 const KEY_ACTIONS = {
   Space: 'attack', KeyJ: 'attack',
   KeyE: 'interact', KeyF: 'interact',
-  KeyQ: 'potion',
+  KeyQ: 'potion', KeyR: 'spell', KeyG: 'feed',
   Escape: 'menu',
   Enter: 'chat',
   KeyM: 'music',
   KeyC: 'sheet', KeyI: 'sheet', KeyP: 'pets',
   ShiftLeft: 'roll', ShiftRight: 'roll', KeyK: 'roll',
 };
-const PAD_ACTIONS = { 0: 'attack', 1: 'roll', 2: 'interact', 3: 'potion', 8: 'sheet', 9: 'menu' };
+const PAD_ACTIONS = { 0: 'attack', 1: 'roll', 2: 'interact', 3: 'potion', 4: 'spell', 5: 'feed', 8: 'sheet', 9: 'menu' };
 
 export class Input {
   constructor(canvas) {
