@@ -1,0 +1,136 @@
+// World saves live in the HOST's browser (localStorage). Export/import moves
+// a world between computers. Only the host needs a save; guests just bring
+// their profile (name + class) and the host remembers their progress.
+
+import { SAVE_VERSION, CLASSES } from '../shared/config.js';
+import { freshStats, maxHpFor } from '../shared/progression.js';
+import { PET_SPECIES, newPet, petMaxHp } from '../shared/pets.js';
+import { DUNGEONS } from '../shared/dungeons.js';
+
+const INDEX_KEY = 'fdg.saves';
+const SLOT_KEY = (id) => `fdg.save.${id}`;
+
+export function newSave({ name, seed }) {
+  return {
+    version: SAVE_VERSION,
+    id: `w${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`,
+    name: name || 'Our World',
+    seed: String(seed),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    day: 1,
+    gold: 50,                      // the family purse, shared by everyone
+    flags: {},                     // e.g. { mineCleared: true }
+    dungeons: Object.fromEntries(Object.keys(DUNGEONS).map((id) => [id, { deepest: 0 }])),
+    players: {},                   // playerId -> player record (see newPlayerRecord)
+    house: { level: 1, storage: {} },
+  };
+}
+
+export function newPlayerRecord({ name, cls }) {
+  const c = CLASSES[cls] ?? CLASSES.Knight;
+  const stats = freshStats(cls);
+  return {
+    name,
+    cls: CLASSES[cls] ? cls : 'Knight',
+    level: 1,
+    xp: 0,
+    points: 0,                     // unspent skill points
+    stats,                         // { str, dex, int, vit } — the class only picks the starting ones
+    hp: maxHpFor(1, stats),
+    maxHp: maxHpFor(1, stats),
+    weapon: c.weapon,
+    gear: [c.weapon],              // every weapon/shield you own; `weapon`/`shield` are the equipped ones
+    blueprints: [],                // forge recipes you've found
+    inventory: { potion: 2 },
+    shield: null,
+    closet: [],                    // bought styles, e.g. ['hat:crown', 'dye:sky']
+    pets: [],                      // owned pets: [{ id, species, name, level, xp }]
+    pet: null,                     // id of the one following you around
+    look: { hat: 'own', cape: 'own', back: 'none', dye: 'none' },
+    location: 'house',
+  };
+}
+
+/** Upgrade old saves here when SAVE_VERSION changes. */
+export function migrate(save) {
+  if (!save || typeof save !== 'object') throw new Error('Not a save file');
+  if (save.version > SAVE_VERSION) throw new Error('This save is from a newer version of the game');
+  for (const id of Object.keys(DUNGEONS)) save.dungeons[id] ??= { deepest: 0 };
+  // v2: shields + wardrobe closet
+  for (const rec of Object.values(save.players ?? {})) {
+    rec.shield ??= null;
+    rec.closet ??= [];
+    rec.pets ??= [];
+    rec.pet ??= null;
+    // v4: pets were just species names; now each one levels up on its own
+    if (rec.pets.some((x) => typeof x === 'string')) {
+      const active = rec.pet;
+      rec.pets = rec.pets.filter((x) => typeof x !== 'string' || PET_SPECIES[x]).map((x) => (typeof x === 'string' ? newPet(x) : x));
+      rec.pet = rec.pets.find((x) => x.species === active)?.id ?? null;
+    }
+    // pets have health now (and can faint)
+    for (const pet of rec.pets) {
+      pet.hp ??= petMaxHp(pet.species, pet.level);
+      pet.fainted ??= false;
+    }
+    if (rec.cls === 'Ranger' && rec.weapon === 'dagger') rec.weapon = 'bow'; // Rangers shoot now
+    // levels + skill points + gear bag
+    rec.level ??= 1;
+    rec.xp ??= 0;
+    rec.points ??= 0;
+    rec.stats ??= freshStats(rec.cls);
+    rec.gear ??= [rec.weapon, rec.shield].filter(Boolean);
+    rec.blueprints ??= [];
+    rec.maxHp = maxHpFor(rec.level, rec.stats);
+    rec.hp = Math.min(rec.hp ?? rec.maxHp, rec.maxHp);
+  }
+  save.version = SAVE_VERSION;
+  return save;
+}
+
+export class SaveStore {
+  constructor(storage = globalThis.localStorage) {
+    this.storage = storage;
+  }
+
+  list() {
+    const ids = JSON.parse(this.storage.getItem(INDEX_KEY) || '[]');
+    return ids
+      .map((id) => {
+        try {
+          const s = JSON.parse(this.storage.getItem(SLOT_KEY(id)));
+          return { id, name: s.name, day: s.day, gold: s.gold, updatedAt: s.updatedAt, players: Object.values(s.players).map((p) => p.name) };
+        } catch { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  load(id) {
+    const raw = this.storage.getItem(SLOT_KEY(id));
+    if (!raw) throw new Error('Save not found');
+    return migrate(JSON.parse(raw));
+  }
+
+  write(save) {
+    save.updatedAt = Date.now();
+    this.storage.setItem(SLOT_KEY(save.id), JSON.stringify(save));
+    const ids = JSON.parse(this.storage.getItem(INDEX_KEY) || '[]');
+    if (!ids.includes(save.id)) this.storage.setItem(INDEX_KEY, JSON.stringify([...ids, save.id]));
+  }
+
+  remove(id) {
+    this.storage.removeItem(SLOT_KEY(id));
+    const ids = JSON.parse(this.storage.getItem(INDEX_KEY) || '[]').filter((x) => x !== id);
+    this.storage.setItem(INDEX_KEY, JSON.stringify(ids));
+  }
+
+  /** Import a save from exported JSON text. Gets a fresh slot if the id already exists. */
+  import(text) {
+    const save = migrate(JSON.parse(text));
+    if (this.storage.getItem(SLOT_KEY(save.id))) save.id += '-imported';
+    this.write(save);
+    return save;
+  }
+}

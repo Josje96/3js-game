@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Family Dungeon</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛏️</text></svg>" />
+  </head>
+  <body>
+    <div id="title">
+      <div class="title-card panel">
+        <h1>Family Dungeon</h1>
+        <p class="muted">Dig deep, get rich, beat the King Slime.</p>
+
+        <section>
+          <h3>Who are you?</h3>
+          <input id="name" placeholder="Your name" maxlength="20" autocomplete="off" />
+          <div id="classes" class="classes"></div>
+          <p class="muted small-note">Your class picks your starting skills and weapon. Later you can use any weapon and level any skill.</p>
+        </section>
+
+        <div class="title-cols">
+          <section>
+            <h3>Host a world</h3>
+            <div id="saves"></div>
+            <details>
+              <summary>New world</summary>
+              <input id="world-name" placeholder="World name (e.g. The Smiths)" maxlength="30" />
+              <input id="world-seed" placeholder="Seed (optional — same seed, same dungeons)" maxlength="40" />
+              <button id="new-world" class="primary">Create &amp; play</button>
+            </details>
+            <label class="import">Import save file… <input id="import" type="file" accept=".json,application/json" hidden /></label>
+          </section>
+
+          <section>
+            <h3>Join family</h3>
+            <p class="muted">Ask the host for their invite code.</p>
+            <input id="code" placeholder="CODE" maxlength="5" autocomplete="off" class="code-input" />
+            <button id="join" class="primary">Join</button>
+          </section>
+        </div>
+        <p id="busy"></p>
+        <p id="title-error" class="error"></p>
+        <p id="loading" class="muted"></p>
+      </div>
+    </div>
+    <div id="game" class="hidden"></div>
+    <div id="hud" class="hidden"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
