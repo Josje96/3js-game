@@ -2,7 +2,6 @@
 // radius > 0 means it blocks movement. `interact` is handled by the server.
 
 export const PROPS = {
-  bed:        { model: 'dungeon/bed_decorated', radius: 1.4, interact: 'sleep', prompt: 'Sleep (heal & save)' },
   chest:      { model: 'dungeon/chest', radius: 1.0, interact: 'storage', prompt: 'Family chest' },
   table:      { model: 'dungeon/table_medium_decorated_A', radius: 1.1 },
   barrel:     { model: 'dungeon/barrel_large', radius: 0.95 },

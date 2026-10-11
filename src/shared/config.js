@@ -23,14 +23,15 @@ export const INTERACT_RANGE = 2.8;
 export const PICKUP_RANGE = 1.4;
 
 export const DAY_SECONDS = 600;      // a day lasts ten minutes, then night falls
-export const NIGHT_WARNING = 30;     // seconds to get home once night falls (the mine closes then)
+export const NIGHT_WARNINGS = [60, 30]; // warn everyone this many seconds before nightfall
+export const NIGHT_GOLD_PENALTY = 0.5;  // out of the fort at nightfall: faint and drop this share of your gold
 export const ELEVATOR_STEP = 5;      // elevator stops at floor 1 and every Nth floor you've reached
 export const DEATH_GOLD_PENALTY = 0.5;
 export const SPRING_COST = 6;        // gold for a full heal at the healing spring by the fort
 export const AUTOSAVE_SECONDS = 30;
 
-export const SAVE_VERSION = 6;
-export const PROTOCOL_VERSION = 12;
+export const SAVE_VERSION = 7;
+export const PROTOCOL_VERSION = 13;
 export const PEER_PREFIX = 'famdungeon-v1-'; // PeerJS ids are global; namespace ours
 
 export const CLASSES = {

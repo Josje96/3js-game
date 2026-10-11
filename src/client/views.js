@@ -7,6 +7,7 @@ import { cloneCharacter, cloneModel, characterClips, characterScene } from './as
 import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, skinSplit } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
+import { FurnitureView } from './furniture.js';
 
 const ANIMS = {
   idle: 'Idle_A',
@@ -321,7 +322,7 @@ export class CharacterView {
   }
 
   fadeTo(name, t = 0.2) {
-    const next = this.actions[name];
+    const next = this.actions[name === 'sleep' ? 'idle' : name];
     if (!next) return;
     for (const a of Object.values(this.actions)) if (a !== next && a.isRunning()) a.fadeOut(t);
     next.reset().fadeIn(t).play();
@@ -330,7 +331,12 @@ export class CharacterView {
   setBase(name) {
     if (this.base === name) return;
     this.base = name;
-    if (!this.oneShot) this.fadeTo(name);
+    // asleep: lying on our back on the bed (the rig has no sleeping clip, so tip the idle pose over)
+    const asleep = name === 'sleep';
+    this.model.rotation.x = asleep ? -Math.PI / 2 : 0;
+    this.model.position.set(0, asleep ? 1.05 : 0, asleep ? -0.9 : 0);
+    if (this.label) this.label.visible = !asleep;
+    if (!this.oneShot) this.fadeTo(asleep ? 'idle' : name);
   }
 
   /** Dodge roll: a tucked forward somersault (the rig has no roll clip). */
@@ -383,7 +389,7 @@ export class CharacterView {
       // one somersault per roll, even if the 'roll' state lingers a little over the network
       if (this.target.anim !== 'roll') this.rollSeen = false;
       else if (!this.rollSeen) { this.rollSeen = true; this.roll(ROLL_TIME); }
-      this.setBase(this.target.anim === 'run' ? 'run' : 'idle');
+      this.setBase(this.target.anim === 'run' ? 'run' : this.target.anim === 'sleep' ? 'sleep' : 'idle');
     }
     if (this.rollT != null) {
       this.rollT += dt;
@@ -789,6 +795,7 @@ export function makeEntityView(e) {
     case 'shot': return new ShotView(e);
     case 'pet': return new PetEntityView(e, makeLabel);
     case 'ladder': return new LadderView(e);
+    case 'furniture': return new FurnitureView(e, makeLabel);
     default: return null;
   }
 }

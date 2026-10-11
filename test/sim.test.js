@@ -2,9 +2,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildLayout, isWalkableChar } from '../src/shared/locations.js';
-import { DUNGEONS, dungeonKey, parseKey } from '../src/shared/dungeons.js';
+import { DUNGEONS, dungeonKey } from '../src/shared/dungeons.js';
 import { MAPS } from '../src/shared/maps.js';
-import { CELL, PROTOCOL_VERSION, DAY_SECONDS } from '../src/shared/config.js';
+import { CELL, PROTOCOL_VERSION } from '../src/shared/config.js';
 import { blocked } from '../src/shared/physics.js';
 import { GameServer } from '../src/server/GameServer.js';
 import { newSave } from '../src/server/saves.js';
@@ -553,25 +553,6 @@ test('server: the family chest moves items between your bag and the shared store
   assert.deepEqual([p.inventory.copper, server.save.house.storage.copper], [5, undefined], 'take back all there is');
   c.say({ t: 'stash', item: 'gold', qty: 1, dir: 'in' });
   assert.equal(server.save.house.storage.gold, undefined, 'gold is not stashable');
-});
-
-test('server: night falls every ten minutes, the mine shuts, and whoever is underground goes home', () => {
-  const server = new GameServer({ save: newSave({ name: 't', seed: 'night' }), log: () => {} });
-  const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
-  const p = server.players.get('a');
-  server.travel(p, dungeonKey('mine', 1), 'U');
-  assert.equal(server.night, false);
-  server.dayClock = DAY_SECONDS - 0.1;
-  server.step(0.2);
-  assert.equal(server.night, true, 'night has fallen');
-  assert.equal(parseKey(p.loc).kind, 'dungeon', 'still underground during the warning');
-  for (let i = 0; i < 40 * 20; i++) server.step(0.05);
-  assert.equal(p.loc, 'house', 'sent home after the warning');
-  server.travel(p, dungeonKey('mine', 1), 'U');
-  assert.equal(p.loc, 'house', 'the mine stays shut at night');
-  server.save.day++; server.dayClock = 0; server.night = false;
-  server.travel(p, dungeonKey('mine', 1), 'U');
-  assert.equal(parseKey(p.loc).kind, 'dungeon', 'open again in the morning');
 });
 
 test('server: pets can be fed a treat anywhere, to heal them', () => {

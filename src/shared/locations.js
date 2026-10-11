@@ -65,6 +65,7 @@ export function buildLayout(key, seed) {
 function parseAsciiMap(map) {
   const h = map.rows.length, w = map.rows[0].length;
   const props = [];
+  const bedSlots = [];
   let spawn = null;
   const rows = map.rows.map((row, cz) =>
     [...row].map((ch, cx) => {
@@ -73,6 +74,7 @@ function parseAsciiMap(map) {
       const pos = { x: cx * CELL + CELL / 2, z: cz * CELL + CELL / 2 };
       if (leg.prop) props.push({ type: leg.prop, ...pos, rot: 0 });
       if (leg.spawn) spawn = pos;
+      if (leg.bedSlot) bedSlots.push({ x: pos.x, z: pos.z - 0.6 });
       return leg.portal ? ch : leg.base;
     }).join(''));
   return {
@@ -82,6 +84,7 @@ function parseAsciiMap(map) {
     w, h, rows,
     portals: structuredClone(map.portals),
     props,
+    bedSlots,
     initial: [],
     spawn: spawn ?? { x: w * CELL / 2, z: h * CELL / 2 },
   };

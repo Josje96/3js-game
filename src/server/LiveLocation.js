@@ -11,7 +11,7 @@ import { petDamage } from '../shared/pets.js';
 import { XP } from '../shared/progression.js';
 
 const RADIUS = { rock: 1.0, chest: 1.0, barrel: 0.75, slime: 0.7, drop: 0.3, ladder: 1.1, shot: 0.3, pet: 0.35 }; // ladder = trigger radius
-export const SOLID_TYPES = new Set(['rock', 'chest', 'barrel']);
+export const SOLID_TYPES = new Set(['rock', 'chest', 'barrel', 'furniture']);
 
 const HITTABLE = new Set(['rock', 'slime', 'chest', 'barrel']);
 
@@ -35,7 +35,7 @@ export class LiveLocation {
     ent.id = `e${this.server.nextEntityId++}`;
     ent.rot ??= 0;
     ent.scale ??= 1;
-    ent.r = (RADIUS[ent.type] ?? 0.5) * (ent.type === 'slime' ? ent.scale : 1);
+    ent.r ??= (RADIUS[ent.type] ?? 0.5) * (ent.type === 'slime' ? ent.scale : 1);
     ent._dirty = true;
     this.entities.set(ent.id, ent);
     return ent;
@@ -54,7 +54,7 @@ export class LiveLocation {
   /** Things that block movement: static props + rocks, chests, barrels. */
   solids() {
     const out = [...this.layout.solids];
-    for (const e of this.entities.values()) if (SOLID_TYPES.has(e.type)) out.push({ x: e.x, z: e.z, r: e.r });
+    for (const e of this.entities.values()) if (SOLID_TYPES.has(e.type) && e.r > 0) out.push({ x: e.x, z: e.z, r: e.r });
     return out;
   }
 

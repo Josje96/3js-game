@@ -92,6 +92,7 @@ export class GameClient {
       case 'welcome': this.you = msg.you; break;
       case 'world':
         this.world = msg;
+        this.dayLeft = msg.dayLeft;
         this.hud.setWorld(msg);
         this.locView?.setFlags(msg.flags);
         break;
@@ -109,6 +110,7 @@ export class GameClient {
       case 'snap': this.applySnapshot(msg); break;
       case 'fx': this.onFx(msg); break;
       case 'toast': this.hud.toast(msg.text, msg.big); break;
+      case 'night': this.sleeping = false; this.hud.nightScreen(msg); break;
       case 'chestState': this.hud.setChest(msg.storage); break;
       case 'chat': this.hud.chat(msg.from, msg.text); break;
       case 'roster': this.hud.setRoster(msg.players); break;
@@ -249,6 +251,13 @@ export class GameClient {
         (msg.id === this.you ? this.me : view)?.play?.('cheer');
         this.addEffect(new Debris(msg.x, msg.z, [0xffd23f, 0xfff27a, 0xffffff], 18));
         break;
+      case 'sleep': // into bed: lie down on it
+        if (msg.id === this.you) { this.sleeping = true; this.pos.x = msg.x; this.pos.z = msg.z; this.pos.rot = (msg.rot ?? 0) + Math.PI; }
+        break;
+      case 'wake':
+        if (msg.id === this.you && this.sleeping) { this.sleeping = false; this.pos.z += 2.6; }
+        break;
+      case 'nightWarning': this.hud.nightWarning(msg.seconds); break;
       case 'dodge': if (msg.id === this.you) this.floatAt(this.pos, 'Dodged!', '#c9f7ff'); break;
       case 'block': this.floatAt(msg.id === this.you ? this.pos : msg, 'Blocked!', '#9fd8ff'); break;
       case 'pickup': this.floatAt(this.pos, `+${msg.qty} ${msg.item === 'gold' ? 'gold' : ITEMS[msg.item]?.name ?? msg.item}`, msg.item === 'gold' ? '#ffd23f' : '#bfe7ff'); break;
@@ -341,14 +350,31 @@ export class GameClient {
     for (const fx of this.effects) fx.update(dt);
     this.effects = this.effects.filter((fx) => !fx.done || (fx.dispose(), false));
     this.locView?.update(dt, this.time);
+    this.updateSky(dt);
     this.updateCamera(dt);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Outdoors, the last two minutes before night turn the sky orange, then purple. */
+  updateSky(dt) {
+    if (!this.layout || this.layout.theme !== 'outdoor' || !this.locView) return;
+    this.dayLeft = Math.max(0, (this.dayLeft ?? 600) - dt);
+    const dusk = Math.min(1, Math.max(0, 1 - this.dayLeft / 120));
+    const theme = this.locView.theme;
+    const sky = new THREE.Color(theme.bg);
+    if (dusk > 0) sky.lerp(new THREE.Color(0xff9a6a), Math.min(1, dusk * 2)).lerp(new THREE.Color(0x2a2352), Math.max(0, dusk * 2 - 1));
+    this.scene.background.copy(sky);
+    this.scene.fog?.color.copy(sky);
+    this.sun.intensity = theme.sun * (1 - dusk * 0.85);
+    this.sun.color.setRGB(1, 0.95 - dusk * 0.4, 0.87 - dusk * 0.55);
+    this.hemi.intensity = theme.ambient * (1 - dusk * 0.5);
+    this.hemi.color.setRGB(1, 1, 1).lerp(new THREE.Color(0xffa070), Math.min(1, dusk * 2)).lerp(new THREE.Color(0x7a6ad0), Math.max(0, dusk * 2 - 1));
   }
 
   solids() {
     const out = [...this.layout.solids];
     for (const { data } of this.ents.values()) {
-      if (data.type === 'rock' || data.type === 'chest' || data.type === 'barrel') out.push({ x: data.x, z: data.z, r: data.r });
+      if ((data.type === 'rock' || data.type === 'chest' || data.type === 'barrel' || data.type === 'furniture') && data.r > 0) out.push({ x: data.x, z: data.z, r: data.r });
     }
     return out;
   }
@@ -403,7 +429,8 @@ export class GameClient {
       this.pos.x = next.x; this.pos.z = next.z;
       this.pos.rot = Math.atan2(m.x, m.z);
     }
-    this.anim = this.rolling > 0 ? 'roll' : moving ? 'run' : 'idle';
+    if (moving || this.rolling > 0) this.sleeping = false; // getting out of bed
+    this.anim = this.rolling > 0 ? 'roll' : moving ? 'run' : this.sleeping ? 'sleep' : 'idle';
     if (this.rolling <= 0) this.me.setBase(this.anim);
     this.me.root.position.set(this.pos.x, 0, this.pos.z);
     const r = this.me.root.rotation;
@@ -447,14 +474,24 @@ export class GameClient {
     this.lantern.position.set(this.pos.x, 4, this.pos.z + 1);
   }
 
+  /** The closest thing you can use with E: a map prop, or an entity like a bed. Has a `prompt`. */
   nearestInteractable() {
     let best = null, bestD = Infinity;
-    for (const p of this.layout.props) {
-      if (!p.interact) continue;
-      const d = Math.hypot(p.x - this.pos.x, p.z - this.pos.z) - p.radius;
-      if (d < INTERACT_RANGE && d < bestD) { best = p; bestD = d; }
-    }
+    const consider = (t, prompt) => {
+      const d = Math.hypot(t.x - this.pos.x, t.z - this.pos.z) - (t.radius ?? t.r ?? 0);
+      if (d < INTERACT_RANGE && d < bestD) { best = { id: t.id, prompt }; bestD = d; }
+    };
+    for (const p of this.layout.props) if (p.interact && !p.hidden) consider(p, p.prompt);
+    for (const { data } of this.ents.values()) if (data.interact) consider(data, this.promptFor(data));
     return best;
+  }
+
+  promptFor(e) {
+    if (e.item === 'bed') {
+      if (e.owner !== this.you) return `${e.ownerName}’s bed`;
+      return this.sleeping ? 'Get up' : 'Sleep (the day ends when everyone is in bed)';
+    }
+    return e.prompt ?? 'Use';
   }
 
   updateCamera(dt) {

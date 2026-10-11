@@ -47,6 +47,39 @@ export class Hud {
 
   // ---------------------------------------------------------------- status
 
+  /** The night screen: a moonlit card with the new day's number, shown for a few seconds. */
+  nightScreen({ day, reason, fainted = [] }) {
+    this.nightEl?.remove();
+    const lines = reason === 'sleep'
+      ? ['Everyone snuggled into bed…']
+      : ['Night fell!', ...fainted.map((f) => `${f.name} was out after dark and fainted${f.lost ? ` (dropped ${f.lost} gold)` : ''}.`)];
+    const n = el('div', 'night-screen', `
+      <div class="night-sky"></div>
+      <div class="night-card">
+        <div class="moon">🌙</div>
+        <div class="night-day">Day ${day}</div>
+        ${lines.map((t) => `<p>${esc(t)}</p>`).join('')}
+        <p class="muted">Game saved. The dungeons have shifted overnight.</p>
+      </div>`);
+    const sky = n.querySelector('.night-sky');
+    for (let i = 0; i < 60; i++) { // twinkling stars
+      const s = el('i');
+      s.style.cssText = `left:${Math.random() * 100}%;top:${Math.random() * 70}%;animation-delay:${Math.random() * 2}s;transform:scale(${0.5 + Math.random()})`;
+      sky.append(s);
+    }
+    this.root.append(n);
+    this.nightEl = n;
+    setTimeout(() => n.classList.add('fade'), 3200);
+    setTimeout(() => n.remove(), 4000);
+  }
+
+  /** A minute / 30 seconds before nightfall: the clock flashes. */
+  nightWarning() {
+    this.status.classList.remove('warn');
+    void this.status.offsetWidth; // restart the animation
+    this.status.classList.add('warn');
+  }
+
   /** A red pulse around the screen edges when you're nearly out of health. */
   setDanger(frac) {
     this.danger.classList.toggle('on', frac > 0 && frac <= 0.3);
@@ -73,7 +106,7 @@ export class Hud {
       <div class="loc">${esc(this.locTitle)}</div>
       <div class="hpbar"><div style="width:${frac}%"></div><span>❤ ${hp}</span></div>${petRow}
       <div class="row"><span class="gold">🪙 ${s?.gold ?? 0}</span><span>Day ${w?.day ?? 1}</span></div>
-      <div class="row ${w?.night ? 'night' : ''}"><span>${w?.night ? '🌙 Night — get home!' : `🌅 Night in ${clock(w?.dayLeft ?? 0)}`}</span></div>`;
+      <div class="row day-clock${(w?.dayLeft ?? 999) <= 60 ? ' soon' : ''}"><span>${(w?.dayLeft ?? 999) <= 60 ? '🌙 Get home! Night in' : '🌅 Night in'} ${clock(w?.dayLeft ?? 0)}</span></div>`;
   }
 
   /** The level-up bar: a wide XP bar above the item bar with your level in the middle. */

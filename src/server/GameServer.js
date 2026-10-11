@@ -34,8 +34,7 @@ export class GameServer {
     this.nextConnId = 1;
     this.time = 0;
     this.dayClock = 0;            // seconds into today; night falls at DAY_SECONDS
-    this.night = false;
-    this.nightHomeAt = null;      // dayClock value when whoever is underground gets sent home
+    this.warned = new Set();      // which night warnings (seconds before nightfall) went out today
     this.worldTimer = 0;
     this.saveTimer = AUTOSAVE_SECONDS;
     this.interval = null;
@@ -87,6 +86,7 @@ export class GameServer {
       this.writeRecord(p);
       this.leaveLocation(p);
       this.players.delete(p.id);
+      this.runHooks('onLeave', p);
       this.broadcast({ t: 'toast', text: `${p.name} went home.` });
       this.broadcastRoster();
       this.persist();
@@ -108,7 +108,7 @@ export class GameServer {
 
   step(dt) {
     this.time += dt;
-    for (const tick of SYSTEM_TICKS) tick.call(this, dt);
+    this.runHooks('tick', dt);
     for (const p of this.players.values()) {
       if (p.pendingHit && this.time >= p.pendingHit.at) { const hit = p.pendingHit; p.pendingHit = null; this.resolveAttack(p, hit); }
     }
@@ -149,8 +149,11 @@ export class GameServer {
 
   broadcastWorld() {
     const s = this.save;
-    const dayLeft = this.night ? 0 : Math.max(0, Math.ceil(DAY_SECONDS - this.dayClock));
-    this.broadcast({ t: 'world', name: s.name, seed: s.seed, day: s.day, flags: s.flags, dungeons: s.dungeons, night: this.night, dayLeft });
+    const dayLeft = Math.max(0, Math.ceil(DAY_SECONDS - this.dayClock));
+    this.broadcast({
+      t: 'world', name: s.name, seed: s.seed, day: s.day, flags: s.flags, dungeons: s.dungeons, dayLeft,
+      house: { wall: s.house.wall, floor: s.house.floor },
+    });
   }
 
   broadcastRoster() {
@@ -209,7 +212,8 @@ export class GameServer {
     c.conn.send({ t: 'welcome', you: id, isHost: !!msg.isHost });
     this.broadcastWorld();
     this.sendSelf(p);
-    this.travel(p, 'house'); // everyone wakes up at home
+    this.runHooks('onJoin', p);
+    this.travel(p, 'house', null, this.bedSpot?.(p)); // everyone wakes up at home
     this.broadcast({ t: 'toast', text: `${name} joined the adventure!` });
     this.broadcastRoster();
   }
@@ -224,6 +228,7 @@ export class GameServer {
       const seed = info.kind === 'dungeon' ? hashSeed(this.save.seed, key, this.save.day) : hashSeed(this.save.seed, key);
       loc = new LiveLocation(this, key, seed);
       this.locations.set(key, loc);
+      this.runHooks('onLocation', loc);
     }
     return loc;
   }
@@ -237,16 +242,11 @@ export class GameServer {
     p.loc = null;
   }
 
-  /** Move a player to a location, arriving at a portal (or the default spawn). */
-  travel(p, key, portalId = null) {
-    if (this.night && parseKey(key).kind === 'dungeon') {
-      this.toast(p, 'The mine is closed for the night. Sleep in your bed to see the morning!');
-      key = 'house';
-      portalId = null;
-    }
+  /** Move a player to a location, arriving at a portal, a given spot `at` { x, z }, or the default spawn. */
+  travel(p, key, portalId = null, at = null) {
     this.leaveLocation(p);
     const loc = this.getLocation(key);
-    const arrive = (portalId && loc.layout.portals[portalId]?.arrive) || loc.layout.spawn;
+    const arrive = (portalId && loc.layout.portals[portalId]?.arrive) || at || loc.layout.spawn;
     p.loc = key;
     p.epoch++; // moves sent before the client knew about this trip are now ignored
     p.x = arrive.x; p.z = arrive.z;
@@ -314,6 +314,7 @@ export class GameServer {
     p.x = x; p.z = z;
     p.rot = Number(rot) || 0;
     p.anim = String(anim || 'idle').slice(0, 16);
+    if (p.sleeping && p.anim !== 'sleep') this.wakeUp(p); // got out of bed
     if (p.hp > 0) this.checkTriggers(p);
   }
 
@@ -324,11 +325,12 @@ export class GameServer {
   /** E next to a prop: each `interact` kind is handled by a system (see systems/*.js `interactions`). */
   on_interact(p, { id }) {
     const loc = this.locations.get(p.loc);
-    const prop = loc?.layout.props.find((q) => q.id === id);
-    if (!prop?.interact || dist2(p, prop) > (INTERACT_RANGE + prop.radius) ** 2) return;
-    const handler = INTERACTIONS[prop.interact];
-    if (handler) handler.call(this, p, prop, loc);
-    else this.log(`[server] nothing handles interact '${prop.interact}'`);
+    // a static prop from the map, or an entity that can be used (beds, furniture...)
+    const target = loc?.layout.props.find((q) => q.id === id) ?? loc?.entities.get(id);
+    if (!target?.interact || target.hidden || dist2(p, target) > (INTERACT_RANGE + (target.radius ?? target.r ?? 0)) ** 2) return;
+    const handler = INTERACTIONS[target.interact];
+    if (handler) handler.call(this, p, target, loc);
+    else this.log(`[server] nothing handles interact '${target.interact}'`);
   }
 
   on_chat(p, { text }) {
@@ -337,7 +339,10 @@ export class GameServer {
   }
 }
 
-const { interactions: INTERACTIONS, ticks: SYSTEM_TICKS } = installSystems(GameServer);
+const { interactions: INTERACTIONS, hooks: HOOKS } = installSystems(GameServer);
+GameServer.prototype.runHooks = function (name, ...args) {
+  for (const fn of HOOKS[name]) fn.call(this, ...args);
+};
 export { INTERACTIONS };
 
 function publicPlayer(p) {

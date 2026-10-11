@@ -1,23 +1,24 @@
-// home — part of the GameServer (see systems/index.js). Methods run with `this` = the GameServer.
+// home — the Family Fort: a bed for every family member (the day ends when everyone online is in
+// bed), the wardrobe, mirror and family chest, and the healing spring in town.
 import { INTERACT_RANGE, SPRING_COST, CLASSES, cleanLook } from '../../shared/config.js';
+import { FURNITURE, blanketFor } from '../../shared/furniture.js';
 import { ITEMS } from '../../shared/items.js';
 import { petMaxHp } from '../../shared/pets.js';
 import { dist2 } from '../../shared/physics.js';
 
 /** Props you can use with E (see shared/props.js `interact`). */
 export const interactions = {
-  sleep(p) {
-    p.hp = p.maxHp;
-    for (const pet of p.pets) if (!pet.fainted) pet.hp = petMaxHp(pet.species, pet.level); // fainted ones need the Pet Keeper
-    this.syncPetEnt(p);
-    this.save.day++;
-    this.dayClock = 0;
-    this.night = false;
-    this.nightHomeAt = null;
-    this.sendSelf(p);
-    this.persist();
-    this.broadcastWorld();
-    this.broadcast({ t: 'toast', text: `${p.name} slept. Day ${this.save.day} — game saved!` });
+  /** Your own bed: lie down (or get up again). Someone else's: it's theirs. */
+  sleep(p, bed) {
+    if (bed.owner !== p.id) return this.toast(p, `That’s ${bed.ownerName}’s bed! Yours has your name on it.`);
+    if (p.sleeping) return this.wakeUp(p);
+    p.sleeping = true;
+    this.send(p, { t: 'fx', kind: 'sleep', id: p.id, x: bed.x, z: bed.z, rot: bed.rot });
+    const asleep = [...this.players.values()].filter((x) => x.sleeping).length;
+    if (asleep < this.players.size) {
+      this.broadcast({ t: 'toast', text: `${p.name} is in bed (${asleep} of ${this.players.size} asleep). The day ends when everyone is in bed.` });
+    }
+    this.checkAllAsleep();
   },
   spring(p) {
     if (p.hp >= p.maxHp) return this.toast(p, 'You splash about. You already feel great!');
@@ -35,7 +36,63 @@ export const interactions = {
   storage(p) { this.send(p, { t: 'ui', kind: 'chest', storage: this.chestStorage() }); },
 };
 
+/** The fort was just loaded: put everyone's bed in it (plus any furniture, see decor.js). */
+export function onLocation(loc) {
+  if (loc.key !== 'house') return;
+  for (const id of Object.keys(this.save.players)) this.placeBed(loc, id);
+}
+
+/** A new family member gets a bed slot (kept in the save) the first time they join. */
+export function onJoin(p) {
+  const beds = (this.save.house.beds ??= {});
+  if (beds[p.id] == null) {
+    const used = new Set(Object.values(beds));
+    const slots = this.getLocation('house').layout.bedSlots ?? [];
+    let slot = slots.findIndex((_, i) => !used.has(i));
+    if (slot < 0) slot = Object.keys(beds).length % Math.max(1, slots.length); // a crowded fort: share
+    beds[p.id] = slot;
+  }
+  const house = this.locations.get('house');
+  if (house) this.placeBed(house, p.id);
+}
+
+export function onLeave() {
+  this.checkAllAsleep();
+}
+
 export const methods = {
+  /** Spawn (or rename) a family member's bed entity in the fort. */
+  placeBed(loc, playerId) {
+    const slot = this.save.house.beds?.[playerId];
+    const at = loc.layout.bedSlots?.[slot];
+    if (!at) return;
+    const name = this.save.players[playerId]?.name ?? 'Someone';
+    const existing = [...loc.entities.values()].find((e) => e.type === 'furniture' && e.item === 'bed' && e.owner === playerId);
+    if (existing) { existing.ownerName = name; existing._dirty = true; return; }
+    loc.spawn({
+      type: 'furniture', item: 'bed', owner: playerId, ownerName: name, blanket: blanketFor(playerId),
+      x: at.x, z: at.z, rot: 0, r: FURNITURE.bed.radius, interact: 'sleep',
+    });
+  },
+
+  /** Where a player wakes up: just in front of their own bed. */
+  bedSpot(p) {
+    const slot = this.save.house.beds?.[p.id];
+    const at = this.getLocation('house').layout.bedSlots?.[slot];
+    return at ? { x: at.x, z: at.z + 2.6 } : null;
+  },
+
+  wakeUp(p) {
+    if (!p.sleeping) return;
+    p.sleeping = false;
+    this.send(p, { t: 'fx', kind: 'wake', id: p.id });
+  },
+
+  /** Stardew-style: once everyone online is asleep, the night passes. */
+  checkAllAsleep() {
+    if (this.players.size && [...this.players.values()].every((x) => x.sleeping)) this.endDay('sleep');
+  },
+
   /** The family chest's contents: shared by everyone, kept in the save. */
   chestStorage() {
     return (this.save.house.storage ??= {});

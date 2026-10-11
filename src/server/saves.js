@@ -22,7 +22,15 @@ export function newSave({ name, seed }) {
     flags: {},                     // e.g. { mineCleared: true }
     dungeons: Object.fromEntries(Object.keys(DUNGEONS).map((id) => [id, { deepest: 0 }])),
     players: {},                   // playerId -> player record (see newPlayerRecord)
-    house: { level: 1, storage: {} },
+    house: {
+      level: 1,
+      storage: {},                 // the family chest: { item: count }
+      beds: {},                    // playerId -> bed slot in the fort
+      furniture: [],               // placed furniture: [{ id, item, x, z, rot }]
+      owned: {},                   // furniture bought but not placed yet: { item: count }
+      wall: 'stone',
+      floor: 'oak',
+    },
   };
 }
 
@@ -113,6 +121,18 @@ export const MIGRATIONS = [
         delete rec.location; // never used
       }
       delete save.gold;
+    },
+  },
+  {
+    version: 7, // a bed per family member; decorating the fort (furniture, wall and floor styles)
+    up(save) {
+      const h = save.house;
+      h.beds ??= {};
+      Object.keys(save.players).forEach((id, i) => { h.beds[id] ??= i; });
+      h.furniture ??= [];
+      h.owned ??= {};
+      h.wall ??= 'stone';
+      h.floor ??= 'oak';
     },
   },
 ];

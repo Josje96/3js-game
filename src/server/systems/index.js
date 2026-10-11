@@ -3,6 +3,9 @@
 //   export const methods = { on_buy(p, msg) {...}, helper() {...} }   // become GameServer methods
 //   export const interactions = { shop(p, prop) {...} }               // optional: props with `interact: 'shop'`
 //   export function tick(dt) {...}                                     // optional: runs every server step
+//   export function onJoin(p) {...}                                    // optional: a player joined (before they arrive anywhere)
+//   export function onLeave(p) {...}                                   // optional: a player left
+//   export function onLocation(loc) {...}                              // optional: a location was just created
 //
 // Every function runs with `this` = the GameServer, so systems can call each other's methods
 // (this.gainGear, this.toast...). Two systems defining the same name is an error at startup,
@@ -22,11 +25,11 @@ import * as wallet from './wallet.js';
 
 export const SYSTEMS = { combat, day, dungeons, home, pets, progression, shop, wallet };
 
-/** Copy every system's methods onto the class; collect interactions and tick hooks. */
+/** Copy every system's methods onto the class; collect interactions and hooks. */
 export function installSystems(cls) {
   const owner = {};
   const interactions = {};
-  const ticks = [];
+  const hooks = { tick: [], onJoin: [], onLeave: [], onLocation: [] };
   for (const [name, sys] of Object.entries(SYSTEMS)) {
     for (const [method, fn] of Object.entries(sys.methods ?? {})) {
       if (Object.hasOwn(cls.prototype, method) || owner[method]) {
@@ -39,7 +42,7 @@ export function installSystems(cls) {
       if (interactions[kind]) throw new Error(`interaction '${kind}' is handled twice`);
       interactions[kind] = fn;
     }
-    if (sys.tick) ticks.push(sys.tick);
+    for (const name of Object.keys(hooks)) if (sys[name]) hooks[name].push(sys[name]);
   }
-  return { interactions, ticks };
+  return { interactions, hooks };
 }

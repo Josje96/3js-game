@@ -5,6 +5,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { ITEMS } from '../shared/items.js';
 import { PROPS } from '../shared/props.js';
 import { CLASSES } from '../shared/config.js';
+import { FURNITURE, FLOOR_STYLES } from '../shared/furniture.js';
 
 const BASE = './models/';
 const loader = new GLTFLoader();
@@ -45,6 +46,8 @@ export function allModelPaths() {
   for (const c of Object.values(CLASSES)) paths.add(`characters/${c.model}`);
   for (const it of Object.values(ITEMS)) if (it.model) paths.add(it.model);
   for (const p of Object.values(PROPS)) if (p.model) paths.add(p.model);
+  for (const f of Object.values(FURNITURE)) if (f.model) paths.add(f.model);
+  for (const f of Object.values(FLOOR_STYLES)) if (f.model) paths.add(f.model);
   return [...paths];
 }
 

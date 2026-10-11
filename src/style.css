@@ -197,3 +197,21 @@ kbd { display: inline-block; min-width: 20px; padding: 1px 5px; border-radius: 5
 .shop-body .shop-row { width: 100%; }
 .tier-head { margin: 12px 0 4px; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #e8c97a; }
 .shop-row.locked { opacity: 0.55; }
+
+/* day clock + night */
+.day-clock.soon { color: #ffb3b3; font-weight: 700; animation: clock-pulse 1s ease-in-out infinite; }
+@keyframes clock-pulse { 50% { color: #ff6b6b; } }
+.hud-status.warn { animation: warn-flash 0.5s ease-in-out 4; }
+@keyframes warn-flash { 50% { box-shadow: 0 0 0 3px #ff9a6a, 0 0 30px #ff6b4a; } }
+.night-screen { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 30%, #2a2f6a 0%, #11122e 60%, #05060f 100%);
+  animation: night-in 0.6s ease-out; transition: opacity 0.8s; }
+.night-screen.fade { opacity: 0; }
+@keyframes night-in { from { opacity: 0; } }
+.night-sky { position: absolute; inset: 0; overflow: hidden; }
+.night-sky i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px #fff; animation: twinkle 1.6s ease-in-out infinite; }
+@keyframes twinkle { 50% { opacity: 0.2; } }
+.night-card { position: relative; text-align: center; color: #e8e6ff; }
+.night-card .moon { font-size: 72px; filter: drop-shadow(0 0 24px #fff6c0); animation: moon-rise 1.2s ease-out; }
+@keyframes moon-rise { from { transform: translateY(30px); opacity: 0; } }
+.night-card .night-day { font-size: 56px; font-weight: 800; letter-spacing: 0.04em; color: #fff3c4; text-shadow: 0 4px 0 #3a2f7a, 0 0 30px rgba(255, 240, 180, 0.4); }
+.night-card p { margin: 6px 0; font-size: 18px; }
