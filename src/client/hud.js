@@ -3,6 +3,7 @@ import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_
 import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
 import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle } from '../shared/config.js';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
+import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost } from '../shared/pets.js';
 
 const el = (tag, cls, html) => {
@@ -129,13 +130,13 @@ export class Hud {
     const inv = Object.entries(s.inventory ?? {}).filter(([id, n]) => n > 0 && ITEMS[id]);
     const slot = (cls, text, title = '') => `<span class="slot ${cls}" title="${esc(title)}">${text}</span>`;
     const group = (key, label, ids) => (ids.length
-      ? `<span class="slot-group" title="${esc(`${key}: ${label}`)}"><kbd>${key}</kbd>${ids.map(([id, n]) => slot('use', `${esc(ITEMS[id].name)} ×${n}`, itemStat(ITEMS[id]))).join('')}</span>` : '');
+      ? `<span class="slot-group" title="${esc(`${key}: ${label}`)}"><kbd>${key}</kbd>${ids.map(([id, n]) => slot('use', `${iconImg(itemIcon(id))}×${n}`, `${ITEMS[id].name}: ${itemStat(ITEMS[id])}`)).join('')}</span>` : '');
     const heals = inv.filter(([id]) => ITEMS[id].heal), treats = inv.filter(([id]) => ITEMS[id].petHeal);
     const loot = inv.filter(([id]) => !ITEMS[id].heal && !ITEMS[id].petHeal);
     this.inv.innerHTML = [
-      slot('weapon', `⚔ ${esc(weapon?.name ?? s.weapon)} (${weapon?.damage ?? 1})`),
-      shield ? slot('weapon', `🛡 ${esc(shield.name)}`) : '',
-      armor ? slot('weapon', `🥋 ${esc(armor.name)}`) : '',
+      slot('weapon', `${iconImg(itemIcon(s.weapon))}${esc(weapon?.name ?? s.weapon)} <b>${weapon?.damage ?? 1}</b>`, 'Your weapon (C to change)'),
+      shield ? slot('weapon', iconImg(itemIcon(s.shield)) || '🛡', `${shield.name}: ${itemStat(shield)}`) : '',
+      armor ? slot('weapon', iconImg(itemIcon(s.armor)) || '🥋', `${armor.name}: ${itemStat(armor)}`) : '',
       group('Q', 'eat / drink', heals),
       group('G', 'feed pet', treats),
       loot.length ? slot('bag', `🎒 ${loot.reduce((a, [, n]) => a + n, 0)}`, loot.map(([id, n]) => `${ITEMS[id].name} ×${n}`).join('\n')) : '',
@@ -171,10 +172,11 @@ export class Hud {
   }
 
   /** The area spell's status: counts down, then says it's ready. */
-  setSpell(left) {
+  setSpell(left, total = 60) {
     const ready = left <= 0;
-    const text = ready ? '✨ Area spell ready · R' : `✨ Area spell · ${Math.ceil(left)}s`;
-    if (this.spell.textContent !== text) this.spell.textContent = text;
+    const text = ready ? '✨<br>R' : `${Math.ceil(left)}s`;
+    if (this.spellText !== text) { this.spellText = text; this.spell.innerHTML = `<span>${text}</span>`; this.spell.title = 'Area spell (R): hits every enemy around you'; }
+    this.spell.style.setProperty('--ready', ready ? 1 : Math.max(0, 1 - left / total).toFixed(3));
     this.spell.classList.toggle('ready', ready);
   }
 
@@ -326,7 +328,7 @@ export class Hud {
           }
           const owned = isGear(id) && (this.self?.gear ?? []).includes(id);
           const locked = it.tier > tier;
-          const row = el('button', `shop-row${locked ? ' locked' : ''}`, `<span>${esc(it.name)} <small>${itemStat(it)}</small></span><span class="gold">${owned ? '✓' : locked ? '🔒' : it.price}</span>`);
+          const row = el('button', `shop-row${locked ? ' locked' : ''}`, `<span>${iconImg(itemIcon(id))}${esc(it.name)} <small>${itemStat(it)}</small></span><span class="gold">${owned ? '✓' : locked ? '🔒' : it.price}</span>`);
           row.disabled = locked || owned || gold < it.price;
           row.addEventListener('click', () => this.askToBuy(it.name, it.price, () => onBuy(id)));
           body.append(row);
@@ -347,7 +349,7 @@ export class Hud {
       wrap.append(el('h3', null, 'Loot'));
       for (const [id, n] of loot) {
         const it = ITEMS[id];
-        const row = el('button', 'shop-row', `<span>${esc(it.name)} ×${n}</span><span class="gold">${it.sell} each · ${it.sell * n}</span>`);
+        const row = el('button', 'shop-row', `<span>${iconImg(itemIcon(id))}${esc(it.name)} ×${n}</span><span class="gold">${it.sell} each · ${it.sell * n}</span>`);
         row.addEventListener('click', () => onSell(id, n));
         wrap.append(row);
       }
@@ -361,7 +363,7 @@ export class Hud {
       wrap.append(el('h3', null, 'Spare gear'), el('p', 'muted', 'Things you have but aren’t using. (Take something off with C to sell it.)'));
       for (const id of spare) {
         const it = ITEMS[id];
-        const row = el('button', 'shop-row', `<span>${esc(it.name)} <small>${itemStat(it)}</small></span><span class="gold">${sellValue(id)}</span>`);
+        const row = el('button', 'shop-row', `<span>${iconImg(itemIcon(id))}${esc(it.name)} <small>${itemStat(it)}</small></span><span class="gold">${sellValue(id)}</span>`);
         row.addEventListener('click', () => this.askToSell(it.name, sellValue(id), () => onSell(id, 1)));
         wrap.append(row);
       }
@@ -481,7 +483,7 @@ export class Hud {
         const stat = it.kind === 'weapon'
           ? `⚔ ${attackDamage(id, s.stats)} <small>${STATS[weaponStat(id)].icon}${it.ranged ? ' ranged' : ''}</small>`
           : itemStat(it);
-        const b = el('button', `shop-row${on ? ' selected' : ''}`, `<span>${esc(it.name)}</span><span>${stat}</span>`);
+        const b = el('button', `shop-row${on ? ' selected' : ''}`, `<span>${iconImg(itemIcon(id))}${esc(it.name)}</span><span>${stat}</span>`);
         const removable = it.kind === 'shield' || it.kind === 'armor';
         b.addEventListener('click', () => (on && removable ? onEquip(null, it.kind) : onEquip(id)));
         b.title = on ? (removable ? 'Click to take it off' : 'Equipped') : 'Click to equip';
@@ -508,7 +510,7 @@ export class Hud {
         const needs = Object.entries(r.needs).map(([item, n]) =>
           `<span class="${have(item) >= n ? 'ok' : 'short'}">${esc(ITEMS[item].name)} ${have(item)}/${n}</span>`).join(' · ');
         const stat = it.kind === 'weapon' ? `⚔ ${it.damage}${it.ranged ? ' ranged' : ''}` : `🛡 ${Math.round(it.block * 100)}%`;
-        const row = el('div', 'forge-row', `<b>${esc(it.name)} <small class="muted">${stat}</small></b><span class="needs">${needs} · <span class="gold">🪙 ${r.gold}</span></span>`);
+        const row = el('div', 'forge-row', `<b>${iconImg(itemIcon(id))}${esc(it.name)} <small class="muted">${stat}</small></b><span class="needs">${needs} · <span class="gold">🪙 ${r.gold}</span></span>`);
         const owned = s.gear?.includes(id);
         const ready = !owned && gold >= r.gold && Object.entries(r.needs).every(([item, n]) => have(item) >= n);
         const b = el('button', ready ? 'primary' : '', owned ? 'Made ✓' : 'Forge');
@@ -534,7 +536,7 @@ export class Hud {
           const stage = petStage(pet.level), max = petMaxHp(pet.species, pet.level);
           const nextTier = (petTier(pet.level) + 1) * TIER_EVERY, nextLook = TIER_LOOKS[petTier(pet.level) + 1];
           const row = el('div', `pet-row${pet.id === current ? ' selected' : ''}${pet.fainted ? ' fainted' : ''}`, `
-            <div class="pet-icon">${ICONS[pet.species] ?? '🐾'}${'⭐'.repeat(stage)}</div>
+            <div class="pet-icon">${iconImg(petIcon(pet.species, pet.level), 'icon big') || ICONS[pet.species] || '🐾'}${'⭐'.repeat(stage)}</div>
             <div class="pet-info"><b>${esc(pet.name)}</b> <span class="muted">${esc(petFormName(pet.species, pet.level))} · Lv ${pet.level} · ⚔ ${petDamage(pet.species, pet.level)}</span>
               <div class="pethp mini"><div style="width:${pet.fainted ? 0 : (pet.hp / max) * 100}%"></div><span>${pet.fainted ? '💤 fainted' : `❤ ${pet.hp}/${max}`}</span></div>
               <div class="xpbar"><div style="width:${(pet.xp / petXpToNext(pet.level)) * 100}%"></div></div>
@@ -597,7 +599,7 @@ export class Hud {
         const grid = el('div', 'pet-grid');
         for (const [species, def] of Object.entries(PET_SPECIES)) {
           const owned = mine.some((x) => x.species === species);
-          const card = el('div', `pet-card${owned ? ' owned' : ''}`, `<div class="pet-icon">${ICONS[species] ?? '🐾'}</div><b>${esc(def.fixedName ?? def.name)}</b><small class="muted">${esc(def.fixedName ? 'Apricot Maltipoo' : `→ ${def.forms[2]}`)}</small>`);
+          const card = el('div', `pet-card${owned ? ' owned' : ''}`, `<div class="pet-icon">${iconImg(petIcon(species), 'icon big') || ICONS[species] || '🐾'}</div><b>${esc(def.fixedName ?? def.name)}</b><small class="muted">${esc(def.fixedName ? 'Apricot Maltipoo' : `→ ${def.forms[2]}`)}</small>`);
           const b = el('button', owned ? '' : 'primary', owned ? 'Yours ♥' : def.price ? `Adopt · ${def.price}g` : 'Adopt · free!');
           b.disabled = owned || gold < def.price;
           b.addEventListener('click', () => (def.price ? this.askToBuy(def.fixedName ?? `a ${def.name.toLowerCase()}`, def.price, () => onBuy(species)) : onBuy(species)));
@@ -640,7 +642,7 @@ export class Hud {
         for (const [id, def] of Object.entries(FURNITURE)) {
           if (def.notForSale) continue;
           const have = h.owned?.[id] ?? 0;
-          const row = el('button', 'shop-row', `<span>${esc(def.name)}${have ? ` <small>${have} waiting at home</small>` : ''}</span><span class="gold">${def.price}</span>`);
+          const row = el('button', 'shop-row', `<span>${iconImg(furnitureIcon(id))}${esc(def.name)}${have ? ` <small>${have} waiting at home</small>` : ''}</span><span class="gold">${def.price}</span>`);
           row.disabled = gold < def.price;
           row.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuy(id)));
           body.append(row);
@@ -675,7 +677,7 @@ export class Hud {
     this.buildEl.innerHTML = '<h3>🔨 Decorate the fort</h3>';
     if (!owned.length) this.buildEl.append(el('p', 'muted', 'No furniture waiting. Buy some from the Decorator in town!'));
     for (const [id, n] of owned) {
-      const b = el('button', client.building.item === id ? 'selected' : '', `${esc(FURNITURE[id]?.name ?? id)} ×${n}`);
+      const b = el('button', client.building.item === id ? 'selected' : '', `${iconImg(furnitureIcon(id))}${esc(FURNITURE[id]?.name ?? id)} ×${n}`);
       b.addEventListener('click', () => { client.building.item = id; this.renderBuild(client); });
       this.buildEl.append(b);
     }
@@ -709,7 +711,7 @@ export class Hud {
     if (!rows.length) col.append(el('p', 'muted', dir === 'in' ? 'Nothing in your bag.' : 'The chest is empty.'));
     for (const [id, n] of rows) {
       const row = el('div', 'stash-row');
-      row.append(el('span', null, `${esc(ITEMS[id].name)} ×${n}`));
+      row.append(el('span', null, `${iconImg(itemIcon(id))}${esc(ITEMS[id].name)} ×${n}`));
       const one = el('button', '', '1');
       one.addEventListener('click', () => onStash(id, 1, dir));
       const all = el('button', 'primary', 'All');

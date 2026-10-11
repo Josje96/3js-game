@@ -1,5 +1,9 @@
 // Title screen + boot. Hosting = run a GameServer in this tab and connect to it
 // locally, then open it to guests. Joining = connect to someone else's server.
+import '@fontsource/medievalsharp';
+import '@fontsource/nunito/400.css';
+import '@fontsource/nunito/700.css';
+import '@fontsource/nunito/800.css';
 import './style.css';
 import { CLASSES } from './shared/config.js';
 import { randomSeedString } from './shared/rng.js';
@@ -39,6 +43,17 @@ function saveProfile(p) {
 
 const profile = loadProfile();
 const assetsReady = preloadAll((f) => { $('#loading').textContent = f < 1 ? `Loading models… ${Math.round(f * 100)}%` : ''; });
+let hero = null; // the 3D preview of your character on the title screen
+assetsReady.then(async () => {
+  const { HeroStage } = await import('./client/title.js');
+  hero = new HeroStage($('#hero-stage'), profile);
+  showHero();
+}).catch((err) => console.warn('no hero preview', err));
+function showHero() {
+  hero?.show(profile.cls, profile.look);
+  $('#hero-name').textContent = $('#name').value.trim() || profile.cls.replace('_', ' ');
+}
+$('#name').addEventListener('input', showHero);
 
 function renderClasses() {
   const classes = $('#classes');
@@ -47,7 +62,7 @@ function renderClasses() {
     const b = document.createElement('button');
     b.textContent = cls.replace('_', ' ');
     b.className = cls === profile.cls ? 'selected' : '';
-    b.onclick = () => { profile.cls = cls; renderClasses(); };
+    b.onclick = () => { profile.cls = cls; renderClasses(); showHero(); };
     classes.append(b);
   }
 }
@@ -139,6 +154,8 @@ function setBusy(text) {
 }
 
 function showGame() {
+  hero?.dispose();
+  hero = null;
   $('#title').classList.add('hidden');
   $('#game').classList.remove('hidden');
   $('#hud').classList.remove('hidden');

@@ -16,6 +16,8 @@
     "check": "bun run lint && bun test && bun run build"
   },
   "dependencies": {
+    "@fontsource/medievalsharp": "^5.3.0",
+    "@fontsource/nunito": "^5.3.0",
     "peerjs": "^1.5.5",
     "three": "^0.186.1"
   },
