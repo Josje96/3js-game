@@ -100,6 +100,8 @@ export class GameClient {
         this.hud.setSelf(msg);
         this.me?.setWeapon(msg.weapon);
         this.me?.setShield(msg.shield);
+        this.me?.setHealth(msg.hp / msg.maxHp);
+        this.hud.setDanger(msg.hp / msg.maxHp);
         break;
       case 'enter': this.enterLocation(msg); break;
       case 'snap': this.applySnapshot(msg); break;
@@ -148,7 +150,9 @@ export class GameClient {
   }
 
   makeMe() {
-    return new CharacterView({ cls: this.profile.cls, look: this.profile.look, name: this.profile.name, weapon: this.self?.weapon, shield: this.self?.shield, isLocal: true });
+    const me = new CharacterView({ cls: this.profile.cls, look: this.profile.look, name: this.profile.name, weapon: this.self?.weapon, shield: this.self?.shield, isLocal: true });
+    if (this.self) me.setHealth(this.self.hp / this.self.maxHp);
+    return me;
   }
 
   /** Wardrobe pick: swap our model right away, tell the host, remember it in the profile. */
@@ -207,6 +211,7 @@ export class GameClient {
       this.others.set(p.id, v);
     }
     v.setTarget(p);
+    v.setHealth(p.hp / p.maxHp);
     v.setWeapon(p.weapon);
     v.setLook(p.look);
     v.setShield(p.shield);
@@ -443,6 +448,12 @@ export class GameClient {
   }
 
   updateCamera(dt) {
+    // debug/screenshot hook: window.game.client.camOverride = { pos: [x, y, z], look: [x, y, z] }
+    if (this.camOverride) {
+      this.camera.position.set(...this.camOverride.pos);
+      this.camera.lookAt(...this.camOverride.look);
+      return;
+    }
     this.zoom = Math.max(0.55, Math.min(1.8, this.zoom + this.input.takeWheel() * 0.1));
     const target = new THREE.Vector3(this.pos.x, 1, this.pos.z);
     if (this.closeUp && !this.hud.modalOpen) this.closeUp = false;

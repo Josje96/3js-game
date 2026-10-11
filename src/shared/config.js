@@ -30,7 +30,7 @@ export const SPRING_COST = 6;        // gold for a full heal at the healing spri
 export const AUTOSAVE_SECONDS = 30;
 
 export const SAVE_VERSION = 5;
-export const PROTOCOL_VERSION = 10;
+export const PROTOCOL_VERSION = 11;
 export const PEER_PREFIX = 'famdungeon-v1-'; // PeerJS ids are global; namespace ours
 
 export const CLASSES = {
@@ -43,7 +43,7 @@ export const CLASSES = {
 };
 
 // Wardrobe: every character shares one skeleton, so any outfit can wear any hat or cape.
-// A look is { hat, cape, back, dye, hair, hairColor, face, skin }. hat/cape: 'own' = the outfit's own piece, 'none', or a key.
+// A look is { hat, cape, back, dye, clothes, hair, hairColor, face, skin }. hat/cape: 'own' = the outfit's own piece, 'none', or a key.
 // `from` + `parts` borrow meshes from another character model ("<Model>_<part>");
 // `build` = a little model made in client/cosmetics.js. Things with a `price` are bought
 // in the town shop (from the shared purse) and then live in that player's closet.
@@ -85,6 +85,8 @@ export const DYES = {
 };
 // The mirror at home: hair, face and skin. All free. (Built in client/cosmetics.js.)
 export const HAIRS = {
+  bald:     { name: 'Bald' },
+  suave:    { name: 'Suave' },
   spiky:    { name: 'Spiky' },
   bob:      { name: 'Bob' },
   long:     { name: 'Long' },
@@ -116,6 +118,17 @@ export const FACES = {
   blush:      { name: 'Rosy cheeks' },
   freckles:   { name: 'Freckles' },
 };
+/**
+ * Fancy clothes over the outfit (bought in the shop's Fashion tab). `jacket` recolours the body and
+ * sleeves (hands keep their skin), `legs` the trousers; `extra` is a little model from client/cosmetics.js.
+ */
+export const CLOTHES = {
+  suit:   { name: 'Suit & tie', price: 240, jacket: 0x2e3440, legs: 0x262a33, extra: 'tie' },
+  tux:    { name: 'Tuxedo', price: 360, jacket: 0x16161c, legs: 0x16161c, extra: 'bowtie' },
+  gown:   { name: 'Ball gown', price: 360, jacket: 0xd8649f, legs: 0xd8649f, extra: 'gown' },
+  royal:  { name: 'Royal robe', price: 600, jacket: 0x6a35b8, legs: 0x3d2470, extra: 'robe' },
+  sunday: { name: 'Sunday best', price: 180, jacket: 0x5b86c9, legs: 0xe9e2cf, extra: 'vest' },
+};
 /** Multiplied over the head's texture, so only darker or tinted tones work. */
 export const SKINS = {
   tan:   { name: 'Tan', color: 0xe8b48a },
@@ -125,7 +138,7 @@ export const SKINS = {
   blue:  { name: 'Frosty blue', color: 0xa8c8ff },
 };
 
-export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, hair: HAIRS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS };
+export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS };
 
 /** Is this style free, or already in the closet (a list like ['hat:crown', 'dye:sky'])? */
 export function ownsStyle(closet, slot, id) {
@@ -135,7 +148,7 @@ export function ownsStyle(closet, slot, id) {
 
 /** Sanitise a look from the network or a profile; with a closet, also drops things not owned. */
 export function cleanLook(look, closet = null) {
-  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', hair: 'none', hairColor: 'brown', face: 'none', skin: 'none' };
+  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', clothes: 'none', hair: 'none', hairColor: 'brown', face: 'none', skin: 'none' };
   const out = {};
   for (const slot of Object.keys(fallback)) {
     const v = look?.[slot];

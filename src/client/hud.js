@@ -1,7 +1,7 @@
 // HTML overlay on top of the 3D canvas.
 import { ITEMS, FORGE_RECIPES } from '../shared/items.js';
 import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
-import { CLASSES, HATS, CAPES, BACKS, DYES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle } from '../shared/config.js';
+import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle } from '../shared/config.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost } from '../shared/pets.js';
 
 const el = (tag, cls, html) => {
@@ -35,8 +35,9 @@ export class Hud {
     this.chatInput.maxLength = 120;
     this.floats = el('div', 'hud-floats');
     this.modal = el('div', 'modal-backdrop hidden');
+    this.danger = el('div', 'hud-danger');
     this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · E interact · Q potion · G feed pet · R area spell · C character · P pets · Enter chat · M music · Esc menu');
-    root.append(this.status, this.invite, this.xp, this.inv, this.promptEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
+    root.append(this.danger, this.status, this.invite, this.xp, this.inv, this.promptEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
     this.self = null;
     this.world = null;
     this.locTitle = '';
@@ -45,6 +46,11 @@ export class Hud {
   }
 
   // ---------------------------------------------------------------- status
+
+  /** A red pulse around the screen edges when you're nearly out of health. */
+  setDanger(frac) {
+    this.danger.classList.toggle('on', frac > 0 && frac <= 0.3);
+  }
 
   setSelf(self) { this.self = self; this.renderStatus(); this.renderInv(); this.refreshModal?.(); }
   setWorld(world) { this.world = world; this.renderStatus(); this.refreshModal?.(); }
@@ -284,7 +290,7 @@ export class Hud {
   /** The shop's fashion tab: everything with a price, grouped by slot. */
   fashionShop(gold, onBuyStyle) {
     const wrap = el('div', 'fashion');
-    const titles = { hat: 'Hats', back: 'On your back', dye: 'Cape dyes' };
+    const titles = { clothes: 'Fancy clothes', hat: 'Hats', back: 'On your back', dye: 'Cape dyes' };
     for (const [slot, title] of Object.entries(titles)) {
       wrap.append(el('h3', null, title));
       const grid = el('div', 'fashion-grid');
@@ -324,7 +330,7 @@ export class Hud {
       row('Hair colour', opts(HAIR_COLORS), 'hairColor', true);
       row('Face', opts(FACES, 'Nothing'), 'face');
       row('Skin', opts(SKINS, 'Natural'), 'skin', true);
-      box.append(el('p', 'muted', 'Tip: hats sit on top of hair. Pick "None" for your hat in the wardrobe to show off a hairdo.'));
+      box.append(el('p', 'muted', 'Tip: a new hairstyle replaces your outfit’s own hair. Hats sit on top, so pick "None" for your hat in the wardrobe to show it off.'));
       const done = el('button', 'primary close', 'Done (Esc)');
       done.addEventListener('click', () => this.closeModal());
       box.append(done);
@@ -353,6 +359,7 @@ export class Hud {
         return [k, locked ? `🔒 ${v.name} · ${v.price}g` : v.name, locked];
       });
       row('Outfit', Object.keys(CLASSES).map((c) => [c, c.replace('_', ' ')]), (v) => v === cur.cls, (v) => { cur.cls = v; });
+      row('Fancy clothes', [['none', 'Outfit’s own'], ...styles('clothes', CLOTHES)], (v) => v === (cur.look.clothes ?? 'none'), (v) => { cur.look.clothes = v; });
       row('Hat', [['own', 'Outfit’s own'], ['none', 'None'], ...styles('hat', HATS)], (v) => v === cur.look.hat, (v) => { cur.look.hat = v; });
       row('Cape', [['own', 'Outfit’s own'], ['none', 'None'], ...styles('cape', CAPES)], (v) => v === cur.look.cape, (v) => { cur.look.cape = v; });
       row('Cape colour', [['none', 'Natural'], ...styles('dye', DYES)], (v) => v === cur.look.dye, (v) => { cur.look.dye = v; });

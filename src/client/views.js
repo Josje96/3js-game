@@ -1,10 +1,10 @@
 // 3D views for things that move or change: characters, slimes, rocks, drops...
 import * as THREE from 'three';
-import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS } from '../shared/config.js';
+import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES } from '../shared/config.js';
 import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { buildHat, buildBack, buildHair, buildFace, hairlessHead } from './cosmetics.js';
+import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, hairlessHead, skinSplit } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 
@@ -93,7 +93,8 @@ function makeHpBar(width = 1.4) {
 // ------------------------------------------------------------------ characters
 
 const HAT_PART = /_(Helmet|HelmetVisor|BearHat|Hat|Mask)$/;
-const FACE_EYE_HEIGHT = 0.38; // eyes, as a fraction of the head's height from the bottom
+const FACE_EYE_HEIGHT = 0.38;
+const LOW_HP = 0.3;              // flash red at or below this share of max health // eyes, as a fraction of the head's height from the bottom
 const CAPE_PART = /_Cape$/;
 
 export class CharacterView {
@@ -101,6 +102,8 @@ export class CharacterView {
     this.root = new THREE.Group();
     this.cls = cls;
     this.model = cloneCharacter((CLASSES[cls] ?? CLASSES.Knight).model);
+    // our own copies of the (shared) materials, so flashing red when hurt only colours us
+    this.model.traverse((o) => { if (o.isMesh) o.material = o.material.clone(); });
     this.root.add(this.model);
     this.time = 0;
     this.borrowed = [];   // meshes/accessories added by the current look
@@ -174,8 +177,9 @@ export class CharacterView {
     const anchor = (boneName, pos, size) => {
       const bone = this.model.getObjectByName(boneName);
       if (!bone) return null;
+      const scale = size.isVector3 ? size : new THREE.Vector3(size, size, size);
       const local = bone.matrixWorld.clone().invert()
-        .multiply(new THREE.Matrix4().compose(pos, new THREE.Quaternion(), new THREE.Vector3(size, size, size)));
+        .multiply(new THREE.Matrix4().compose(pos, new THREE.Quaternion(), scale));
       return { bone, local };
     };
     const out = {};
@@ -184,11 +188,17 @@ export class CharacterView {
       out.hat = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.max.y - 0.05, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
       // the face: front of the head, a bit below the middle (where the eyes are on these chibi heads)
       out.face = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * FACE_EYE_HEIGHT, b.max.z - 0.02), b.max.x - b.min.x);
+      // the skull under a new hairstyle (the head mesh is hollow where its own hair was)
+      const size = b.getSize(new THREE.Vector3());
+      const centre = b.getCenter(new THREE.Vector3()).add(new THREE.Vector3(0, size.y * 0.06, -size.z * 0.02));
+      out.scalp = anchor('head', centre, new THREE.Vector3(size.x * 0.93, size.y * 0.86, size.z * 0.9));
       this.headMesh = head;
     }
     if (body) {
       const b = new THREE.Box3().setFromObject(body);
       out.back = anchor('chest', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * 0.62, b.min.z + 0.05), b.max.x - b.min.x);
+      out.front = anchor('chest', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * 0.55, b.max.z - 0.02), b.max.x - b.min.x);
+      out.hips = anchor('hips', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + 0.08, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
     }
     return out;
   }
@@ -203,10 +213,10 @@ export class CharacterView {
     this.borrowed.push(holder);
   }
 
-  /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories and dye. */
+  /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories, clothes and dye. */
   setLook(look) {
-    const { hat = 'own', cape = 'own', back = 'none', dye = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none' } = look ?? {};
-    const key = `${hat}/${cape}/${back}/${dye}/${hair}/${hairColor}/${face}/${skin}`;
+    const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none' } = look ?? {};
+    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${hairColor}/${face}/${skin}`;
     if (key === this.lookKey) return;
     this.lookKey = key;
     for (const m of this.borrowed) m.removeFromParent();
@@ -224,17 +234,22 @@ export class CharacterView {
     if (bk?.build) this.attach('back', buildBack(bk.build));
     // mirror: hair, face and skin
     const hc = HAIR_COLORS[hairColor]?.color ?? HAIR_COLORS.brown.color;
-    if (hair !== 'none') this.attach('hat', buildHair(hair, hc));
+    const tone = SKINS[skin]?.color;
+    if (hair !== 'none') {
+      this.attach('hat', buildHair(hair, hc));
+      this.attach('scalp', buildScalp(tone));
+    }
     if (face !== 'none') this.attach('face', buildFace(face, hc));
     if (this.headMesh) {
-      this.headMesh.userData.baseGeo ??= this.headMesh.geometry;
-      this.headMesh.geometry = hair !== 'none' ? hairlessHead(this.headMesh.userData.baseGeo) : this.headMesh.userData.baseGeo;
-      this.headMesh.userData.baseMat ??= this.headMesh.material;
-      const tone = SKINS[skin]?.color;
-      if (this.headMesh.material !== this.headMesh.userData.baseMat) this.headMesh.material.dispose();
-      this.headMesh.material = tone ? this.headMesh.userData.baseMat.clone() : this.headMesh.userData.baseMat;
-      if (tone) this.headMesh.material.color.multiply(new THREE.Color(tone));
+      const hm = this.headMesh;
+      hm.userData.baseGeo ??= hm.geometry;
+      hm.geometry = hair !== 'none' && hm.material.map?.image ? hairlessHead(hm.userData.baseGeo, hm.material.map.image) : hm.userData.baseGeo;
+      hm.userData.baseMat ??= hm.material;
+      if (hm.material !== hm.userData.baseMat) hm.material.dispose();
+      hm.material = tone ? hm.userData.baseMat.clone() : hm.userData.baseMat;
+      if (tone) hm.material.color.multiply(new THREE.Color(tone));
     }
+    this.setClothes(CLOTHES[clothes]);
     // dye: give cape meshes their own copy of the (shared) material, painted a flat colour
     // (multiplying over a red cape's texture would just give muddy red)
     const tint = DYES[dye]?.color;
@@ -246,6 +261,27 @@ export class CharacterView {
       m.material = tint ? m.userData.baseMat.clone() : m.userData.baseMat;
       if (tint) { m.material.map = null; m.material.color.set(tint); }
     }
+    this.flashMats = null; // materials changed: collect them again for the low-health flash
+  }
+
+  /** Fancy clothes: body and sleeves become a flat cloth colour (hands stay skin), legs too, plus extras. */
+  setClothes(def) {
+    this.model.traverse((o) => {
+      if (!o.isMesh || !/_(Body|ArmLeft|ArmRight|LegLeft|LegRight)$/.test(o.name)) return;
+      o.userData.baseGeo ??= o.geometry;
+      o.userData.baseMat ??= o.material;
+      if (Array.isArray(o.material)) o.material[1].dispose();
+      const image = o.userData.baseMat.map?.image;
+      const color = /_Leg/.test(o.name) ? def?.legs : def?.jacket;
+      if (!def || color == null || !image) { o.geometry = o.userData.baseGeo; o.material = o.userData.baseMat; return; }
+      const cloth = new THREE.MeshStandardMaterial({ color, roughness: 0.65 });
+      o.geometry = skinSplit(o.userData.baseGeo, image);
+      o.material = [o.userData.baseMat, cloth];
+    });
+    if (!def) return;
+    const extra = buildClothes(def.extra, def.jacket);
+    if (extra.front) this.attach('front', extra.front);
+    if (extra.hips) this.attach('hips', extra.hips);
   }
 
   borrow(model, part) {
@@ -255,6 +291,7 @@ export class CharacterView {
     const bones = src.skeleton.bones.map((b) => this.model.getObjectByName(b.name));
     if (bones.some((b) => !b)) return;
     const mesh = src.clone();
+    mesh.material = src.material.clone();
     mesh.bind(new THREE.Skeleton(bones, src.skeleton.boneInverses), src.bindMatrix);
     mesh.visible = true;
     (this.model.getObjectByName(src.parent.name) ?? this.model).add(mesh);
@@ -289,6 +326,24 @@ export class CharacterView {
     this.fadeTo(name, 0.08);
   }
 
+  /** Below LOW_HP of their health, characters pulse red so everyone notices. */
+  setHealth(frac) {
+    this.lowHp = frac > 0 && frac <= LOW_HP;
+  }
+
+  /** Every material on the character (for the low-health flash), collected once per look. */
+  materials() {
+    if (!this.flashMats) {
+      const set = new Set();
+      this.model.traverse((o) => {
+        if (!o.isMesh || !o.visible) return;
+        for (const m of [o.material].flat()) if (m.emissive && m.emissive.getHex() === 0) set.add(m);
+      });
+      this.flashMats = [...set];
+    }
+    return this.flashMats;
+  }
+
   /** Remote players: ease towards the latest snapshot. */
   setTarget(s) {
     if (!this.target) this.root.position.set(s.x, 0, s.z);
@@ -321,6 +376,11 @@ export class CharacterView {
         this.model.position.set(0, 0, 0);
         this.fadeTo(this.base, 0.1);
       }
+    }
+    if (this.lowHp || this.flashing) {
+      const glow = this.lowHp ? (0.5 + 0.5 * Math.sin(this.time * 9)) * 0.55 : 0;
+      for (const m of this.materials()) m.emissive.setRGB(glow, 0, 0);
+      this.flashing = this.lowHp;
     }
     this.mixer.update(dt);
   }

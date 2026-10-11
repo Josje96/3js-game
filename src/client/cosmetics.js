@@ -180,6 +180,18 @@ function hairShell(m, down = 0.42, open = 1.0, r = HEAD_R) {
 }
 
 const HAIR_BUILDERS = {
+  bald() {
+    return new THREE.Group(); // just the scalp
+  },
+  suave(m) { // slicked back, with a swoop at the front and a neat side part
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.4, 1.05, HEAD_R * 1.01));
+    const quiff = mesh(new THREE.SphereGeometry(0.3, 18, 10), m, 0.08, -0.1, 0.28, 1.35, 0.55, 0.9);
+    quiff.rotation.set(-0.35, 0, -0.15);
+    g.add(quiff);
+    g.add(mesh(new THREE.BoxGeometry(0.02, 0.05, 0.5), mat(0x000000, { transparent: true, opacity: 0.25 }), -0.2, 0.02, 0.0)).children.at(-1).rotation.z = 0.2;
+    return g;
+  },
   spiky(m) {
     const g = new THREE.Group();
     g.add(hairShell(m, 0.36));
@@ -244,27 +256,157 @@ const HAIR_BUILDERS = {
   },
 };
 
-// The outfit's own hair is part of its head mesh, so a new hairstyle would sit on top of it.
-// Cut the top band of the head out (triangles entirely above the cut line); the hairstyle covers that band.
-const hairlessCache = new WeakMap();
-export function hairlessHead(geo) {
-  if (hairlessCache.has(geo)) return hairlessCache.get(geo);
-  geo.computeBoundingBox();
-  const { min, max } = geo.boundingBox;
-  const cut = max.y - (max.y - min.y) * 0.36;
-  const pos = geo.attributes.position, index = geo.index?.array ?? null;
-  const n = index ? index.length : pos.count;
-  const keep = [];
-  for (let t = 0; t < n; t += 3) {
-    const a = index ? index[t] : t, b = index ? index[t + 1] : t + 1, c = index ? index[t + 2] : t + 2;
-    if (pos.getY(a) > cut && pos.getY(b) > cut && pos.getY(c) > cut) continue;
-    keep.push(a, b, c);
+// ------------------------------------------------------------------ reading the KayKit textures
+// Each triangle of a KayKit character samples one flat colour swatch of the texture atlas, so we
+// can tell skin from hair/clothes by looking up the colour under the triangle.
+
+const SKIN = ([r, g, b]) => r >= 235 && g >= 165 && g <= 205 && b >= 130 && b <= 170;
+const pixelCache = new WeakMap();   // texture image -> { data, w, h }
+const colourCache = new WeakMap();  // geometry -> [[r, g, b] per triangle]
+
+function pixels(image) {
+  if (!pixelCache.has(image)) {
+    const c = document.createElement('canvas');
+    c.width = image.width; c.height = image.height;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(image, 0, 0);
+    pixelCache.set(image, { data: g.getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height });
+  }
+  return pixelCache.get(image);
+}
+
+function triangleColours(geo, image) {
+  if (colourCache.has(geo)) return colourCache.get(geo);
+  const { data, w, h } = pixels(image);
+  const uv = geo.attributes.uv, idx = geo.index.array, out = [];
+  for (let t = 0; t < idx.length; t += 3) {
+    let u = 0, v = 0;
+    for (let k = 0; k < 3; k++) { u += uv.getX(idx[t + k]) / 3; v += uv.getY(idx[t + k]) / 3; }
+    const x = Math.min(w - 1, Math.max(0, Math.floor(u * w))), y = Math.min(h - 1, Math.max(0, Math.floor(v * h)));
+    const i = (y * w + x) * 4;
+    out.push([data[i], data[i + 1], data[i + 2]]);
+  }
+  colourCache.set(geo, out);
+  return out;
+}
+
+/** A copy of `geo` that only draws the triangles `keep(t, colour, centre)` says yes to (shares the vertex data). */
+function filterTriangles(geo, image, keep) {
+  const cols = triangleColours(geo, image), pos = geo.attributes.position, idx = geo.index.array, kept = [];
+  for (let t = 0; t < idx.length; t += 3) {
+    const c = [0, 1, 2].map((a) => (pos.getComponent(idx[t], a) + pos.getComponent(idx[t + 1], a) + pos.getComponent(idx[t + 2], a)) / 3);
+    if (keep(t / 3, cols[t / 3], c)) kept.push(idx[t], idx[t + 1], idx[t + 2]);
   }
   const out = new THREE.BufferGeometry();
   for (const name of Object.keys(geo.attributes)) out.setAttribute(name, geo.attributes[name]);
-  out.setIndex(keep); // a plain array: three wraps it in a BufferAttribute (a raw typed array would leave the index empty)
-  hairlessCache.set(geo, out);
+  out.setIndex(kept); // a plain array: three wraps it (a raw typed array would leave the index empty)
   return out;
+}
+
+// The outfit's own hair is part of its head mesh, and the head is hollow underneath it.
+// For a new hairstyle we drop every triangle that isn't skin (except the eyes, brows and mouth
+// on the front of the face) and put a skin-coloured skull (see buildScalp) in the gap.
+const hairlessCache = new WeakMap();
+export function hairlessHead(geo, image) {
+  if (!hairlessCache.has(geo)) {
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox, height = bb.max.y - bb.min.y;
+    hairlessCache.set(geo, filterTriangles(geo, image, (_, col, [x, y, z]) => {
+      const rel = (y - bb.min.y) / height;
+      const face = z > 0.3 && Math.abs(x) < 0.34 && rel > 0.12 && rel < 0.6;
+      return SKIN(col) || face;
+    }));
+  }
+  return hairlessCache.get(geo);
+}
+
+/** The skull under a new hairstyle: a ball the anchor stretches to the head's size. */
+export function buildScalp(tone) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), mat(new THREE.Color(0xf5b993).multiply(new THREE.Color(tone ?? 0xffffff)), { roughness: 0.8 }));
+  m.castShadow = true;
+  return m;
+}
+
+/**
+ * Fancy clothes: split a body part into its skin triangles (hands, neck — drawn as before)
+ * and everything else (drawn in a flat cloth colour). Returns geometry with two groups.
+ */
+const splitCache = new WeakMap();
+export function skinSplit(geo, image) {
+  if (!splitCache.has(geo)) {
+    const cols = triangleColours(geo, image), idx = geo.index.array, skin = [], cloth = [];
+    for (let t = 0; t < idx.length; t += 3) (SKIN(cols[t / 3]) ? skin : cloth).push(idx[t], idx[t + 1], idx[t + 2]);
+    const out = new THREE.BufferGeometry();
+    for (const name of Object.keys(geo.attributes)) out.setAttribute(name, geo.attributes[name]);
+    out.setIndex([...skin, ...cloth]);
+    out.addGroup(0, skin.length, 0);
+    out.addGroup(skin.length, cloth.length, 1);
+    splitCache.set(geo, out);
+  }
+  return splitCache.get(geo);
+}
+
+/**
+ * Little extras for fancy clothes. 'front' things are built for a chest 1 unit wide with z = 0 at
+ * the front of the body, y = 0 at the middle of the chest; 'hips' things hang from the waist.
+ */
+const CLOTHES_BUILDERS = {
+  tie() {
+    const g = new THREE.Group();
+    g.add(mesh(new THREE.ConeGeometry(0.2, 0.42, 3), mat(0xf4f4f4), 0, 0.12, 0.0, 1, 1, 0.12)).children.at(-1).rotation.z = Math.PI; // shirt front
+    g.add(mesh(new THREE.BoxGeometry(0.08, 0.07, 0.05), mat(0xc0303a), 0, 0.27, 0.03));
+    const tie = mesh(new THREE.ConeGeometry(0.06, 0.42, 4), mat(0xc0303a, { roughness: 0.4 }), 0, 0.04, 0.03);
+    tie.rotation.set(Math.PI, Math.PI / 4, 0);
+    g.add(tie);
+    return { front: g };
+  },
+  bowtie() {
+    const g = new THREE.Group();
+    g.add(mesh(new THREE.ConeGeometry(0.2, 0.42, 3), mat(0xffffff), 0, 0.12, 0.0, 1, 1, 0.12)).children.at(-1).rotation.z = Math.PI;
+    for (const s of [-1, 1]) g.add(mesh(new THREE.ConeGeometry(0.06, 0.12, 4), mat(0x111111), s * 0.06, 0.26, 0.04)).children.at(-1).rotation.z = s * Math.PI / 2;
+    for (const y of [0.1, -0.02]) g.add(mesh(new THREE.SphereGeometry(0.018, 6, 4), mat(0x111111), 0, y, 0.04));
+    return { front: g };
+  },
+  vest() {
+    const g = new THREE.Group();
+    g.add(mesh(new THREE.BoxGeometry(0.5, 0.5, 0.04), mat(0x8a5a34), 0, 0.02, 0.0));
+    for (const y of [0.15, 0.03, -0.09]) g.add(mesh(new THREE.SphereGeometry(0.022, 6, 4), mat(0xffcf3f, { metalness: 0.6 }), 0, y, 0.03));
+    return { front: g };
+  },
+  gown() {
+    const skirt = new THREE.Group();
+    const cloth = mat(0xd8649f, { roughness: 0.5 });
+    const cone = mesh(new THREE.CylinderGeometry(0.42, 0.95, 1.1, 24, 1, true), cloth, 0, -0.5, 0);
+    cone.material.side = THREE.DoubleSide;
+    skirt.add(cone);
+    skirt.add(mesh(new THREE.TorusGeometry(0.42, 0.04, 6, 24), mat(0xffd6ea), 0, 0.04, 0)).children.at(-1).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 8; i++) { // ruffle along the hem
+      const a = (i / 8) * Math.PI * 2;
+      skirt.add(mesh(new THREE.SphereGeometry(0.12, 8, 6), mat(0xffd6ea), Math.cos(a) * 0.93, -1.04, Math.sin(a) * 0.93, 1.3, 0.5, 1.3));
+    }
+    const front = new THREE.Group();
+    front.add(mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(0xffffff, { roughness: 0.2 }), 0, 0.22, 0.03)); // a pearl
+    return { front, hips: skirt };
+  },
+  robe() {
+    const front = new THREE.Group();
+    const gold = mat(0xffcf3f, { metalness: 0.7, roughness: 0.3 });
+    front.add(mesh(new THREE.BoxGeometry(0.08, 0.6, 0.04), gold, 0, 0, 0.01));
+    const fur = mat(0xffffff, { roughness: 1 });
+    for (let i = 0; i < 7; i++) front.add(mesh(new THREE.SphereGeometry(0.09, 8, 6), fur, -0.3 + i * 0.1, 0.3, -0.02 - Math.abs(i - 3) * 0.02));
+    const hips = new THREE.Group();
+    const hem = mesh(new THREE.CylinderGeometry(0.46, 0.7, 0.75, 20, 1, true), mat(0x6a35b8), 0, -0.32, 0);
+    hem.material.side = THREE.DoubleSide;
+    hips.add(hem, mesh(new THREE.TorusGeometry(0.7, 0.035, 6, 24), gold, 0, -0.69, 0));
+    hips.children.at(-1).rotation.x = Math.PI / 2;
+    return { front, hips };
+  },
+};
+
+export function buildClothes(extra, color) {
+  const built = CLOTHES_BUILDERS[extra]?.() ?? {};
+  if (color != null && extra === 'gown') built.hips?.children[0]?.material.color.set(color);
+  return built;
 }
 
 export function buildHair(style, color) {

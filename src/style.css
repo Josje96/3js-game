@@ -179,3 +179,8 @@ summary { cursor: pointer; color: var(--accent); margin-bottom: 6px; }
 .pethp.fainted span { color: #c9c9ff; }
 .pethp.mini { height: 14px; margin: 4px 0 2px; }
 .pet-row.fainted { opacity: 0.8; border-style: dashed; }
+
+/* low health: the screen edges pulse red */
+.hud-danger { position: fixed; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 120px 30px rgba(220, 20, 30, 0.75); transition: opacity 0.3s; }
+.hud-danger.on { animation: danger-pulse 1s ease-in-out infinite; }
+@keyframes danger-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.9; } }
