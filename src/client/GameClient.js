@@ -6,7 +6,8 @@ import { buildLayout } from '../shared/locations.js';
 import { moveCircle } from '../shared/physics.js';
 import { ITEMS, weaponCooldown } from '../shared/items.js';
 import { LocationView } from './LocationView.js';
-import { CharacterView, Debris, NovaRing, makeEntityView } from './views.js';
+import { CharacterView, Debris, makeEntityView } from './views.js';
+import { NovaBlast } from './effects.js';
 import { Input } from './input.js';
 import { Hud } from './hud.js';
 import { Music, moodFor } from './music.js';
@@ -251,7 +252,10 @@ export class GameClient {
       case 'pickup': this.floatAt(this.pos, `+${msg.qty} ${msg.item === 'gold' ? 'gold' : ITEMS[msg.item]?.name ?? msg.item}`, msg.item === 'gold' ? '#ffd23f' : '#bfe7ff'); break;
       case 'chest': this.floatAt(msg, 'Treasure!', '#ffd23f'); break;
       case 'smash': this.addEffect(new Debris(msg.x, msg.z, [0x9a6a3c, 0x7a5030, 0xb58250, 0x5a5a5a])); break;
-      case 'nova': this.addEffect(new NovaRing(msg.x, msg.z, SPELL_RADIUS)); break;
+      case 'nova':
+        this.addEffect(new NovaBlast(msg.x, msg.z, SPELL_RADIUS));
+        this.shake(Math.max(0, 0.5 - Math.hypot(msg.x - this.pos.x, msg.z - this.pos.z) / 40));
+        break;
       case 'break': this.addEffect(new Debris(msg.x, msg.z, [0x8d8d8d, 0x6e6e6e, 0xa8a29a], 10)); break;
     }
   }
@@ -259,6 +263,11 @@ export class GameClient {
   addEffect(fx) {
     this.scene.add(fx.root);
     this.effects.push(fx);
+  }
+
+  /** Camera shake (0..1), fading out over about half a second. */
+  shake(amount) {
+    this.shakeAmt = Math.max(this.shakeAmt ?? 0, amount);
   }
 
   floatAt(p, text, color) {
@@ -467,6 +476,11 @@ export class GameClient {
     else this.camera.position.lerp(want, 1 - Math.exp(-dt * 6));
     // look along a fixed direction so the view never wobbles while it catches up
     this.camera.lookAt(this.camera.position.clone().sub(offset));
+    if (this.shakeAmt > 0.001) {
+      this.shakeAmt *= Math.exp(-dt * 7);
+      this.camera.position.x += (Math.random() - 0.5) * this.shakeAmt;
+      this.camera.position.y += (Math.random() - 0.5) * this.shakeAmt;
+    }
     // the sun's shadow box follows the player
     this.sun.position.set(this.pos.x - 15, 35, this.pos.z + 10);
     this.sun.target.position.set(this.pos.x, 0, this.pos.z);

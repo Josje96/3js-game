@@ -523,25 +523,6 @@ export class BarrelView {
 
 /** Bits flying off smashed barrels and rocks. */
 const debrisGeo = new THREE.BoxGeometry(1, 1, 1);
-/** The area spell: a ring of light that swells out from you and fades. */
-export class NovaRing {
-  constructor(x, z, radius) {
-    this.root = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 56), new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    this.root.rotation.x = -Math.PI / 2;
-    this.root.position.set(x, 0.12, z);
-    this.radius = radius;
-    this.life = 0.6;
-  }
-  get done() { return this.life <= 0; }
-  update(dt) {
-    this.life -= dt;
-    const t = 1 - Math.max(0, this.life) / 0.6;
-    this.root.scale.setScalar(this.radius * (0.2 + 0.8 * t));
-    this.root.material.opacity = Math.max(0, this.life / 0.6);
-  }
-  dispose() { this.root.geometry.dispose(); this.root.material.dispose(); this.root.removeFromParent(); }
-}
-
 export class Debris {
   constructor(x, z, colors, count = 14) {
     this.root = new THREE.Group();
