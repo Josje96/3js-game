@@ -324,6 +324,10 @@ const FACE_HI_PER_OUTFIT = {
   Rogue_Hooded: 0.555,
 };
 
+// Some heads paint a lighter "skin" band where their own hair meets the forehead (the Knight's,
+// under his helmet): above this height only the scalp ball and the new hair should show.
+const SKIN_TOP_PER_OUTFIT = { Knight: 0.6 };
+
 const hairlessCache = new WeakMap();
 export function hairlessHead(geo, image, outfit) {
   if (!hairlessCache.has(geo)) {
@@ -333,7 +337,7 @@ export function hairlessHead(geo, image, outfit) {
     const kept = filterTriangles(geo, image, (_, col, [x, y, z]) => {
       const rel = (y - bb.min.y) / height;
       const face = z > FACE_Z && Math.abs(x) < FACE_X && rel > FACE_LO && rel < hi;
-      return SKIN(col) || face;
+      return (SKIN(col) && rel < (SKIN_TOP_PER_OUTFIT[outfit] ?? 1)) || face;
     });
     // the bounds of the skin that's left = the skull. The scalp ball only has to plug the opening
     // where the hair was (the top of the head), so it rides high and sits BACK, behind the eye
@@ -345,7 +349,11 @@ export function hairlessHead(geo, image, outfit) {
       skull.expandByPoint(v);
     }
     const c = skull.getCenter(new THREE.Vector3()), s = skull.getSize(new THREE.Vector3());
-    hairlessCache.set(geo, { geo: kept, scalp: { cx: c.x, cy: c.y + s.y * 0.2, cz: c.z - s.z * 0.12, sx: s.x * 0.88, sy: s.y * 0.78, sz: s.z * 0.74 } });
+    const scalp = { cx: c.x, cy: c.y + s.y * 0.2, cz: c.z - s.z * 0.12, sx: s.x * 0.88, sy: s.y * 0.78, sz: s.z * 0.74 };
+    // new hair sits ON the skull (centred on it, its top just over the scalp ball's top, as wide as
+    // the skull) rather than on the old head mesh, whose hair mass made it float or left the scalp poking out
+    scalp.hair = { x: c.x, y: scalp.cy + scalp.sy / 2 + 0.02, z: c.z, size: s.x };
+    hairlessCache.set(geo, { geo: kept, scalp });
   }
   return hairlessCache.get(geo).geo;
 }

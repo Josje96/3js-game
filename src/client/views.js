@@ -238,6 +238,14 @@ export class CharacterView {
       const size = b.getSize(new THREE.Vector3());
       const centre = b.getCenter(new THREE.Vector3()).add(new THREE.Vector3(0, size.y * 0.06, -size.z * 0.02));
       out.scalp = anchor('head', centre, new THREE.Vector3(size.x * 0.93, size.y * 0.86, size.z * 0.9));
+      // under a new hairstyle: the skull ball and the hair both sit on the skin left after carving the
+      // old hair away (cosmetics.js). Measured here, in the rest pose — measuring later, mid-animation,
+      // put them wherever the head happened to be bobbing (floating hair, a scalp poking through)
+      const img = head.material.map?.image, s = img ? scalpOf(head.geometry, img, head.name.replace(/_Head$/, '')) : null;
+      if (s) {
+        out.scalp = anchor('head', new THREE.Vector3(s.cx, s.cy, s.cz), new THREE.Vector3(s.sx, s.sy, s.sz));
+        out.hair = anchor('head', new THREE.Vector3(s.hair.x, s.hair.y, s.hair.z), s.hair.size);
+      }
       this.headMesh = head;
     }
     if (body) {
@@ -294,13 +302,10 @@ export class CharacterView {
       if (hm.material !== hm.userData.baseMat) hm.material.dispose();
       hm.material = tone ? hm.userData.baseMat.clone() : hm.userData.baseMat;
       if (tone) hm.material.color.multiply(new THREE.Color(tone));
-      // the scalp ball fills the hollow head: size it to the skin that's left (the skull), not
-      // to the head mesh, whose hair mass would lean it out over the eyes
-      const s = hair !== 'none' && hm.material.map?.image ? scalpOf(hm.userData.baseGeo, hm.material.map.image, hm.name.replace(/_Head$/, '')) : null;
-      if (s) this.anchors.scalp = this.anchorAt('head', new THREE.Vector3(s.cx, s.cy, s.cz), new THREE.Vector3(s.sx, s.sy, s.sz));
+      // (the scalp and hair anchors are measured once, in the rest pose: computeAnchors)
     }
     if (hair !== 'none') {
-      this.attach('hat', buildHair(hair, hc));
+      this.attach(this.anchors.hair ? 'hair' : 'hat', buildHair(hair, hc));
       this.attach('scalp', buildScalp(tone));
     }
     if (face !== 'none') this.attach('face', buildFace(face, hc));
