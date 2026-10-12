@@ -12,11 +12,10 @@ Most important first. Tick things off in the same commit that does them.
 - [ ] Merge branch `round-2` into `main`, push, let GitHub Actions run `bun run check`.
 
 ## Asked for, not done yet
-- [ ] **Blender assets** to make places less repetitive. Plan: `tools/blender/make_props.py` builds
-      props with bpy and exports `.glb` into `assets/generated/props/`; add `['generated/props', 'props']`
-      to `scripts/asset-map.mjs`, a `make-props` script in package.json, and make `client/assets.js`
-      load `props/` as `.glb`. Ideas: mine carts + rails, wooden supports, stalagmites, crystal
-      clusters, bone piles, market produce crates, a well, hay bales, signposts.
+- [x] **Blender assets** to make places less repetitive — done in round 3: `tools/blender/make_props.py`
+      (`bun run make-props`) builds ten props (mine cart + rails, wooden support, stalagmites, crystal
+      clusters, bone piles, produce crates, a well, hay bales, signposts); dungeons scatter them per
+      biome, the town map places the town ones. Bridges still want a chasm tile type — not done.
 - [ ] Decide the discussion items (below) before building any of them.
 
 ## Ideas / smaller things

@@ -15,6 +15,7 @@ import { Interpolator } from './interp.js';
 import { Input } from './input.js';
 import { Hud } from './hud.js';
 import { Music, moodFor } from './music.js';
+import { Sfx } from './sfx.js';
 
 export class GameClient {
   /**
@@ -49,6 +50,7 @@ export class GameClient {
     this.net = { ping: null, pings: new Map(), posCount: 0, posRate: 0 };
     this.music = new Music();
     this.music.unlock(); // we're usually still inside the Play/Join click
+    this.sfx = new Sfx(this.music);
     this.setupRenderer();
     this.input = new Input(this.renderer.domElement);
     this.hud = new Hud(document.getElementById('hud'), { onModalChange: (open) => { this.input.enabled = !open; } });
@@ -125,7 +127,7 @@ export class GameClient {
       case 'pong': this.net.ping = performance.now() - (this.net.pings.get(msg.id) ?? performance.now()); this.net.pings.delete(msg.id); break;
       case 'fx': this.onFx(msg); break;
       case 'toast': this.hud.toast(msg.text, msg.big); break;
-      case 'night': this.sleeping = false; this.hud.nightScreen(msg); break;
+      case 'night': this.sleeping = false; this.sfx.play('night'); this.hud.nightScreen(msg); break;
       case 'chestState': this.hud.setChest(msg.storage); break;
       case 'chat': this.hud.chat(msg.from, msg.text); break;
       case 'roster': this.hud.setRoster(msg.players); break;
@@ -295,27 +297,32 @@ export class GameClient {
   onFx(msg) {
     const view = msg.id && (this.ents.get(msg.id)?.view ?? this.others.get(msg.id));
     switch (msg.kind) {
-      case 'dmg': view?.hit?.(); this.floatAt(msg, `-${msg.amount}`, '#fff27a'); break;
-      case 'hit': view?.hit?.(); break;
+      case 'dmg': view?.hit?.(); this.sfx.play('thud'); this.floatAt(msg, `-${msg.amount}`, '#fff27a'); break;
+      case 'hit': view?.hit?.(); this.sfx.play('thud'); break;
       case 'hurt':
+        this.sfx.play('hurt');
         if (msg.id === this.you) this.floatAt(this.pos, `-${msg.amount}`, '#ff5a5a');
         else { view?.play?.('hurt'); this.floatAt(msg, `-${msg.amount}`, '#ff5a5a'); }
         break;
-      case 'heal': this.floatAt(msg, `+${msg.amount}`, '#7dff8a'); break;
+      case 'heal': this.sfx.play('heal'); this.floatAt(msg, `+${msg.amount}`, '#7dff8a'); break;
       case 'forge':
+        this.sfx.play('clang');
         this.floatAt(msg, 'Clang! ⚒', '#ffb070');
         this.addEffect(new Debris(msg.x, msg.z, [0xff8a30, 0xffd23f, 0xfff27a], 14));
         break;
       case 'faint':
+        this.sfx.play('faint');
         this.floatAt(msg, '💤 Fainted!', '#c9c9ff');
         this.addEffect(new Debris(msg.x, msg.z, [0xffffff, 0xc9c9ff], 10));
         break;
-      case 'petlevel': this.floatAt(msg, `Pet level ${msg.level}!`, '#c9f7ff'); break;
+      case 'petlevel': this.sfx.play('petlevel'); this.floatAt(msg, `Pet level ${msg.level}!`, '#c9f7ff'); break;
       case 'evolve':
+        this.sfx.play('evolve');
         this.floatAt(msg, '✨ EVOLVED! ✨', '#ffd23f');
         this.addEffect(new Debris(msg.x, msg.z, [0xffd23f, 0xff9ad5, 0x7fd4ff, 0xffffff], 24));
         break;
       case 'levelup':
+        this.sfx.play('levelup');
         this.floatAt(msg, `LEVEL ${msg.level}!`, '#ffd23f');
         (msg.id === this.you ? this.me : view)?.play?.('cheer');
         this.addEffect(new Debris(msg.x, msg.z, [0xffd23f, 0xfff27a, 0xffffff], 18));
@@ -326,17 +333,21 @@ export class GameClient {
       case 'wake':
         if (msg.id === this.you && this.sleeping) { this.sleeping = false; this.pos.z += 2.6; }
         break;
-      case 'nightWarning': this.hud.nightWarning(msg.seconds); break;
-      case 'dodge': if (msg.id === this.you) this.floatAt(this.pos, 'Dodged!', '#c9f7ff'); break;
-      case 'block': this.floatAt(msg.id === this.you ? this.pos : msg, 'Blocked!', '#9fd8ff'); break;
-      case 'pickup': this.floatAt(this.pos, `+${msg.qty} ${msg.item === 'gold' ? 'gold' : ITEMS[msg.item]?.name ?? msg.item}`, msg.item === 'gold' ? '#ffd23f' : '#bfe7ff'); break;
-      case 'chest': this.floatAt(msg, 'Treasure!', '#ffd23f'); break;
-      case 'smash': this.addEffect(new Debris(msg.x, msg.z, [0x9a6a3c, 0x7a5030, 0xb58250, 0x5a5a5a])); break;
+      case 'nightWarning': this.sfx.play('chime'); this.hud.nightWarning(msg.seconds); break;
+      case 'dodge': if (msg.id === this.you) { this.sfx.play('dodge'); this.floatAt(this.pos, 'Dodged!', '#c9f7ff'); } break;
+      case 'block': this.sfx.play('block'); this.floatAt(msg.id === this.you ? this.pos : msg, 'Blocked!', '#9fd8ff'); break;
+      case 'pickup':
+        this.sfx.play(msg.item === 'gold' ? 'coin' : 'pop');
+        this.floatAt(this.pos, `+${msg.qty} ${msg.item === 'gold' ? 'gold' : ITEMS[msg.item]?.name ?? msg.item}`, msg.item === 'gold' ? '#ffd23f' : '#bfe7ff');
+        break;
+      case 'chest': this.sfx.play('chest'); this.floatAt(msg, 'Treasure!', '#ffd23f'); break;
+      case 'smash': this.sfx.play('smash'); this.addEffect(new Debris(msg.x, msg.z, [0x9a6a3c, 0x7a5030, 0xb58250, 0x5a5a5a])); break;
       case 'nova':
+        this.sfx.play('nova');
         this.addEffect(new NovaBlast(msg.x, msg.z, SPELL_RADIUS));
         this.shake(Math.max(0, 0.5 - Math.hypot(msg.x - this.pos.x, msg.z - this.pos.z) / 40));
         break;
-      case 'break': this.addEffect(new Debris(msg.x, msg.z, [0x8d8d8d, 0x6e6e6e, 0xa8a29a], 10)); break;
+      case 'break': this.sfx.play('rock'); this.addEffect(new Debris(msg.x, msg.z, [0x8d8d8d, 0x6e6e6e, 0xa8a29a], 10)); break;
     }
   }
 
@@ -539,7 +550,7 @@ export class GameClient {
       if (this.hud.modalOpen) this.hud.closeModal();
       else this.openPets(false);
     }
-    if (input.consume('music')) this.hud.toast(this.music.toggleMute() ? 'Music off (M)' : 'Music on (M)');
+    if (input.consume('music')) this.hud.toast(this.music.toggleMute() ? 'Sound off (M)' : 'Sound on (M)');
     if (input.consume('stats')) { this.showStats = !this.showStats; this.hud.setStats(this.showStats ? 'measuring…' : null); }
     if (input.consume('chat')) {
       input.enabled = false;
@@ -587,6 +598,7 @@ export class GameClient {
     if (input.consume('attack') && this.attackTimer <= 0 && this.rolling <= 0) {
       this.attackTimer = weaponCooldown(this.self?.weapon);
       this.me.play('attack');
+      this.sfx.play('whoosh');
       this.conn.send({ t: 'attack', rot: this.pos.rot });
     }
     if (input.consume('feed')) this.conn.send({ t: 'feedPet' });
@@ -703,7 +715,7 @@ export class GameClient {
       const want = new THREE.Vector3(c.at.x + c.at.dx * 9 - c.at.dz * 3, 8, c.at.z + c.at.dz * 9 + c.at.dx * 3 + 2);
       this.camera.position.lerp(want, 1 - Math.exp(-dt * 3));
       this.camera.lookAt(c.at.x, 1.8, c.at.z);
-      if (c.t > 1.2 && !c.broke) { c.broke = true; this.locView.playUnlock(c.id); }
+      if (c.t > 1.2 && !c.broke) { c.broke = true; this.locView.playUnlock(c.id); this.sfx.play('chain'); }
       if (c.t > 2.3 && c.t - dt <= 2.3) { this.shake(0.6); this.addEffect(new Debris(c.at.x, c.at.z, [0xffd23f, 0x9aa3ad, 0xffffff], 22)); }
       if (c.t > 5) { c.done(); this.cinematic = null; this.snapCamera = false; }
       return;
