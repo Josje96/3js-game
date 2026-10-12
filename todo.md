@@ -3,13 +3,16 @@
 Most important first. Tick things off in the same commit that does them.
 
 ## Check before going live
+- [ ] **Everyone refreshes after the round-3 update** (protocol 16): guests on an old tab can't join.
 - [ ] Play on two real devices on the home Wi-Fi as a guest: is the stutter gone? (F3 shows fps, ping and
       whether the "fast lane" is up.) If a tablet is slow, try Esc → Graphics → Medium/Fast.
+- [ ] Listen to the new sound effects on real speakers — they were only checked for "no console errors",
+      never for actually sounding good.
 - [ ] Balance pass: 100-floor dungeons, enemy scaling (`enemyPower` in shared/dungeons.js), shop prices
-      per tier, armor values, nightfall penalty. All first guesses.
-- [ ] Old saves: load a real family save (back it up first) and check the gold split, beds and dungeon
-      unlocks look right. The Ruins are now much harder for saves that already had them open.
-- [ ] Merge branch `round-2` into `main`, push, let GitHub Actions run `bun run check`.
+      per tier, armor values, nightfall penalty, and the new deep-ore forge recipes' costs. All first guesses.
+- [ ] Old saves: load a real family save (back it up first) and check the v9 room upgrade — beds should
+      each sit in their own room, and everyone can style their own room at the Decorator.
+- [x] Merge branch `round-2` into `main`, push, let GitHub Actions run `bun run check`. (Round 3 merges next.)
 
 ## Asked for, not done yet
 - [x] **Blender assets** to make places less repetitive — done in round 3: `tools/blender/make_props.py`
@@ -23,10 +26,13 @@ Most important first. Tick things off in the same commit that does them.
 - [ ] Unique boss attacks (currently chase / pounce / shoot + summons).
 - [x] Forge recipes for deeper ores (mythril, obsidian, starstone) — done in round 3: Mythril Brand & Bulwark, Obsidian Edge, Night Staff, Star Piercer, Star Cleaver; blueprints gate on where the ores spawn.
 - [x] Sound effects (hits, coins, chains breaking, night chime) — done in round 3, all generated with WebAudio in `client/sfx.js` (no files); M mutes everything.
+- [x] A private room per family member with their own walls, floors and furniture — done in round 3:
+      eight rooms off a shared hall; the Decorator styles the whole fort or just your room;
+      furniture is a family pool but only placeable in your own room or the hall.
 - [ ] Touch controls for tablets/phones.
 - [ ] Villagers are only on each player's own screen; fine, but they can't be talked to.
 - [ ] Run `GameServer` in a Web Worker so the host's rendering never stalls the world.
-- [ ] Code-split the build (it's ~850 KB of JS in one file).
+- [ ] Code-split the build (it's ~940 KB of JS in one file).
 
 ## To discuss (no code yet)
 - **Desktop app (Electrobun) vs web**: recommendation was to stay web-first (works on every device,

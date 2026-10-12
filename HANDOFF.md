@@ -13,7 +13,7 @@ What's in the game and how it plays. **For how the code works and how to change 
 ## The game now
 | Area | What's there |
 |---|---|
-| **Pebble Town** | Castle walls and towers, the Family Fort, market square with canopy stalls: Shopkeeper, Blacksmith (forge) next to her, Pet Keeper, Decorator (appears after the King Slime). Fountain, benches, cottages, lamps that light at dusk, villagers walking, 7 townsfolk to talk to (E). Healing spring with fairies and flowers. Training yard: dummy + harmless practice slime. Three dungeon entrances; locked ones are chained, and the chains break in a little cutscene the first time you visit town after unlocking. |
+| **Pebble Town** | Castle walls and towers, the Family Fort, market square with canopy stalls: Shopkeeper, Blacksmith (forge) next to her, Pet Keeper, Decorator (appears after the King Slime). Fountain, benches, cottages, lamps that light at dusk, villagers walking, 7 townsfolk to talk to (E). The healing spring is a real pond — fully water, wade in — with fairies, flowers and a halo of magic around the edge. Training yard: dummy + harmless practice slime, hay bales. Three dungeon entrances (each with a signpost); locked ones are chained, and the chains break in a little cutscene the first time you visit town after unlocking. |
 | **Family Fort** | A shared hall plus a private room per family member (a bed with their name and quilt colour; whoever claims a bed claims the room). Wardrobe, mirror and family chest in the hall. Decorate from the Decorator: furniture (family pool — but you can only place pieces in your own room or the hall), wall colours and floors for the whole fort *or* just your own room (B at home = build mode: E place, R turn, X pick up). |
 | **Dungeons** | Old Mine → Sunken Ruins → Shadow Keep, 100 floors each, 10 biomes each, boss every 10 floors. Finishing floor 100 unlocks the next. Enemies scale with total depth, so each dungeon is harder. Elevator every 5 floors. |
 | **Day & night** | 10-minute days. Warnings at 1 min and 30 s (with chimes); the sky turns to dusk. At nightfall anyone outside the fort faints and loses half their gold; a "Day N" night screen shows. The day also ends when everyone online is in bed (Stardew style). |
@@ -28,7 +28,7 @@ What's in the game and how it plays. **For how the code works and how to change 
 ## Controls
 WASD move · Space/click attack · Shift roll · E interact · Q eat/drink (smallest heal that's enough) · G feed pet ·
 R area spell (rotate in build mode) · B build mode at home · X pick up furniture · C character · P pets ·
-Enter chat · M music · F3 stats · Esc menu. Gamepad: A attack, B roll, X interact, Y potion, LB spell, RB feed.
+Enter chat · M sound · F3 stats · Esc menu. Gamepad: A attack, B roll, X interact, Y potion, LB spell, RB feed.
 
 ## Running it
 `bun install`, then `bun run dev`. Saves live in the host's browser (localStorage); back up with Esc → Download save file.
