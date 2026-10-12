@@ -4,12 +4,15 @@ import { TOWNSFOLK } from '../../shared/townsfolk.js';
 import { ENEMIES } from '../../shared/dungeons.js';
 
 const RESPAWN = 3; // seconds before a beaten practice slime pops back
+const HERO_CHANCE = 0.35; // once the King Slime is beaten, how often townsfolk talk about it
 
 export const interactions = {
   talk(p, prop) {
     const who = TOWNSFOLK[prop.folk % TOWNSFOLK.length];
     if (!who) return;
-    const text = who.lines[Math.floor(Math.random() * who.lines.length)];
+    const hero = this.save.flags.mineCleared && who.heroLines && Math.random() < HERO_CHANCE;
+    const lines = hero ? who.heroLines : who.lines;
+    const text = lines[Math.floor(Math.random() * lines.length)];
     this.send(p, { t: 'ui', kind: 'talk', name: who.name, text, x: prop.x, z: prop.z });
   },
 };

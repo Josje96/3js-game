@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { world } from './helpers.js';
 import { FURNITURE } from '../src/shared/furniture.js';
+import { TOWNSFOLK } from '../src/shared/townsfolk.js';
 
 const propOf = (server, type) => server.getLocation('town').layout.props.find((q) => q.type === type);
 const standBy = (p, t) => { p.x = t.x; p.z = t.z + 2.4; };
@@ -16,6 +17,25 @@ test('town: townsfolk chat when you talk to them', () => {
   const ui = c.a.last('ui');
   assert.equal(ui.kind, 'talk');
   assert.ok(ui.name && ui.text);
+});
+
+test('town: once the King Slime is beaten, townsfolk sometimes cheer the hero (never before)', () => {
+  const { server, save, p, c } = world('hero');
+  server.travel(p.a, 'town');
+  const folk = propOf(server, 'townsfolk');
+  standBy(p.a, folk);
+  const heard = () => {
+    const out = new Set();
+    for (let i = 0; i < 200; i++) { c.a.say({ t: 'interact', id: folk.id }); out.add(c.a.last('ui').text); }
+    return out;
+  };
+  const who = TOWNSFOLK[folk.folk % TOWNSFOLK.length];
+  assert.ok(![...heard()].some((t) => who.heroLines.includes(t)), 'no hero talk before the King Slime is beaten');
+  save.flags.mineCleared = true;
+  const after = [...heard()];
+  assert.ok(after.some((t) => who.heroLines.includes(t)), 'hero talk');
+  assert.ok(after.some((t) => who.lines.includes(t)), 'still their usual chat too');
+  for (const f of TOWNSFOLK) assert.ok(f.heroLines?.length >= 2, `${f.name} has something to say about it`);
 });
 
 test('town: the practice slime never hurts you, stays in its yard, and comes back when beaten', () => {
