@@ -213,6 +213,7 @@ kbd { display: inline-block; min-width: 20px; padding: 1px 5px; border-radius: 5
 .night-card { position: relative; text-align: center; color: #e8e6ff; }
 .night-card .moon { font-size: 72px; filter: drop-shadow(0 0 24px #fff6c0); animation: moon-rise 1.2s ease-out; }
 @keyframes moon-rise { from { transform: translateY(30px); opacity: 0; } }
+.night-card .night-year { font-size: 20px; letter-spacing: 0.12em; text-transform: uppercase; color: #cfc6ff; }
 .night-card .night-day { font-size: 56px; font-weight: 800; letter-spacing: 0.04em; color: #fff3c4; text-shadow: 0 4px 0 #3a2f7a, 0 0 30px rgba(255, 240, 180, 0.4); }
 .night-card .night-season { font-size: 18px; color: #ffe9b0; margin-top: 4px; }
 .night-card p { margin: 6px 0; font-size: 18px; }

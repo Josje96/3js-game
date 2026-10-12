@@ -1,8 +1,22 @@
-// Seasons: the year is four seasons of SEASON_DAYS days, worked out from the day counter (so saves
+// The calendar: YEAR_DAYS-day years ("Year 2 · Day 86"), counted from the save's day number.
+// Seasons: four seasons of SEASON_DAYS days, worked out from the day counter (so saves
 // need nothing new). On the first day of each season that season's boss visits town for the day:
 // very tough, scaled to the family, and it drops epic loot (ITEMS with `epic: true`).
 
+export const YEAR_DAYS = 365;
 export const SEASON_DAYS = 30;
+
+/** Day 1 is Year 1, Day 1; day 366 is Year 2, Day 1. */
+export function calendar(day) {
+  const d = Math.max(1, Math.floor(day) || 1) - 1;
+  return { year: Math.floor(d / YEAR_DAYS) + 1, day: (d % YEAR_DAYS) + 1 };
+}
+
+/** "Year 2 · Day 86" */
+export function dateLabel(day) {
+  const c = calendar(day);
+  return `Year ${c.year} · Day ${c.day}`;
+}
 
 export const SEASONS = [
   { id: 'spring', name: 'Spring', icon: '🌸', boss: 'bloomcolossus', bossName: 'The Blossom Colossus', loot: ['blossomblade', 'petalaegis'] },

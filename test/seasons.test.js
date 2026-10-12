@@ -6,7 +6,16 @@ import { SEASONS, SEASON_DAYS, SEASON_ARENA, seasonOf, dayOfSeason, isBossDay } 
 import { ENEMIES } from '../src/shared/dungeons.js';
 import { ITEMS, SHOP_STOCK, DROP_TIERS } from '../src/shared/items.js';
 
-const bossIn = (loc) => [...loc.entities.values()].find((e) => e.seasonal);
+test('calendar: 365-day years, "Year 2 · Day 86"', async () => {
+  const { calendar, dateLabel, YEAR_DAYS } = await import('../src/shared/seasons.js');
+  assert.equal(YEAR_DAYS, 365);
+  assert.deepEqual(calendar(1), { year: 1, day: 1 });
+  assert.deepEqual(calendar(365), { year: 1, day: 365 });
+  assert.deepEqual(calendar(366), { year: 2, day: 1 });
+  assert.equal(dateLabel(365 + 86), 'Year 2 · Day 86');
+});
+
+const bossIn =(loc) => [...loc.entities.values()].find((e) => e.seasonal);
 
 test('seasons: spring, summer, autumn, winter, each SEASON_DAYS days, boss on day 1 of each', () => {
   assert.equal(SEASON_DAYS, 30);

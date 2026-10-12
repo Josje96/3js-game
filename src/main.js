@@ -13,6 +13,7 @@ import { createLocalPair, hostPeer, joinPeer, hostTabs, joinTabs } from './net/t
 import { GameClient } from './client/GameClient.js';
 import { preloadAll } from './client/assets.js';
 import { applyUiTextures } from './client/ui-textures.js';
+import { dateLabel } from './shared/seasons.js';
 
 applyUiTextures();
 
@@ -79,7 +80,7 @@ function renderTitle() {
     row.className = 'save-row';
     row.innerHTML = `<div><b></b><br><small class="muted"></small></div>`;
     row.querySelector('b').textContent = s.name;
-    row.querySelector('small').textContent = `Day ${s.day} · ${s.players.join(', ') || 'nobody yet'}`;
+    row.querySelector('small').textContent = `${dateLabel(s.day)} · ${s.players.join(', ') || 'nobody yet'}`;
     const play = button('Play', 'primary', () => start(() => store.load(s.id)));
     const exp = button('⬇', 'small', () => exportSave(store.load(s.id)));
     exp.title = 'Download save file';
