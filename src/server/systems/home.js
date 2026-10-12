@@ -81,6 +81,7 @@ export const methods = {
       const free = !layout.isSolidCell(Math.floor(p.x / CELL), Math.floor(p.z / CELL));
       this.travel(p, 'house', null, free ? { x: p.x, z: p.z } : null);
     }
+    this.sendHouse(); // everyone needs the new list of rooms (who decorates which)
   },
 
   /** Spawn (or rename) a family member's bed entity in the fort. */

@@ -677,18 +677,14 @@ export class Hud {
     this.speechTimer = setTimeout(() => { s.classList.add('fade'); setTimeout(() => s.remove(), 500); }, 5000);
   }
 
-  /** The Decorator's stall: furniture for the fort (shared by the family), wall colours and floors.
-   * Walls/floors dress one room: your own, or the common room. */
-  openDecorator({ house, onBuy, onStyle, onRoomStyle }) {
+  /** The Decorator's stall: furniture, wall colours/wallpapers and floors, all for the family.
+   * Nothing is put up here: at home, press B to place furniture and to dress your own room. */
+  openDecorator({ house, onBuy, onBuyStyle }) {
     this.decoTab ??= 'furniture';
-    this.decoScope ??= 'room'; // 'room' = your own room, 'fort' = the common room
     this.openModal((box) => {
       const gold = this.self?.gold ?? 0, h = house() ?? {};
-      const myRoom = (h.rooms ?? []).find((r) => r.owner === this.you);
       box.append(el('h2', null, `The Decorator <span class="gold">🪙 ${gold}</span>`),
-        el('p', 'muted', myRoom
-          ? `Everything is for the whole family. At home, press B to place furniture — ${myRoom.ownerName}'s room is the one with their bed. Walls and floors only change the room you pick.`
-          : 'Everything here is for the whole family’s fort. At home, press B to place furniture. Walls and floors change the common room.'));
+        el('p', 'muted', 'Everything here is for the whole family. Take it home and press <b>B</b> to decorate: furniture anywhere in your own room or the common room, and walls and floors in the room you’re standing in.'));
       const tabs = el('div', 'tabs');
       for (const [id, label] of [['furniture', '🛋 Furniture'], ['luxury', '✨ Luxury'], ['wall', '🎨 Walls'], ['floor', '🪵 Floors']]) {
         const t = el('button', this.decoTab === id ? 'selected' : '', label);
@@ -696,19 +692,9 @@ export class Hud {
         tabs.append(t);
       }
       box.append(tabs);
-      const furnitureTab = this.decoTab === 'furniture' || this.decoTab === 'luxury';
-      if (!furnitureTab && myRoom) {
-        const scope = el('div', 'tabs');
-        for (const [id, label] of [['room', `🚪 ${myRoom.ownerName}'s room`], ['fort', '🛋 Common room']]) {
-          const t = el('button', this.decoScope === id ? 'selected' : '', label);
-          t.addEventListener('click', () => { this.decoScope = id; this.refreshModal?.(); });
-          scope.append(t);
-        }
-        box.append(scope);
-      }
       const body = el('div', 'shop-body');
       body.dataset.scroll = `deco-${this.decoTab}`;
-      if (furnitureTab) {
+      if (this.decoTab === 'furniture' || this.decoTab === 'luxury') {
         for (const [id, def] of Object.entries(FURNITURE)) {
           if (def.notForSale || !!def.luxury !== (this.decoTab === 'luxury')) continue;
           const have = h.owned?.[id] ?? 0;
@@ -718,19 +704,12 @@ export class Hud {
           body.append(row);
         }
       } else {
-        const table = this.decoTab === 'wall' ? WALL_STYLES : FLOOR_STYLES;
-        const mine = this.decoScope === 'room' && myRoom
-          ? (h.roomStyles?.[myRoom.slot] ?? {})[this.decoTab] ?? (this.decoTab === 'wall' ? 'stone' : 'oak')
-          : null;
+        const kind = this.decoTab, table = kind === 'wall' ? WALL_STYLES : FLOOR_STYLES;
         for (const [id, def] of Object.entries(table)) {
-          const owned = !def.price || (h.styles ?? []).includes(`${this.decoTab}:${id}`);
-          const on = mine ? mine === id : h[this.decoTab] === id;
-          const sw = def.pattern ? `<i class="swatch" style="background:url(${wallpaperSwatch(def.pattern)}) center/200%"></i>`
-            : def.tint != null ? `<i class="swatch" style="background:#${def.tint.toString(16).padStart(6, '0')}"></i>` : '';
-          const row = el('button', `shop-row${on ? ' selected' : ''}`, `<span>${sw}${esc(def.name)}</span><span class="gold">${on ? 'in use' : owned ? 'use' : def.price}</span>`);
-          row.disabled = on || (!owned && gold < def.price);
-          const pick = this.decoScope === 'room' && myRoom ? onRoomStyle : onStyle;
-          row.addEventListener('click', () => (owned ? pick(this.decoTab, id) : this.askToBuy(def.name, def.price, () => pick(this.decoTab, id))));
+          const owned = !def.price || (h.styles ?? []).includes(`${kind}:${id}`);
+          const row = el('button', 'shop-row', `<span>${styleSwatch(def)}${esc(def.name)}</span><span class="gold">${owned ? 'owned ✓' : def.price}</span>`);
+          row.disabled = owned || gold < def.price;
+          row.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuyStyle(kind, id)));
           body.append(row);
         }
       }
@@ -746,17 +725,49 @@ export class Hud {
     this.renderBuild(client);
   }
 
+  /** Build mode: place furniture, or put up walls and floors in the room you're standing in. */
   renderBuild(client) {
-    if (!this.buildEl || !client.building) return;
-    const owned = Object.entries(client.house?.owned ?? {}).filter(([, n]) => n > 0);
+    const b = client.building;
+    if (!this.buildEl || !b) return;
+    b.tab ??= 'furniture';
     this.buildEl.innerHTML = '<h3>🔨 Decorate the fort</h3>';
-    if (!owned.length) this.buildEl.append(el('p', 'muted', 'No furniture waiting. Buy some from the Decorator in town!'));
-    for (const [id, n] of owned) {
-      const b = el('button', client.building.item === id ? 'selected' : '', `${iconImg(furnitureIcon(id))}${esc(FURNITURE[id]?.name ?? id)} ×${n}`);
-      b.addEventListener('click', () => { client.building.item = id; this.renderBuild(client); });
-      this.buildEl.append(b);
+    const tabs = el('div', 'tabs');
+    for (const [id, label] of [['furniture', '🛋'], ['wall', '🎨 Walls'], ['floor', '🪵 Floors']]) {
+      const t = el('button', b.tab === id ? 'selected' : '', label);
+      t.addEventListener('click', () => { b.tab = id; if (id !== 'furniture') client.dropBuildItem(); this.renderBuild(client); });
+      tabs.append(t);
     }
-    this.buildEl.append(el('p', 'muted small-note', 'E place · R turn · X pick up · B done'));
+    this.buildEl.append(tabs);
+    if (b.tab === 'furniture') {
+      const owned = Object.entries(client.house?.owned ?? {}).filter(([, n]) => n > 0);
+      if (!owned.length) this.buildEl.append(el('p', 'muted', 'No furniture waiting. Buy some from the Decorator in town!'));
+      for (const [id, n] of owned) {
+        const btn = el('button', b.item === id ? 'selected' : '', `${iconImg(furnitureIcon(id))}${esc(FURNITURE[id]?.name ?? id)} ×${n}`);
+        btn.addEventListener('click', () => { b.item = id; this.renderBuild(client); });
+        this.buildEl.append(btn);
+      }
+      this.buildEl.append(el('p', 'muted small-note', 'E place · R turn · X pick up · B done'));
+      return;
+    }
+    // walls / floors: only for the room you're standing in, if it's yours or the common room
+    const kind = b.tab, h = client.house ?? {}, room = client.currentRoom();
+    const info = room >= 0 ? (h.rooms ?? []).find((r) => r.slot === room) : null;
+    const mine = room < 0 || info?.owner === this.you;
+    this.buildEl.append(el('p', 'muted', room >= 0 ? `In <b>${esc(info?.ownerName ?? 'an empty')}’s room</b>` : 'In the <b>common room</b>'));
+    if (!mine) {
+      this.buildEl.append(el('p', 'muted', `Only ${esc(info?.ownerName ?? 'its owner')} can decorate this room. Walk into your own room (or the common room).`));
+      return;
+    }
+    const table = kind === 'wall' ? WALL_STYLES : FLOOR_STYLES;
+    const current = room >= 0 ? h.roomStyles?.[room]?.[kind] ?? (kind === 'wall' ? 'stone' : 'oak') : h[kind] ?? (kind === 'wall' ? 'stone' : 'oak');
+    const owned = Object.entries(table).filter(([id, def]) => !def.price || (h.styles ?? []).includes(`${kind}:${id}`));
+    for (const [id, def] of owned) {
+      const btn = el('button', current === id ? 'selected' : '', `${styleSwatch(def)}${esc(def.name)}`);
+      btn.disabled = current === id;
+      btn.addEventListener('click', () => client.putUpStyle(kind, id, room));
+      this.buildEl.append(btn);
+    }
+    this.buildEl.append(el('p', 'muted small-note', owned.length > 1 ? 'Click one to put it up in this room · B done' : `Buy ${kind === 'wall' ? 'wallpapers' : 'floors'} from the Decorator in town · B done`));
   }
 
   closeBuild() {
@@ -896,4 +907,10 @@ export function prettyLoc(key) {
   if (key === 'town') return 'in town';
   const [d, f] = key.split('/');
   return `${d} floor ${f}`;
+}
+
+/** A little square of a wall style or floor: its wallpaper pattern or its colour. */
+function styleSwatch(def) {
+  return def.pattern ? `<i class="swatch" style="background:url(${wallpaperSwatch(def.pattern)}) center/200%"></i>`
+    : def.tint != null ? `<i class="swatch" style="background:#${def.tint.toString(16).padStart(6, '0')}"></i>` : '';
 }

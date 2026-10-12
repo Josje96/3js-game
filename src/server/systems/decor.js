@@ -64,44 +64,35 @@ export const methods = {
     this.sendHouse();
   },
 
-  /** The common room's wall colour and floor: buy once, then switch between owned ones for free. Bedrooms keep their own. */
-  on_houseStyle(p, { kind, id }) {
-    const h = this.save.house;
-    if (!this.styleOk(p, kind, id, h)) return;
-    h[kind] = id;
-    this.toast(p, `The common room now has ${nameFor(kind, id)}!`);
-    this.sendHouse();
-    this.broadcastWorld();
-  },
-
-  /** Dress YOUR room: same styles as the fort's, remembered per room (keyed by bed slot). */
-  on_roomStyle(p, { kind, id, slot }) {
-    const h = this.save.house;
-    if (this.roomSlot(p) !== slot) return this.toast(p, 'That’s not your room — only its owner can style it.');
-    if (!this.styleOk(p, kind, id, h)) return;
-    (h.roomStyles ??= {})[slot] ??= {};
-    h.roomStyles[slot][kind] = id;
-    this.toast(p, `Your room now has ${nameFor(kind, id)}!`);
-    this.sendHouse();
-    this.broadcastWorld();
-  },
-
-  /** Shared checks for house/room styles: the table and id exist, and an unowned style is bought in town. */
-  styleOk(p, kind, id, h) {
-    const table = kind === 'wall' ? WALL_STYLES : kind === 'floor' ? FLOOR_STYLES : null;
-    const def = table?.[id];
-    if (!def || (p.loc !== 'town' && p.loc !== 'house') || !this.decoratorOpen()) return false;
+  /** Buy a wall colour/wallpaper or floor at the Decorator. It goes into the family's collection;
+   * nothing changes until someone puts it up in a room at home (build mode, B). */
+  on_buyHouseStyle(p, { kind, id }) {
+    const def = styleDef(kind, id), h = this.save.house;
+    if (!def || p.loc !== 'town' || !this.decoratorOpen()) return;
     h.styles ??= [];
-    const key = `${kind}:${id}`;
-    if (def.price && !h.styles.includes(key)) {
-      if (p.loc !== 'town') {
-        this.toast(p, 'Buy that from the Decorator in town first.');
-        return false;
-      }
-      if (!this.spend(p, def.price, def.name)) return false;
-      h.styles.push(key);
-    }
-    return true;
+    if (!def.price || h.styles.includes(`${kind}:${id}`)) return this.toast(p, 'The family already has that one.');
+    if (!this.spend(p, def.price, def.name)) return;
+    h.styles.push(`${kind}:${id}`);
+    this.toast(p, `Bought ${def.name}! At home, press B and pick ${kind === 'wall' ? 'Walls' : 'Floors'} to put it up in your room.`);
+    this.sendHouse();
+  },
+
+  /**
+   * Put a wall style or floor (one the family owns) up in the room you're standing in: your own
+   * bedroom, or the common room (slot -1). Other people's rooms are theirs to decorate.
+   */
+  on_roomStyle(p, { kind, id, slot }) {
+    const def = styleDef(kind, id), h = this.save.house, loc = this.locations.get('house');
+    if (!def || p.loc !== 'house' || !loc) return;
+    const here = roomIndexAt(loc.layout, Math.floor(p.x / CELL), Math.floor(p.z / CELL));
+    if (here !== slot) return;
+    if (slot >= 0 && this.roomOwner(slot)?.id !== p.id) return this.toast(p, `That’s ${this.roomOwner(slot)?.name ?? 'someone'}’s room — they decorate it!`);
+    if (def.price && !(h.styles ?? []).includes(`${kind}:${id}`)) return this.toast(p, 'Buy that from the Decorator in town first.');
+    if (slot >= 0) ((h.roomStyles ??= {})[slot] ??= {})[kind] = id;
+    else h[kind] = id;
+    this.toast(p, `${slot >= 0 ? 'Your room' : 'The common room'} now has ${nameFor(kind, id)}!`);
+    this.sendHouse();
+    this.broadcastWorld();
   },
 
   /** Put a piece of the family's furniture down in the fort. Inside someone else's room: no. */
@@ -164,3 +155,5 @@ const nameFor = (kind, id) => {
   const def = (kind === 'wall' ? WALL_STYLES : FLOOR_STYLES)[id];
   return `${def.name.toLowerCase()} ${kind === 'wall' ? 'walls' : 'floors'}`;
 };
+
+const styleDef = (kind, id) => (kind === 'wall' ? WALL_STYLES : kind === 'floor' ? FLOOR_STYLES : null)?.[id] ?? null;

@@ -1,8 +1,8 @@
 // One player's view of the game. Renders whatever location the server says
 // we're in, moves our own character locally, and sends intents to the host.
 import * as THREE from 'three';
-import { PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
-import { buildLayout } from '../shared/locations.js';
+import { CELL, PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
+import { buildLayout, roomIndexAt } from '../shared/locations.js';
 import { DUNGEONS } from '../shared/dungeons.js';
 import { FURNITURE, DECORATOR_FLAG } from '../shared/furniture.js';
 import { FurnitureView } from './furniture.js';
@@ -105,7 +105,7 @@ export class GameClient {
 
   onMessage(msg) {
     switch (msg.t) {
-      case 'welcome': this.you = msg.you; break;
+      case 'welcome': this.you = msg.you; this.hud.you = msg.you; break;
       case 'world': {
         const restyle = this.layout?.key === 'house' && houseKey(msg.house) !== houseKey(this.world?.house);
         this.world = msg;
@@ -492,12 +492,7 @@ export class GameClient {
       this.hud.openDecorator({
         house: () => this.house,
         onBuy: (item) => this.conn.send({ t: 'buyFurniture', item }),
-        onStyle: (kind, id) => this.conn.send({ t: 'houseStyle', kind, id }),
-        onRoomStyle: (kind, id) => {
-          const myRoom = (this.house?.rooms ?? []).find((r) => r.owner === this.you);
-          if (!myRoom) return this.hud.toast('Only the family’s own rooms can be styled — you need a bed at the fort.');
-          this.conn.send({ t: 'roomStyle', kind, id, slot: myRoom.slot });
-        },
+        onBuyStyle: (kind, id) => this.conn.send({ t: 'buyHouseStyle', kind, id }),
       });
     } else if (msg.kind === 'elevator') {
       this.hud.openElevator({ name: msg.name, floors: msg.floors, onPick: (floor) => this.conn.send({ t: 'elevator', dungeon: msg.dungeon, floor }) });
@@ -711,6 +706,9 @@ export class GameClient {
     if (!this.building) return;
     if (!home) return this.stopBuilding();
     const b = this.building;
+    const room = this.currentRoom();
+    if (room !== b.room) { b.room = room; if (b.tab && b.tab !== 'furniture') this.hud.renderBuild(this); }
+    if (b.tab && b.tab !== 'furniture') return this.hud.prompt('Pick a wall or floor for this room · [B] Done');
     if (input.consume('spell')) b.rot = (b.rot + Math.PI / 2) % (Math.PI * 2);
     // where it would go: a step in front of you, on a half-unit grid
     const fx = Math.round((this.pos.x + Math.sin(this.pos.rot) * 2.6) * 2) / 2, fz = Math.round((this.pos.z + Math.cos(this.pos.rot) * 2.6) * 2) / 2;
@@ -735,6 +733,25 @@ export class GameClient {
       if (!((this.house?.owned?.[b.item] ?? 0) > 1)) { b.item = null; b.ghost?.dispose(); b.ghost = null; }
     }
     if (pick && input.consume('pickup')) this.conn.send({ t: 'pickUpFurniture', id: pick.id });
+  }
+
+  /** Which of the fort's rooms you're standing in (-1 = the common room). */
+  currentRoom() {
+    return roomIndexAt(this.layout, Math.floor(this.pos.x / CELL), Math.floor(this.pos.z / CELL));
+  }
+
+  /** Build mode: wallpaper / a floor for the room you're standing in. */
+  putUpStyle(kind, id, room) {
+    this.conn.send({ t: 'roomStyle', kind, id, slot: room });
+  }
+
+  /** Stop holding a piece of furniture (switching to walls/floors). */
+  dropBuildItem() {
+    const b = this.building;
+    if (!b) return;
+    b.item = null;
+    b.ghost?.dispose();
+    b.ghost = null;
   }
 
   stopBuilding() {

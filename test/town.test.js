@@ -80,8 +80,10 @@ test('town: the Decorator opens after the King Slime; furniture is bought, place
   assert.equal(p.mom.gold, 1000 - FURNITURE.sofa.price);
   c.mom.say({ t: 'buyFurniture', item: 'bed' });
   assert.equal(save.house.owned.bed, undefined, 'beds are not for sale');
-  c.mom.say({ t: 'houseStyle', kind: 'wall', id: 'rose' });
-  assert.equal(save.house.wall, 'rose');
+  const wallBefore = save.house.wall;
+  c.mom.say({ t: 'buyHouseStyle', kind: 'wall', id: 'rose' });
+  assert.ok(save.house.styles.includes('wall:rose'), 'bought for the family');
+  assert.equal(save.house.wall, wallBefore, 'but not put up anywhere yet');
 
   // placing it in the fort (the kid can do it: furniture is the family's)
   server.travel(p.kid, 'house');
@@ -129,21 +131,35 @@ test('decor: everyone has their own room — its owner styles it and nobody else
   c.mom.say({ t: 'placeFurniture', item: 'stool', x: 10, z: 10, rot: 0 });
   assert.equal(save.house.furniture.length, 1, 'mom furnishes her own room');
 
-  // styling: your own room yes, someone else's no, and new styles are bought in town
+  // styling: buy in town, then put it up yourself, only in the room you're standing in,
+  // and only if it's your own room or the common room
+  const at = (pl, x, z) => { pl.x = x; pl.z = z; };
+  at(p.kid, 20, 8); // in the kid's own room (room 1)
   c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'stone', slot: 1 }); // 'stone' is the free one
   assert.equal(save.house.roomStyles[1]?.wall, 'stone');
-  c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'sky', slot: 1 });   // not owned yet, and at home
+  c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'sky', slot: 1 });   // not bought yet
   assert.equal(save.house.roomStyles[1]?.wall, 'stone');
-  c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'sky', slot: 0 });
+  c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'stone', slot: 0 });
+  assert.ok(!save.house.roomStyles[0], 'not from the kid’s room: only the room you stand in');
+  at(p.kid, 8, 8); // in mom's room
+  c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'stone', slot: 0 });
   assert.ok(!save.house.roomStyles[0], 'kid cannot dress mom’s room');
   server.travel(p.kid, 'town');
   const before = p.kid.gold;
-  c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'dusk', slot: 1 });
-  assert.equal(save.house.roomStyles[1]?.wall, 'dusk');
+  c.kid.say({ t: 'buyHouseStyle', kind: 'wall', id: 'dusk' });
   assert.ok(save.house.styles.includes('wall:dusk'));
   assert.equal(p.kid.gold, before - 260);
-  // the room style doesn't move the whole fort
-  assert.equal(save.house.wall, 'stone');
+  assert.equal(save.house.roomStyles[1]?.wall, 'stone', 'buying doesn’t put it up');
+  server.travel(p.kid, 'house');
+  at(p.kid, 20, 8);
+  c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'dusk', slot: 1 });
+  assert.equal(save.house.roomStyles[1]?.wall, 'dusk', 'put up in the kid’s room');
+  assert.notEqual(save.house.wall, 'dusk', 'only that room');
+  assert.ok(!save.house.roomStyles[0], 'mom’s room untouched');
+  at(p.kid, 14, 22); // the common room is everyone's
+  c.kid.say({ t: 'roomStyle', kind: 'floor', id: 'oak', slot: -1 });
+  c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'dusk', slot: -1 });
+  assert.equal(save.house.wall, 'dusk');
 });
 
 test('town: you can sit on a bench by the fountain (E), facing the fountain', () => {

@@ -41,7 +41,7 @@ export const CLIENT_MESSAGES = {
   enchant:         { item: 'str' },
   roomStyle:       { kind: 'str', id: 'str', slot: 'int' },
   pickUpFurniture: { id: 'str' },
-  houseStyle:      { kind: 'str', id: 'str' },
+  buyHouseStyle:   { kind: 'str', id: 'str' },
 };
 
 /**
