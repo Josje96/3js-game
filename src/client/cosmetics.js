@@ -259,8 +259,12 @@ const HAIR_BUILDERS = {
 // ------------------------------------------------------------------ reading the KayKit textures
 // Each triangle of a KayKit character samples one flat colour swatch of the texture atlas, so we
 // can tell skin from hair/clothes by looking up the colour under the triangle.
+// Skin comes in a light swatch (240,176,128) and a shadowed one (208,160,112) — both must count
+// as skin or faces like the Rogue's (mostly shadowed) get carved away, leaving the scalp ball
+// showing through where the eyes should be. Greys and whites (armor 240,240,240) must NOT match,
+// so the swatch has to lean yellow-brown: green well below red, blue below green.
 
-const SKIN = ([r, g, b]) => r >= 235 && g >= 165 && g <= 205 && b >= 130 && b <= 170;
+export const SKIN = ([r, g, b]) => r >= 200 && g >= 140 && b >= 95 && g <= r - 20 && b <= g - 20;
 const pixelCache = new WeakMap();   // texture image -> { data, w, h }
 const colourCache = new WeakMap();  // geometry -> [[r, g, b] per triangle]
 
@@ -304,16 +308,27 @@ function filterTriangles(geo, image, keep) {
 }
 
 // The outfit's own hair is part of its head mesh, and the head is hollow underneath it.
-// For a new hairstyle we drop every triangle that isn't skin (except the eyes, brows and mouth
-// on the front of the face) and put a skin-coloured skull (see buildScalp) in the gap.
+// For a new hairstyle we drop every triangle that isn't skin (except the eyes and brows, which
+// live in a small window on the front of the face) and put a skin-coloured skull (see buildScalp)
+// in the gap. The window is measured from the KayKit meshes: on every outfit the eyes and brows
+// sit between a quarter and a bit over half of the head's height, within |x| < 0.26 of the middle.
+// The window must stay TIGHT: the Mage's black fringe and the Rangers's brown fringe hang right
+// where the brows are, and a generous box keeps them as shards hanging over the eyes.
+// The Barbarian is the one exception: his beard hangs from just above his brows down to his
+// chest, so cutting the window at the brows would tear it half off — he keeps the whole beard
+// under any hairstyle.
+const FACE_LO = 0.25, FACE_HI = 0.56, FACE_X = 0.26, FACE_Z = 0.32;
+const FACE_HI_PER_OUTFIT = { Barbarian: 0.68 };
+
 const hairlessCache = new WeakMap();
-export function hairlessHead(geo, image) {
+export function hairlessHead(geo, image, outfit) {
   if (!hairlessCache.has(geo)) {
     geo.computeBoundingBox();
     const bb = geo.boundingBox, height = bb.max.y - bb.min.y;
+    const hi = FACE_HI_PER_OUTFIT[outfit] ?? FACE_HI;
     hairlessCache.set(geo, filterTriangles(geo, image, (_, col, [x, y, z]) => {
       const rel = (y - bb.min.y) / height;
-      const face = z > 0.3 && Math.abs(x) < 0.34 && rel > 0.12 && rel < 0.6;
+      const face = z > FACE_Z && Math.abs(x) < FACE_X && rel > FACE_LO && rel < hi;
       return SKIN(col) || face;
     }));
   }

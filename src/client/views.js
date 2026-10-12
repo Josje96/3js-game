@@ -267,7 +267,7 @@ export class CharacterView {
     if (this.headMesh) {
       const hm = this.headMesh;
       hm.userData.baseGeo ??= hm.geometry;
-      hm.geometry = hair !== 'none' && hm.material.map?.image ? hairlessHead(hm.userData.baseGeo, hm.material.map.image) : hm.userData.baseGeo;
+      hm.geometry = hair !== 'none' && hm.material.map?.image ? hairlessHead(hm.userData.baseGeo, hm.material.map.image, hm.name.replace(/_Head$/, '')) : hm.userData.baseGeo;
       hm.userData.baseMat ??= hm.material;
       if (hm.material !== hm.userData.baseMat) hm.material.dispose();
       hm.material = tone ? hm.userData.baseMat.clone() : hm.userData.baseMat;
