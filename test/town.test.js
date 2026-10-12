@@ -89,8 +89,8 @@ test('town: the Decorator opens after the King Slime; furniture is bought, place
   const door = house.layout.portals.D.arrive;
   c.kid.say({ t: 'placeFurniture', item: 'sofa', x: door.x, z: door.z - 0.5, rot: 0 });
   assert.equal(save.house.furniture.length, 0, 'not blocking the door');
-  const spot = { x: 6, z: 30 }; // the west end of the hall, clear of the furniture by the walls
-  p.kid.x = spot.x; p.kid.z = spot.z + 3;
+  const spot = { x: 6, z: 26 }; // the west end of the hall, clear of the furniture by the walls
+  p.kid.x = spot.x + 4; p.kid.z = spot.z - 2;
   c.kid.say({ t: 'placeFurniture', item: 'sofa', x: spot.x, z: spot.z, rot: Math.PI });
   assert.equal(save.house.furniture.length, 1);
   assert.equal(save.house.owned.sofa, undefined);
@@ -122,11 +122,11 @@ test('decor: everyone has their own room — its owner styles it and nobody else
   c.kid.say({ t: 'buyFurniture', item: 'stool' });
   assert.equal(save.house.owned.stool, 1);
   server.travel(p.kid, 'house');
-  p.kid.x = 12; p.kid.z = 18; // just inside mom's room, in reach of its middle
-  c.kid.say({ t: 'placeFurniture', item: 'stool', x: 10, z: 14, rot: 0 });
+  p.kid.x = 10; p.kid.z = 14; // in mom's doorway, in reach of her room
+  c.kid.say({ t: 'placeFurniture', item: 'stool', x: 10, z: 10, rot: 0 });
   assert.equal(save.house.furniture.length, 0, 'mom’s room is mom’s');
-  p.mom.x = 12; p.mom.z = 18;
-  c.mom.say({ t: 'placeFurniture', item: 'stool', x: 10, z: 14, rot: 0 });
+  p.mom.x = 10; p.mom.z = 14;
+  c.mom.say({ t: 'placeFurniture', item: 'stool', x: 10, z: 10, rot: 0 });
   assert.equal(save.house.furniture.length, 1, 'mom furnishes her own room');
 
   // styling: your own room yes, someone else's no, and new styles are bought in town

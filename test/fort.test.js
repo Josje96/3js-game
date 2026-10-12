@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { world, fakeClient } from './helpers.js';
-import { fortMap, fortWidth, FORT_DEPTH, MAX_ROOMS } from '../src/shared/fort.js';
+import { fortMap, fortWidth, fortDepth, MAX_ROOMS } from '../src/shared/fort.js';
 import { buildLayout, roomIndexAt } from '../src/shared/locations.js';
 import { migrate } from '../src/server/saves.js';
 import { GameServer } from '../src/server/GameServer.js';
@@ -11,10 +11,11 @@ import { GameServer } from '../src/server/GameServer.js';
 test('fort: a row of rooms on top (one room and bed each), the door bottom middle, every room reachable', () => {
   for (let n = 1; n <= MAX_ROOMS; n++) {
     const map = fortMap(n);
-    const W = fortWidth(Math.max(2, n));
-    assert.equal(map.rows.length, FORT_DEPTH);
+    const W = fortWidth(Math.max(2, n)), H = fortDepth(Math.max(2, n));
+    assert.equal(map.rows.length, H);
     for (const row of map.rows) assert.equal(row.length, W);
-    assert.equal(map.rows[FORT_DEPTH - 1].indexOf('D'), Math.floor(W / 2), `${n}: door in the middle of the bottom wall`);
+    if (n <= 4) assert.ok(W <= 13 && H <= 10 && Math.abs(W - H) <= 3, `${n}: small and near square (${W}x${H})`);
+    assert.equal(map.rows[H - 1].indexOf('D'), Math.floor(W / 2), `${n}: door in the middle of the bottom wall`);
     const L = buildLayout('house', 1, { rooms: n });
     assert.equal(L.rooms.length, n, `${n}: rooms`);
     assert.equal(L.bedSlots.filter(Boolean).length, n, `${n}: beds`);
@@ -39,8 +40,8 @@ test('fort: someone new moves in and the fort grows a room, with everyone and th
   assert.equal(server.getLocation('house').layout.rooms.length, 1);
   save.flags.mineCleared = true;
   save.house.owned.stool = 1;
-  p.mom.x = 12; p.mom.z = 12;
-  c.mom.say({ t: 'placeFurniture', item: 'stool', x: 14, z: 10, rot: 0 }); // in mom's room
+  p.mom.x = 10; p.mom.z = 11;
+  c.mom.say({ t: 'placeFurniture', item: 'stool', x: 10, z: 9, rot: 0 }); // in mom's room
   assert.equal(save.house.furniture.length, 1);
   assert.equal(save.house.furniture[0].room, 0);
 
@@ -71,11 +72,11 @@ test('fort: chairs, stools and sofas can be sat on', () => {
   const { server, save, c, p } = world('sit', 'mom');
   save.flags.mineCleared = true;
   save.house.owned.chair = 1;
-  p.mom.x = 10; p.mom.z = 33;
-  c.mom.say({ t: 'placeFurniture', item: 'chair', x: 10, z: 30, rot: 0 });
+  p.mom.x = 10; p.mom.z = 25;
+  c.mom.say({ t: 'placeFurniture', item: 'chair', x: 10, z: 22, rot: 0 });
   const chair = [...server.locations.get('house').entities.values()].find((e) => e.item === 'chair');
   assert.equal(chair.interact, 'sit');
-  p.mom.z = 31.5;
+  p.mom.z = 23.5;
   c.mom.say({ t: 'interact', id: chair.id });
   const fx = c.mom.all('fx').find((m) => m.kind === 'sit');
   assert.ok(fx && fx.x === chair.x && fx.z === chair.z, 'sat down on it');
