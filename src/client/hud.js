@@ -624,17 +624,17 @@ export class Hud {
   }
 
   /** The Decorator's stall: furniture for the fort (shared by the family), wall colours and floors.
-   * Walls/floors can dress the whole fort or just your own room. */
+   * Walls/floors dress one room: your own, or the common room. */
   openDecorator({ house, onBuy, onStyle, onRoomStyle }) {
     this.decoTab ??= 'furniture';
-    this.decoScope ??= 'fort'; // 'fort' = everywhere, 'room' = just your own room
+    this.decoScope ??= 'room'; // 'room' = your own room, 'fort' = the common room
     this.openModal((box) => {
       const gold = this.self?.gold ?? 0, h = house() ?? {};
       const myRoom = (h.rooms ?? []).find((r) => r.owner === this.you);
       box.append(el('h2', null, `The Decorator <span class="gold">🪙 ${gold}</span>`),
         el('p', 'muted', myRoom
-          ? `Everything is for the whole family. At home, press B to place furniture — ${myRoom.ownerName}'s room is the one with their bed.`
-          : 'Everything here is for the whole family’s fort. At home, press B to place furniture.'));
+          ? `Everything is for the whole family. At home, press B to place furniture — ${myRoom.ownerName}'s room is the one with their bed. Walls and floors only change the room you pick.`
+          : 'Everything here is for the whole family’s fort. At home, press B to place furniture. Walls and floors change the common room.'));
       const tabs = el('div', 'tabs');
       for (const [id, label] of [['furniture', '🛋 Furniture'], ['luxury', '✨ Luxury'], ['wall', '🎨 Walls'], ['floor', '🪵 Floors']]) {
         const t = el('button', this.decoTab === id ? 'selected' : '', label);
@@ -645,7 +645,7 @@ export class Hud {
       const furnitureTab = this.decoTab === 'furniture' || this.decoTab === 'luxury';
       if (!furnitureTab && myRoom) {
         const scope = el('div', 'tabs');
-        for (const [id, label] of [['fort', '🧱 Whole fort'], ['room', `🚪 ${myRoom.ownerName}'s room`]]) {
+        for (const [id, label] of [['room', `🚪 ${myRoom.ownerName}'s room`], ['fort', '🛋 Common room']]) {
           const t = el('button', this.decoScope === id ? 'selected' : '', label);
           t.addEventListener('click', () => { this.decoScope = id; this.refreshModal?.(); });
           scope.append(t);
@@ -666,7 +666,7 @@ export class Hud {
       } else {
         const table = this.decoTab === 'wall' ? WALL_STYLES : FLOOR_STYLES;
         const mine = this.decoScope === 'room' && myRoom
-          ? (h.roomStyles?.[myRoom.slot] ?? {})[this.decoTab]
+          ? (h.roomStyles?.[myRoom.slot] ?? {})[this.decoTab] ?? (this.decoTab === 'wall' ? 'stone' : 'oak')
           : null;
         for (const [id, def] of Object.entries(table)) {
           const owned = !def.price || (h.styles ?? []).includes(`${this.decoTab}:${id}`);

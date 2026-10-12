@@ -161,8 +161,8 @@ export class LocationView {
 
   buildIndoor() {
     const L = this.layout, b = this.batch(), th = this.theme;
-    // the fort uses the family's chosen floor and wall colour (bought from the Decorator);
-    // each family member's room can override both with styles of their own
+    // the common room uses the family's chosen floor and wall colour (bought from the Decorator);
+    // each family member's room has its own (plain stone and oak until they pick something)
     const home = L.key === 'house' ? { floor: FLOOR_STYLES[this.world?.house?.floor] ?? FLOOR_STYLES.oak, wall: WALL_STYLES[this.world?.house?.wall] ?? WALL_STYLES.stone } : null;
     const roomStyles = home ? (this.world?.house?.roomStyles ?? {}) : null;
     const papers = []; // wallpapered wall faces: { style, x, z, rot, sy }
@@ -174,8 +174,8 @@ export class LocationView {
         // whose room is this? (a room's slot is its index: one bed slot per room)
         const room = home ? roomIndexAt(L, cx, cz) : -1;
         const rs = room >= 0 ? roomStyles?.[room] : null;
-        const floorStyle = (room >= 0 && rs?.floor != null ? FLOOR_STYLES[rs.floor] : null) ?? home?.floor;
-        const wallStyle = (room >= 0 && rs?.wall != null ? WALL_STYLES[rs.wall] : null) ?? home?.wall;
+        const floorStyle = room >= 0 ? FLOOR_STYLES[rs?.floor] ?? FLOOR_STYLES.oak : home?.floor;
+        const wallStyle = room >= 0 ? WALL_STYLES[rs?.wall] ?? WALL_STYLES.stone : home?.wall;
         // wallpaper goes over a plain wall; the wall's own colour stays stone
         const wallTint = wallStyle?.pattern ? 0xffffff : wallStyle?.tint ?? 0xffffff;
         if (home) b.add(floorStyle.model, { x, z, rot: Math.floor(this.rand(cx, cz, 'r') * 4) * Math.PI / 2 }, floorStyle.tint ?? 0xffffff);

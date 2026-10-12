@@ -64,12 +64,12 @@ export const methods = {
     this.sendHouse();
   },
 
-  /** Wall colours and floors: buy once, then switch between owned ones for free (at home or at the Decorator). */
+  /** The common room's wall colour and floor: buy once, then switch between owned ones for free. Bedrooms keep their own. */
   on_houseStyle(p, { kind, id }) {
     const h = this.save.house;
     if (!this.styleOk(p, kind, id, h)) return;
     h[kind] = id;
-    this.toast(p, `The fort now has ${nameFor(kind, id)}!`);
+    this.toast(p, `The common room now has ${nameFor(kind, id)}!`);
     this.sendHouse();
     this.broadcastWorld();
   },
