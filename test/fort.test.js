@@ -3,16 +3,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { world, fakeClient } from './helpers.js';
-import { fortMap, FORT_SIZE, MAX_ROOMS } from '../src/shared/fort.js';
+import { fortMap, FORT_DEPTH, MAX_ROOMS } from '../src/shared/fort.js';
 import { buildLayout, roomIndexAt } from '../src/shared/locations.js';
 import { migrate } from '../src/server/saves.js';
 import { GameServer } from '../src/server/GameServer.js';
 
-test('fort: a square with one room and one bed per family member, every room reachable', () => {
+test('fort: one room and one bed per family member, all above the hall, every room reachable', () => {
   for (let n = 1; n <= MAX_ROOMS; n++) {
     const map = fortMap(n);
-    assert.equal(map.rows.length, FORT_SIZE);
-    for (const row of map.rows) assert.equal(row.length, FORT_SIZE, 'square');
+    assert.equal(map.rows.length, FORT_DEPTH, 'a big family makes it wider, not deeper');
+    for (const row of map.rows) assert.equal(row.length, map.rows[0].length, 'a rectangle');
+    assert.ok(map.rows.length <= 10 && (n > 4 || map.rows[0].length <= 13), `${n}: a cosy size`);
     const L = buildLayout('house', 1, { rooms: n });
     assert.equal(L.rooms.length, n, `${n}: rooms`);
     assert.equal(L.bedSlots.filter(Boolean).length, n, `${n}: beds`);
@@ -26,7 +27,14 @@ test('fort: a square with one room and one bed per family member, every room rea
       todo.push([x + 1, z], [x - 1, z], [x, z + 1], [x, z - 1]);
     }
     for (const r of L.rooms) assert.ok(seen.has(`${r.x},${r.z}`), `${n}: room at ${r.x},${r.z} is reachable`);
+    for (const r of L.rooms) assert.ok(r.z + r.h < L.spawn.z / 4, `${n}: rooms are above the hall`);
     const D = L.portals.D;
+    assert.equal(D.cz, L.h - 1, `${n}: the door is in the south wall`);
+    // wardrobe and mirror side by side, against the wall
+    const [w, m] = ['wardrobe', 'mirror'].map((t) => L.props.find((p) => p.type === t));
+    const [wx, wz, mx, mz] = [w.x, w.z, m.x, m.z].map((v) => Math.floor(v / 4));
+    assert.ok(wz === mz && mx === wx + 1, `${n}: side by side`);
+    assert.ok(L.isSolidCell(wx, wz - 1) && L.isSolidCell(mx, mz - 1), `${n}: against the wall`);
     assert.ok(seen.has(`${D.cx + D.dir[0]},${D.cz + D.dir[1]}`), `${n}: the door is reachable`);
   }
 });
@@ -68,11 +76,11 @@ test('fort: chairs, stools and sofas can be sat on', () => {
   const { server, save, c, p } = world('sit', 'mom');
   save.flags.mineCleared = true;
   save.house.owned.chair = 1;
-  p.mom.x = 26; p.mom.z = 40;
-  c.mom.say({ t: 'placeFurniture', item: 'chair', x: 26, z: 37, rot: 0 });
+  p.mom.x = 30; p.mom.z = 28;
+  c.mom.say({ t: 'placeFurniture', item: 'chair', x: 30, z: 25, rot: 0 });
   const chair = [...server.locations.get('house').entities.values()].find((e) => e.item === 'chair');
   assert.equal(chair.interact, 'sit');
-  p.mom.z = 38.5;
+  p.mom.z = 26.5;
   c.mom.say({ t: 'interact', id: chair.id });
   const fx = c.mom.all('fx').find((m) => m.kind === 'sit');
   assert.ok(fx && fx.x === chair.x && fx.z === chair.z, 'sat down on it');
