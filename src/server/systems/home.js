@@ -1,10 +1,11 @@
 // home — the Family Fort: a bed for every family member (the day ends when everyone online is in
 // bed), the wardrobe, mirror and family chest, and the healing spring in town.
-import { INTERACT_RANGE, SPRING_COST, CLASSES, cleanLook } from '../../shared/config.js';
+import { INTERACT_RANGE, SPRING_COST, CLASSES, CELL, cleanLook } from '../../shared/config.js';
 import { FURNITURE, blanketFor } from '../../shared/furniture.js';
 import { ITEMS } from '../../shared/items.js';
 import { petMaxHp } from '../../shared/pets.js';
 import { dist2 } from '../../shared/physics.js';
+import { MAX_ROOMS } from '../../shared/fort.js';
 
 /** Props you can use with E (see shared/props.js `interact`). */
 export const interactions = {
@@ -42,18 +43,19 @@ export function onLocation(loc) {
   for (const id of Object.keys(this.save.players)) this.placeBed(loc, id);
 }
 
-/** A new family member gets a bed slot (kept in the save) the first time they join. */
+/** A new family member gets a bed slot (kept in the save) the first time they join, and with it a room. */
 export function onJoin(p) {
   const beds = (this.save.house.beds ??= {});
   if (beds[p.id] == null) {
     const used = new Set(Object.values(beds));
-    const slots = this.getLocation('house').layout.bedSlots ?? [];
-    let slot = slots.findIndex((_, i) => !used.has(i));
-    if (slot < 0) slot = Object.keys(beds).length % Math.max(1, slots.length); // a crowded fort: share
+    let slot = 0;
+    while (slot < MAX_ROOMS && used.has(slot)) slot++;
+    if (slot >= MAX_ROOMS) slot = Object.keys(beds).length % MAX_ROOMS; // a crowded fort: share
     beds[p.id] = slot;
   }
   const house = this.locations.get('house');
-  if (house) this.placeBed(house, p.id);
+  if (house && house.layout.opts.rooms !== this.fortRooms()) this.rebuildFort();
+  else if (house) this.placeBed(house, p.id);
 }
 
 export function onLeave() {
@@ -61,6 +63,26 @@ export function onLeave() {
 }
 
 export const methods = {
+  /** How many rooms the fort has: one per bed slot in use. */
+  fortRooms() {
+    const slots = Object.values(this.save.house.beds ?? {});
+    return Math.min(MAX_ROOMS, Math.max(1, ...slots.map((s) => s + 1)));
+  },
+
+  /** Someone new moved in: draw the fort again with a room for them. Whoever's inside stays put if they can. */
+  rebuildFort() {
+    const old = this.locations.get('house');
+    if (!old) return;
+    const inside = [...old.players].map((id) => this.players.get(id)).filter(Boolean);
+    for (const p of inside) { this.wakeUp(p); this.leaveLocation(p); }
+    this.locations.delete('house');
+    const layout = this.getLocation('house').layout;
+    for (const p of inside) {
+      const free = !layout.isSolidCell(Math.floor(p.x / CELL), Math.floor(p.z / CELL));
+      this.travel(p, 'house', null, free ? { x: p.x, z: p.z } : null);
+    }
+  },
+
   /** Spawn (or rename) a family member's bed entity in the fort. */
   placeBed(loc, playerId) {
     const slot = this.save.house.beds?.[playerId];

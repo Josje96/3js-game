@@ -4,14 +4,15 @@
 //
 // `model` = a KayKit model, or `build` = a little model made in client/furniture.js.
 // `radius` > 0 blocks movement. `light` = gives off a warm glow. `interact` = what E does.
+// `seat` = you can sit on it (E): `y` = seat height (for the client), `face` = which way you face, added to its rot.
 
 /** The Decorator unlocks when this world flag is set (beating the King Slime on mine floor 10). */
 export const DECORATOR_FLAG = 'mineCleared';
 
 export const FURNITURE = {
   bed:        { name: 'Bed', model: 'dungeon/bed_decorated', radius: 1.3, interact: 'sleep', notForSale: true },
-  chair:      { name: 'Chair', model: 'dungeon/chair', price: 60, radius: 0.5 },
-  stool:      { name: 'Stool', model: 'dungeon/stool', price: 40, radius: 0.45 },
+  chair:      { name: 'Chair', model: 'dungeon/chair', price: 60, radius: 0.5, seat: { face: 0 } },
+  stool:      { name: 'Stool', model: 'dungeon/stool', price: 40, radius: 0.45, seat: { face: 0 } },
   smalltable: { name: 'Small table', model: 'dungeon/table_small_decorated_A', price: 90, radius: 0.8 },
   table:      { name: 'Dining table', model: 'dungeon/table_medium_tablecloth_decorated_B', price: 180, radius: 1.1 },
   feasttable: { name: 'Feast table', model: 'dungeon/table_long_tablecloth_decorated_A', price: 320, radius: 1.6 },
@@ -28,7 +29,7 @@ export const FURNITURE = {
   rugblue:    { name: 'Blue rug', build: 'rug', color: 0x3b6fc0, price: 120, radius: 0 },
   plant:      { name: 'Potted plant', build: 'plant', price: 80, radius: 0.5 },
   lamp:       { name: 'Floor lamp', build: 'lamp', price: 150, radius: 0.4, light: true },
-  sofa:       { name: 'Comfy sofa', build: 'sofa', price: 260, radius: 1.2 },
+  sofa:       { name: 'Comfy sofa', build: 'sofa', price: 260, radius: 1.2, seat: { face: 0 } },
   fireplace:  { name: 'Fireplace', build: 'fireplace', price: 500, radius: 1.3, light: true },
   aquarium:   { name: 'Fish tank', build: 'aquarium', price: 450, radius: 0.9 },
   petbed:     { name: 'Pet bed', build: 'petbed', price: 90, radius: 0 },
@@ -41,6 +42,18 @@ export const FURNITURE = {
   toybox:     { name: 'Toy box', build: 'toybox', price: 110, radius: 0.7 },
   ruggreen:   { name: 'Green rug', build: 'rug', color: 0x3ac06a, price: 120, radius: 0 },
   rugpurple:  { name: 'Purple rug', build: 'rug', color: 0x8a5ac0, price: 120, radius: 0 },
+  // the luxury collection: for families who've been saving up
+  armchair:   { name: 'Velvet armchair', build: 'armchair', color: 0x9a2a3a, price: 950, radius: 0.7, seat: { face: 0 }, luxury: true },
+  vase:       { name: 'Porcelain vase', build: 'vase', price: 900, radius: 0.4, luxury: true },
+  candelabra: { name: 'Golden candelabra', build: 'candelabra', price: 1200, radius: 0.4, light: true, luxury: true },
+  globe:      { name: 'Explorer’s globe', build: 'globe', price: 1400, radius: 0.5, luxury: true },
+  royalrug:   { name: 'Royal rug', build: 'royalrug', price: 1500, radius: 0, luxury: true },
+  library:    { name: 'Grand bookcase', build: 'library', price: 1600, radius: 1.0, luxury: true },
+  harp:       { name: 'Golden harp', build: 'harp', price: 1800, radius: 0.6, luxury: true },
+  statue:     { name: 'Marble knight statue', build: 'statue', price: 2200, radius: 0.8, luxury: true },
+  fountain:   { name: 'Indoor fountain', build: 'fountain', price: 2800, radius: 1.2, luxury: true },
+  piano:      { name: 'Grand piano', build: 'piano', price: 3500, radius: 1.5, luxury: true },
+  throne:     { name: 'Golden throne', build: 'throne', price: 4000, radius: 0.9, seat: { face: 0 }, luxury: true },
 };
 
 /** Wall colours for the fort (painted over the stone walls). `price` 0 = the one you start with. */
@@ -55,6 +68,16 @@ export const WALL_STYLES = {
   lavender: { name: 'Lavender', price: 200, tint: 0xe4d2ff },
   seafoam: { name: 'Seafoam', price: 200, tint: 0xbef0e2 },
   peach: { name: 'Peach', price: 200, tint: 0xffdcbe },
+  // wallpaper: patterned panels over the walls (drawn by client/wallpaper.js). `tint` = the swatch fallback.
+  candy:    { name: 'Candy stripe wallpaper', price: 900, tint: 0xffd6e4, pattern: { kind: 'stripes', bg: 0xfff4f7, fg: 0xffb3cc, accent: 0xff8fb2 } },
+  regency:  { name: 'Regency stripe wallpaper', price: 1100, tint: 0x2f5a4a, pattern: { kind: 'stripes', bg: 0xf3ead2, fg: 0x2f5a4a, accent: 0xc9a43a } },
+  polka:    { name: 'Polka dot wallpaper', price: 900, tint: 0xbfe0ff, pattern: { kind: 'polka', bg: 0xdff0ff, fg: 0xffffff } },
+  meadow:   { name: 'Meadow flower wallpaper', price: 1200, tint: 0xfff6dc, pattern: { kind: 'floral', bg: 0xfff6dc, fg: 0xff9fb8, accent: 0xffd23f } },
+  sweetheart: { name: 'Sweetheart wallpaper', price: 1200, tint: 0xffe0ea, pattern: { kind: 'hearts', bg: 0xffe9f0, fg: 0xff7aa0, accent: 0xffb3c8 } },
+  starry:   { name: 'Starry night wallpaper', price: 1500, tint: 0x1c2550, pattern: { kind: 'stars', bg: 0x1c2550, fg: 0xdfe6ff, accent: 0xffe27a } },
+  harlequin:{ name: 'Harlequin wallpaper', price: 1600, tint: 0x6a2a4a, pattern: { kind: 'harlequin', bg: 0xf0e2c8, fg: 0x6a2a4a, accent: 0xd9b24a } },
+  damask:   { name: 'Gold damask wallpaper', price: 2000, tint: 0x5a1e2a, pattern: { kind: 'damask', bg: 0x5a1e2a, fg: 0xd9b24a, accent: 0xf2d27a } },
+  royal:    { name: 'Royal crown wallpaper', price: 2400, tint: 0x24306a, pattern: { kind: 'royal', bg: 0x24306a, fg: 0xe8c45a, accent: 0xf6e2a0 } },
 };
 
 /** Floors for the fort. */

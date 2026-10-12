@@ -4,6 +4,7 @@ import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
 import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle } from '../shared/config.js';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
+import { wallpaperSwatch } from './wallpaper.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost } from '../shared/pets.js';
 
 const el = (tag, cls, html) => {
@@ -635,13 +636,14 @@ export class Hud {
           ? `Everything is for the whole family. At home, press B to place furniture — ${myRoom.ownerName}'s room is the one with their bed.`
           : 'Everything here is for the whole family’s fort. At home, press B to place furniture.'));
       const tabs = el('div', 'tabs');
-      for (const [id, label] of [['furniture', '🛋 Furniture'], ['wall', '🎨 Walls'], ['floor', '🪵 Floors']]) {
+      for (const [id, label] of [['furniture', '🛋 Furniture'], ['luxury', '✨ Luxury'], ['wall', '🎨 Walls'], ['floor', '🪵 Floors']]) {
         const t = el('button', this.decoTab === id ? 'selected' : '', label);
         t.addEventListener('click', () => { this.decoTab = id; this.refreshModal?.(); });
         tabs.append(t);
       }
       box.append(tabs);
-      if (this.decoTab !== 'furniture' && myRoom) {
+      const furnitureTab = this.decoTab === 'furniture' || this.decoTab === 'luxury';
+      if (!furnitureTab && myRoom) {
         const scope = el('div', 'tabs');
         for (const [id, label] of [['fort', '🧱 Whole fort'], ['room', `🚪 ${myRoom.ownerName}'s room`]]) {
           const t = el('button', this.decoScope === id ? 'selected' : '', label);
@@ -652,9 +654,9 @@ export class Hud {
       }
       const body = el('div', 'shop-body');
       body.dataset.scroll = `deco-${this.decoTab}`;
-      if (this.decoTab === 'furniture') {
+      if (furnitureTab) {
         for (const [id, def] of Object.entries(FURNITURE)) {
-          if (def.notForSale) continue;
+          if (def.notForSale || !!def.luxury !== (this.decoTab === 'luxury')) continue;
           const have = h.owned?.[id] ?? 0;
           const row = el('button', 'shop-row', `<span>${iconImg(furnitureIcon(id))}${esc(def.name)}${have ? ` <small>${have} waiting at home</small>` : ''}</span><span class="gold">${def.price}</span>`);
           row.disabled = gold < def.price;
@@ -669,7 +671,8 @@ export class Hud {
         for (const [id, def] of Object.entries(table)) {
           const owned = !def.price || (h.styles ?? []).includes(`${this.decoTab}:${id}`);
           const on = mine ? mine === id : h[this.decoTab] === id;
-          const sw = def.tint != null ? `<i class="swatch" style="background:#${def.tint.toString(16).padStart(6, '0')}"></i>` : '';
+          const sw = def.pattern ? `<i class="swatch" style="background:url(${wallpaperSwatch(def.pattern)}) center/200%"></i>`
+            : def.tint != null ? `<i class="swatch" style="background:#${def.tint.toString(16).padStart(6, '0')}"></i>` : '';
           const row = el('button', `shop-row${on ? ' selected' : ''}`, `<span>${sw}${esc(def.name)}</span><span class="gold">${on ? 'in use' : owned ? 'use' : def.price}</span>`);
           row.disabled = on || (!owned && gold < def.price);
           const pick = this.decoScope === 'room' && myRoom ? onRoomStyle : onStyle;

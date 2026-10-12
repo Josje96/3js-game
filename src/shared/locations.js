@@ -4,6 +4,7 @@
 
 import { CELL } from './config.js';
 import { MAPS, LEGEND } from './maps.js';
+import { fortMap } from './fort.js';
 import { biomeFor, parseKey, depthOf } from './dungeons.js';
 import { generateFloor } from './mapgen.js';
 import { PROPS } from './props.js';
@@ -15,7 +16,8 @@ export function isWalkableChar(ch) {
   return WALKABLE.has(ch);
 }
 
-export function buildLayout(key, seed) {
+/** `opts.rooms`: how many family rooms the fort has (the host sends it with the layout). */
+export function buildLayout(key, seed, opts = {}) {
   const info = parseKey(key);
   let base;
   if (info.kind === 'dungeon') {
@@ -32,10 +34,10 @@ export function buildLayout(key, seed) {
       depth: depthOf(info.dungeonId, info.floor),
     };
   } else {
-    base = parseAsciiMap(MAPS[info.kind]);
+    base = parseAsciiMap(info.kind === 'house' ? fortMap(opts.rooms ?? 1) : MAPS[info.kind]);
   }
 
-  const layout = { key, seed, ...info, ...base };
+  const layout = { key, seed, opts, ...info, ...base };
   layout.cell = (cx, cz) => (cz < 0 || cz >= layout.h || cx < 0 || cx >= layout.w ? '#' : layout.rows[cz][cx]);
   layout.isSolidCell = (cx, cz) => !WALKABLE.has(layout.cell(cx, cz));
 
@@ -84,7 +86,9 @@ function parseAsciiMap(map) {
       if (leg.bedSlot) {
         const room = roomAt(cx, cz);
         if (room < 0 && rooms.length) throw new Error(`a bed slot at ${cx},${cz} is outside every room`);
-        bedSlots.push({ x: pos.x, z: pos.z - 0.6, room });
+        const slot = { x: pos.x, z: pos.z - 0.6, room };
+        if (room >= 0) bedSlots[room] = slot; // bed slot = room number
+        else bedSlots.push(slot);
       }
       return leg.portal ? ch : leg.base;
     }).join(''));

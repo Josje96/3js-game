@@ -20,7 +20,7 @@ Read this file first, then `HANDOFF.md` (what's in the game, how it plays), then
 ## Layout
 | Folder | What | Rule |
 |---|---|---|
-| `src/shared/` | rules + data used by host and clients: `config.js` (tunables, looks), `items.js`, `dungeons.js`, `furniture.js`, `townsfolk.js`, `maps.js` (ASCII maps), `mapgen.js`, `protocol.js` (every network message) | pure JS, no DOM/three. Anything that shapes a map uses the seeded rng, never `Math.random` |
+| `src/shared/` | rules + data used by host and clients: `config.js` (tunables, looks), `items.js`, `dungeons.js`, `furniture.js`, `townsfolk.js`, `maps.js` (ASCII maps), `fort.js` (the fort, drawn per family size), `mapgen.js`, `protocol.js` (every network message) | pure JS, no DOM/three. Anything that shapes a map uses the seeded rng, never `Math.random` |
 | `src/server/` | `GameServer.js` core (connections, loop, travel); `systems/*.js` one file per feature (combat, day, decor, dungeons, home, pets, progression, shop, town, wallet); `LiveLocation.js` entities + AI; `saves.js` | runs only on the host. Owns all outcomes (hp, gold, loot) |
 | `src/net/transports.js` | connections `{ send, sendFast?, onMessage, onClose, close }` | `sendFast` = unreliable lane for positions |
 | `src/client/` | rendering, input, HUD. `GameClient.js`, `LocationView.js`, `views.js`, `themes.js`, `town.js`, `decorations.js`, `furniture.js`, `pets.js`, `enemies.js`, `cosmetics.js`, `effects.js`, `icons.js`, `interp.js`, `hud.js` | never decides outcomes |

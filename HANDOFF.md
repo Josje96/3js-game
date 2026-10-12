@@ -13,8 +13,8 @@ What's in the game and how it plays. **For how the code works and how to change 
 ## The game now
 | Area | What's there |
 |---|---|
-| **Pebble Town** | Castle walls and towers, the Family Fort, market square with canopy stalls: Shopkeeper, Blacksmith (forge) next to her, Pet Keeper, Decorator (appears after the King Slime). Fountain, benches, cottages, lamps that light at dusk, villagers walking, 7 townsfolk to talk to (E). The healing spring is a real pond — fully water, wade in — with fairies, flowers and a halo of magic around the edge. Training yard: dummy + harmless practice slime, hay bales. Three dungeon entrances (each with a signpost); locked ones are chained, and the chains break in a little cutscene the first time you visit town after unlocking. |
-| **Family Fort** | A shared hall plus a private room per family member (a bed with their name and quilt colour; whoever claims a bed claims the room). Wardrobe, mirror and family chest in the hall. Decorate from the Decorator: furniture (family pool — but you can only place pieces in your own room or the hall), wall colours and floors for the whole fort *or* just your own room (B at home = build mode: E place, R turn, X pick up). |
+| **Pebble Town** | Castle walls and towers, the Family Fort, market square with canopy stalls: Shopkeeper, Blacksmith (forge) next to her, Pet Keeper, Decorator (appears after the King Slime). Fountain, benches, cottages, lamps that light at dusk, villagers walking, 7 townsfolk to talk to (E). The healing spring is a round pond you can wade into: stone banks, reeds and cattails, lily pads, fairies and flowers (no glow ring: it's meant to feel calm and safe). Cottages fill a 2x2 block of cells so their doors are taller than a person. Training yard: dummy + harmless practice slime, hay bales. Three dungeon entrances (each with a signpost); locked ones are chained, and the chains break in a little cutscene the first time you visit town after unlocking. |
+| **Family Fort** | Always a 17x17 square: a common hall across the middle (wardrobe, mirror, family chest, table) and a private room per family member along the top and bottom walls, added as people join (a bed with their name and quilt colour). Sit on chairs, stools, sofas, armchairs and the throne (E). Wallpapers (patterned, 900–2400 gold) and a ✨ Luxury tab of furniture (900–4000 gold). Decorate from the Decorator: furniture (family pool — but you can only place pieces in your own room or the hall), wall colours and floors for the whole fort *or* just your own room (B at home = build mode: E place, R turn, X pick up). |
 | **Dungeons** | Old Mine → Sunken Ruins → Shadow Keep, 100 floors each, 10 biomes each, boss every 10 floors. Finishing floor 100 unlocks the next. Enemies scale with total depth, so each dungeon is harder. Elevator every 5 floors. |
 | **Day & night** | 10-minute days. Warnings at 1 min and 30 s (with chimes); the sky turns to dusk. At nightfall anyone outside the fort faints and loses half their gold; a "Day N" night screen shows. The day also ends when everyone online is in bed (Stardew style). |
 | **Money** | Each player has their own gold. Shop tabs: Weapons, Shields, Armor, Food & potions, Fashion, Sell (loot and spare gear). New gear tier every 20 levels. Pet treats at the Pet Keeper. The forge also makes blueprint gear from deep ores (mythril, obsidian, starstone) — mining down is the cheap path to late gear. |
@@ -44,6 +44,11 @@ Don't open `dist/index.html` from disk; use `bun run build` + `bun run preview`,
 - **Private rooms**: room = bed slot index; ownership lives in `save.house.beds`, styles in
   `save.house.roomStyles` (both keyed the same way). `roomIndexAt` in shared/locations.js decides
   which room a cell belongs to; the map's `rooms` list must cover every `B` bed slot (tested).
+- **The fort is drawn for the family's size** (`shared/fort.js`, not maps.js): rooms = bed slots in
+  use (max 10, then people share). The host sends the count with `enter` (`opts.rooms`) because
+  clients build layouts themselves. Someone new joining redraws the fort (`rebuildFort`). Furniture
+  is saved relative to its room or the hall (`room`, `dx`, `dz`, save v10), and a piece that no
+  longer fits goes back to the family's owned pile rather than vanishing.
 - **Forge recipes for deep ores**: blueprints gate on the depth where their ore actually spawns
   (`FORGE_RECIPES` in shared/items.js); a rules test enforces that, and caught two old recipes
   (silverbow/slimewand) gating a floor before their ore existed.

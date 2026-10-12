@@ -4,7 +4,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['dist/', 'public/', 'node_modules/', 'assets/', 'tools/'] },
+  { ignores: ['dist/', 'public/', 'node_modules/', 'assets/', 'tools/', '.claude/'] }, // .claude/: agent worktrees (whole other checkouts)
   js.configs.recommended,
   {
     languageOptions: { ecmaVersion: 2024, sourceType: 'module' },

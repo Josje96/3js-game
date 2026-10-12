@@ -233,7 +233,9 @@ export class GameServer {
       const info = parseKey(key);
       // dungeons reshuffle each day; town/house are fixed
       const seed = info.kind === 'dungeon' ? hashSeed(this.save.seed, key, this.save.day) : hashSeed(this.save.seed, key);
-      loc = new LiveLocation(this, key, seed);
+      // the fort is drawn for however many family members have a room
+      const opts = info.kind === 'house' ? { rooms: this.fortRooms() } : {};
+      loc = new LiveLocation(this, key, seed, opts);
       this.locations.set(key, loc);
       this.runHooks('onLocation', loc);
     }
@@ -276,7 +278,7 @@ export class GameServer {
     }
 
     this.send(p, {
-      t: 'enter', key, seed: loc.seed, epoch: p.epoch, x: p.x, z: p.z,
+      t: 'enter', key, seed: loc.seed, opts: loc.layout.opts, epoch: p.epoch, x: p.x, z: p.z,
       ents: loc.allPublic(),
       players: loc.livePlayersAll().map(publicPlayer),
     });

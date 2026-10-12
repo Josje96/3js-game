@@ -16,11 +16,11 @@ export const SOLID_TYPES = new Set(['rock', 'chest', 'barrel', 'furniture', 'dum
 const HITTABLE = new Set(['rock', 'slime', 'chest', 'barrel', 'dummy']);
 
 export class LiveLocation {
-  constructor(server, key, seed) {
+  constructor(server, key, seed, opts = {}) {
     this.server = server;
     this.key = key;
     this.seed = seed;
-    this.layout = buildLayout(key, seed);
+    this.layout = buildLayout(key, seed, opts);
     this.entities = new Map();
     this.players = new Set();
     this.gone = [];          // ids removed since last snapshot

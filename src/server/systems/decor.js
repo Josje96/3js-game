@@ -1,26 +1,53 @@
 // decor — decorating the Family Fort. The Decorator (in the town market, once the King Slime is
 // beaten) sells furniture, wall colours and floors. Furniture belongs to the whole family: bought
 // pieces wait in save.house.owned until someone places them in the fort (build mode, B).
-import { INTERACT_RANGE } from '../../shared/config.js';
+import { INTERACT_RANGE, CELL } from '../../shared/config.js';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES, DECORATOR_FLAG } from '../../shared/furniture.js';
 import { roomIndexAt } from '../../shared/locations.js';
 import { blocked, dist2 } from '../../shared/physics.js';
+import { HALL } from '../../shared/fort.js';
 
 export const interactions = {
   decorator(p) { this.send(p, { t: 'ui', kind: 'decorator' }); },
+  /** A chair, stool or sofa: sit down on it (walking off gets you up again). */
+  sit(p, seat) {
+    const def = FURNITURE[seat.item];
+    if (!def?.seat) return;
+    this.send(p, { t: 'fx', kind: 'sit', id: p.id, x: seat.x, z: seat.z, rot: (seat.rot ?? 0) + def.seat.face, r: seat.r });
+  },
 };
 
-/** The fort was loaded: put the family's furniture back where it was. */
+/**
+ * The fort was loaded: put the family's furniture back where it was. Pieces are kept relative to
+ * their room (or the hall), so they move with it when the fort is redrawn for a bigger family;
+ * one that no longer fits goes back into the family's owned furniture.
+ */
 export function onLocation(loc) {
   if (loc.key !== 'house') return;
-  for (const f of this.save.house.furniture) this.spawnFurniture(loc, f);
+  const h = this.save.house;
+  const misfits = h.furniture.filter((f) => !this.spawnFurniture(loc, f));
+  if (!misfits.length) return;
+  for (const f of misfits) h.owned[f.item] = (h.owned[f.item] ?? 0) + 1;
+  h.furniture = h.furniture.filter((f) => !misfits.includes(f));
+  this.persist();
+}
+
+/** Where a piece's room (slot `room`, or -1 = the hall) starts, in world units. */
+function areaOrigin(layout, room) {
+  const r = room >= 0 ? layout.rooms[room] : HALL;
+  return r ? { x: r.x * CELL, z: r.z * CELL } : null;
 }
 
 export const methods = {
+  /** Put a saved piece in the fort; null if it doesn't fit (its room is gone, or it's in a wall now). */
   spawnFurniture(loc, f) {
-    const def = FURNITURE[f.item];
-    if (!def) return null;
-    return loc.spawn({ type: 'furniture', item: f.item, fid: f.id, x: f.x, z: f.z, rot: f.rot ?? 0, r: def.radius });
+    const def = FURNITURE[f.item], L = loc.layout;
+    const o = def && areaOrigin(L, f.room ?? -1);
+    if (!o) return null;
+    const x = o.x + f.dx, z = o.z + f.dz;
+    if (roomIndexAt(L, Math.floor(x / CELL), Math.floor(z / CELL)) !== (f.room ?? -1)) return null;
+    if (blocked(L, x, z, Math.max(def.radius, 0.4) * 0.9, L.solids)) return null;
+    return loc.spawn({ type: 'furniture', item: f.item, fid: f.id, x, z, rot: f.rot ?? 0, r: def.radius, ...(def.seat ? { interact: 'sit', prompt: 'Sit' } : {}) });
   },
 
   decoratorOpen() {
@@ -96,7 +123,8 @@ export const methods = {
       || (L.spawn && dist2({ x, z }, L.spawn) < 2.2 ** 2)
       || (def.radius > 0 && loc.livePlayersAll().some((q) => dist2(q, { x, z }) < (r + 0.7) ** 2));
     if (clash) return this.toast(p, 'It doesn’t fit there! Try somewhere with more room.');
-    const f = { id: `f${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`, item, x: round(x), z: round(z), rot: round(rot) };
+    const o = areaOrigin(L, room);
+    const f = { id: `f${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`, item, room, dx: round(x - o.x), dz: round(z - o.z), rot: round(rot) };
     h.owned[item]--;
     if (!h.owned[item]) delete h.owned[item];
     h.furniture.push(f);

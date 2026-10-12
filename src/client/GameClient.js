@@ -149,7 +149,16 @@ export class GameClient {
     }
   }
 
+  /** Off the chair: step out in front of it (it's solid, so you'd be stuck inside otherwise). */
+  standUp() {
+    const s = this.sitting, d = s.r + PLAYER_RADIUS + 0.15;
+    this.sitting = null;
+    this.pos.x = s.x + Math.sin(s.rot) * d;
+    this.pos.z = s.z + Math.cos(s.rot) * d;
+  }
+
   enterLocation(msg) {
+    this.sitting = null;
     if (this.building) this.stopBuilding();
     // tear down the old place
     this.locView?.dispose();
@@ -160,7 +169,7 @@ export class GameClient {
     this.hud.closeModal();
 
     this.epoch = msg.epoch;
-    this.layout = buildLayout(msg.key, msg.seed);
+    this.layout = buildLayout(msg.key, msg.seed, msg.opts);
     this.locView = new LocationView(this.layout, this.world);
     this.unlockShown = new Set();
     this.scene.add(this.locView.group);
@@ -360,6 +369,9 @@ export class GameClient {
         break;
       case 'wake':
         if (msg.id === this.you && this.sleeping) { this.sleeping = false; this.pos.z += 2.6; }
+        break;
+      case 'sit': // onto a chair: sit facing out of it; walking gets you up in front of it
+        if (msg.id === this.you) { this.sitting = { x: msg.x, z: msg.z, rot: msg.rot, r: msg.r }; this.pos.x = msg.x; this.pos.z = msg.z; this.pos.rot = msg.rot; }
         break;
       case 'nightWarning': this.sfx.play('chime'); this.hud.nightWarning(msg.seconds); break;
       case 'dodge': if (msg.id === this.you) { this.sfx.play('dodge'); this.floatAt(this.pos, 'Dodged!', '#c9f7ff'); } break;
@@ -618,7 +630,8 @@ export class GameClient {
       this.pos.rot = Math.atan2(m.x, m.z);
     }
     if (moving || this.rolling > 0) this.sleeping = false; // getting out of bed
-    this.anim = this.rolling > 0 ? 'roll' : moving ? 'run' : this.sleeping ? 'sleep' : 'idle';
+    if ((moving || this.rolling > 0) && this.sitting) this.standUp();
+    this.anim = this.rolling > 0 ? 'roll' : moving ? 'run' : this.sleeping ? 'sleep' : this.sitting ? 'sit' : 'idle';
     if (this.rolling <= 0) this.me.setBase(this.anim);
     this.me.root.position.set(this.pos.x, 0, this.pos.z);
     const r = this.me.root.rotation;

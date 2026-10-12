@@ -28,8 +28,11 @@ Most important first. Tick things off in the same commit that does them.
 - [x] Forge recipes for deeper ores (mythril, obsidian, starstone) — done in round 3: Mythril Brand & Bulwark, Obsidian Edge, Night Staff, Star Piercer, Star Cleaver; blueprints gate on where the ores spawn.
 - [x] Sound effects (hits, coins, chains breaking, night chime) — done in round 3, all generated with WebAudio in `client/sfx.js` (no files); M mutes everything.
 - [x] A private room per family member with their own walls, floors and furniture — done in round 3:
-      eight rooms off a shared hall; the Decorator styles the whole fort or just your room;
-      furniture is a family pool but only placeable in your own room or the hall.
+      the Decorator styles the whole fort or just your room; furniture is a family pool but only
+      placeable in your own room or the hall. Since then: the fort is a square drawn for the
+      family's size (a room per member), you can sit on seats, and there are wallpapers + luxury furniture.
+- [ ] Sitting is a hand-bent pose (the free KayKit rig has no sit clip); the sofa's cushion is a bit
+      higher than a chair so you sink in slightly. A per-seat height would need it in the `anim` string.
 - [ ] Touch controls for tablets/phones.
 - [ ] Villagers are only on each player's own screen; fine, but they can't be talked to.
 - [ ] Run `GameServer` in a Web Worker so the host's rendering never stalls the world.

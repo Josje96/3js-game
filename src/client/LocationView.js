@@ -5,7 +5,8 @@ import { hashSeed } from '../shared/rng.js';
 import { instanced, cloneModel } from './assets.js';
 import { CharacterView, makeGlow } from './views.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
-import { makeGrass, makeWater, makeTrees, makeSpringRing } from './nature.js';
+import { makeGrass, makeWater, makeTrees, makeSpringBanks, pondEdge } from './nature.js';
+import { wallpaperTexture } from './wallpaper.js';
 import { PetView } from './pets.js';
 import { DECORATIONS } from './decorations.js';
 import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench } from './town.js';
@@ -164,6 +165,7 @@ export class LocationView {
     // each family member's room can override both with styles of their own
     const home = L.key === 'house' ? { floor: FLOOR_STYLES[this.world?.house?.floor] ?? FLOOR_STYLES.oak, wall: WALL_STYLES[this.world?.house?.wall] ?? WALL_STYLES.stone } : null;
     const roomStyles = home ? (this.world?.house?.roomStyles ?? {}) : null;
+    const papers = []; // wallpapered wall faces: { style, x, z, rot, sy }
     for (let cz = 0; cz < L.h; cz++) {
       for (let cx = 0; cx < L.w; cx++) {
         if (L.isSolidCell(cx, cz)) continue;
@@ -173,7 +175,9 @@ export class LocationView {
         const room = home ? roomIndexAt(L, cx, cz) : -1;
         const rs = room >= 0 ? roomStyles?.[room] : null;
         const floorStyle = (room >= 0 && rs?.floor != null ? FLOOR_STYLES[rs.floor] : null) ?? home?.floor;
-        const wallTint = (room >= 0 && rs?.wall != null ? WALL_STYLES[rs.wall]?.tint : null) ?? home?.wall.tint ?? 0xffffff;
+        const wallStyle = (room >= 0 && rs?.wall != null ? WALL_STYLES[rs.wall] : null) ?? home?.wall;
+        // wallpaper goes over a plain wall; the wall's own colour stays stone
+        const wallTint = wallStyle?.pattern ? 0xffffff : wallStyle?.tint ?? 0xffffff;
         if (home) b.add(floorStyle.model, { x, z, rot: Math.floor(this.rand(cx, cz, 'r') * 4) * Math.PI / 2 }, floorStyle.tint ?? 0xffffff);
         else b.add(th.floors[fi], { x, z, rot: Math.floor(this.rand(cx, cz, 'r') * 4) * Math.PI / 2 });
 
@@ -194,11 +198,14 @@ export class LocationView {
           if (ch === 'D') path = 'dungeon/wall_doorway';
           // walls between the camera and the room are cut down so you can see in
           const sy = dir === S ? 0.22 : 1;
+          if (wallStyle?.pattern && ch !== 'D') { path = 'dungeon/wall'; papers.push({ style: wallStyle, x: ex, z: ez, rot, sy }); }
           b.add(path, { x: ex, z: ez, rot, sy }, home ? wallTint : undefined);
         }
       }
     }
     b.flush();
+    if (papers.length) this.buildWallpaper(papers);
+    if (home) this.buildWallTops();
     if (th.deco) this.buildDecorations(th.deco);
     // soft glow on the floor in front of each exit so they're easy to find
     for (const portal of Object.values(L.portals)) {
@@ -214,6 +221,54 @@ export class LocationView {
     under.rotation.x = -Math.PI / 2;
     under.position.set(L.w * CELL / 2, -0.12, L.h * CELL / 2);
     this.group.add(under);
+  }
+
+  /** Wallpaper: a patterned panel just in front of each papered wall face, over a wooden skirting board. */
+  buildWallpaper(papers) {
+    const plane = new THREE.PlaneGeometry(CELL, 3.6);
+    plane.translate(0, 1.8, 0);
+    const skirt = new THREE.BoxGeometry(CELL, 0.3, 0.08);
+    skirt.translate(0, 0.15, 0);
+    this.merged.push(plane, skirt);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), v = new THREE.Vector3();
+    const place = (inst, list, out, sy) => list.forEach((p, i) => {
+      q.setFromAxisAngle(up, p.rot);
+      inst.setMatrixAt(i, m.compose(v.set(p.x + Math.sin(p.rot) * out, 0, p.z + Math.cos(p.rot) * out), q, new THREE.Vector3(1, sy(p), 1)));
+    });
+    const byStyle = new Map();
+    for (const p of papers) { if (!byStyle.has(p.style)) byStyle.set(p.style, []); byStyle.get(p.style).push(p); }
+    for (const [style, list] of byStyle) {
+      const inst = new THREE.InstancedMesh(plane, new THREE.MeshStandardMaterial({ map: wallpaperTexture(style.pattern), roughness: 0.85 }), list.length);
+      place(inst, list, 0.52, (p) => p.sy);
+      inst.receiveShadow = true;
+      this.group.add(inst);
+    }
+    const skirting = new THREE.InstancedMesh(skirt, new THREE.MeshStandardMaterial({ color: 0x5e3a20, roughness: 0.7 }), papers.length);
+    place(skirting, papers, 0.56, (p) => Math.min(1, p.sy * 4));
+    this.group.add(skirting);
+  }
+
+  /**
+   * The fort's walls are a whole cell thick: from above you'd see down between the two faces.
+   * A stone top over each wall cell makes them read as solid. Where the wall in front of the
+   * camera is cut down (so you can see into the room), its top sits low too.
+   */
+  buildWallTops() {
+    const L = this.layout, tops = [];
+    for (let cz = 0; cz < L.h; cz++) {
+      for (let cx = 0; cx < L.w; cx++) {
+        if (!L.isSolidCell(cx, cz) || L.portals[L.cell(cx, cz)]) continue;
+        let near = false;
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (!L.isSolidCell(cx + dx, cz + dz)) near = true;
+        if (near) tops.push({ x: cx * CELL + CELL / 2, z: cz * CELL + CELL / 2, y: L.isSolidCell(cx, cz - 1) ? 4 : 0.88 });
+      }
+    }
+    const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 0.2, CELL), new THREE.MeshStandardMaterial({ color: 0x4a4652, roughness: 0.9 }), tops.length);
+    const m = new THREE.Matrix4();
+    tops.forEach((t, i) => inst.setMatrixAt(i, m.makeTranslation(t.x, t.y - 0.1, t.z)));
+    inst.receiveShadow = true;
+    this.group.add(inst);
+    this.merged.push(inst.geometry);
   }
 
   /** Glowing crystals / mushrooms / embers tucked against the walls (looks only, no collision). */
@@ -263,7 +318,7 @@ export class LocationView {
     const block = (path, cx, cz, y, s = 2, extra = {}) =>
       (y < 0 ? ground : b).add(path, { x: cx * CELL + CELL / 2 + (extra.dx ?? 0), z: cz * CELL + CELL / 2 + (extra.dz ?? 0), y, s, rot: extra.rot ?? 0 });
 
-    // the healing spring: the whole pond is water you can wade into, ringed with a glow
+    // the healing spring: a pond you can wade into
     const pondCells = [];
     for (let cz = 0; cz < L.h; cz++) for (let cx = 0; cx < L.w; cx++) if (L.cell(cx, cz) === '~') pondCells.push([cx, cz]);
     const spring = L.props.some((p) => p.interact === 'spring') && pondCells.length > 0;
@@ -271,16 +326,19 @@ export class LocationView {
       x: pondCells.reduce((a, [cx]) => a + (cx + 0.5) * CELL, 0) / pondCells.length,
       z: pondCells.reduce((a, [, cz]) => a + (cz + 0.5) * CELL, 0) / pondCells.length,
     } : null;
-    // how far the water reaches from its centre (the ring of magic sits just outside)
-    const pondHW = spring ? Math.max(...pondCells.map(([cx]) => Math.abs((cx + 0.5) * CELL - pond0.x))) : 0;
-    const pondHH = spring ? Math.max(...pondCells.map(([, cz]) => Math.abs((cz + 0.5) * CELL - pond0.z))) : 0;
-    const pondR = spring ? Math.hypot(pondHW, pondHH) : 0;
+    // the spring is a round pool inside its square of cells, with a slightly uneven shore
+    const pondR = spring ? Math.min(...['x', 'z'].map((k) => {
+      const v = pondCells.map((c) => c[k === 'x' ? 0 : 1]);
+      return (Math.max(...v) - Math.min(...v) + 1) * CELL / 2;
+    })) * 0.88 : 0;
+    const edge = spring ? pondEdge(pondR, this.rand) : null;
+    const inPond = (x, z) => spring && Math.hypot(x - pond0.x, z - pond0.z) < edge(Math.atan2(-(z - pond0.z), x - pond0.x)) + 0.3;
 
     for (let cz = 0; cz < L.h; cz++) {
       for (let cx = 0; cx < L.w; cx++) {
         const ch = L.cell(cx, cz);
         // ground (top surface at y = 0)
-        if (ch === '~') block('blocks/water', cx, cz, -2.9); // pond bed, under the animated surface
+        if (ch === '~' && !spring) block('blocks/water', cx, cz, -2.9); // pond bed, under the animated surface
         else if (ch === '=') { // cobblestone: flat stone tiles, turned at random
           block('blocks/gravel', cx, cz, -2);
           b.add('dungeon/floor_tile_large', {
@@ -316,7 +374,8 @@ export class LocationView {
           block('blocks/stone_dark', cx, cz, 2);
           block('blocks/stone_dark', cx, cz, 6);
         } else if (ch === 'E') {
-          this.group.add(this.still(makeCottage(cx * CELL + CELL / 2, cz * CELL + CELL / 2, this.rand(cx, cz, 'co'))));
+          // one house per 2x2 block of E's, built from its top-left cell
+          if (L.cell(cx - 1, cz) !== 'E' && L.cell(cx, cz - 1) !== 'E') this.group.add(this.still(makeCottage((cx + 1) * CELL, (cz + 1) * CELL, this.rand(cx, cz, 'co'))));
         } else if (ch === '+') {
           fences.push([cx, cz]);
         } else if (ch === 'R' || ch === 'm') {
@@ -337,26 +396,27 @@ export class LocationView {
       for (let cx = 0; cx < L.w; cx++) {
         const ch = L.cell(cx, cz);
         if (ch === '~') water.push([cx, cz]);
-        if (ch === '.' || ch === '#' || ch === 't' || ch === '+' || ch === 'E') grass.push([cx, cz]);
+        if ((ch === '~' && spring) || ch === '.' || ch === '#' || ch === 't' || ch === '+' || ch === 'E') grass.push([cx, cz]);
       }
     }
-    this.group.add(makeGrass(grass, this.rand, this.uTime));
+    this.group.add(makeGrass(grass, this.rand, this.uTime, { skip: inPond }));
     this.group.add(makeTrees(trees, this.rand, this.uTime));
-    const pond = makeWater(water, this.rand, this.uTime, { healing: spring, lilyPads: !spring });
+    const disc = spring ? { x: pond0.x, z: pond0.z, y: 0.1, r: pondR, edge } : null;
+    const pond = makeWater(water, this.rand, this.uTime, { healing: spring, disc });
     this.group.add(pond);
     this.animated.push({ update: () => pond.userData.update(this.uTime.value) });
     if (spring) {
-      const ring = makeSpringRing(pond0.x, pond0.z, pondHW, pondHH, this.rand);
-      this.group.add(ring);
-      this.animated.push({ update: () => ring.userData.update(this.uTime.value) });
+      const banks = makeSpringBanks(pond0.x, pond0.z, edge, this.rand);
+      this.group.add(banks);
+      this.animated.push({ update: () => banks.userData.update(this.uTime.value) });
       // fairies dancing over the water, and flowers all round the edge
-      const fairies = makeFairies(pond0.x, pond0.z, Math.max(2, Math.min(pondHW, pondHH) - 1.2));
+      const fairies = makeFairies(pond0.x, pond0.z, Math.max(2, pondR - 1.5));
       this.group.add(fairies);
       this.animated.push({ update: () => fairies.userData.update(this.uTime.value) });
       const ringSpots = Array.from({ length: 10 }, (_, i) => {
         const a = (i / 10) * Math.PI * 2 + 0.3;
-        return { x: pond0.x + Math.cos(a) * (pondR + 1.4), z: pond0.z + Math.sin(a) * (pondR + 1.4), r: 0.9, n: 9 };
-      }).filter((s) => !L.isSolidCell(Math.floor(s.x / CELL), Math.floor(s.z / CELL)) || L.cell(Math.floor(s.x / CELL), Math.floor(s.z / CELL)) === '~');
+        return { x: pond0.x + Math.cos(a) * (pondR + 2), z: pond0.z + Math.sin(a) * (pondR + 2), r: 0.9, n: 9 };
+      }).filter((s) => !L.isSolidCell(Math.floor(s.x / CELL), Math.floor(s.z / CELL)));
       this.group.add(makeFlowers(ringSpots, this.rand));
     }
     const beds = (L.decor ?? []).filter((d) => d.kind === 'flowers');

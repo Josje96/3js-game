@@ -11,6 +11,9 @@ import { ENEMIES } from '../shared/dungeons.js';
 import { FurnitureView } from './furniture.js';
 import { dropTinyShadows } from './merge.js';
 
+// sitting on a chair: how far the body drops and leans back, and how the legs and arms bend (radians)
+const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM = 0.5;
+
 const ANIMS = {
   idle: 'Idle_A',
   run: 'Running_A',
@@ -340,7 +343,7 @@ export class CharacterView {
   }
 
   fadeTo(name, t = 0.2) {
-    const next = this.actions[name === 'sleep' ? 'idle' : name];
+    const next = this.actions[name === 'sleep' || name === 'sit' ? 'idle' : name];
     if (!next) return;
     for (const a of Object.values(this.actions)) if (a !== next && a.isRunning()) a.fadeOut(t);
     next.reset().fadeIn(t).play();
@@ -352,7 +355,7 @@ export class CharacterView {
     // asleep: lying on our back on the bed (the rig has no sleeping clip, so tip the idle pose over)
     const asleep = name === 'sleep';
     this.model.rotation.x = asleep ? -Math.PI / 2 : 0;
-    this.model.position.set(0, asleep ? 1.05 : 0, asleep ? -0.9 : 0);
+    this.model.position.set(0, asleep ? 1.05 : name === 'sit' ? SIT_DROP : 0, asleep ? -0.9 : name === 'sit' ? SIT_BACK : 0);
     if (this.label) this.label.visible = !asleep;
     if (!this.oneShot) this.fadeTo(asleep ? 'idle' : name);
   }
@@ -407,7 +410,7 @@ export class CharacterView {
       // one somersault per roll, even if the 'roll' state lingers a little over the network
       if (this.target.anim !== 'roll') this.rollSeen = false;
       else if (!this.rollSeen) { this.rollSeen = true; this.roll(ROLL_TIME); }
-      this.setBase(this.target.anim === 'run' ? 'run' : this.target.anim === 'sleep' ? 'sleep' : 'idle');
+      this.setBase(['run', 'sleep', 'sit'].includes(this.target.anim) ? this.target.anim : 'idle');
     }
     if (this.rollT != null) {
       this.rollT += dt;
@@ -429,6 +432,17 @@ export class CharacterView {
       this.flashing = this.lowHp;
     }
     this.mixer.update(dt);
+    if (this.base === 'sit' && this.rollT == null) this.sitPose();
+  }
+
+  /** Sitting (no clip for it either): bend the idle pose at the hips and knees, hands in the lap. */
+  sitPose() {
+    this.legs ??= ['upperlegl', 'upperlegr', 'lowerlegl', 'lowerlegr', 'upperarml', 'upperarmr'].map((n) => this.model.getObjectByName(n));
+    const [ul, ur, ll, lr, al, ar] = this.legs;
+    if (!ul || !ll) return;
+    for (const b of [ul, ur]) b?.rotateX(SIT_HIP);
+    for (const b of [ll, lr]) b?.rotateX(SIT_KNEE);
+    for (const b of [al, ar]) b?.rotateX(SIT_ARM);
   }
 
   dispose() {
