@@ -286,7 +286,7 @@ export class LiveLocation {
     if (d > 18) { e.x = owner.x; e.z = owner.z; return; } // lost: hop back to the owner
     if (d > 0.4) {
       const step = Math.min(d, speed * (d > 5 ? 1.6 : 1) * dt);
-      Object.assign(e, moveCircle(this.layout, e.x, e.z, (dx / d) * step, (dz / d) * step, e.r));
+      Object.assign(e, moveCircle(this.layout, e.x, e.z, (dx / d) * step, (dz / d) * step, e.r, this.solids())); // round stalls, benches, chests
       if (!target) e.rot = Math.atan2(dx, dz);
     }
   }

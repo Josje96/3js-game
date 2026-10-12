@@ -33,6 +33,8 @@ Most important first. Tick things off in the same commit that does them.
       family's size (a room per member), you can sit on seats, and there are wallpapers + luxury furniture.
       Then: rooms only along the top, one common room, door bottom middle, much smaller; styles
       only ever change the room you pick; sleepers lie head on the pillow; gowns/robes flare so feet stay inside.
+      Seasons + a seasonal town boss with epic loot; luxury furniture doubled; stalls/forge/benches solid,
+      pets go round solid things, villagers keep off cells with something solid in them.
 - [ ] Sitting is a hand-bent pose (the free KayKit rig has no sit clip); the sofa's cushion is a bit
       higher than a chair so you sink in slightly. A per-seat height would need it in the `anim` string.
 - [ ] Touch controls for tablets/phones.

@@ -3,6 +3,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { world } from './helpers.js';
 import { FURNITURE } from '../src/shared/furniture.js';
+import { buildLayout } from '../src/shared/locations.js';
+import { blocked } from '../src/shared/physics.js';
+import { PLAYER_RADIUS } from '../src/shared/config.js';
+
+test('town: market stalls, the forge and the fountain benches are solid all the way across', () => {
+  const L = buildLayout('town', 1, {});
+  const shop = L.props.find((q) => q.type === 'shopkeeper'), forge = L.props.find((q) => q.type === 'forge');
+  for (const [dx, dz] of [[2.1, 1.7], [-2.1, 1.7], [0, 1.3], [2.1, -0.9]]) { // the stall's poles and counter
+    assert.ok(blocked(L, shop.x + dx, shop.z + dz, PLAYER_RADIUS, L.solids), `stall at ${dx},${dz}`);
+  }
+  assert.ok(blocked(L, forge.x - 2.2, forge.z + 0.2, PLAYER_RADIUS, L.solids), 'the forge’s furnace');
+  assert.equal(L.benches.length, 4);
+  for (const b of L.benches) assert.ok(blocked(L, b.x, b.z, PLAYER_RADIUS, L.solids), 'a bench');
+});
 
 const propOf = (server, type) => server.getLocation('town').layout.props.find((q) => q.type === type);
 const standBy = (p, t) => { p.x = t.x; p.z = t.z + 2.4; };

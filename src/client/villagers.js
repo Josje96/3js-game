@@ -1,6 +1,8 @@
 // Villagers strolling along Pebble Town's paths. Purely for looks and only on this screen (they
 // aren't sent over the network), so each family member may see them in slightly different
 // places — nobody can bump into them or talk to them; the townsfolk (shared/townsfolk.js) do the talking.
+// They only use path cells clear of anything solid (stalls, the fountain, benches, townsfolk),
+// so they never walk through them.
 import { CELL } from '../shared/config.js';
 import { CharacterView } from './views.js';
 
@@ -18,7 +20,12 @@ const SPEED = 2.2;
 export class Villagers {
   constructor(layout, rand, count = 6) {
     this.walkers = [];
-    const isPath = (cx, cz) => layout.cell(cx, cz) === '=';
+    // a cell is walkable if no solid circle reaches into it (with room for a villager)
+    const clear = (cx, cz) => layout.solids.every((s) => {
+      const nx = Math.max(cx * CELL, Math.min(s.x, (cx + 1) * CELL)), nz = Math.max(cz * CELL, Math.min(s.z, (cz + 1) * CELL));
+      return (s.x - nx) ** 2 + (s.z - nz) ** 2 > (s.r + 0.5) ** 2;
+    });
+    const isPath = (cx, cz) => layout.cell(cx, cz) === '=' && clear(cx, cz);
     const cells = [];
     for (let cz = 0; cz < layout.h; cz++) for (let cx = 0; cx < layout.w; cx++) if (isPath(cx, cz)) cells.push([cx, cz]);
     if (!cells.length) return;

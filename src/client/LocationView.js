@@ -467,15 +467,11 @@ export class LocationView {
     const villagers = new Villagers(L, this.rand);
     villagers.addTo(this.group);
     this.animated.push({ update: (dt) => villagers.update(dt, this.uTime.value), dispose: () => villagers.dispose() });
-    const fountain = L.props.find((p) => p.build === 'fountain');
-    if (fountain) {
-      for (let i = 0; i < 4; i++) {
-        const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-        const bench = this.still(makeBench());
-        bench.position.set(fountain.x + Math.cos(a) * 4.2, 0, fountain.z + Math.sin(a) * 4.2);
-        bench.rotation.y = -a - Math.PI / 2;
-        this.group.add(bench);
-      }
+    for (const b of L.benches ?? []) { // placed (and made solid) in shared/locations.js
+      const bench = this.still(makeBench());
+      bench.position.set(b.x, 0, b.z);
+      bench.rotation.y = b.rot;
+      this.group.add(bench);
     }
     // banners hanging on the inside of the north castle wall, and either side of the fort's door
     const colors = ['red', 'blue', 'yellow', 'green'];

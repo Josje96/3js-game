@@ -61,7 +61,12 @@ export function buildLayout(key, seed, opts = {}) {
     const def = PROPS[p.type];
     return { id: `prop${i}`, ...def, ...p, z: p.z + (def.offsetZ ?? 0) };
   });
-  layout.solids = layout.props.filter((p) => p.radius > 0).map((p) => ({ x: p.x, z: p.z, r: p.radius }));
+  layout.solids = layout.props.flatMap((p) => p.blocks
+    ? p.blocks.map(([dx, dz, r]) => ({ x: p.x + dx * Math.cos(p.rot ?? 0) + dz * Math.sin(p.rot ?? 0), z: p.z - dx * Math.sin(p.rot ?? 0) + dz * Math.cos(p.rot ?? 0), r }))
+    : p.radius > 0 ? [{ x: p.x, z: p.z, r: p.radius }] : []);
+  // the town's benches round the fountain (drawn by the client) are solid too: two circles each
+  layout.benches = townBenches(layout.props);
+  for (const b of layout.benches) for (const s of [-0.55, 0.55]) layout.solids.push({ x: b.x + Math.cos(b.rot) * s, z: b.z - Math.sin(b.rot) * s, r: 0.55 });
   return layout;
 }
 
@@ -119,4 +124,14 @@ function findChar(layout, ch) {
     if (x >= 0) return [x, z];
   }
   return null;
+}
+
+/** Four benches facing the fountain, if there is one: [{ x, z, rot }] (rot as the client turns them). */
+function townBenches(props) {
+  const f = props.find((p) => p.build === 'fountain');
+  if (!f) return [];
+  return [0, 1, 2, 3].map((i) => {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    return { x: f.x + Math.cos(a) * 4.2, z: f.z + Math.sin(a) * 4.2, rot: -a - Math.PI / 2 };
+  });
 }
