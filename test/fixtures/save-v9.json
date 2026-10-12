@@ -1,0 +1,128 @@
+{
+ "version": 9,
+ "id": "wmv4o1hyq204",
+ "name": "Fixture Fort",
+ "seed": "fixture9",
+ "createdAt": 1791774107954,
+ "updatedAt": 1791774107954,
+ "day": 1,
+ "flags": {},
+ "dungeons": {
+  "mine": {
+   "deepest": 12,
+   "unlocked": true,
+   "completed": false
+  },
+  "ruins": {
+   "deepest": 0,
+   "unlocked": false,
+   "completed": false
+  },
+  "keep": {
+   "deepest": 0,
+   "unlocked": false,
+   "completed": false
+  }
+ },
+ "players": {
+  "mom": {
+   "name": "Mom",
+   "cls": "Knight",
+   "level": 1,
+   "xp": 0,
+   "points": 0,
+   "stats": {
+    "str": 2,
+    "dex": 0,
+    "int": 0,
+    "vit": 2
+   },
+   "hp": 26,
+   "maxHp": 26,
+   "gold": 50,
+   "weapon": "sword",
+   "gear": [
+    "sword"
+   ],
+   "blueprints": [],
+   "inventory": {
+    "potion": 2
+   },
+   "shield": null,
+   "armor": null,
+   "closet": [],
+   "pets": [],
+   "pet": null,
+   "look": {
+    "hat": "own",
+    "cape": "own",
+    "back": "none",
+    "dye": "none"
+   }
+  },
+  "kid": {
+   "name": "Kid",
+   "cls": "Mage",
+   "level": 1,
+   "xp": 0,
+   "points": 0,
+   "stats": {
+    "str": 0,
+    "dex": 0,
+    "int": 3,
+    "vit": 1
+   },
+   "hp": 23,
+   "maxHp": 23,
+   "gold": 50,
+   "weapon": "staff",
+   "gear": [
+    "staff"
+   ],
+   "blueprints": [],
+   "inventory": {
+    "potion": 2
+   },
+   "shield": null,
+   "armor": null,
+   "closet": [],
+   "pets": [],
+   "pet": null,
+   "look": {
+    "hat": "own",
+    "cape": "own",
+    "back": "none",
+    "dye": "none"
+   }
+  }
+ },
+ "house": {
+  "level": 1,
+  "storage": {},
+  "beds": {
+   "mom": 0,
+   "kid": 1
+  },
+  "furniture": [
+   {
+    "id": "f1",
+    "item": "sofa",
+    "x": 10,
+    "z": 26,
+    "rot": 3.141592653589793
+   }
+  ],
+  "owned": {
+   "sofa": 1
+  },
+  "styles": [],
+  "wall": "stone",
+  "floor": "oak",
+  "roomStyles": {
+   "0": {
+    "wall": "rose",
+    "floor": "tiles"
+   }
+  }
+ }
+}

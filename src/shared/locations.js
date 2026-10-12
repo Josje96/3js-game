@@ -8,7 +8,7 @@ import { biomeFor, parseKey, depthOf } from './dungeons.js';
 import { generateFloor } from './mapgen.js';
 import { PROPS } from './props.js';
 
-const WALKABLE = new Set(['.', '=']);
+const WALKABLE = new Set(['.', '=', '~']); // '~': you can wade into the pond
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 export function isWalkableChar(ch) {
@@ -70,6 +70,8 @@ function parseAsciiMap(map) {
   const decor = [];          // flower beds etc: looks only
   const spots = {};          // named points (training dummy, practice slime...)
   let spawn = null, folk = 0;
+  const rooms = map.rooms ?? []; // the fort's private rooms: [{ x, z, w, h }] in cell coords
+  const roomAt = (cx, cz) => rooms.findIndex((r) => cx >= r.x && cx < r.x + r.w && cz >= r.z && cz < r.z + r.h);
   const rows = map.rows.map((row, cz) =>
     [...row].map((ch, cx) => {
       const leg = LEGEND[ch];
@@ -79,7 +81,11 @@ function parseAsciiMap(map) {
       if (leg.decor) decor.push({ kind: leg.decor, ...pos });
       if (leg.spot) spots[leg.spot] = pos;
       if (leg.spawn) spawn = pos;
-      if (leg.bedSlot) bedSlots.push({ x: pos.x, z: pos.z - 0.6 });
+      if (leg.bedSlot) {
+        const room = roomAt(cx, cz);
+        if (room < 0 && rooms.length) throw new Error(`a bed slot at ${cx},${cz} is outside every room`);
+        bedSlots.push({ x: pos.x, z: pos.z - 0.6, room });
+      }
       return leg.portal ? ch : leg.base;
     }).join(''));
   return {
@@ -92,9 +98,15 @@ function parseAsciiMap(map) {
     bedSlots,
     decor,
     spots,
+    rooms,
     initial: [],
     spawn: spawn ?? { x: w * CELL / 2, z: h * CELL / 2 },
   };
+}
+
+/** Which of a layout's rooms (if any) contains this cell? -1 for none (the hall, outside...). */
+export function roomIndexAt(layout, cx, cz) {
+  return (layout.rooms ?? []).findIndex((r) => cx >= r.x && cx < r.x + r.w && cz >= r.z && cz < r.z + r.h);
 }
 
 function findChar(layout, ch) {

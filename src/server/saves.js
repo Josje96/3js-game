@@ -32,6 +32,7 @@ export function newSave({ name, seed }) {
       styles: [],                  // wall / floor styles bought, e.g. ['wall:rose']
       wall: 'stone',
       floor: 'oak',
+      roomStyles: {},              // per-room style overrides: { [bedSlot]: { wall, floor } }
     },
   };
 }
@@ -147,6 +148,13 @@ export const MIGRATIONS = [
         // the Ruins used to open after the King Slime: anyone who had them open keeps them open
         s.unlocked ??= !d.unlockedBy || (id === 'ruins' && !!save.flags?.mineCleared);
       }
+    },
+  },
+  {
+    version: 9, // the fort has a private room per family member, each with its own wall/floor
+    up(save) {
+      save.house ??= {};
+      save.house.roomStyles ??= {};
     },
   },
 ];

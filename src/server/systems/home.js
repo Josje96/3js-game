@@ -127,4 +127,29 @@ export const methods = {
     this.writeRecord(p);
     this.broadcastRoster();
   },
+
+  /** Which room does this player own (their bed's room), or -1 for none? */
+  roomSlot(p) {
+    const slot = this.save.house.beds?.[p.id];
+    const rooms = this.getLocation('house')?.layout.rooms ?? [];
+    return slot != null && slot < rooms.length ? slot : -1;
+  },
+
+  /** The room's owner: { id, name } for the player whose bed is in bed slot `slot`, or null. */
+  roomOwner(slot) {
+    const beds = this.save.house.beds ?? {};
+    for (const [id, s] of Object.entries(beds)) {
+      if (s === slot) return { id, name: this.save.players[id]?.name ?? 'Someone' };
+    }
+    return null;
+  },
+
+  /** Each room as { slot, owner, ownerName }, for the client's rooms UI. */
+  roomsView() {
+    const rooms = this.getLocation('house')?.layout.rooms ?? [];
+    return rooms.map((_, slot) => {
+      const o = this.roomOwner(slot);
+      return { slot, owner: o?.id ?? null, ownerName: o?.name ?? null };
+    });
+  },
 };

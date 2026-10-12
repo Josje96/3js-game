@@ -2,12 +2,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildLayout, isWalkableChar } from '../src/shared/locations.js';
+import { generateFloor } from '../src/shared/mapgen.js';
 import { DUNGEONS, dungeonKey } from '../src/shared/dungeons.js';
 import { MAPS } from '../src/shared/maps.js';
 import { CELL, PROTOCOL_VERSION } from '../src/shared/config.js';
 import { blocked } from '../src/shared/physics.js';
 import { GameServer } from '../src/server/GameServer.js';
 import { newSave } from '../src/server/saves.js';
+import { FORGE_RECIPES } from '../src/shared/items.js';
 
 function floodFill(layout, start) {
   const seen = new Set([`${start[0]},${start[1]}`]);
@@ -64,6 +66,19 @@ test('dungeon floors are deterministic, connected, and have a way up', () => {
     }
   }
   assert.notDeepEqual(buildLayout('mine/3', 1).rows, buildLayout('mine/3', 2).rows, 'different seeds differ');
+});
+
+test('mapgen: rooms have personalities — most floors hide an outcrop in a room', () => {
+  let withOutcrops = 0, total = 0;
+  for (let floor = 1; floor <= 100; floor += 7) {
+    for (let seed = 1; seed <= 40; seed++) {
+      const f = generateFloor('mine', floor, seed);
+      total++;
+      const enclosed = (z, x) => f.rows[z][x] === '#' && [[1, 0], [-1, 0], [0, 1], [0, -1]].every(([dx, dz]) => f.rows[z + dz][x + dx] !== '#');
+      if (Array.from({ length: f.h - 2 }, (_, i) => i + 1).some((z) => Array.from({ length: f.w - 2 }, (_, i) => i + 1).some((x) => enclosed(z, x)))) withOutcrops++;
+    }
+  }
+  assert.ok(withOutcrops > total * 0.4, `only ${withOutcrops}/${total} floors have an interior outcrop — the room personalities are gone?`);
 });
 
 // --- server ---------------------------------------------------------------
@@ -440,6 +455,26 @@ test('server: blueprints from chests teach recipes; the forge turns ore into wea
   assert.equal(p.gold, 52);
   c.say({ t: 'forge', recipe: 'dragonsword' }); // blueprint not found
   assert.ok(!p.gear.includes('dragonsword'));
+});
+
+test('server: the deep ores forge into the late gear', () => {
+  const server = new GameServer({ save: newSave({ name: 't', seed: 'deepforge' }), log: () => {} });
+  const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
+  const p = server.players.get('a');
+  for (const recipe of ['mythrilbrand', 'starcleaver']) {
+    server.travel(p, 'town');
+    p.blueprints.push(recipe);
+    c.say({ t: 'forge', recipe });
+    assert.ok(!p.gear.includes(recipe), 'no ore yet');
+    const r = FORGE_RECIPES[recipe];
+    for (const [item, n] of Object.entries(r.needs)) p.inventory[item] = n;
+    p.gold = r.gold;
+    c.say({ t: 'forge', recipe });
+    assert.ok(p.gear.includes(recipe), recipe);
+    assert.equal(p.gold, 0, 'materials were free, the gold was not');
+    for (const item of Object.keys(r.needs)) assert.ok((p.inventory[item] ?? 0) === 0, `used up the ${item}`);
+    p.gear = []; // the next recipe must forge too
+  }
 });
 
 test('server: biomes every 10 floors, bosses open the way down, imps throw fireballs', async () => {

@@ -4,7 +4,30 @@
 
 import { CELL } from './config.js';
 import { DUNGEONS, ROCK_HP, BARREL_STYLES, biomeFor, isBossFloor, makeEnemy, depthOf, oresFor } from './dungeons.js';
+import { PROPS } from './props.js';
 import { makeRng } from './rng.js';
+
+/** Flavour props per biome theme (see client/themes.js THEMES): keys without an entry get none. */
+const THEME_PROPS = {
+  dungeon: ['rails', 'minecart', 'support', 'stalagmite'],
+  frost: ['stalagmite', 'crystalcluster'],
+  grotto: ['stalagmite', 'rails'],
+  lava: ['stalagmite', 'crystalcluster'],
+  crystal: ['crystalcluster', 'stalagmite'],
+  bone: ['bonepile', 'stalagmite'],
+  nest: ['bonepile', 'support'],
+  gold: ['minecart', 'crate', 'rails'],
+  shadow: ['bonepile', 'stalagmite'],
+  magma: ['stalagmite', 'crystalcluster', 'rails'],
+  ruins: ['crate', 'bonepile', 'signpost'],
+  coral: ['bonepile', 'stalagmite'],
+  library: ['crate', 'support'],
+  kelp: ['crate', 'bonepile'],
+  pearl: ['crystalcluster', 'bonepile'],
+  abyss: ['bonepile', 'crystalcluster'],
+  keep: ['crate', 'signpost', 'support'],
+  throne: ['bonepile', 'crystalcluster', 'signpost'],
+};
 
 export function generateFloor(dungeonId, floor, seed) {
   const biome = biomeFor(dungeonId, floor);
@@ -21,11 +44,26 @@ export function generateFloor(dungeonId, floor, seed) {
   const carveCorridor = (a, b) => {
     let [x, z] = centre(a);
     const [tx, tz] = centre(b);
+    const wide = rng.chance(0.3);            // some corridors are halls: two cells wide
     const horizFirst = rng.chance(0.5);
-    const stepX = () => { while (x !== tx) { carve(x, z); x += Math.sign(tx - x); } };
-    const stepZ = () => { while (z !== tz) { carve(x, z); z += Math.sign(tz - z); } };
+    const stepX = () => { while (x !== tx) { carve(x, z); if (wide) carve(x, z + 1); x += Math.sign(tx - x); } };
+    const stepZ = () => { while (z !== tz) { carve(x, z); if (wide) carve(x + 1, z); z += Math.sign(tz - z); } };
     if (horizFirst) { stepX(); stepZ(); } else { stepZ(); stepX(); }
     carve(x, z);
+  };
+  /** Is every walkable cell of the grid reachable from the start room? (Cheap: the grids are small.) */
+  const gridConnected = () => {
+    let total = 0;
+    for (const row of grid) for (const c of row) if (c !== '#') total++;
+    const seen = new Set();
+    const stack = [[start.x + (start.w >> 1), start.z + (start.h >> 1)]];
+    while (stack.length) {
+      const [x, z] = stack.pop();
+      if (x < 0 || z < 0 || x >= w || z >= h || grid[z][x] === '#' || seen.has(`${x},${z}`)) continue;
+      seen.add(`${x},${z}`);
+      stack.push([x + 1, z], [x - 1, z], [x, z + 1], [x, z - 1]);
+    }
+    return seen.size === total;
   };
 
   // --- rooms ---
@@ -70,6 +108,43 @@ export function generateFloor(dungeonId, floor, seed) {
   }
   if (ordered.length > 3 && rng.chance(0.6)) carveCorridor(rng.pick(rest), rng.pick(rest)); // a loop
 
+  // --- room personalities: all-box rooms look samey, so some rooms get pillars, rock
+  // outcrops (caves), alcoves, or grow a great hall. Rooms stay rectangles for placement;
+  // cells turned back into rock are kept out of spawning. The start room is left alone:
+  // its walls must stay intact for the stairs. Each outcrop that would cut a path off is
+  // undone, so every personality change keeps the floor fully connected.
+  const outcrops = []; // cells re-rocked: [x, z]
+  const reRock = (x, z) => {
+    if (x <= 0 || z <= 0 || x >= w - 1 || z >= h - 1 || grid[z][x] !== '.') return;
+    grid[z][x] = '#';
+    if (!gridConnected()) { grid[z][x] = '.'; return; } // would seal a passage: put it back
+    outcrops.push([x, z]);
+  };
+  for (const room of isBoss ? [] : rest) { // boss arenas keep their own clean shape + cover pillars
+    const kind = rng.pick(['plain', 'plain', 'pillars', 'cave', 'alcoves', room.w >= 4 ? 'hall' : 'cave']);
+    if (kind === 'pillars') {
+      for (let n = rng.int(1, 3); n > 0; n--) reRock(room.x + rng.int(1, room.w - 2), room.z + rng.int(1, room.h - 2));
+    } else if (kind === 'cave') {
+      let x = room.x + rng.int(1, room.w - 2), z = room.z + rng.int(1, room.h - 2);
+      for (let n = rng.int(2, 5); n > 0; n--) {
+        reRock(x, z);
+        x += rng.pick([1, -1, 0, 0]);
+        z += rng.pick([0, 0, 1, -1]);
+      }
+    } else if (kind === 'alcoves') {
+      const side = rng.int(0, 3);
+      for (let n = rng.int(1, 2); n > 0; n--) {
+        if (side === 0) carve(room.x + rng.int(0, room.w - 1), room.z - 1);
+        else if (side === 1) carve(room.x + room.w, room.z + rng.int(0, room.h - 1));
+        else if (side === 2) carve(room.x - 1, room.z + rng.int(0, room.h - 1));
+        else carve(room.x + rng.int(0, room.w - 1), room.z + room.h);
+      }
+    } else if (kind === 'hall') { // grow north, where the camera looks
+      room.z -= 1; room.h += 1;
+      for (let x = room.x; x < room.x + room.w; x++) carve(x, room.z);
+    }
+  }
+
   // --- up-stairs portal in a wall of the start room (top wall preferred) ---
   // It must touch exactly one walkable cell, or the arrival point is ambiguous.
   const portals = {};
@@ -90,6 +165,7 @@ export function generateFloor(dungeonId, floor, seed) {
   const initial = [];
   const props = [];
   const taken = [{ x: spawn.x, z: spawn.z, r: 3.5 }];
+  for (const [x, z] of outcrops) taken.push({ x: x * CELL + CELL / 2, z: z * CELL + CELL / 2, r: 1.3 }); // keep things off the outcrops
   const free = (x, z, r) => taken.every((t) => (t.x - x) ** 2 + (t.z - z) ** 2 > (t.r + r) ** 2);
   const randomPointIn = (room, margin = 1.2) => ({
     x: room.x * CELL + margin + rng.next() * (room.w * CELL - margin * 2),
@@ -155,6 +231,7 @@ export function generateFloor(dungeonId, floor, seed) {
       if (!rng.chance(0.85)) continue;
       const corners = [[room.x, room.z], [room.x + room.w - 1, room.z], [room.x, room.z + room.h - 1], [room.x + room.w - 1, room.z + room.h - 1]];
       const [cx, cz] = rng.pick(corners);
+      if (grid[cz]?.[cx] !== '.') continue; // an outcrop took this corner: no clutter inside rock
       const c = cellCentre(cx, cz);
       const p = { x: c.x + (cx === room.x ? -1 : 1), z: c.z + (cz === room.z ? -1 : 1) };
       if (!free(p.x, p.z, 1.1)) continue;
@@ -171,6 +248,20 @@ export function generateFloor(dungeonId, floor, seed) {
         if (i > 0) taken.push({ ...q, r: 0.7 });
         const style = i === 0 ? rng.pick(['barrel', 'keg']) : 'small';
         initial.push({ type: 'barrel', style, x: q.x, z: q.z, hp: BARREL_STYLES[style], rot: rng.range(0, Math.PI * 2) });
+      }
+    }
+
+    // flavour props from the generated set (tools/blender/make_props.py): a mine cart on its
+    // rails, broken supports, stalagmites, crystals, bones — whatever this biome's walls suggest
+    const flavour = THEME_PROPS[biome.theme] ?? [];
+    for (const room of rest) {
+      let n = rng.int(0, 2) + (rng.chance(0.3) ? 1 : 0);
+      while (n-- > 0 && flavour.length) {
+        const type = rng.pick(flavour);
+        const r = PROPS[type].radius;
+        const p = place(room, Math.max(r, 0.4));
+        if (!p) continue;
+        props.push({ type, x: p.x, z: p.z, rot: rng.int(0, 3) * Math.PI / 2 });
       }
     }
   }

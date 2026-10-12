@@ -32,6 +32,15 @@ export const FURNITURE = {
   fireplace:  { name: 'Fireplace', build: 'fireplace', price: 500, radius: 1.3, light: true },
   aquarium:   { name: 'Fish tank', build: 'aquarium', price: 450, radius: 0.9 },
   petbed:     { name: 'Pet bed', build: 'petbed', price: 90, radius: 0 },
+  // room decor, round 3
+  desk:       { name: 'Writing desk', model: 'dungeon/table_small_decorated_B', price: 120, radius: 0.8 },
+  toytrunk:   { name: 'Toy trunk', model: 'dungeon/trunk_medium_B', price: 90, radius: 0.8 },
+  dresser:    { name: 'Dresser', model: 'dungeon/trunk_large_B', price: 160, radius: 0.9 },
+  shelfsmall: { name: 'Little shelf', model: 'dungeon/shelf_small', price: 70, radius: 0.6 },
+  clock:      { name: 'Grandfather clock', build: 'clock', price: 380, radius: 0.5 },
+  toybox:     { name: 'Toy box', build: 'toybox', price: 110, radius: 0.7 },
+  ruggreen:   { name: 'Green rug', build: 'rug', color: 0x3ac06a, price: 120, radius: 0 },
+  rugpurple:  { name: 'Purple rug', build: 'rug', color: 0x8a5ac0, price: 120, radius: 0 },
 };
 
 /** Wall colours for the fort (painted over the stone walls). `price` 0 = the one you start with. */
@@ -42,6 +51,10 @@ export const WALL_STYLES = {
   sky:   { name: 'Sky blue', price: 200, tint: 0xbfdcff },
   mint:  { name: 'Mint', price: 200, tint: 0xc4f2d8 },
   dusk:  { name: 'Dusk purple', price: 260, tint: 0xb8a6e0 },
+  butter:{ name: 'Butter yellow', price: 200, tint: 0xfff2b0 },
+  lavender: { name: 'Lavender', price: 200, tint: 0xe4d2ff },
+  seafoam: { name: 'Seafoam', price: 200, tint: 0xbef0e2 },
+  peach: { name: 'Peach', price: 200, tint: 0xffdcbe },
 };
 
 /** Floors for the fort. */
@@ -51,6 +64,10 @@ export const FLOOR_STYLES = {
   tiles:  { name: 'Stone tiles', price: 150, model: 'dungeon/floor_tile_large' },
   honey:  { name: 'Honey boards', price: 220, model: 'dungeon/floor_wood_large', tint: 0xffd08a },
   rosy:   { name: 'Rosy tiles', price: 220, model: 'dungeon/floor_tile_large', tint: 0xffc2c2 },
+  crimson:{ name: 'Crimson tiles', price: 220, model: 'dungeon/floor_tile_large', tint: 0xe8a0a0 },
+  forest: { name: 'Forest boards', price: 220, model: 'dungeon/floor_wood_large', tint: 0xa8e0a0 },
+  pearl:  { name: 'Pearl tiles', price: 220, model: 'dungeon/floor_tile_large', tint: 0xf0f4f8 },
+  night:  { name: 'Midnight boards', price: 260, model: 'dungeon/floor_wood_large_dark', tint: 0x9aa0c0 },
 };
 
 /** A blanket colour for each family member's bed (picked from their id, so it never changes). */

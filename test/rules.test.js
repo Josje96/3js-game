@@ -88,6 +88,25 @@ test('content: shops, drops, recipes, biomes and maps only point at things that 
   for (const [id, s] of Object.entries(PET_SPECIES)) assert.equal(s.forms.length, 3, `pet '${id}' needs 3 forms`);
 });
 
+test('content: forge recipes need ores that spawn no deeper than their blueprint, and gate on it', async () => {
+  const { rollBlueprint } = await import('../src/shared/items.js');
+  for (const [id, r] of Object.entries(FORGE_RECIPES)) {
+    // every ore the recipe needs must actually spawn in the ore pools at its depth (slimegoo and
+    // the like are enemy drops, not mined — skip them)
+    let found = null;
+    for (let depth = r.depth; depth <= r.depth + 200 && !found; depth++) {
+      const pool = Object.keys(oresFor(depth));
+      if (Object.keys(r.needs).every((n) => !ROCK_HP[n] || pool.includes(n))) found = depth;
+    }
+    assert.ok(found != null, `recipe '${id}' (depth ${r.depth}) needs ores that never spawn together that shallow`);
+    // its blueprint can't drop any shallower than the recipe's depth, but can at it
+    // (rollBlueprint picks one at random, so sample enough draws to cover the pool)
+    const draws = (depth) => new Set(Array.from({ length: 400 }, () => rollBlueprint(depth, [])).filter(Boolean));
+    if (r.depth > 1) assert.ok(!draws(r.depth - 1).has(id), `blueprint '${id}' dropped at depth ${r.depth - 1} (recipe gates at ${r.depth})`);
+    assert.ok(draws(r.depth).has(id), `blueprint '${id}' should be in the pool at its own depth ${r.depth}`);
+  }
+});
+
 // ------------------------------------------------------------------ saves
 
 const FIXTURES = join(ROOT, 'test', 'fixtures');
@@ -111,6 +130,15 @@ test('saves: every old save in test/fixtures loads, upgrades and plays', () => {
     }
     for (let i = 0; i < 40; i++) server.step(0.05);
     server.persist();
+    // the fort has a room per player, each with its own styles (v9)
+    const rooms = server.getLocation('house')?.layout.rooms ?? [];
+    for (const [pid, slot] of Object.entries(save.house.beds ?? {})) {
+      assert.ok(slot < rooms.length, `${f}: player ${pid}'s bed slot ${slot} fits in the fort's ${rooms.length} rooms`);
+      assert.equal(server.roomOwner(slot)?.id, pid, `${f}: room ${slot} is ${pid}'s`);
+    }
+    for (const slot of Object.keys(save.house.roomStyles ?? {})) {
+      assert.ok(server.roomOwner(Number(slot)), `${f}: room style on ${slot} but nobody owns that room`);
+    }
     assert.doesNotThrow(() => migrate(JSON.parse(JSON.stringify(save))), `${f}: upgrading twice must be harmless`);
   }
 });

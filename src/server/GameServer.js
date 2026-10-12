@@ -159,7 +159,7 @@ export class GameServer {
     const dayLeft = Math.max(0, Math.ceil(DAY_SECONDS - this.dayClock));
     this.broadcast({
       t: 'world', name: s.name, seed: s.seed, day: s.day, flags: s.flags, dungeons: s.dungeons, dayLeft,
-      house: { wall: s.house.wall, floor: s.house.floor },
+      house: { wall: s.house.wall, floor: s.house.floor, roomStyles: s.house.roomStyles ?? {}, rooms: this.roomsView() },
     });
   }
 

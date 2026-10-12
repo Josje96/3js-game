@@ -259,8 +259,12 @@ const HAIR_BUILDERS = {
 // ------------------------------------------------------------------ reading the KayKit textures
 // Each triangle of a KayKit character samples one flat colour swatch of the texture atlas, so we
 // can tell skin from hair/clothes by looking up the colour under the triangle.
+// Skin comes in a light swatch (240,176,128) and a shadowed one (208,160,112) — both must count
+// as skin or faces like the Rogue's (mostly shadowed) get carved away, leaving the scalp ball
+// showing through where the eyes should be. Greys and whites (armor 240,240,240) must NOT match,
+// so the swatch has to lean yellow-brown: green well below red, blue below green.
 
-const SKIN = ([r, g, b]) => r >= 235 && g >= 165 && g <= 205 && b >= 130 && b <= 170;
+export const SKIN = ([r, g, b]) => r >= 200 && g >= 140 && b >= 95 && g <= r - 20 && b <= g - 20;
 const pixelCache = new WeakMap();   // texture image -> { data, w, h }
 const colourCache = new WeakMap();  // geometry -> [[r, g, b] per triangle]
 
@@ -304,20 +308,53 @@ function filterTriangles(geo, image, keep) {
 }
 
 // The outfit's own hair is part of its head mesh, and the head is hollow underneath it.
-// For a new hairstyle we drop every triangle that isn't skin (except the eyes, brows and mouth
-// on the front of the face) and put a skin-coloured skull (see buildScalp) in the gap.
+// For a new hairstyle (or 'bald') we drop every triangle that isn't skin (except the eyes and
+// brows, which live in a small window on the front of the face) and put a skin-coloured skull
+// (see buildScalp) in the gap. The window must stay TIGHT but generous enough for a whole eye:
+// the Mage's black fringe hangs right where his brows are, and a too-generous box keeps it as
+// shards over the eyes, while a too-tight one cuts the outer halves of the eyes off (fine from
+// the front, broken from the game's three-quarter camera). Bounds are measured per outfit:
+// rel = fraction of head height from its bottom, from the KayKit meshes.
+const FACE_LO = 0.25, FACE_HI = 0.56, FACE_X = 0.26, FACE_Z = 0.32;
+const FACE_HI_PER_OUTFIT = {
+  Barbarian: 0.68,    // his beard hangs from just above his brows: keep the whole beard
+  Mage: 0.53,         // his fringe starts at 0.54
+  Ranger: 0.47,       // his fringe starts at 0.47
+  Rogue: 0.555,       // brows end at 0.55, his fringe starts right there
+  Rogue_Hooded: 0.555,
+};
+
 const hairlessCache = new WeakMap();
-export function hairlessHead(geo, image) {
+export function hairlessHead(geo, image, outfit) {
   if (!hairlessCache.has(geo)) {
     geo.computeBoundingBox();
     const bb = geo.boundingBox, height = bb.max.y - bb.min.y;
-    hairlessCache.set(geo, filterTriangles(geo, image, (_, col, [x, y, z]) => {
+    const hi = FACE_HI_PER_OUTFIT[outfit] ?? FACE_HI;
+    const kept = filterTriangles(geo, image, (_, col, [x, y, z]) => {
       const rel = (y - bb.min.y) / height;
-      const face = z > 0.3 && Math.abs(x) < 0.34 && rel > 0.12 && rel < 0.6;
+      const face = z > FACE_Z && Math.abs(x) < FACE_X && rel > FACE_LO && rel < hi;
       return SKIN(col) || face;
-    }));
+    });
+    // the bounds of the skin that's left = the skull. The scalp ball only has to plug the opening
+    // where the hair was (the top of the head), so it rides high and sits BACK, behind the eye
+    // domes — a full-ball-in-the-middle fill leans out over the eyes and covers them.
+    const pos = geo.attributes.position, idx = kept.index;
+    const skull = new THREE.Box3();
+    for (let i = 0; i < idx.count; i++) {
+      const v = new THREE.Vector3().fromBufferAttribute(pos, idx.getX(i));
+      skull.expandByPoint(v);
+    }
+    const c = skull.getCenter(new THREE.Vector3()), s = skull.getSize(new THREE.Vector3());
+    hairlessCache.set(geo, { geo: kept, scalp: { cx: c.x, cy: c.y + s.y * 0.2, cz: c.z - s.z * 0.12, sx: s.x * 0.88, sy: s.y * 0.78, sz: s.z * 0.74 } });
   }
-  return hairlessCache.get(geo);
+  return hairlessCache.get(geo).geo;
+}
+
+/** Where the scalp ball goes for a carved head (see hairlessHead), or null when there's no carve. */
+export function scalpOf(geo, image, outfit) {
+  if (!image) return null;
+  hairlessHead(geo, image, outfit); // fills the cache
+  return hairlessCache.get(geo)?.scalp ?? null;
 }
 
 /** The skull under a new hairstyle: a ball the anchor stretches to the head's size. */

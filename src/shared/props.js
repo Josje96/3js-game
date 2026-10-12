@@ -15,6 +15,17 @@ export const PROPS = {
   rubble:     { model: 'dungeon/rubble_half', radius: 0 },
   torch:      { model: 'dungeon/torch_mounted', radius: 0, light: true },
   banner:     { model: 'dungeon/banner_patternA_red', radius: 0 },
+  // generated with bun run make-props (tools/blender/make_props.py) — dungeon flavour + town clutter
+  stalagmite: { model: 'props/stalagmite', radius: 0.7 },
+  crystalcluster: { model: 'props/crystalcluster', radius: 0.6 },
+  bonepile:   { model: 'props/bonepile', radius: 0.5 },
+  minecart:   { model: 'props/minecart', radius: 1.0 },
+  rails:      { model: 'props/rails', radius: 0 },  // flat on the floor: walk over it
+  support:    { model: 'props/support', radius: 0.35 },
+  well:       { model: 'props/well', radius: 0.9 },
+  haybale:    { model: 'props/haybale', radius: 0.8 },
+  crate:      { model: 'props/crate', radius: 0.7 },
+  signpost:   { model: 'props/signpost', radius: 0.25 },
   // town: stalls under canopies around the market square, plus things to look at
   fountain:   { build: 'fountain', radius: 1.9 },
   lamp:       { build: 'lamp', radius: 0.3, light: true },
