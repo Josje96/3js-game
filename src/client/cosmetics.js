@@ -559,3 +559,27 @@ const FACE_BUILDERS = {
 export function buildFace(id, hairColor) {
   return FACE_BUILDERS[id]?.(null, hairColor) ?? null;
 }
+
+/**
+ * KayKit capes hang straight down behind the legs and only follow the hips and spine, so a boot
+ * swinging back while running pokes out through the bottom. Sweep the lower part of the cape
+ * backwards (more the lower it goes), like a cape trailing behind you. Shared per geometry.
+ */
+const CAPE_SWEEP_FROM = 0.9, CAPE_SWEEP = 0.5;
+const capeCache = new WeakMap();
+export function sweptCape(geo) {
+  if (!capeCache.has(geo)) {
+    const out = geo.clone(), pos = out.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      if (y >= CAPE_SWEEP_FROM) continue;
+      const u = (CAPE_SWEEP_FROM - y) / CAPE_SWEEP_FROM; // 0 at the sweep line, 1 at the floor
+      pos.setZ(i, pos.getZ(i) - CAPE_SWEEP * u ** 1.2);
+    }
+    pos.needsUpdate = true;
+    out.computeBoundingBox();
+    out.computeBoundingSphere();
+    capeCache.set(geo, out);
+  }
+  return capeCache.get(geo);
+}

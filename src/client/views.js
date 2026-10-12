@@ -4,7 +4,7 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES } from '
 import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit } from './cosmetics.js';
+import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -186,8 +186,14 @@ export class CharacterView {
     this.attach('shoulderl', parts.left);
     this.attach('shoulderr', parts.right);
     this.armorParts = this.borrowed.splice(before); // not part of the look: survives setLook
+    this.showArmor();
     this.flashMats = null;
     dropTinyShadows(this.root);
+  }
+
+  /** Fancy clothes go over the armor: it still protects you, you just don't see it poking through. */
+  showArmor() {
+    for (const h of this.armorParts ?? []) h.visible = !this.clothed;
   }
 
   setShield(id) {
@@ -283,7 +289,11 @@ export class CharacterView {
     this.model.traverse((o) => {
       if (!o.isMesh) return;
       if (HAT_PART.test(o.name)) o.visible = hat === 'own';
-      else if (CAPE_PART.test(o.name)) o.visible = cape === 'own';
+      else if (CAPE_PART.test(o.name)) {
+        o.visible = cape === 'own';
+        o.userData.unsweptGeo ??= o.geometry;
+        o.geometry = sweptCape(o.userData.unsweptGeo);
+      }
     });
     const h = HATS[hat], c = CAPES[cape], bk = BACKS[back];
     if (h?.from) for (const part of h.parts) this.borrow(h.from, part);
@@ -327,6 +337,8 @@ export class CharacterView {
 
   /** Fancy clothes: body and sleeves become a flat cloth colour (hands stay skin), legs too, plus extras. */
   setClothes(def) {
+    this.clothed = !!def;
+    this.showArmor();
     this.model.traverse((o) => {
       if (!o.isMesh || !/_(Body|ArmLeft|ArmRight|LegLeft|LegRight)$/.test(o.name)) return;
       o.userData.baseGeo ??= o.geometry;
@@ -385,6 +397,7 @@ export class CharacterView {
     if (bones.some((b) => !b)) return;
     const mesh = src.clone();
     mesh.material = src.material.clone();
+    if (part === 'Cape') mesh.geometry = sweptCape(src.geometry);
     mesh.bind(new THREE.Skeleton(bones, src.skeleton.boneInverses), src.bindMatrix);
     mesh.visible = true;
     (this.model.getObjectByName(src.parent.name) ?? this.model).add(mesh);
