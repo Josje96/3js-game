@@ -60,7 +60,7 @@ Read this file first, then `HANDOFF.md` (what's in the game, how it plays), then
 - **Pet**: `PET_SPECIES` in `shared/pets.js` + a builder in `MODELS` in `client/pets.js`. Four-legged ones go through
   `quadruped()` (proportions + a `coat` colour function), birds through `bird()`. Pieces come from `client/petkit.js`:
   `tube` (bodies, limbs, tails; `bump` sculpts curls/feathers/scales), `leaf` (feathers, ears, fur), `eye`, then `bake()`.
-  `test/pets-look.test.js` builds every species at every stage.
+  `test/pets-look.test.js` builds every species at every stage; see them all at `http://localhost:5173/tools/pet-gallery.html`.
 
 ## Gotchas
 - Family devices use plain `http://192.168…`: no `crypto.randomUUID`, no `navigator.clipboard` — always fall back.

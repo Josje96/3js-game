@@ -1032,10 +1032,14 @@ const MODELS = {
   frog: ['frog', frog], turtle: ['turtle', turtle], bee: ['bee', bee], snail: ['snail', snail],
 };
 
+const twinkle = (r, color) => new THREE.Mesh(new THREE.OctahedronGeometry(r, 0), new THREE.MeshBasicMaterial({ color }));
+
 /**
  * A new look every 5 levels (see TIER_LOOKS in shared/pets.js); they stack up:
  * 5 scarf · 10 evolve · 15 orbiting sparkles · 20 evolve + crown · 25 glowing ring ·
- * 30 golden scarf + crown gem · 35 halo · 40 rainbow ring · 45 soft light · 50 golden shimmer
+ * 30 golden scarf + crown gem · 35 halo · 40 rainbow ring · 45 soft light · 50 golden shimmer ·
+ * 55 more stars · 60 floating gems · 65 fairy wings · 70 jewelled crown · 75 sparkle trail ·
+ * 80 diamond collar · 85 aurora ring · 90 starlight wings · 95 a little moon · 100 legendary rainbow aura
  */
 function decorate(built, level) {
   const tier = petTier(level);
@@ -1048,6 +1052,106 @@ function decorate(built, level) {
   scarf.position.set(...neck.at);
   aim(scarf, neck.dir, [0, 0, 1]); // the ring goes round the neck
   built.body.add(scarf);
+  const box = new THREE.Box3().setFromObject(built.body), mid = box.getCenter(new THREE.Vector3()), top = box.max.y;
+  if (tier >= 16) { // diamond collar, sparkling round the scarf
+    const collar = new THREE.Group();
+    collar.position.set(...neck.at);
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      const d = new THREE.Mesh(new THREE.OctahedronGeometry(Math.max(0.02, neck.r * 0.18), 0), std(0xdff6ff, { metalness: 0.9, roughness: 0.05, emissive: 0x5a7a8a }));
+      d.position.set(Math.cos(a) * neck.r * 1.12, Math.sin(a) * neck.r * 1.12, 0);
+      collar.add(d);
+    }
+    aim(collar, neck.dir, [0, 0, 1]);
+    built.body.add(collar);
+  }
+  if (tier >= 11) { // a second ring of stars, turning the other way
+    const orbit = new THREE.Group();
+    orbit.position.set(0, top * 0.95, 0);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2, star = twinkle(0.04, [0xb8ff9a, 0xffc27a, 0xc8a8ff, 0xffffff][i]);
+      star.position.set(Math.cos(a) * 0.6, Math.sin(a * 2) * 0.05, Math.sin(a) * 0.6);
+      orbit.add(star);
+    }
+    built.body.add(orbit);
+    fx.orbit2 = orbit;
+  }
+  if (tier >= 17) { // aurora: a wider ring that ripples green to violet
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.56, 0.66, 40), new THREE.MeshBasicMaterial({ color: 0x5affc0, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.05;
+    built.body.add(ring);
+    fx.aurora = ring;
+  }
+  if (tier >= 12) { // three gems floating around the head
+    const gems = new THREE.Group();
+    gems.position.set(x, y + 0.12, z);
+    [0xff3d6e, 0x3dff8a, 0x3d8aff].forEach((c, i) => {
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.035, 0), std(c, { emissive: c, emissiveIntensity: 0.4, metalness: 0.5, roughness: 0.2 }));
+      const a = (i / 3) * Math.PI * 2;
+      gem.position.set(Math.cos(a) * 0.22, 0, Math.sin(a) * 0.22);
+      gem.scale.y = 1.5;
+      gems.add(gem);
+    });
+    built.body.add(gems);
+    fx.gems = gems;
+  }
+  if (tier >= 13) { // fairy wings on its back (starlight wings from 90)
+    fx.fairy = [];
+    const bright = tier >= 18;
+    const mat = new THREE.MeshBasicMaterial({ color: bright ? 0xfff6c8 : 0xc8e8ff, transparent: true, opacity: bright ? 0.75 : 0.5, side: THREE.DoubleSide, depthWrite: false, blending: bright ? THREE.AdditiveBlending : THREE.NormalBlending });
+    for (const s of [-1, 1]) {
+      const pivot = new THREE.Group();
+      pivot.position.set(s * 0.04, mid.y + (top - mid.y) * 0.55, mid.z - 0.02);
+      const upper = new THREE.Mesh(new THREE.CircleGeometry(0.2, 20), mat);
+      upper.scale.set(1, 0.6, 1);
+      upper.position.set(s * 0.18, 0.12, 0);
+      upper.rotation.set(-Math.PI / 2 + 0.5, 0, s * 0.5);
+      const lower = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), mat);
+      lower.scale.set(1, 0.7, 1);
+      lower.position.set(s * 0.12, -0.02, -0.06);
+      lower.rotation.set(-Math.PI / 2 + 0.3, 0, -s * 0.4);
+      pivot.add(upper, lower);
+      if (bright) for (let i = 0; i < 4; i++) {
+        const st = twinkle(0.018, 0xffffff);
+        st.position.set(s * (0.1 + i * 0.06), 0.08 + Math.sin(i * 2) * 0.05, 0.01);
+        pivot.add(st);
+      }
+      built.body.add(pivot);
+      fx.fairy.push(pivot);
+    }
+  }
+  if (tier >= 15) { // a trail of sparkles drifting up around it
+    fx.sparkles = [];
+    for (let i = 0; i < 10; i++) {
+      const sp = twinkle(0.025, [0xffffff, 0xfff27a, 0x9fe8ff, 0xff9ad5][i % 4]);
+      built.body.add(sp);
+      fx.sparkles.push(sp);
+    }
+    fx.sparkleTop = top + 0.3;
+  }
+  if (tier >= 19) { // a little moon of its own
+    const moon = new THREE.Group();
+    moon.position.set(0, top + 0.28, 0);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 11), std(0xfff4c8, { emissive: 0xaa9a60 }));
+    m.position.x = 0.5;
+    for (let i = 0; i < 3; i++) {
+      const crater = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), std(0xd8c890, { emissive: 0x6a5a30 }));
+      crater.position.set(Math.cos(i * 2.1) * 0.04, Math.sin(i * 2.1) * 0.04, 0.055);
+      crater.scale.z = 0.4;
+      m.add(crater);
+    }
+    moon.add(m);
+    built.body.add(moon);
+    fx.moon = moon;
+  }
+  if (tier >= 20) { // legendary: a soft rainbow aura
+    const r = Math.max(box.max.x - box.min.x, top, box.max.z - box.min.z) * 0.62;
+    const aura = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+    aura.position.copy(mid);
+    built.body.add(aura);
+    fx.aura = aura;
+  }
   if (tier >= 3) { // little stars circling the pet
     const orbit = new THREE.Group();
     orbit.position.set(0, y * 0.6, 0);
@@ -1070,6 +1174,11 @@ function decorate(built, level) {
       const tip = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.06, 4), gold);
       tip.position.set(Math.cos(a) * 0.085, 0.055, Math.sin(a) * 0.085);
       crown.add(tip);
+      if (tier >= 14) { // jewelled crown
+        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.014, 0), std([0x3dff8a, 0x3d8aff, 0xff3d6e, 0xffd23f, 0xc86aff][i], { emissive: 0x333333 }));
+        gem.position.set(Math.cos(a + 0.6) * 0.092, 0, Math.sin(a + 0.6) * 0.092);
+        crown.add(gem);
+      }
     }
     if (tier >= 6) {
       const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.03, 0), std(0xff3d6e, { emissive: 0xaa0033 }));
@@ -1098,8 +1207,9 @@ function decorate(built, level) {
     light.position.set(0, y + 0.3, 0);
     built.body.add(light);
   }
-  if (tier >= 10) { // golden shimmer over the whole body
+  if (tier >= 10) { // golden shimmer over the whole body (rainbow at 100)
     fx.shimmer = [];
+    fx.legend = tier >= 20;
     built.body.traverse((o) => {
       if (!o.isMesh || !o.material.isMeshStandardMaterial) return;
       o.material = o.material.clone();
@@ -1205,7 +1315,29 @@ export class PetView {
       if (fx.rainbow) fx.ring.material.color.setHSL((t * 0.25) % 1, 0.9, 0.6);
     }
     if (fx.halo) fx.halo.position.y += Math.sin(t * 2) * 0.0008;
-    if (fx.shimmer) { const g = 0.12 + Math.sin(t * 2.5) * 0.1; for (const m of fx.shimmer) m.emissive.setRGB(g, g * 0.8, 0); }
+    if (fx.orbit2) fx.orbit2.rotation.y = -t * 1.4;
+    if (fx.gems) { fx.gems.rotation.y = t * 1.1; fx.gems.children.forEach((g, i) => { g.position.y = Math.sin(t * 2 + i * 2) * 0.03; g.rotation.y = t * 3; }); }
+    if (fx.aurora) {
+      fx.aurora.rotation.z = t * 0.5;
+      fx.aurora.material.color.setHSL(0.38 + Math.sin(t * 0.7) * 0.18, 0.9, 0.55);
+      fx.aurora.material.opacity = 0.22 + Math.sin(t * 2.3) * 0.1;
+    }
+    if (fx.fairy) fx.fairy.forEach((wg, i) => { wg.rotation.y = (i ? -1 : 1) * Math.sin(t * 9) * 0.35; });
+    if (fx.sparkles) fx.sparkles.forEach((sp, i) => {
+      const u = (t * 0.35 + i / fx.sparkles.length) % 1, a = i * 2.4 + t * 0.8;
+      sp.position.set(Math.cos(a) * 0.4, u * fx.sparkleTop, Math.sin(a) * 0.4);
+      sp.scale.setScalar(Math.sin(u * Math.PI));
+      sp.rotation.y = t * 4;
+    });
+    if (fx.moon) fx.moon.rotation.y = t * 0.6;
+    if (fx.aura) fx.aura.material.color.setHSL((t * 0.15) % 1, 0.8, 0.6);
+    if (fx.shimmer) {
+      const g = 0.12 + Math.sin(t * 2.5) * 0.1;
+      for (const m of fx.shimmer) {
+        if (fx.legend) m.emissive.setHSL((t * 0.15) % 1, 0.9, g * 0.8);
+        else m.emissive.setRGB(g, g * 0.8, 0);
+      }
+    }
   }
 
   dispose() {
