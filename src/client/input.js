@@ -3,19 +3,20 @@
 //
 //   Move: WASD / arrows / left stick        Attack: Space / J / click / (A)
 //   Interact: E / (X)    Potion: Q / (Y)    Menu: Esc / (Start)    Chat: Enter    Music: M
-//   Roll: Shift / K / (B)    Character sheet: C / I / (Back)    Pets: P
+//   Roll: Shift / K / (B)    Character sheet: C / I / (Back)    Pets: P    Area spell: R    Feed pet: G
+//   At home: B = build mode (place furniture; R rotates, E places, X picks up)
 
 const KEY_ACTIONS = {
   Space: 'attack', KeyJ: 'attack',
   KeyE: 'interact', KeyF: 'interact',
-  KeyQ: 'potion',
+  KeyQ: 'potion', KeyR: 'spell', KeyG: 'feed',
   Escape: 'menu',
   Enter: 'chat',
   KeyM: 'music',
-  KeyC: 'sheet', KeyI: 'sheet', KeyP: 'pets',
+  KeyC: 'sheet', KeyI: 'sheet', KeyP: 'pets', KeyB: 'build', KeyX: 'pickup', F3: 'stats',
   ShiftLeft: 'roll', ShiftRight: 'roll', KeyK: 'roll',
 };
-const PAD_ACTIONS = { 0: 'attack', 1: 'roll', 2: 'interact', 3: 'potion', 8: 'sheet', 9: 'menu' };
+const PAD_ACTIONS = { 0: 'attack', 1: 'roll', 2: 'interact', 3: 'potion', 4: 'spell', 5: 'feed', 8: 'sheet', 9: 'menu' };
 
 export class Input {
   constructor(canvas) {
@@ -71,7 +72,7 @@ export class Input {
   consume(action) {
     const had = this.pressed.has(action);
     this.pressed.delete(action);
-    return had && (this.enabled || action === 'menu' || action === 'sheet' || action === 'pets');
+    return had && (this.enabled || action === 'menu' || action === 'sheet' || action === 'pets' || action === 'stats');
   }
 
   takeWheel() {

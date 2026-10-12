@@ -1,5 +1,8 @@
 // Connections all look the same to the game:
-//   { send(msg), onMessage(cb), onClose(cb), close() }
+//   { send(msg), onMessage(cb), onClose(cb), close(), sendFast?(msg) }
+// `send` is reliable and in order. `sendFast` (WebRTC only) is a second lane that never re-sends a
+// lost packet and doesn't wait for earlier ones: perfect for positions, which are out of date by
+// the time a re-send would arrive. Without it, one lost packet on Wi-Fi stalls everything behind it.
 //
 // - LocalPair:        the host's own player <-> the GameServer in the same tab
 // - PeerJS (WebRTC):  family members joining over the internet with a room code
@@ -42,11 +45,28 @@ export function makeRoomCode() {
 
 // ---------------------------------------------------------------- PeerJS
 
+/** Both ends open the same pre-agreed channel, so no extra handshake is needed. */
+const FAST_LANE = { negotiated: true, id: 42, ordered: false, maxRetransmits: 0 };
+
 function wrapDataConnection(dc) {
   const conn = makeConnection((m) => dc.send(m), () => dc.close());
   dc.on('data', (m) => conn._deliver(m));
   dc.on('close', () => conn._closed());
   dc.on('error', () => conn._closed());
+  try {
+    const fast = dc.peerConnection?.createDataChannel('fast', FAST_LANE);
+    if (fast) {
+      fast.onmessage = (e) => { try { conn._deliver(JSON.parse(e.data)); } catch {} };
+      conn.sendFast = (m) => {
+        if (fast.readyState === 'open' && fast.bufferedAmount < 64 * 1024) fast.send(JSON.stringify(m));
+        else if (fast.readyState !== 'open') conn.send(m); // not open yet: use the reliable lane
+        // (a full buffer means the link is struggling: dropping a position update is the right call)
+      };
+      conn.stats = () => dc.peerConnection.getStats();
+    }
+  } catch (err) {
+    console.warn('no fast lane, positions use the reliable channel', err);
+  }
   return conn;
 }
 

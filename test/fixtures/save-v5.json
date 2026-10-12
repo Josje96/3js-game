@@ -1,0 +1,135 @@
+{
+  "version": 5,
+  "id": "wfixture5",
+  "name": "The Fixtures",
+  "seed": "fixture-seed",
+  "createdAt": 1760000000000,
+  "updatedAt": 1760000000000,
+  "day": 7,
+  "gold": 1138,
+  "flags": {
+    "mineCleared": true
+  },
+  "dungeons": {
+    "mine": {
+      "deepest": 15
+    },
+    "ruins": {
+      "deepest": 3
+    }
+  },
+  "players": {
+    "pmom": {
+      "name": "Mom",
+      "cls": "Mage",
+      "level": 6,
+      "xp": 0,
+      "points": 2,
+      "stats": {
+        "str": 0,
+        "dex": 0,
+        "int": 3,
+        "vit": 1
+      },
+      "hp": 23,
+      "maxHp": 23,
+      "weapon": "staff",
+      "gear": [
+        "staff",
+        "sword",
+        "woodshield"
+      ],
+      "blueprints": [
+        "copperblade"
+      ],
+      "inventory": {
+        "potion": 3,
+        "silver": 4,
+        "petfood": 2
+      },
+      "shield": "woodshield",
+      "closet": [
+        "hat:crown",
+        "dye:sky"
+      ],
+      "pets": [
+        {
+          "id": "pet-maple",
+          "species": "maple",
+          "name": "Maple",
+          "level": 1,
+          "xp": 0,
+          "hp": 18,
+          "fainted": false
+        }
+      ],
+      "pet": "pet-maple",
+      "look": {
+        "hat": "none",
+        "cape": "own",
+        "back": "none",
+        "dye": "none",
+        "hair": "curly",
+        "hairColor": "pink",
+        "face": "none",
+        "skin": "none"
+      },
+      "location": "house"
+    },
+    "pkid": {
+      "name": "Kid",
+      "cls": "Ranger",
+      "level": 1,
+      "xp": 0,
+      "points": 0,
+      "stats": {
+        "str": 0,
+        "dex": 3,
+        "int": 0,
+        "vit": 1
+      },
+      "hp": 23,
+      "maxHp": 23,
+      "weapon": "bow",
+      "gear": [
+        "bow"
+      ],
+      "blueprints": [],
+      "inventory": {
+        "potion": 2
+      },
+      "shield": null,
+      "closet": [],
+      "pets": [
+        {
+          "id": "pet-frog",
+          "species": "frog",
+          "name": "Frog",
+          "level": 1,
+          "xp": 0,
+          "hp": 0,
+          "fainted": true
+        }
+      ],
+      "pet": "pet-frog",
+      "look": {
+        "hat": "none",
+        "cape": "own",
+        "back": "none",
+        "dye": "none",
+        "hair": "curly",
+        "hairColor": "pink",
+        "face": "none",
+        "skin": "none"
+      },
+      "location": "house"
+    }
+  },
+  "house": {
+    "level": 1,
+    "storage": {
+      "copper": 5,
+      "potion": 1
+    }
+  }
+}

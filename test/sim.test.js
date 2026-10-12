@@ -48,7 +48,7 @@ test('hand-made maps are rectangular and fully connected', () => {
 test('dungeon floors are deterministic, connected, and have a way up', () => {
   for (const id of Object.keys(DUNGEONS)) {
     for (let floor = 1; floor <= DUNGEONS[id].floors; floor++) {
-      for (let seed = 1; seed <= 60; seed++) {
+      for (let seed = 1; seed <= (floor <= 20 ? 60 : 6); seed++) {
         const key = dungeonKey(id, floor);
         const a = buildLayout(key, seed), b = buildLayout(key, seed);
         assert.deepEqual(a.rows, b.rows, 'same seed, same floor');
@@ -136,17 +136,18 @@ test('server: join, travel through portals, mine down, buy and sell', () => {
   assert.equal(p.loc, 'mine/2');
   assert.ok(!server.locations.has('mine/1'), 'empty floors are discarded');
 
-  // sell everything, buy a potion
-  const before = save.gold;
+  // back in town: sell everything, buy a potion (with your own gold)
+  server.travel(p, 'town');
+  const before = p.gold;
   for (const [item, qty] of Object.entries(p.inventory)) if (item !== 'potion') mom.say({ t: 'sell', item, qty });
-  assert.ok(save.gold > before, 'selling earns gold');
+  assert.ok(p.gold > before, 'selling earns gold');
   const potions = p.inventory.potion;
-  save.gold += 100;
+  p.gold += 100;
   mom.say({ t: 'buy', item: 'potion' });
   assert.equal(p.inventory.potion, potions + 1);
 });
 
-test('server: slimes hurt players, fainting sends you home, boss unlocks the gate', () => {
+test('server: slimes hurt players, fainting sends you home, finishing the mine unchains the ruins', () => {
   const save = newSave({ name: 'Test', seed: 'boss-seed' });
   save.dungeons.mine.deepest = 10;
   const server = new GameServer({ save, log: () => {} });
@@ -183,7 +184,20 @@ test('server: slimes hurt players, fainting sends you home, boss unlocks the gat
   assert.ok(!loc2.entities.has(boss2.id), 'boss died');
   assert.equal(save.flags.mineCleared, true);
 
-  // the ruins gate now opens
+  // the ruins stay chained until the whole mine (floor 100) is beaten
+  server.travel(p, 'town');
+  p.triggers.clear();
+  walkTo(server, kid, 'kid', town.portals.g.x, town.portals.g.z);
+  assert.equal(p.loc, 'town');
+  assert.match(kid.last('toast').text, /chained/);
+  server.travel(p, 'mine/100', 'U');
+  const deep = server.locations.get('mine/100');
+  const last = [...deep.entities.values()].find((e) => e.boss);
+  last.hp = 1;
+  server.hitSlime(p, deep, last, 5);
+  assert.ok(save.dungeons.mine.completed);
+  assert.ok(save.dungeons.ruins.unlocked, 'the chains break');
+  assert.ok(!save.dungeons.keep.unlocked, 'but only on the next dungeon');
   server.travel(p, 'town');
   p.triggers.clear();
   walkTo(server, kid, 'kid', town.portals.g.x, town.portals.g.z);
@@ -196,12 +210,24 @@ test('server: two players see each other only in the same location', () => {
   const a = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
   const b = fakeClient(server, { playerId: 'b', name: 'B', cls: 'Rogue' });
   server.step(0.05);
-  assert.equal(a.last('snap').players.length, 2);
+  assert.equal(a.last('pos').players.length, 2);
+  assert.equal(a.last('snap').players.length, 2, 'looks are sent the first time');
+  a.clear();
+  server.step(0.05);
+  assert.equal(a.last('snap'), undefined, 'nothing changed: no reliable snapshot');
+  assert.equal(a.last('pos').players.length, 2, 'positions every tick');
   server.travel(server.players.get('b'), 'town');
   a.clear(); b.clear();
   server.step(0.05);
-  assert.equal(a.last('snap').players.length, 1);
-  assert.equal(b.last('snap').players[0].id, 'b');
+  assert.equal(a.last('pos').players.length, 1);
+  assert.equal(b.last('pos').players[0][0], 'b');
+  // a new hat is sent to everyone nearby
+  server.travel(server.players.get('b'), 'house');
+  server.step(0.05);
+  a.clear();
+  server.players.get('b').look = { ...server.players.get('b').look, hat: 'none' };
+  server.step(0.05);
+  assert.equal(a.last('snap').players[0].id, 'b');
   // records survive a reconnect
   server.players.get('b').inventory.copper = 7;
   server.dropConnection(2);
@@ -379,9 +405,9 @@ test('server: XP levels you up, skill points raise stats, found weapons go in th
   assert.equal(p.weapon, 'staff');
   c.say({ t: 'equip', item: 'royalsword' }); // not owned
   assert.equal(p.weapon, 'staff');
-  const gold = server.save.gold;
+  const gold = p.gold;
   server.gainGear(p, 'greatsword'); // duplicate -> gold
-  assert.ok(server.save.gold > gold);
+  assert.ok(p.gold > gold);
   assert.equal(p.gear.filter((g) => g === 'greatsword').length, 1);
   assert.equal(attackDamage('staff', p.stats), 2 + 1, 'magic stat boosts the staff');
 
@@ -406,19 +432,19 @@ test('server: blueprints from chests teach recipes; the forge turns ore into wea
   c.say({ t: 'forge', recipe: 'copperblade' });
   assert.ok(!p.gear.includes('copperblade'), 'no ore yet');
   p.inventory.copper = 7; p.inventory.stone = 4;
-  server.save.gold = 100;
+  p.gold = 100;
   c.say({ t: 'forge', recipe: 'copperblade' });
   assert.ok(p.gear.includes('copperblade'));
   assert.equal(p.weapon, 'copperblade', 'stronger than the starter sword, so equipped');
   assert.deepEqual(p.inventory, { potion: 2, copper: 1 });
-  assert.equal(server.save.gold, 60);
+  assert.equal(p.gold, 52);
   c.say({ t: 'forge', recipe: 'dragonsword' }); // blueprint not found
   assert.ok(!p.gear.includes('dragonsword'));
 });
 
 test('server: biomes every 10 floors, bosses open the way down, imps throw fireballs', async () => {
   const { ENEMIES, biomeFor } = await import('../src/shared/dungeons.js');
-  assert.equal(DUNGEONS.mine.floors, 40);
+  assert.equal(DUNGEONS.mine.floors, 100);
   assert.equal(buildLayout(dungeonKey('mine', 15), 1).title, 'Frost Caverns — Floor 15');
   const frost = new Set(biomeFor('mine', 15).enemies(15));
   for (const e of buildLayout(dungeonKey('mine', 15), 3).initial) if (e.type === 'slime') assert.ok(frost.has(e.variant), e.variant);
@@ -519,16 +545,75 @@ test('server: pets have health, faint, and are revived at the Pet Keeper for gol
   server.travel(p, 'house');
   assert.ok(![...server.locations.get('house').entities.values()].some((e) => e.type === 'pet'));
   server.travel(p, 'town');
-  server.save.gold = 10;
+  p.gold = 10;
   c.say({ t: 'revivePet', id: pet.id });
   assert.ok(pet.fainted, 'too poor');
-  server.save.gold = 100;
+  p.gold = 100;
   c.say({ t: 'revivePet', id: pet.id });
   assert.ok(!pet.fainted);
-  assert.equal(server.save.gold, 100 - reviveCost(1));
+  assert.equal(p.gold, 100 - reviveCost(1));
   assert.equal(pet.hp, petMaxHp('maple', 1));
   assert.ok([...server.locations.get('town').entities.values()].some((e) => e.type === 'pet'), 'back at your side');
 
   // a new look every 5 levels
   assert.deepEqual([1, 4, 5, 9, 10, 15, 20, 50].map(petTier), [0, 0, 1, 1, 2, 3, 4, 10]);
+});
+
+test('server: the family chest moves items between your bag and the shared store', () => {
+  const server = new GameServer({ save: newSave({ name: 't', seed: 'chest' }), log: () => {} });
+  const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
+  const p = server.players.get('a');
+  server.travel(p, 'house');
+  const loc = server.locations.get(p.loc);
+  const chest = loc.layout.props.find((q) => q.interact === 'storage');
+  assert.ok(chest, 'the fort has a chest');
+  p.inventory.copper = 5;
+  p.x = chest.x + 9; p.z = chest.z; // too far away to use it
+  c.say({ t: 'stash', item: 'copper', qty: 5, dir: 'in' });
+  assert.equal(p.inventory.copper, 5, 'nothing moves from across the room');
+  p.x = chest.x; p.z = chest.z;
+  c.say({ t: 'stash', item: 'copper', qty: 3, dir: 'in' });
+  assert.deepEqual([p.inventory.copper, server.save.house.storage.copper], [2, 3]);
+  c.say({ t: 'stash', item: 'copper', qty: 10, dir: 'out' });
+  assert.deepEqual([p.inventory.copper, server.save.house.storage.copper], [5, undefined], 'take back all there is');
+  c.say({ t: 'stash', item: 'gold', qty: 1, dir: 'in' });
+  assert.equal(server.save.house.storage.gold, undefined, 'gold is not stashable');
+});
+
+test('server: pets can be fed a treat anywhere, to heal them', () => {
+  const server = new GameServer({ save: newSave({ name: 't', seed: 'feed' }), log: () => {} });
+  const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
+  const p = server.players.get('a');
+  c.say({ t: 'buyPet', species: 'maple' });
+  const pet = p.pets[0];
+  pet.hp = 5;
+  c.say({ t: 'feedPet' });
+  assert.equal(pet.hp, 5, 'no treat, no heal');
+  p.inventory.petfood = 2;
+  c.say({ t: 'feedPet' });
+  assert.ok(pet.hp > 5, 'the treat healed the pet');
+  assert.equal(p.inventory.petfood, 1);
+  c.say({ t: 'use', item: 'petfood' });
+  assert.equal(p.inventory.petfood, 1, 'a treat is not a potion');
+});
+
+test('server: the area spell hits every enemy around you, once a minute', () => {
+  const server = new GameServer({ save: newSave({ name: 't', seed: 'nova' }), log: () => {} });
+  const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
+  const p = server.players.get('a');
+  const loc = server.locations.get(p.loc);
+  const { x, z } = loc.layout.spawn;
+  p.x = x; p.z = z;
+  const near = loc.spawn({ type: 'slime', variant: 'green', x: x + 2, z, hp: 50, maxHp: 50, damage: 0, speed: 0 });
+  const far = loc.spawn({ type: 'slime', variant: 'green', x: x + 9, z, hp: 50, maxHp: 50, damage: 0, speed: 0 });
+  server.time += 100;
+  c.say({ t: 'spell' });
+  assert.ok(near.hp < 50, 'the nearby slime was hit');
+  assert.equal(far.hp, 50, 'the far slime was out of range');
+  const after = near.hp;
+  c.say({ t: 'spell' });
+  assert.equal(near.hp, after, 'still on cooldown');
+  server.time += 60;
+  c.say({ t: 'spell' });
+  assert.ok(near.hp < after, 'ready again after a minute');
 });

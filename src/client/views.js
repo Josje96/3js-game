@@ -1,12 +1,14 @@
 // 3D views for things that move or change: characters, slimes, rocks, drops...
 import * as THREE from 'three';
-import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS } from '../shared/config.js';
+import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES } from '../shared/config.js';
 import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { buildHat, buildBack, buildHair, buildFace } from './cosmetics.js';
+import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, skinSplit } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
+import { ENEMIES } from '../shared/dungeons.js';
+import { FurnitureView } from './furniture.js';
 
 const ANIMS = {
   idle: 'Idle_A',
@@ -93,14 +95,17 @@ function makeHpBar(width = 1.4) {
 // ------------------------------------------------------------------ characters
 
 const HAT_PART = /_(Helmet|HelmetVisor|BearHat|Hat|Mask)$/;
-const FACE_EYE_HEIGHT = 0.38; // eyes, as a fraction of the head's height from the bottom
+const FACE_EYE_HEIGHT = 0.38;
+const LOW_HP = 0.3;              // flash red at or below this share of max health // eyes, as a fraction of the head's height from the bottom
 const CAPE_PART = /_Cape$/;
 
 export class CharacterView {
-  constructor({ cls, look, name, weapon, shield = null, isLocal = false }) {
+  constructor({ cls, look, name, weapon, shield = null, armor = null, isLocal = false }) {
     this.root = new THREE.Group();
     this.cls = cls;
     this.model = cloneCharacter((CLASSES[cls] ?? CLASSES.Knight).model);
+    // our own copies of the (shared) materials, so flashing red when hurt only colours us
+    this.model.traverse((o) => { if (o.isMesh) o.material = o.material.clone(); });
     this.root.add(this.model);
     this.time = 0;
     this.borrowed = [];   // meshes/accessories added by the current look
@@ -130,6 +135,7 @@ export class CharacterView {
     this.setWeapon(weapon);
     this.offHand = this.model.getObjectByName('handslotl') ?? this.model.getObjectByName('handslot.l');
     this.setShield(shield);
+    this.setArmor(armor);
 
     if (name) {
       this.label = makeLabel(name, isLocal ? '#ffe680' : '#ffffff');
@@ -149,6 +155,23 @@ export class CharacterView {
       this.weaponObj = tintModel(cloneModel(model), ITEMS[id].tint);
       this.hand.add(this.weaponObj);
     }
+  }
+
+  /** Armor: shoulder pads and a chest plate in the armor's colour (built in cosmetics.js). */
+  setArmor(id) {
+    if (this.armorId === id) return;
+    this.armorId = id;
+    for (const h of this.armorParts ?? []) h.removeFromParent();
+    this.armorParts = [];
+    const def = ITEMS[id];
+    if (!def?.color) return;
+    const parts = buildArmor(def.color, def.tier ?? 0);
+    const before = this.borrowed.length;
+    this.attach('front', parts.chest);
+    this.attach('shoulderl', parts.left);
+    this.attach('shoulderr', parts.right);
+    this.armorParts = this.borrowed.splice(before); // not part of the look: survives setLook
+    this.flashMats = null;
   }
 
   setShield(id) {
@@ -174,8 +197,9 @@ export class CharacterView {
     const anchor = (boneName, pos, size) => {
       const bone = this.model.getObjectByName(boneName);
       if (!bone) return null;
+      const scale = size.isVector3 ? size : new THREE.Vector3(size, size, size);
       const local = bone.matrixWorld.clone().invert()
-        .multiply(new THREE.Matrix4().compose(pos, new THREE.Quaternion(), new THREE.Vector3(size, size, size)));
+        .multiply(new THREE.Matrix4().compose(pos, new THREE.Quaternion(), scale));
       return { bone, local };
     };
     const out = {};
@@ -184,11 +208,21 @@ export class CharacterView {
       out.hat = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.max.y - 0.05, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
       // the face: front of the head, a bit below the middle (where the eyes are on these chibi heads)
       out.face = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * FACE_EYE_HEIGHT, b.max.z - 0.02), b.max.x - b.min.x);
+      // the skull under a new hairstyle (the head mesh is hollow where its own hair was)
+      const size = b.getSize(new THREE.Vector3());
+      const centre = b.getCenter(new THREE.Vector3()).add(new THREE.Vector3(0, size.y * 0.06, -size.z * 0.02));
+      out.scalp = anchor('head', centre, new THREE.Vector3(size.x * 0.93, size.y * 0.86, size.z * 0.9));
       this.headMesh = head;
     }
     if (body) {
       const b = new THREE.Box3().setFromObject(body);
       out.back = anchor('chest', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * 0.62, b.min.z + 0.05), b.max.x - b.min.x);
+      out.front = anchor('chest', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * 0.55, b.max.z - 0.02), b.max.x - b.min.x);
+      for (const side of ['l', 'r']) { // shoulder pads sit on top of the upper arms
+        const arm = this.model.getObjectByName(`upperarm${side}`) ?? this.model.getObjectByName(`upperarm.${side}`);
+        if (arm) out[`shoulder${side}`] = anchor(arm.name, arm.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.1, 0)), (b.max.x - b.min.x) * 0.5);
+      }
+      out.hips = anchor('hips', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + 0.08, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
     }
     return out;
   }
@@ -203,10 +237,10 @@ export class CharacterView {
     this.borrowed.push(holder);
   }
 
-  /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories and dye. */
+  /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories, clothes and dye. */
   setLook(look) {
-    const { hat = 'own', cape = 'own', back = 'none', dye = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none' } = look ?? {};
-    const key = `${hat}/${cape}/${back}/${dye}/${hair}/${hairColor}/${face}/${skin}`;
+    const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none' } = look ?? {};
+    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${hairColor}/${face}/${skin}`;
     if (key === this.lookKey) return;
     this.lookKey = key;
     for (const m of this.borrowed) m.removeFromParent();
@@ -224,15 +258,22 @@ export class CharacterView {
     if (bk?.build) this.attach('back', buildBack(bk.build));
     // mirror: hair, face and skin
     const hc = HAIR_COLORS[hairColor]?.color ?? HAIR_COLORS.brown.color;
-    if (hair !== 'none') this.attach('hat', buildHair(hair, hc));
+    const tone = SKINS[skin]?.color;
+    if (hair !== 'none') {
+      this.attach('hat', buildHair(hair, hc));
+      this.attach('scalp', buildScalp(tone));
+    }
     if (face !== 'none') this.attach('face', buildFace(face, hc));
     if (this.headMesh) {
-      this.headMesh.userData.baseMat ??= this.headMesh.material;
-      const tone = SKINS[skin]?.color;
-      if (this.headMesh.material !== this.headMesh.userData.baseMat) this.headMesh.material.dispose();
-      this.headMesh.material = tone ? this.headMesh.userData.baseMat.clone() : this.headMesh.userData.baseMat;
-      if (tone) this.headMesh.material.color.multiply(new THREE.Color(tone));
+      const hm = this.headMesh;
+      hm.userData.baseGeo ??= hm.geometry;
+      hm.geometry = hair !== 'none' && hm.material.map?.image ? hairlessHead(hm.userData.baseGeo, hm.material.map.image) : hm.userData.baseGeo;
+      hm.userData.baseMat ??= hm.material;
+      if (hm.material !== hm.userData.baseMat) hm.material.dispose();
+      hm.material = tone ? hm.userData.baseMat.clone() : hm.userData.baseMat;
+      if (tone) hm.material.color.multiply(new THREE.Color(tone));
     }
+    this.setClothes(CLOTHES[clothes]);
     // dye: give cape meshes their own copy of the (shared) material, painted a flat colour
     // (multiplying over a red cape's texture would just give muddy red)
     const tint = DYES[dye]?.color;
@@ -244,6 +285,27 @@ export class CharacterView {
       m.material = tint ? m.userData.baseMat.clone() : m.userData.baseMat;
       if (tint) { m.material.map = null; m.material.color.set(tint); }
     }
+    this.flashMats = null; // materials changed: collect them again for the low-health flash
+  }
+
+  /** Fancy clothes: body and sleeves become a flat cloth colour (hands stay skin), legs too, plus extras. */
+  setClothes(def) {
+    this.model.traverse((o) => {
+      if (!o.isMesh || !/_(Body|ArmLeft|ArmRight|LegLeft|LegRight)$/.test(o.name)) return;
+      o.userData.baseGeo ??= o.geometry;
+      o.userData.baseMat ??= o.material;
+      if (Array.isArray(o.material)) o.material[1].dispose();
+      const image = o.userData.baseMat.map?.image;
+      const color = /_Leg/.test(o.name) ? def?.legs : def?.jacket;
+      if (!def || color == null || !image) { o.geometry = o.userData.baseGeo; o.material = o.userData.baseMat; return; }
+      const cloth = new THREE.MeshStandardMaterial({ color, roughness: 0.65 });
+      o.geometry = skinSplit(o.userData.baseGeo, image);
+      o.material = [o.userData.baseMat, cloth];
+    });
+    if (!def) return;
+    const extra = buildClothes(def.extra, def.jacket);
+    if (extra.front) this.attach('front', extra.front);
+    if (extra.hips) this.attach('hips', extra.hips);
   }
 
   borrow(model, part) {
@@ -253,6 +315,7 @@ export class CharacterView {
     const bones = src.skeleton.bones.map((b) => this.model.getObjectByName(b.name));
     if (bones.some((b) => !b)) return;
     const mesh = src.clone();
+    mesh.material = src.material.clone();
     mesh.bind(new THREE.Skeleton(bones, src.skeleton.boneInverses), src.bindMatrix);
     mesh.visible = true;
     (this.model.getObjectByName(src.parent.name) ?? this.model).add(mesh);
@@ -260,7 +323,7 @@ export class CharacterView {
   }
 
   fadeTo(name, t = 0.2) {
-    const next = this.actions[name];
+    const next = this.actions[name === 'sleep' ? 'idle' : name];
     if (!next) return;
     for (const a of Object.values(this.actions)) if (a !== next && a.isRunning()) a.fadeOut(t);
     next.reset().fadeIn(t).play();
@@ -269,7 +332,12 @@ export class CharacterView {
   setBase(name) {
     if (this.base === name) return;
     this.base = name;
-    if (!this.oneShot) this.fadeTo(name);
+    // asleep: lying on our back on the bed (the rig has no sleeping clip, so tip the idle pose over)
+    const asleep = name === 'sleep';
+    this.model.rotation.x = asleep ? -Math.PI / 2 : 0;
+    this.model.position.set(0, asleep ? 1.05 : 0, asleep ? -0.9 : 0);
+    if (this.label) this.label.visible = !asleep;
+    if (!this.oneShot) this.fadeTo(asleep ? 'idle' : name);
   }
 
   /** Dodge roll: a tucked forward somersault (the rig has no roll clip). */
@@ -285,6 +353,24 @@ export class CharacterView {
     if (!this.actions[name]) return;
     this.oneShot = this.actions[name];
     this.fadeTo(name, 0.08);
+  }
+
+  /** Below LOW_HP of their health, characters pulse red so everyone notices. */
+  setHealth(frac) {
+    this.lowHp = frac > 0 && frac <= LOW_HP;
+  }
+
+  /** Every material on the character (for the low-health flash), collected once per look. */
+  materials() {
+    if (!this.flashMats) {
+      const set = new Set();
+      this.model.traverse((o) => {
+        if (!o.isMesh || !o.visible) return;
+        for (const m of [o.material].flat()) if (m.emissive && m.emissive.getHex() === 0) set.add(m);
+      });
+      this.flashMats = [...set];
+    }
+    return this.flashMats;
   }
 
   /** Remote players: ease towards the latest snapshot. */
@@ -304,7 +390,7 @@ export class CharacterView {
       // one somersault per roll, even if the 'roll' state lingers a little over the network
       if (this.target.anim !== 'roll') this.rollSeen = false;
       else if (!this.rollSeen) { this.rollSeen = true; this.roll(ROLL_TIME); }
-      this.setBase(this.target.anim === 'run' ? 'run' : 'idle');
+      this.setBase(this.target.anim === 'run' ? 'run' : this.target.anim === 'sleep' ? 'sleep' : 'idle');
     }
     if (this.rollT != null) {
       this.rollT += dt;
@@ -319,6 +405,11 @@ export class CharacterView {
         this.model.position.set(0, 0, 0);
         this.fadeTo(this.base, 0.1);
       }
+    }
+    if (this.lowHp || this.flashing) {
+      const glow = this.lowHp ? (0.5 + 0.5 * Math.sin(this.time * 9)) * 0.55 : 0;
+      for (const m of this.materials()) m.emissive.setRGB(glow, 0, 0);
+      this.flashing = this.lowHp;
     }
     this.mixer.update(dt);
   }
@@ -342,7 +433,7 @@ export class SlimeView {
     this.root = new THREE.Group();
     this.body = new THREE.Group();
     this.mat = new THREE.MeshStandardMaterial({
-      color: SLIME_COLORS[e.variant] ?? 0x88ff88, roughness: 0.25, metalness: 0, transparent: true, opacity: 0.88,
+      color: ENEMIES[e.variant]?.color ?? SLIME_COLORS[e.variant] ?? 0x88ff88, roughness: 0.25, metalness: 0, transparent: true, opacity: 0.6,
       emissive: 0x000000,
     });
     const blob = new THREE.Mesh(slimeGeo, this.mat);
@@ -415,11 +506,14 @@ export class SlimeView {
 // ------------------------------------------------------------------ simple props
 
 const ROCK_MODELS = { stone: 'blocks/stone', copper: 'blocks/stone_with_copper', silver: 'blocks/stone_with_silver', goldore: 'blocks/stone_with_gold' };
+// rocks of the deeper ores reuse a block model, recoloured like the ore's item
+const ROCK_LOOKS = (ore) => ({ model: ROCK_MODELS[ore] ?? ITEMS[ore]?.model ?? 'blocks/stone', tint: ROCK_MODELS[ore] ? null : ITEMS[ore]?.tint });
 
 export class RockView {
   constructor(e) {
     this.root = new THREE.Group();
-    const model = cloneModel(ROCK_MODELS[e.ore] ?? 'blocks/stone');
+    const look = ROCK_LOOKS(e.ore);
+    const model = tintModel(cloneModel(look.model), look.tint);
     const s = 0.85;
     model.scale.setScalar(s);
     model.position.y = s;
@@ -515,6 +609,38 @@ export class DropView {
     this.root.position.z += (this.target.z - this.root.position.z) * k;
     this.inner.position.y = 0.5 + Math.sin(this.t * 3) * 0.15;
     this.inner.rotation.y += dt * 2.5;
+  }
+  dispose() { this.root.removeFromParent(); }
+}
+
+/** The training dummy in town: a straw man on a post with a target on his chest. Wobbles when hit. */
+export class DummyView {
+  constructor(e) {
+    this.root = new THREE.Group();
+    this.root.position.set(e.x, 0, e.z);
+    this.inner = new THREE.Group();
+    this.root.add(this.inner);
+    const wood = new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.9 });
+    const straw = new THREE.MeshStandardMaterial({ color: 0xe0c070, roughness: 1 });
+    const sack = new THREE.MeshStandardMaterial({ color: 0xc8a878, roughness: 1 });
+    const part = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; this.inner.add(o); return o; };
+    part(new THREE.CylinderGeometry(0.1, 0.12, 2.2, 8), wood, 0, 1.1, 0);
+    part(new THREE.CylinderGeometry(0.5, 0.42, 1.0, 12), sack, 0, 1.45, 0);
+    part(new THREE.SphereGeometry(0.34, 12, 10), sack, 0, 2.25, 0);
+    part(new THREE.CylinderGeometry(0.07, 0.07, 1.8, 6), wood, 0, 1.75, 0).rotation.z = Math.PI / 2; // arms
+    for (const s of [-1, 1]) part(new THREE.ConeGeometry(0.18, 0.4, 8), straw, s * 0.95, 1.75, 0).rotation.z = s * Math.PI / 2;
+    const ring = (r, c) => part(new THREE.RingGeometry(r * 0.6, r, 24), new THREE.MeshStandardMaterial({ color: c, side: THREE.DoubleSide }), 0, 1.5, 0.51);
+    ring(0.36, 0xffffff); ring(0.22, 0xe0393b);
+    part(new THREE.CircleGeometry(0.1, 16), new THREE.MeshStandardMaterial({ color: 0xe0393b }), 0, 1.5, 0.52);
+    for (const s of [-1, 1]) part(new THREE.BoxGeometry(0.08, 0.08, 0.02), new THREE.MeshBasicMaterial({ color: 0x3a2a1c }), s * 0.12, 2.3, 0.33); // stitched eyes
+    this.wobble = 0;
+  }
+  apply() {}
+  hit() { this.wobble = 1; }
+  update(dt) {
+    this.wobble = Math.max(0, this.wobble - dt * 1.5);
+    this.inner.rotation.x = Math.sin(this.wobble * 18) * this.wobble * 0.35;
+    this.inner.rotation.z = Math.cos(this.wobble * 13) * this.wobble * 0.15;
   }
   dispose() { this.root.removeFromParent(); }
 }
@@ -705,6 +831,8 @@ export function makeEntityView(e) {
     case 'shot': return new ShotView(e);
     case 'pet': return new PetEntityView(e, makeLabel);
     case 'ladder': return new LadderView(e);
+    case 'furniture': return new FurnitureView(e, makeLabel);
+    case 'dummy': return new DummyView(e);
     default: return null;
   }
 }

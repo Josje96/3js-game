@@ -1,12 +1,17 @@
 // One player's view of the game. Renders whatever location the server says
 // we're in, moves our own character locally, and sends intents to the host.
 import * as THREE from 'three';
-import { PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, cleanLook } from '../shared/config.js';
+import { PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
 import { buildLayout } from '../shared/locations.js';
+import { DUNGEONS } from '../shared/dungeons.js';
+import { FURNITURE, DECORATOR_FLAG } from '../shared/furniture.js';
+import { FurnitureView } from './furniture.js';
 import { moveCircle } from '../shared/physics.js';
-import { ITEMS, weaponCooldown } from '../shared/items.js';
+import { ITEMS, weaponCooldown, bestHeal } from '../shared/items.js';
 import { LocationView } from './LocationView.js';
 import { CharacterView, Debris, makeEntityView } from './views.js';
+import { NovaBlast } from './effects.js';
+import { Interpolator } from './interp.js';
 import { Input } from './input.js';
 import { Hud } from './hud.js';
 import { Music, moodFor } from './music.js';
@@ -32,6 +37,7 @@ export class GameClient {
     this.attackTimer = 0;
     this.rolling = 0;             // seconds left in a dodge roll
     this.rollCooldown = 0;
+    this.spellCooldown = 0;       // the area spell: seconds until it's ready again
     this.lastSent = '';
     this.zoom = 1.1;
     this.time = 0;
@@ -39,6 +45,8 @@ export class GameClient {
     this.self = null;
     this.effects = [];            // short-lived things like debris
 
+    this.interp = new Interpolator();
+    this.net = { ping: null, pings: new Map(), posCount: 0, posRate: 0 };
     this.music = new Music();
     this.music.unlock(); // we're usually still inside the Play/Join click
     this.setupRenderer();
@@ -54,8 +62,9 @@ export class GameClient {
   }
 
   setupRenderer() {
-    const r = new THREE.WebGLRenderer({ antialias: true });
-    r.setPixelRatio(Math.min(devicePixelRatio, 2));
+    this.gfx = loadGraphics();
+    const r = new THREE.WebGLRenderer({ antialias: this.gfx !== 'low', powerPreference: 'high-performance' });
+    r.setPixelRatio(pixelRatioFor(this.gfx));
     r.setSize(innerWidth, innerHeight);
     r.shadowMap.enabled = true;
     r.shadowMap.type = THREE.PCFShadowMap;
@@ -68,7 +77,8 @@ export class GameClient {
     this.hemi = new THREE.HemisphereLight(0xffffff, 0x445566, 1);
     this.sun = new THREE.DirectionalLight(0xfff1dd, 2);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.mapSize.setScalar(this.gfx === 'medium' ? 1024 : 2048);
+    this.sun.castShadow = this.gfx !== 'low';
     Object.assign(this.sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 120 });
     this.sun.shadow.bias = -0.0005;
     this.scene.add(this.hemi, this.sun, this.sun.target);
@@ -88,22 +98,35 @@ export class GameClient {
   onMessage(msg) {
     switch (msg.t) {
       case 'welcome': this.you = msg.you; break;
-      case 'world':
+      case 'world': {
+        const restyle = this.layout?.key === 'house' && (msg.house?.wall !== this.world?.house?.wall || msg.house?.floor !== this.world?.house?.floor);
         this.world = msg;
+        this.dayLeft = msg.dayLeft;
+        if (restyle) this.rebuildScenery();
         this.hud.setWorld(msg);
-        this.locView?.setFlags(msg.flags);
+        this.locView?.setWorld(msg);
+        this.checkUnlocks();
         break;
+      }
+      case 'house': this.house = msg; this.hud.refreshModal?.(); this.hud.renderBuild?.(this); break;
       case 'self':
         if (this.self && msg.hp < this.self.hp) this.me?.play('hurt');
         this.self = msg;
         this.hud.setSelf(msg);
         this.me?.setWeapon(msg.weapon);
         this.me?.setShield(msg.shield);
+        this.me?.setArmor(msg.armor);
+        this.me?.setHealth(msg.hp / msg.maxHp);
+        this.hud.setDanger(msg.hp / msg.maxHp);
         break;
       case 'enter': this.enterLocation(msg); break;
       case 'snap': this.applySnapshot(msg); break;
+      case 'pos': this.onPos(msg); break;
+      case 'pong': this.net.ping = performance.now() - (this.net.pings.get(msg.id) ?? performance.now()); this.net.pings.delete(msg.id); break;
       case 'fx': this.onFx(msg); break;
       case 'toast': this.hud.toast(msg.text, msg.big); break;
+      case 'night': this.sleeping = false; this.hud.nightScreen(msg); break;
+      case 'chestState': this.hud.setChest(msg.storage); break;
       case 'chat': this.hud.chat(msg.from, msg.text); break;
       case 'roster': this.hud.setRoster(msg.players); break;
       case 'ui': this.openUi(msg); break;
@@ -112,6 +135,7 @@ export class GameClient {
   }
 
   enterLocation(msg) {
+    if (this.building) this.stopBuilding();
     // tear down the old place
     this.locView?.dispose();
     for (const { view } of this.ents.values()) view?.dispose();
@@ -123,6 +147,7 @@ export class GameClient {
     this.epoch = msg.epoch;
     this.layout = buildLayout(msg.key, msg.seed);
     this.locView = new LocationView(this.layout, this.world);
+    this.unlockShown = new Set();
     this.scene.add(this.locView.group);
     for (const e of msg.ents) this.addEnt(e);
 
@@ -141,12 +166,24 @@ export class GameClient {
     this.me.root.position.set(msg.x, 0, msg.z);
     this.snapCamera = true;
     this.hud.setLocation(this.layout.title);
+    this.checkUnlocks();
     this.music.setMood(moodFor(this.layout));
+    this.interp = new Interpolator(); // a new place: forget the old history
+    this.lastPosTime = -1;
     for (const p of msg.players) if (p.id !== this.you) this.updateOther(p);
   }
 
+  /** Rebuild the walls and floors of where we are (e.g. the fort got new wallpaper). Entities stay. */
+  rebuildScenery() {
+    this.locView?.dispose();
+    this.locView = new LocationView(this.layout, this.world);
+    this.scene.add(this.locView.group);
+  }
+
   makeMe() {
-    return new CharacterView({ cls: this.profile.cls, look: this.profile.look, name: this.profile.name, weapon: this.self?.weapon, shield: this.self?.shield, isLocal: true });
+    const me = new CharacterView({ cls: this.profile.cls, look: this.profile.look, name: this.profile.name, weapon: this.self?.weapon, shield: this.self?.shield, armor: this.self?.armor, isLocal: true });
+    if (this.self) me.setHealth(this.self.hp / this.self.maxHp);
+    return me;
   }
 
   /** Wardrobe pick: swap our model right away, tell the host, remember it in the profile. */
@@ -174,14 +211,9 @@ export class GameClient {
     this.ents.set(e.id, { data: e, view });
   }
 
+  /** Reliable changes: new / changed / removed entities, and players whose looks changed. */
   applySnapshot(msg) {
-    const seen = new Set();
-    for (const p of msg.players) {
-      if (p.id === this.you) continue;
-      seen.add(p.id);
-      this.updateOther(p);
-    }
-    for (const [id, v] of this.others) if (!seen.has(id)) { v.dispose(); this.others.delete(id); }
+    for (const p of msg.players) if (p.id !== this.you) this.updateOther(p);
 
     for (const e of msg.ents) {
       const known = this.ents.get(e.id);
@@ -192,6 +224,51 @@ export class GameClient {
     for (const id of msg.gone) {
       this.ents.get(id)?.view?.dispose();
       this.ents.delete(id);
+      this.interp.forget(id);
+    }
+  }
+
+  /** The fast lane: where everything that moves is right now. Old or out-of-order updates are dropped. */
+  onPos(msg) {
+    if (msg.time <= (this.lastPosTime ?? -1)) return;
+    this.lastPosTime = msg.time;
+    this.interp.sync(msg.time);
+    this.net.posCount++;
+    const here = new Set();
+    for (const [id, x, z, rot, anim, act, hp] of msg.players) {
+      if (id === this.you) continue;
+      here.add(id);
+      const v = this.others.get(id);
+      if (!v) continue; // its looks arrive in a reliable snap first
+      this.interp.push(id, msg.time, { x, z, rot });
+      v.netAnim = anim;
+      v.setHealth(hp / (v.maxHp || hp || 1));
+      if (act !== v.lastAct) { v.lastAct = act; v.play('attack'); }
+    }
+    for (const [id, v] of this.others) if (!here.has(id)) { v.dispose(); this.others.delete(id); this.interp.forget(id); }
+    for (const [id, x, z, rot, hp, anim] of msg.ents) {
+      const known = this.ents.get(id);
+      if (!known) continue;
+      this.interp.push(id, msg.time, { x, z, rot });
+      known.data.hp = hp;
+      known.data.anim = anim;
+      known.view?.apply({ hp, anim });
+    }
+  }
+
+  /** Every frame: put other players, enemies and pets where the interpolator says they are. */
+  interpolate(dt) {
+    this.interp.advance(dt);
+    for (const [id, v] of this.others) {
+      const s = this.interp.sample(id);
+      if (s) v.setTarget({ x: s.x, z: s.z, rot: s.rot, anim: v.netAnim });
+    }
+    for (const [id, { data, view }] of this.ents) {
+      if (data.type !== 'slime' && data.type !== 'pet') continue;
+      const s = this.interp.sample(id);
+      if (!s) continue;
+      data.x = s.x; data.z = s.z; data.rot = s.rot;
+      view?.apply({ x: s.x, z: s.z, rot: s.rot });
     }
   }
 
@@ -204,10 +281,14 @@ export class GameClient {
       this.scene.add(v.root);
       this.others.set(p.id, v);
     }
-    v.setTarget(p);
+    if (!this.interp.buffers.has(p.id)) { v.setTarget(p); this.interp.push(p.id, this.lastPosTime ?? 0, { x: p.x, z: p.z, rot: p.rot }); }
+    v.maxHp = p.maxHp;
+    v.netAnim = p.anim;
+    v.setHealth(p.hp / p.maxHp);
     v.setWeapon(p.weapon);
     v.setLook(p.look);
     v.setShield(p.shield);
+    v.setArmor(p.armor);
     if (p.act !== v.lastAct) { v.lastAct = p.act; v.play('attack'); }
   }
 
@@ -239,11 +320,22 @@ export class GameClient {
         (msg.id === this.you ? this.me : view)?.play?.('cheer');
         this.addEffect(new Debris(msg.x, msg.z, [0xffd23f, 0xfff27a, 0xffffff], 18));
         break;
+      case 'sleep': // into bed: lie down on it
+        if (msg.id === this.you) { this.sleeping = true; this.pos.x = msg.x; this.pos.z = msg.z; this.pos.rot = (msg.rot ?? 0) + Math.PI; }
+        break;
+      case 'wake':
+        if (msg.id === this.you && this.sleeping) { this.sleeping = false; this.pos.z += 2.6; }
+        break;
+      case 'nightWarning': this.hud.nightWarning(msg.seconds); break;
       case 'dodge': if (msg.id === this.you) this.floatAt(this.pos, 'Dodged!', '#c9f7ff'); break;
       case 'block': this.floatAt(msg.id === this.you ? this.pos : msg, 'Blocked!', '#9fd8ff'); break;
       case 'pickup': this.floatAt(this.pos, `+${msg.qty} ${msg.item === 'gold' ? 'gold' : ITEMS[msg.item]?.name ?? msg.item}`, msg.item === 'gold' ? '#ffd23f' : '#bfe7ff'); break;
       case 'chest': this.floatAt(msg, 'Treasure!', '#ffd23f'); break;
       case 'smash': this.addEffect(new Debris(msg.x, msg.z, [0x9a6a3c, 0x7a5030, 0xb58250, 0x5a5a5a])); break;
+      case 'nova':
+        this.addEffect(new NovaBlast(msg.x, msg.z, SPELL_RADIUS));
+        this.shake(Math.max(0, 0.5 - Math.hypot(msg.x - this.pos.x, msg.z - this.pos.z) / 40));
+        break;
       case 'break': this.addEffect(new Debris(msg.x, msg.z, [0x8d8d8d, 0x6e6e6e, 0xa8a29a], 10)); break;
     }
   }
@@ -251,6 +343,49 @@ export class GameClient {
   addEffect(fx) {
     this.scene.add(fx.root);
     this.effects.push(fx);
+  }
+
+  /**
+   * Once a second: frames per second, position updates per second and (every 2 s) a ping to the host,
+   * for the stats overlay (F3). On 'auto' graphics, a slow device steps down a quality level.
+   */
+  measure(frameMs) {
+    const n = this.net;
+    n.frames = (n.frames ?? 0) + 1;
+    n.worst = Math.max(n.worst ?? 0, frameMs);
+    n.acc = (n.acc ?? 0) + frameMs;
+    if (n.acc < 1000) return;
+    n.fps = Math.round((n.frames * 1000) / n.acc);
+    n.posRate = n.posCount;
+    n.frames = 0; n.acc = 0; n.posCount = 0;
+    const worst = n.worst; n.worst = 0;
+    n.seconds = (n.seconds ?? 0) + 1;
+    if (n.seconds % 2 === 0) { const id = n.seconds; n.pings.set(id, performance.now()); this.conn.send({ t: 'ping', id }); }
+    if (this.showStats) {
+      this.hud.setStats(`${n.fps} fps (slowest frame ${Math.round(worst)} ms) · ${n.ping == null ? '…' : `${Math.round(n.ping)} ms`} ping · ${n.posRate} updates/s · ${this.conn.sendFast ? 'fast lane' : this.opts.isHost ? 'host' : 'reliable only'} · ${this.gfx} graphics`);
+    }
+    // auto quality: after the first few seconds, if this device is struggling, go one step lower
+    if (localStorage.getItem(GFX_KEY) == null && n.seconds > 6 && n.fps < 40 && this.gfx !== 'low' && !this.gfxStepped) {
+      this.gfxStepped = true;
+      this.setGraphics(this.gfx === 'high' ? 'medium' : 'low', false);
+      this.hud.toast(`Graphics set to ${this.gfx} to keep things smooth (Esc menu to change).`);
+    }
+  }
+
+  /** high: sharp + soft shadows; medium: less sharp, cheaper shadows; low: no shadows, no smoothing. */
+  setGraphics(level, remember = true) {
+    this.gfx = level;
+    if (remember) try { localStorage.setItem(GFX_KEY, level); } catch {}
+    this.renderer.setPixelRatio(pixelRatioFor(level));
+    this.sun.castShadow = level !== 'low';
+    this.sun.shadow.map?.dispose();
+    this.sun.shadow.map = null;
+    this.sun.shadow.mapSize.setScalar(level === 'medium' ? 1024 : 2048);
+  }
+
+  /** Camera shake (0..1), fading out over about half a second. */
+  shake(amount) {
+    this.shakeAmt = Math.max(this.shakeAmt ?? 0, amount);
   }
 
   floatAt(p, text, color) {
@@ -263,7 +398,6 @@ export class GameClient {
   openUi(msg) {
     if (msg.kind === 'shop') {
       this.hud.openShop({
-        stock: msg.stock,
         onBuy: (item) => this.conn.send({ t: 'buy', item }),
         onSell: (item, qty) => this.conn.send({ t: 'sell', item, qty }),
         onBuyStyle: (slot, id) => this.conn.send({ t: 'buyStyle', slot, id }),
@@ -289,6 +423,16 @@ export class GameClient {
         onChange: (cls, look) => this.changeOutfit(cls, look),
         onClose: () => { this.closeUp = false; },
       });
+    } else if (msg.kind === 'chest') {
+      this.hud.openChest({ storage: msg.storage, onStash: (item, qty, dir) => this.conn.send({ t: 'stash', item, qty, dir }) });
+    } else if (msg.kind === 'talk') {
+      this.hud.speech(msg.name, msg.text);
+    } else if (msg.kind === 'decorator') {
+      this.hud.openDecorator({
+        house: () => this.house,
+        onBuy: (item) => this.conn.send({ t: 'buyFurniture', item }),
+        onStyle: (kind, id) => this.conn.send({ t: 'houseStyle', kind, id }),
+      });
     } else if (msg.kind === 'elevator') {
       this.hud.openElevator({ name: msg.name, floors: msg.floors, onPick: (floor) => this.conn.send({ t: 'elevator', dungeon: msg.dungeon, floor }) });
     }
@@ -299,6 +443,7 @@ export class GameClient {
     this.hud.openPets({
       shop,
       onBuy: (species) => this.conn.send({ t: 'buyPet', species }),
+      onBuyItem: (item) => this.conn.send({ t: 'buy', item }),
       onPick: (id) => this.conn.send({ t: 'pickPet', id }),
       onRename: (id, name) => this.conn.send({ t: 'renamePet', id, name }),
       onRevive: (id) => this.conn.send({ t: 'revivePet', id }),
@@ -312,22 +457,66 @@ export class GameClient {
     const dt = Math.min((now - this.lastFrame) / 1000, 0.1);
     this.lastFrame = now;
     this.time += dt;
+    this.measure(now - (this.prevFrameAt ?? now));
+    this.prevFrameAt = now;
     this.input.poll();
     if (this.layout && this.me) this.updateLocal(dt);
+    this.interpolate(dt);
     for (const { view } of this.ents.values()) view?.update(dt);
     for (const v of this.others.values()) v.update(dt);
     this.me?.update(dt);
     for (const fx of this.effects) fx.update(dt);
     this.effects = this.effects.filter((fx) => !fx.done || (fx.dispose(), false));
     this.locView?.update(dt, this.time);
+    this.updateSky(dt);
     this.updateCamera(dt);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * The first time you're in town after a dungeon is completed, the camera swings over to the
+   * next dungeon's gate and you watch its chains break. Remembered per world in this browser.
+   */
+  checkUnlocks() {
+    if (this.layout?.key !== 'town' || !this.world || this.cinematic) return;
+    const key = `fdg.unlocksSeen.${this.world.seed}.${this.world.name}`;
+    let seen = [];
+    try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
+    for (const [id, d] of Object.entries(this.world.dungeons ?? {})) {
+      if (!d.unlocked || seen.includes(id) || this.unlockShown.has(id) || !DUNGEONS[id]?.unlockedBy) continue;
+      // a world that already had this gate open before chains existed: nothing to show
+      if (d.unlockedOnDay == null) { seen.push(id); continue; }
+      const at = this.locView.holdChains(id);
+      if (!at) continue;
+      this.unlockShown.add(id);
+      this.cinematic = { t: 0, at, id, broke: false, done: () => { seen.push(id); try { localStorage.setItem(key, JSON.stringify(seen)); } catch {} } };
+      this.hud.toast(`The chains on the ${DUNGEONS[id].name} are breaking!`, true);
+      break;
+    }
+    try { localStorage.setItem(key, JSON.stringify(seen)); } catch {}
+  }
+
+  /** Outdoors, the last two minutes before night turn the sky orange, then purple. */
+  updateSky(dt) {
+    if (!this.layout || this.layout.theme !== 'outdoor' || !this.locView) return;
+    this.dayLeft = Math.max(0, (this.dayLeft ?? 600) - dt);
+    const dusk = Math.min(1, Math.max(0, 1 - this.dayLeft / 120));
+    const theme = this.locView.theme;
+    const sky = new THREE.Color(theme.bg);
+    if (dusk > 0) sky.lerp(new THREE.Color(0xff9a6a), Math.min(1, dusk * 2)).lerp(new THREE.Color(0x2a2352), Math.max(0, dusk * 2 - 1));
+    this.scene.background.copy(sky);
+    this.scene.fog?.color.copy(sky);
+    this.sun.intensity = theme.sun * (1 - dusk * 0.85);
+    this.sun.color.setRGB(1, 0.95 - dusk * 0.4, 0.87 - dusk * 0.55);
+    this.hemi.intensity = theme.ambient * (1 - dusk * 0.5);
+    for (const l of this.locView.lampLights) l.intensity = 14 * Math.min(1, dusk * 1.5); // lamps come on at dusk
+    this.hemi.color.setRGB(1, 1, 1).lerp(new THREE.Color(0xffa070), Math.min(1, dusk * 2)).lerp(new THREE.Color(0x7a6ad0), Math.max(0, dusk * 2 - 1));
   }
 
   solids() {
     const out = [...this.layout.solids];
     for (const { data } of this.ents.values()) {
-      if (data.type === 'rock' || data.type === 'chest' || data.type === 'barrel') out.push({ x: data.x, z: data.z, r: data.r });
+      if ((data.type === 'rock' || data.type === 'chest' || data.type === 'barrel' || data.type === 'furniture') && data.r > 0) out.push({ x: data.x, z: data.z, r: data.r });
     }
     return out;
   }
@@ -336,7 +525,8 @@ export class GameClient {
     const input = this.input;
     if (input.consume('menu')) {
       if (this.hud.modalOpen) this.hud.closeModal();
-      else this.hud.openMenu({ isHost: this.opts.isHost, music: this.music, onSave: () => { this.opts.onSave?.(); this.hud.toast('Saved!'); }, onExport: this.opts.onExport, onQuit: this.opts.onQuit });
+      else this.hud.openMenu({ isHost: this.opts.isHost, music: this.music, graphics: { level: this.gfx, set: (l) => this.setGraphics(l) },
+        stats: { on: !!this.showStats, toggle: () => { this.showStats = !this.showStats; this.hud.setStats(this.showStats ? 'measuring…' : null); } }, onSave: () => { this.opts.onSave?.(); this.hud.toast('Saved!'); }, onExport: this.opts.onExport, onQuit: this.opts.onQuit });
     }
     if (input.consume('sheet')) {
       if (this.hud.modalOpen) this.hud.closeModal();
@@ -350,6 +540,7 @@ export class GameClient {
       else this.openPets(false);
     }
     if (input.consume('music')) this.hud.toast(this.music.toggleMute() ? 'Music off (M)' : 'Music on (M)');
+    if (input.consume('stats')) { this.showStats = !this.showStats; this.hud.setStats(this.showStats ? 'measuring…' : null); }
     if (input.consume('chat')) {
       input.enabled = false;
       this.hud.openChat().then((text) => {
@@ -382,11 +573,14 @@ export class GameClient {
       this.pos.x = next.x; this.pos.z = next.z;
       this.pos.rot = Math.atan2(m.x, m.z);
     }
-    this.anim = this.rolling > 0 ? 'roll' : moving ? 'run' : 'idle';
+    if (moving || this.rolling > 0) this.sleeping = false; // getting out of bed
+    this.anim = this.rolling > 0 ? 'roll' : moving ? 'run' : this.sleeping ? 'sleep' : 'idle';
     if (this.rolling <= 0) this.me.setBase(this.anim);
     this.me.root.position.set(this.pos.x, 0, this.pos.z);
     const r = this.me.root.rotation;
     r.y += (((this.pos.rot - r.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 18);
+
+    this.updateBuild(dt);
 
     // actions
     this.attackTimer -= dt;
@@ -395,14 +589,23 @@ export class GameClient {
       this.me.play('attack');
       this.conn.send({ t: 'attack', rot: this.pos.rot });
     }
-    if (input.consume('potion')) {
-      const inv = this.self?.inventory ?? {};
-      const item = ['potion', 'bigpotion', 'cocoa'].find((id) => inv[id]) ?? null;
-      if (item) this.conn.send({ t: 'use', item });
-      else this.hud.toast('No potions! Buy some in town.');
+    if (input.consume('feed')) this.conn.send({ t: 'feedPet' });
+    this.spellCooldown -= dt;
+    if (!this.building && input.consume('spell') && this.rolling <= 0 && this.self?.hp > 0) {
+      if (this.spellCooldown > 0) this.hud.toast(`Area spell ready in ${Math.ceil(this.spellCooldown)}s`);
+      else {
+        this.spellCooldown = SPELL_COOLDOWN;
+        this.conn.send({ t: 'spell' });
+      }
     }
-    const near = this.nearestInteractable();
-    this.hud.prompt(near && !this.hud.modalOpen ? near.prompt : null);
+    this.hud.setSpell(this.spellCooldown);
+    if (input.consume('potion')) {
+      const item = bestHeal(this.self?.inventory, (this.self?.maxHp ?? 0) - (this.self?.hp ?? 0));
+      if (item) this.conn.send({ t: 'use', item });
+      else this.hud.toast('Nothing to eat or drink! The shop has food and potions.');
+    }
+    const near = this.building ? null : this.nearestInteractable();
+    if (!this.building) this.hud.prompt(near && !this.hud.modalOpen ? near.prompt : null);
     if (input.consume('interact') && near) this.conn.send({ t: 'interact', id: near.id });
 
     // tell the host where we are
@@ -411,23 +614,106 @@ export class GameClient {
       this.sendTimer = 1 / SEND_HZ;
       const msg = { t: 'move', epoch: this.epoch, x: round(this.pos.x), z: round(this.pos.z), rot: round(this.pos.rot), anim: this.anim };
       const key = `${msg.epoch},${msg.x},${msg.z},${msg.rot},${msg.anim}`;
-      if (key !== this.lastSent) { this.conn.send(msg); this.lastSent = key; }
+      this.sinceMove = (this.sinceMove ?? 0) + 1 / SEND_HZ;
+      // moves go over the fast lane; standing still we still repeat ourselves now and then, in case one was lost
+      if (key !== this.lastSent || this.sinceMove > 0.5) {
+        msg.seq = this.moveSeq = (this.moveSeq ?? 0) + 1;
+        (this.conn.sendFast ?? this.conn.send)(msg);
+        this.lastSent = key;
+        this.sinceMove = 0;
+      }
     }
 
     this.lantern.position.set(this.pos.x, 4, this.pos.z + 1);
   }
 
+  /**
+   * Build mode (B, at home): pick a piece of the family's furniture, see a see-through copy in front
+   * of you, R turns it, E puts it down. X picks up the furniture you're standing next to.
+   */
+  updateBuild() {
+    const input = this.input;
+    const home = this.layout.key === 'house';
+    if (input.consume('build')) {
+      if (this.building) this.stopBuilding();
+      else if (!home) this.hud.toast('Build mode is for decorating the fort — press B at home.');
+      else if (!this.world?.flags?.[DECORATOR_FLAG]) this.hud.toast('The Decorator comes to town once the King Slime is beaten. Then you can buy furniture!');
+      else { this.building = { item: null, rot: 0 }; this.hud.openBuild(this); }
+    }
+    if (!this.building) return;
+    if (!home) return this.stopBuilding();
+    const b = this.building;
+    if (input.consume('spell')) b.rot = (b.rot + Math.PI / 2) % (Math.PI * 2);
+    // where it would go: a step in front of you, on a half-unit grid
+    const fx = Math.round((this.pos.x + Math.sin(this.pos.rot) * 2.6) * 2) / 2, fz = Math.round((this.pos.z + Math.cos(this.pos.rot) * 2.6) * 2) / 2;
+    if (b.item && (!b.ghost || b.ghostItem !== b.item)) {
+      b.ghost?.dispose();
+      b.ghost = new FurnitureView({ item: b.item, x: fx, z: fz, rot: b.rot }, () => new THREE.Group());
+      b.ghost.root.traverse((o) => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.55; o.material.emissive?.setHex(0x2a6a2a); } });
+      b.ghostItem = b.item;
+      this.scene.add(b.ghost.root);
+    }
+    if (b.ghost) { b.ghost.root.position.set(fx, 0.02, fz); b.ghost.root.rotation.y = b.rot; }
+    // the closest placed piece you could pick up
+    let pick = null, best = 3;
+    for (const { data } of this.ents.values()) {
+      if (data.type !== 'furniture' || data.item === 'bed') continue;
+      const d = Math.hypot(data.x - this.pos.x, data.z - this.pos.z) - (data.r ?? 0);
+      if (d < best) { best = d; pick = data; }
+    }
+    this.hud.prompt(b.item ? `[E] Place ${FURNITURE[b.item].name} · [R] Turn · [B] Done` : pick ? `[X] Pick up ${FURNITURE[pick.item].name} · [B] Done` : 'Pick something to place · [B] Done');
+    if (b.item && input.consume('interact')) {
+      this.conn.send({ t: 'placeFurniture', item: b.item, x: fx, z: fz, rot: b.rot });
+      if (!((this.house?.owned?.[b.item] ?? 0) > 1)) { b.item = null; b.ghost?.dispose(); b.ghost = null; }
+    }
+    if (pick && input.consume('pickup')) this.conn.send({ t: 'pickUpFurniture', id: pick.id });
+  }
+
+  stopBuilding() {
+    this.building?.ghost?.dispose();
+    this.building = null;
+    this.hud.closeBuild();
+  }
+
+  /** The closest thing you can use with E: a map prop, or an entity like a bed. Has a `prompt`. */
   nearestInteractable() {
     let best = null, bestD = Infinity;
-    for (const p of this.layout.props) {
-      if (!p.interact) continue;
-      const d = Math.hypot(p.x - this.pos.x, p.z - this.pos.z) - p.radius;
-      if (d < INTERACT_RANGE && d < bestD) { best = p; bestD = d; }
-    }
+    const consider = (t, prompt) => {
+      const d = Math.hypot(t.x - this.pos.x, t.z - this.pos.z) - (t.radius ?? t.r ?? 0);
+      if (d < INTERACT_RANGE && d < bestD) { best = { id: t.id, prompt }; bestD = d; }
+    };
+    for (const p of this.layout.props) if (p.interact && !p.hidden) consider(p, p.prompt);
+    for (const { data } of this.ents.values()) if (data.interact) consider(data, this.promptFor(data));
     return best;
   }
 
+  promptFor(e) {
+    if (e.item === 'bed') {
+      if (e.owner !== this.you) return `${e.ownerName}’s bed`;
+      return this.sleeping ? 'Get up' : 'Sleep (the day ends when everyone is in bed)';
+    }
+    return e.prompt ?? 'Use';
+  }
+
   updateCamera(dt) {
+    if (this.cinematic) {
+      const c = this.cinematic;
+      c.t += dt;
+      // stand out in town in front of the gate, a little to the side, looking at it
+      const want = new THREE.Vector3(c.at.x + c.at.dx * 9 - c.at.dz * 3, 8, c.at.z + c.at.dz * 9 + c.at.dx * 3 + 2);
+      this.camera.position.lerp(want, 1 - Math.exp(-dt * 3));
+      this.camera.lookAt(c.at.x, 1.8, c.at.z);
+      if (c.t > 1.2 && !c.broke) { c.broke = true; this.locView.playUnlock(c.id); }
+      if (c.t > 2.3 && c.t - dt <= 2.3) { this.shake(0.6); this.addEffect(new Debris(c.at.x, c.at.z, [0xffd23f, 0x9aa3ad, 0xffffff], 22)); }
+      if (c.t > 5) { c.done(); this.cinematic = null; this.snapCamera = false; }
+      return;
+    }
+    // debug/screenshot hook: window.game.client.camOverride = { pos: [x, y, z], look: [x, y, z] }
+    if (this.camOverride) {
+      this.camera.position.set(...this.camOverride.pos);
+      this.camera.lookAt(...this.camOverride.look);
+      return;
+    }
     this.zoom = Math.max(0.55, Math.min(1.8, this.zoom + this.input.takeWheel() * 0.1));
     const target = new THREE.Vector3(this.pos.x, 1, this.pos.z);
     if (this.closeUp && !this.hud.modalOpen) this.closeUp = false;
@@ -441,6 +727,11 @@ export class GameClient {
     else this.camera.position.lerp(want, 1 - Math.exp(-dt * 6));
     // look along a fixed direction so the view never wobbles while it catches up
     this.camera.lookAt(this.camera.position.clone().sub(offset));
+    if (this.shakeAmt > 0.001) {
+      this.shakeAmt *= Math.exp(-dt * 7);
+      this.camera.position.x += (Math.random() - 0.5) * this.shakeAmt;
+      this.camera.position.y += (Math.random() - 0.5) * this.shakeAmt;
+    }
     // the sun's shadow box follows the player
     this.sun.position.set(this.pos.x - 15, 35, this.pos.z + 10);
     this.sun.target.position.set(this.pos.x, 0, this.pos.z);
@@ -455,4 +746,15 @@ export class GameClient {
 
 function round(v) {
   return Math.round(v * 100) / 100;
+}
+
+const GFX_KEY = 'fdg.graphics';
+/** The graphics level this device uses: the one picked in the menu, else a guess (phones/tablets start lower). */
+function loadGraphics() {
+  try { const v = localStorage.getItem(GFX_KEY); if (['high', 'medium', 'low'].includes(v)) return v; } catch {}
+  const small = Math.min(screen.width, screen.height) < 820 || navigator.maxTouchPoints > 1;
+  return small ? 'medium' : 'high';
+}
+function pixelRatioFor(level) {
+  return Math.min(devicePixelRatio, level === 'high' ? 2 : level === 'medium' ? 1.25 : 1);
 }

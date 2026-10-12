@@ -1,12 +1,22 @@
 // Builds the static 3D scene for a layout: floors, walls, buildings, props, lights.
 import * as THREE from 'three';
-import { CELL } from '../shared/config.js';
+import { CELL, SPRING_COST } from '../shared/config.js';
 import { hashSeed } from '../shared/rng.js';
 import { instanced, cloneModel } from './assets.js';
 import { CharacterView, makeGlow } from './views.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
-import { makeGrass, makeWater, makeTrees } from './nature.js';
+import { makeGrass, makeWater, makeTrees, makeSpringRing } from './nature.js';
 import { PetView } from './pets.js';
+import { DECORATIONS } from './decorations.js';
+import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench } from './town.js';
+import { Villagers } from './villagers.js';
+import { TOWNSFOLK } from '../shared/townsfolk.js';
+import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
+import { THEMES } from './themes.js';
+
+/** The healing spring's round pool: its radius, and how far above the grass its surface sits. */
+const POND_RADIUS = 5.6;
+const POND_SURFACE = 0.05;
 
 /** Wooden signpost for the healing spring. */
 function makeSpringSign() {
@@ -15,23 +25,28 @@ function makeSpringSign() {
   const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.6, 0.18), wood);
   post.position.y = 0.8;
   const c = document.createElement('canvas');
-  c.width = 256; c.height = 128;
+  c.width = 512; c.height = 256;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#c99a63';
-  ctx.fillRect(0, 0, 256, 128);
+  ctx.fillRect(0, 0, 512, 256);
   ctx.strokeStyle = '#7a5030';
-  ctx.lineWidth = 8;
-  ctx.strokeRect(4, 4, 248, 120);
+  ctx.lineWidth = 14;
+  ctx.strokeRect(7, 7, 498, 242);
   ctx.textAlign = 'center';
   ctx.fillStyle = '#e8456b';
-  ctx.font = 'bold 44px system-ui, sans-serif';
-  ctx.fillText('♥ Spring', 128, 58);
+  ctx.font = 'bold 76px system-ui, sans-serif';
+  ctx.fillText('♥ Healing Spring', 256, 110);
   ctx.fillStyle = '#5a3a1c';
-  ctx.font = 'bold 34px system-ui, sans-serif';
-  ctx.fillText('5 gold', 128, 104);
+  ctx.font = 'bold 60px system-ui, sans-serif';
+  ctx.fillText(`${SPRING_COST} gold`, 256, 190);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  const board = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.75, 0.08), [wood, wood, wood, wood, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }), wood]);
+  // the words are on both faces, so it reads from either side of the pond (the back copy is flipped back the right way round)
+  const back = tex.clone();
+  back.repeat.x = -1; back.offset.x = 1; back.needsUpdate = true;
+  const front = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 });
+  const behind = new THREE.MeshStandardMaterial({ map: back, roughness: 0.9 });
+  const board = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.75, 0.08), [wood, wood, wood, wood, front, behind]);
   board.position.y = 1.55;
   for (const m of [post, board]) { m.castShadow = true; g.add(m); }
   return g;
@@ -96,16 +111,6 @@ function makeWardrobe() {
   return g;
 }
 
-const THEMES = {
-  dungeon: { floors: ['dungeon/floor_tile_large', 'dungeon/floor_tile_large', 'dungeon/floor_tile_large', 'dungeon/floor_tile_large', 'dungeon/floor_tile_large', 'dungeon/floor_tile_large_rocks'], walls: ['dungeon/wall', 'dungeon/wall', 'dungeon/wall', 'dungeon/wall_cracked'], bg: 0x120e18, ambient: 0.35, sun: 0.25 },
-  ruins:   { floors: ['dungeon/floor_dirt_large', 'dungeon/floor_dirt_large_rocky'], walls: ['dungeon/wall_cracked', 'dungeon/wall_broken', 'dungeon/wall'], bg: 0x0d1a16, ambient: 0.35, sun: 0.25 },
-  // deeper biomes: the mine's tiles, recoloured, plus their own decorations along the walls
-  frost:   { floors: ['dungeon/floor_tile_large', 'dungeon/floor_tile_large_rocks'], walls: ['dungeon/wall', 'dungeon/wall_cracked'], tint: 0xb8dcff, bg: 0x0c1824, ambient: 0.5, sun: 0.3, lantern: 0xcfe8ff, deco: 'ice' },
-  grotto:  { floors: ['dungeon/floor_dirt_large', 'dungeon/floor_dirt_large_rocky'], walls: ['dungeon/wall', 'dungeon/wall_broken'], tint: 0xc9a8e8, bg: 0x140c1e, ambient: 0.4, sun: 0.2, lantern: 0xe4c8ff, deco: 'mushroom' },
-  lava:    { floors: ['dungeon/floor_tile_large_rocks', 'dungeon/floor_dirt_large_rocky'], walls: ['dungeon/wall_cracked', 'dungeon/wall'], tint: 0xc07060, bg: 0x1e0a06, ambient: 0.45, sun: 0.25, lantern: 0xffb070, deco: 'ember' },
-  wood:    { floors: ['dungeon/floor_wood_large'], walls: ['dungeon/wall', 'dungeon/wall_shelves', 'dungeon/wall'], bg: 0x1b1410, ambient: 1.0, sun: 0.9 },
-  outdoor: { bg: 0x8fd3ff, ambient: 1.3, sun: 2.2 },
-};
 
 const N = [0, -1], E = [1, 0], S = [0, 1], W = [-1, 0];
 // wall rotation so its front faces into the walkable cell
@@ -114,10 +119,13 @@ const EDGE_ROT = new Map([[N, 0], [S, Math.PI], [W, Math.PI / 2], [E, -Math.PI /
 export class LocationView {
   constructor(layout, world) {
     this.layout = layout;
+    this.world = world;
     this.group = new THREE.Group();
     this.lights = [];
     this.animated = [];   // things with update(dt)
-    this.gate = null;
+    this.gates = {};       // dungeon id -> { closed, open, glow, chains } (town only)
+    this.flagged = [];     // things hidden until a world flag is set (the Decorator's stall)
+    this.lampLights = [];
     this.theme = THEMES[layout.theme];
     const r = (cx, cz, salt = '') => hashSeed(layout.seed, cx, cz, salt) / 2 ** 32; // stable per-cell randomness
     this.rand = r;
@@ -126,7 +134,7 @@ export class LocationView {
     if (layout.theme === 'outdoor') this.buildOutdoor();
     else this.buildIndoor();
     this.buildProps();
-    this.setFlags(world?.flags ?? {});
+    this.setWorld(world);
   }
 
   /** Collect transforms per model then emit one instanced group per model. */
@@ -134,11 +142,16 @@ export class LocationView {
     const map = new Map();
     const tint = this.theme?.tint;
     return {
-      add: (path, t) => { if (!map.has(path)) map.set(path, []); map.get(path).push(t); },
+      // `tintOverride` recolours just this model (e.g. the fort's chosen wall colour)
+      add: (path, t, tintOverride) => {
+        const key = tintOverride != null ? `${path}|${tintOverride}` : path;
+        if (!map.has(key)) map.set(key, { path, tint: tintOverride ?? tint, list: [] });
+        map.get(key).list.push(t);
+      },
       flush: () => {
-        for (const [path, list] of map) {
+        for (const { path, tint: c, list } of map.values()) {
           const g = instanced(path, list);
-          if (tint != null) for (const m of g.children) { m.material = m.material.clone(); m.material.color.multiply(new THREE.Color(tint)); }
+          if (c != null) for (const m of g.children) { m.material = m.material.clone(); m.material.color.multiply(new THREE.Color(c)); }
           this.group.add(g);
         }
       },
@@ -147,12 +160,15 @@ export class LocationView {
 
   buildIndoor() {
     const L = this.layout, b = this.batch(), th = this.theme;
+    // the fort uses the family's chosen floor and wall colour (bought from the Decorator)
+    const home = L.key === 'house' ? { floor: FLOOR_STYLES[this.world?.house?.floor] ?? FLOOR_STYLES.oak, wall: WALL_STYLES[this.world?.house?.wall] ?? WALL_STYLES.stone } : null;
     for (let cz = 0; cz < L.h; cz++) {
       for (let cx = 0; cx < L.w; cx++) {
         if (L.isSolidCell(cx, cz)) continue;
         const x = cx * CELL + CELL / 2, z = cz * CELL + CELL / 2;
         const fi = Math.floor(this.rand(cx, cz, 'f') * th.floors.length);
-        b.add(th.floors[fi], { x, z, rot: Math.floor(this.rand(cx, cz, 'r') * 4) * Math.PI / 2 });
+        if (home) b.add(home.floor.model, { x, z, rot: Math.floor(this.rand(cx, cz, 'r') * 4) * Math.PI / 2 }, home.floor.tint ?? 0xffffff);
+        else b.add(th.floors[fi], { x, z, rot: Math.floor(this.rand(cx, cz, 'r') * 4) * Math.PI / 2 });
 
         for (const dir of [N, E, S, W]) {
           const nx = cx + dir[0], nz = cz + dir[1];
@@ -171,7 +187,7 @@ export class LocationView {
           if (ch === 'D') path = 'dungeon/wall_doorway';
           // walls between the camera and the room are cut down so you can see in
           const sy = dir === S ? 0.22 : 1;
-          b.add(path, { x: ex, z: ez, rot, sy });
+          b.add(path, { x: ex, z: ez, rot, sy }, home ? home.wall.tint ?? 0xffffff : undefined);
         }
       }
     }
@@ -210,76 +226,87 @@ export class LocationView {
         });
       }
     }
+    const deco = DECORATIONS[kind];
+    if (!deco) return;
     const lights = [];
     for (const s of spots) {
       const g = new THREE.Group();
       g.position.set(s.x, 0, s.z);
       g.rotation.y = s.r * Math.PI * 2;
-      if (kind === 'ice') {
-        const m = new THREE.MeshStandardMaterial({ color: 0x9fe8ff, emissive: 0x3a9fd8, emissiveIntensity: 0.8, roughness: 0.1, transparent: true, opacity: 0.85, flatShading: true });
-        for (let i = 0; i < 3; i++) {
-          const h = 0.8 + ((s.r * 7 + i) % 1) * 1.2;
-          const c = new THREE.Mesh(new THREE.ConeGeometry(0.22, h, 5), m);
-          c.position.set((i - 1) * 0.3, h / 2, (i % 2) * 0.2);
-          c.rotation.z = (i - 1) * 0.3;
-          g.add(c);
-        }
-      } else if (kind === 'mushroom') {
-        const colors = [0xff7ad9, 0x7affe8, 0xb48cff];
-        for (let i = 0; i < 2 + Math.floor(s.r * 3); i++) {
-          const h = 0.4 + ((s.r * 13 + i * 0.37) % 1) * 0.9, col = colors[(i + Math.floor(s.r * 3)) % 3];
-          const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, h, 6), new THREE.MeshStandardMaterial({ color: 0xf5ead6 }));
-          stem.position.set((i - 1) * 0.35, h / 2, (i % 2) * 0.25);
-          const cap = new THREE.Mesh(new THREE.SphereGeometry(0.25 + h * 0.15, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2),
-            new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.7 }));
-          cap.position.set(stem.position.x, h, stem.position.z);
-          g.add(stem, cap);
-        }
-      } else if (kind === 'ember') {
-        const rock = new THREE.MeshStandardMaterial({ color: 0x3a2a24, flatShading: true, roughness: 1 });
-        const hot = new THREE.MeshStandardMaterial({ color: 0xff6a1a, emissive: 0xff4a0a, emissiveIntensity: 1.4 });
-        for (let i = 0; i < 3; i++) {
-          const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25 + i * 0.08, 0), i === 1 ? hot : rock);
-          r.position.set((i - 1) * 0.4, 0.15, (i % 2) * 0.2);
-          g.add(r);
-        }
-      }
+      deco.build(g, s.r);
       this.group.add(g);
+      if (deco.update) this.animated.push({ update: () => deco.update(g, this.uTime.value) });
       if (lights.length < 5 && s.r > 0.6) lights.push(s);
     }
     // a few real lights so the glow spills onto the floor
-    const color = { ice: 0x7fd4ff, mushroom: 0xd08aff, ember: 0xff7a2a }[kind];
-    for (const s of lights) {
-      const light = new THREE.PointLight(color, 10, 9, 1.6);
-      light.position.set(s.x, 1.2, s.z);
-      this.group.add(light);
+    if (deco.light != null) {
+      for (const s of lights) {
+        const light = new THREE.PointLight(deco.light, 10, 9, 1.6);
+        light.position.set(s.x, 1.2, s.z);
+        this.group.add(light);
+      }
     }
   }
 
   buildOutdoor() {
     const L = this.layout, b = this.batch();
-    const trees = [];
+    const trees = [], fences = [];
     const block = (path, cx, cz, y, s = 2, extra = {}) =>
       b.add(path, { x: cx * CELL + CELL / 2 + (extra.dx ?? 0), z: cz * CELL + CELL / 2 + (extra.dz ?? 0), y, s, rot: extra.rot ?? 0 });
+
+    // the healing spring's pool is round: a disc of water over grass, ringed with stones
+    const pondCells = [];
+    for (let cz = 0; cz < L.h; cz++) for (let cx = 0; cx < L.w; cx++) if (L.cell(cx, cz) === '~') pondCells.push([cx, cz]);
+    const spring = L.props.some((p) => p.interact === 'spring') && pondCells.length > 0;
+    const pond0 = spring ? {
+      x: pondCells.reduce((a, [cx]) => a + (cx + 0.5) * CELL, 0) / pondCells.length,
+      z: pondCells.reduce((a, [, cz]) => a + (cz + 0.5) * CELL, 0) / pondCells.length,
+    } : null;
 
     for (let cz = 0; cz < L.h; cz++) {
       for (let cx = 0; cx < L.w; cx++) {
         const ch = L.cell(cx, cz);
         // ground (top surface at y = 0)
-        if (ch === '~') block('blocks/water', cx, cz, -2.9); // pond bed, under the animated surface
-        else if (ch === '=') block('blocks/gravel', cx, cz, -2);
+        if (ch === '~' && !spring) block('blocks/water', cx, cz, -2.9); // pond bed, under the animated surface
+        else if (ch === '~') block('blocks/dirt_with_grass', cx, cz, -2); // the spring: a round pool sitting in the grass
+        else if (ch === '=') { // cobblestone: flat stone tiles, turned at random
+          block('blocks/gravel', cx, cz, -2);
+          b.add('dungeon/floor_tile_large', {
+            x: cx * CELL + CELL / 2, z: cz * CELL + CELL / 2, y: 0, rot: Math.floor(this.rand(cx, cz, 'cr') * 4) * Math.PI / 2,
+          });
+        }
         else if (ch === 'R' || ch === 'm') block('blocks/sand_A', cx, cz, -2);
         else block('blocks/dirt_with_grass', cx, cz, -2);
 
-        if (ch === '#') {
+        // the south edge is between the camera and the town, so walls there are kept low
+        const south = cz === L.h - 1;
+        if (ch === '#' || ch === 't') {
           trees.push([cx, cz]); // see makeTrees
         } else if (ch === 'H' || ch === 'd') {
           // the family fort: brick walls with battlements
           block('blocks/bricks_A', cx, cz, 2);
-          for (const [dx, dz] of [[-1, -1], [1, 1]]) block('blocks/stone', cx, cz, 5, 1, { dx, dz });
-        } else if (ch === 'S') {
-          block('blocks/wood', cx, cz, 2);
-          block(cz % 2 ? 'blocks/striped_block_red' : 'blocks/striped_block_blue', cx, cz, 5, 1.6);
+          block('blocks/bricks_A', cx, cz, 6);
+          for (const [dx, dz] of [[-1, -1], [1, 1]]) block('blocks/stone', cx, cz, 9, 1, { dx, dz });
+        } else if (ch === 'X' || ch === 'Y') {
+          // the castle wall around the town; towers stand taller with a roof and a flag
+          block('blocks/stone', cx, cz, 2);
+          if (!south) {
+            block('blocks/bricks_B', cx, cz, 6);
+            for (const [dx, dz] of [[-1, -1], [1, 1], [-1, 1], [1, -1]]) if (this.rand(cx, cz, `cr${dx}${dz}`) > 0.35) block('blocks/stone', cx, cz, 9, 1, { dx, dz });
+          }
+          if (ch === 'Y' && !south) {
+            block('blocks/bricks_B', cx, cz, 10);
+            const top = makeTowerTop(cx * CELL + CELL / 2, cz * CELL + CELL / 2, 12, this.rand(cx, cz, 'tw'));
+            this.group.add(top);
+            this.animated.push({ update: () => top.userData.update(this.uTime.value) });
+          }
+        } else if (ch === 'Q' || ch === 'q') {
+          block('blocks/stone_dark', cx, cz, 2);
+          block('blocks/stone_dark', cx, cz, 6);
+        } else if (ch === 'E') {
+          this.group.add(makeCottage(cx * CELL + CELL / 2, cz * CELL + CELL / 2, this.rand(cx, cz, 'co')));
+        } else if (ch === '+') {
+          fences.push([cx, cz]);
         } else if (ch === 'R' || ch === 'm') {
           block('blocks/stone_dark', cx, cz, 2);
           if (ch === 'R' && this.rand(cx, cz, 'r') > 0.3) block('blocks/stone', cx, cz, 5, 1, { dx: this.rand(cx, cz, 'x') - 0.5 });
@@ -297,14 +324,33 @@ export class LocationView {
       for (let cx = 0; cx < L.w; cx++) {
         const ch = L.cell(cx, cz);
         if (ch === '~') water.push([cx, cz]);
-        else if (ch === '.' || ch === '#') grass.push([cx, cz]);
+        if (ch === '.' || ch === '#' || ch === 't' || ch === '+' || ch === 'E' || (ch === '~' && spring)) grass.push([cx, cz]);
       }
     }
     this.group.add(makeGrass(grass, this.rand, this.uTime));
     this.group.add(makeTrees(trees, this.rand, this.uTime));
-    const pond = makeWater(water, this.rand, this.uTime, { healing: L.props.some((p) => p.interact === 'spring') });
+    const disc = spring ? { x: pond0.x, y: POND_SURFACE, z: pond0.z, r: POND_RADIUS } : null;
+    const pond = makeWater(water, this.rand, this.uTime, { healing: spring, disc, lilyPads: !spring });
     this.group.add(pond);
     this.animated.push({ update: () => pond.userData.update(this.uTime.value) });
+    if (spring) {
+      const ring = makeSpringRing(pond0.x, pond0.z, POND_RADIUS, this.rand);
+      this.group.add(ring);
+      this.animated.push({ update: () => ring.userData.update(this.uTime.value) });
+      // fairies dancing over the water, and flowers all round the edge
+      const fairies = makeFairies(pond0.x, pond0.z, POND_RADIUS - 1.5);
+      this.group.add(fairies);
+      this.animated.push({ update: () => fairies.userData.update(this.uTime.value) });
+      const ringSpots = Array.from({ length: 10 }, (_, i) => {
+        const a = (i / 10) * Math.PI * 2 + 0.3;
+        return { x: pond0.x + Math.cos(a) * (POND_RADIUS + 1.4), z: pond0.z + Math.sin(a) * (POND_RADIUS + 1.4), r: 0.9, n: 9 };
+      }).filter((s) => !L.isSolidCell(Math.floor(s.x / CELL), Math.floor(s.z / CELL)) || L.cell(Math.floor(s.x / CELL), Math.floor(s.z / CELL)) === '~');
+      this.group.add(makeFlowers(ringSpots, this.rand));
+    }
+    const beds = (L.decor ?? []).filter((d) => d.kind === 'flowers');
+    if (beds.length) this.group.add(makeFlowers(beds, this.rand));
+    if (fences.length) this.group.add(makeFence(fences, (cx, cz) => L.cell(cx, cz) === '+'));
+    if (L.key === 'town') this.buildTownLife();
 
     // faces for the portals
     for (const portal of Object.values(L.portals)) {
@@ -312,10 +358,18 @@ export class LocationView {
       const rot = Math.atan2(dx, dz); // face outwards toward the walkable cell
       const x = portal.cx * CELL + CELL / 2 + dx * (CELL / 2 + 0.05);
       const z = portal.cz * CELL + CELL / 2 + dz * (CELL / 2 + 0.05);
-      if (portal.id === 'g') {
-        this.gate = { closed: cloneModel('dungeon/wall_gated'), open: cloneModel('dungeon/wall_arched'), glow: makeGlow(0x9b6bff) };
-        for (const o of Object.values(this.gate)) { o.position.set(x, 0, z); o.rotation.y = rot; this.group.add(o); }
-        this.gate.glow.position.y = 1.8;
+      if (portal.dungeon && portal.dungeon !== 'mine') {
+        // a dungeon gate: barred and chained shut until the dungeon before it is completed
+        const glowColor = portal.dungeon === 'keep' ? 0xb04aff : 0x6bd0ff;
+        const gate = { closed: cloneModel('dungeon/wall_gated'), open: cloneModel('dungeon/wall_arched'), glow: makeGlow(glowColor) };
+        for (const o of Object.values(gate)) { o.position.set(x, 0, z); o.rotation.y = rot; this.group.add(o); }
+        gate.glow.position.y = 1.8;
+        gate.chains = makeChains();
+        gate.chains.group.position.set(x + dx * 0.2, 0, z + dz * 0.2);
+        gate.chains.group.rotation.y = rot;
+        this.group.add(gate.chains.group);
+        gate.at = { x: x + dx * 2, z: z + dz * 2, dx, dz };
+        this.gates[portal.dungeon] = gate;
       } else {
         const door = cloneModel('dungeon/wall_doorway');
         door.position.set(x, 0, z);
@@ -330,39 +384,78 @@ export class LocationView {
       const hole = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 3), new THREE.MeshBasicMaterial({ color: 0x0a0806 }));
       hole.position.set(x - dx * 0.06, 1.5, z - dz * 0.06);
       hole.rotation.y = rot;
-      if (portal.id !== 'g') this.group.add(hole);
+      if (!portal.dungeon || portal.dungeon === 'mine') this.group.add(hole);
     }
 
-    // a shop counter in front of the shopkeeper
-    const keeper = L.props.find((p) => p.type === 'shopkeeper');
-    if (keeper) {
-      const counter = cloneModel('dungeon/table_long');
-      counter.position.set(keeper.x, 0, keeper.z + 1.3);
-      counter.rotation.y = Math.PI / 2;
-      this.group.add(counter);
+  }
+
+  /** Pebble Town's extras: villagers strolling, benches round the fountain, banners on the walls. */
+  buildTownLife() {
+    const L = this.layout;
+    const villagers = new Villagers(L, this.rand);
+    villagers.addTo(this.group);
+    this.animated.push({ update: (dt) => villagers.update(dt, this.uTime.value), dispose: () => villagers.dispose() });
+    const fountain = L.props.find((p) => p.build === 'fountain');
+    if (fountain) {
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+        const bench = makeBench();
+        bench.position.set(fountain.x + Math.cos(a) * 4.2, 0, fountain.z + Math.sin(a) * 4.2);
+        bench.rotation.y = -a - Math.PI / 2;
+        this.group.add(bench);
+      }
+    }
+    // banners hanging on the inside of the north castle wall, and either side of the fort's door
+    const colors = ['red', 'blue', 'yellow', 'green'];
+    for (let cx = 2; cx < L.w - 2; cx += 4) {
+      if (L.cell(cx, 0) !== 'X' || L.cell(cx, 1) !== '.') continue;
+      const banner = cloneModel(`dungeon/banner_patternA_${colors[(cx / 4) % colors.length | 0]}`);
+      banner.position.set(cx * CELL + CELL / 2, 3.2, CELL + 0.05);
+      this.group.add(banner);
+    }
+    const door = L.portals.d;
+    if (door) {
+      for (const s of [-1, 1]) {
+        const banner = cloneModel('dungeon/banner_shield_blue');
+        banner.position.set(door.cx * CELL + CELL / 2 + s * 3.2, 3.6, (door.cz + 1) * CELL + 0.05);
+        this.group.add(banner);
+      }
     }
   }
 
   buildProps() {
     const torchLights = [];
+    let lamps = 0;
     for (const p of this.layout.props) {
       let obj;
-      if (p.npc) {
-        const npc = new CharacterView({ cls: p.npc, name: p.npcName ?? 'Shopkeeper', weapon: null });
+      const folk = p.townsfolk ? TOWNSFOLK[p.folk % TOWNSFOLK.length] : null;
+      if (p.npc || folk) {
+        const npc = new CharacterView({ cls: folk?.cls ?? p.npc, look: { hat: 'own', cape: 'own', ...(folk?.look ?? p.npcLook) }, name: folk?.name ?? p.npcName ?? 'Shopkeeper', weapon: null });
         npc.root.position.set(p.x, 0, p.z);
-        npc.root.rotation.y = p.rot;
+        npc.root.rotation.y = folk ? this.rand(Math.round(p.x), Math.round(p.z), 'face') * 1.2 - 0.6 : p.rot;
         this.animated.push(npc);
         obj = npc.root;
+      } else if (p.build === 'lamp') {
+        obj = makeLampPost(lamps++ < 6);
+        obj.position.set(p.x, 0, p.z);
+        if (obj.userData.light) this.lampLights.push(obj.userData.light);
       } else {
-        const builders = { wardrobe: makeWardrobe, springSign: makeSpringSign, mirror: makeMirror };
-        obj = builders[p.build]?.() ?? cloneModel(p.model);
+        const builders = { wardrobe: makeWardrobe, springSign: makeSpringSign, mirror: makeMirror, fountain: makeFountain };
+        obj = builders[p.build]?.() ?? (p.model ? cloneModel(p.model) : new THREE.Group());
         obj.position.set(p.x, p.y ?? 0, p.z);
         obj.rotation.y = p.rot ?? 0;
+        if (obj.userData.update) this.animated.push({ update: () => obj.userData.update(this.uTime.value) });
       }
-      this.group.add(obj);
-      if (p.stall) this.buildPetStall(p);
+      const holder = new THREE.Group(); // so a stall + its keeper can be hidden together
+      holder.add(obj);
+      this.group.add(holder);
+      if (p.stall) {
+        const stall = p.pets ? this.buildPetStall(p, p.stall) : makeStall(p.stall, p.interact === 'decorator' ? 'decor' : 'shop');
+        if (!p.pets) { stall.position.set(p.x, 0, p.z); holder.add(stall); }
+      }
       if (p.build === 'forge') this.buildForge(p);
-      if (p.light) torchLights.push(p);
+      if (p.light && !p.build) torchLights.push(p);
+      if (p.requiresFlag) this.flagged.push({ holder, flag: p.requiresFlag });
     }
     // real lights are expensive: only light a handful of torches
     for (const t of torchLights.slice(0, 6)) {
@@ -417,7 +510,7 @@ export class LocationView {
   }
 
   /** Counter with a striped awning, and every pet sitting on display. */
-  buildPetStall(p) {
+  buildPetStall(p, color = 0xff9ab8) {
     const stall = new THREE.Group();
     stall.position.set(p.x, 0, p.z);
     const counter = cloneModel('dungeon/table_long');
@@ -431,7 +524,7 @@ export class LocationView {
       pole.castShadow = true;
       stall.add(pole);
     }
-    const stripes = [0xff9ab8, 0xffffff];
+    const stripes = [color, 0xffffff];
     for (let i = 0; i < 8; i++) { // sloped awning in pink and white stripes
       const s = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 2.6), new THREE.MeshStandardMaterial({ color: stripes[i % 2], roughness: 0.8 }));
       s.position.set(-1.75 + i * 0.5, 3.5, 0.9);
@@ -448,22 +541,61 @@ export class LocationView {
       this.animated.push({ update: (dt) => { pet.t += dt; pet.animate(dt, false); } });
     });
     this.group.add(stall);
+    return stall;
   }
 
-  /** World flags changed (e.g. boss beaten) — update the ancient gate. */
-  setFlags(flags) {
-    if (!this.gate) return;
-    const open = !!flags.mineCleared;
-    this.gate.closed.visible = !open;
-    this.gate.open.visible = open;
-    this.gate.glow.visible = open;
+  /**
+   * The world changed (a boss was beaten, a dungeon completed): show stalls that have opened and
+   * gates that are unchained. A gate whose chains are mid-way through breaking keeps them.
+   */
+  setWorld(world) {
+    const flags = world?.flags ?? {};
+    for (const f of this.flagged) f.holder.visible = !!flags[f.flag];
+    for (const [id, gate] of Object.entries(this.gates)) {
+      const open = !!world?.dungeons?.[id]?.unlocked;
+      gate.closed.visible = !open && !gate.chains.breaking;
+      gate.open.visible = open || gate.chains.breaking;
+      gate.glow.visible = open;
+      gate.chains.group.visible = gate.chains.breaking ? !gate.chains.done : !open || gate.keepChains;
+    }
+  }
+
+  /**
+   * Keep the chains up on an unlocked gate until playUnlock (the first time this player sees
+   * it open). Returns where the camera should look.
+   */
+  holdChains(dungeonId) {
+    const gate = this.gates[dungeonId];
+    if (!gate) return null;
+    gate.keepChains = true;
+    gate.chains.group.visible = true;
+    gate.closed.visible = true;
+    gate.open.visible = false;
+    return gate.at;
+  }
+
+  /** The lock-breaking moment: the padlock shakes, cracks, chains fall, the gate opens. */
+  playUnlock(dungeonId) {
+    const gate = this.gates[dungeonId];
+    if (!gate) return;
+    gate.chains.breakApart();
+    this.animated.push({ update: (dt) => {
+      gate.chains.update(dt);
+      if (gate.chains.done && gate.keepChains) {
+        gate.keepChains = false;
+        gate.chains.group.visible = false;
+        gate.closed.visible = false;
+        gate.open.visible = true;
+        gate.glow.visible = true;
+      }
+    } });
   }
 
   update(dt, time) {
     this.uTime.value = time;
     for (const a of this.animated) a.update(dt);
     for (const [i, l] of this.lights.entries()) l.intensity = 16 + Math.sin(time * 9 + i * 7) * 2 + Math.sin(time * 23 + i) * 1.5;
-    if (this.gate?.glow.visible) this.gate.glow.material.opacity = 0.55 + Math.sin(time * 3) * 0.2;
+    for (const gate of Object.values(this.gates)) if (gate.glow.visible) gate.glow.material.opacity = 0.55 + Math.sin(time * 3) * 0.2;
   }
 
   dispose() {
