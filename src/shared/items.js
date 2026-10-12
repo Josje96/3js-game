@@ -109,6 +109,12 @@ export const ITEMS = {
   slimegoo:    { name: 'Slime Goo',       kind: 'loot', sell: 2,  model: 'dungeon/bottle_B_green' },
   mythril:     { name: 'Mythril Ore',     kind: 'loot', sell: 30, model: 'blocks/stone_with_silver', tint: 0x7fd8ff },
   obsidian:    { name: 'Obsidian',        kind: 'loot', sell: 55, model: 'blocks/stone_dark', tint: 0x9a6ad0 },
+  // gem ores: rarer than metal, sparkly rocks deeper down (client/views.js RockView). `glow` = the gem's shine
+  amethyst:    { name: 'Amethyst',        kind: 'loot', sell: 40,  model: 'props/crystalcluster', tint: 0xb46cff, gem: true, glow: 0x9a4dff },
+  sapphire:    { name: 'Sapphire',        kind: 'loot', sell: 80,  model: 'props/crystalcluster', tint: 0x4f8dff, gem: true, glow: 0x2a6aff },
+  emerald:     { name: 'Emerald',         kind: 'loot', sell: 130, model: 'props/crystalcluster', tint: 0x3fe08a, gem: true, glow: 0x1ac860 },
+  ruby:        { name: 'Ruby',            kind: 'loot', sell: 190, model: 'props/crystalcluster', tint: 0xff4a6a, gem: true, glow: 0xff1a40 },
+  opal:        { name: 'Rainbow Opal',    kind: 'loot', sell: 320, model: 'props/crystalcluster', tint: 0xf4f0ff, gem: true, glow: 0xffffff, rainbow: true },
   essence:     { name: 'Arcane Essence',  kind: 'loot', sell: 60, model: 'dungeon/bottle_B_green', tint: 0xb070ff }, // for enchanting: bosses drop it
   starstone:   { name: 'Starstone',       kind: 'loot', sell: 90, model: 'blocks/stone_with_gold', tint: 0xfff6c0 },
 

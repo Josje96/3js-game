@@ -395,7 +395,13 @@ export class GameClient {
         this.addEffect(new NovaBlast(msg.x, msg.z, SPELL_RADIUS));
         this.shake(Math.max(0, 0.5 - Math.hypot(msg.x - this.pos.x, msg.z - this.pos.z) / 40));
         break;
-      case 'break': this.sfx.play('rock'); this.addEffect(new Debris(msg.x, msg.z, [0x8d8d8d, 0x6e6e6e, 0xa8a29a], 10)); break;
+      case 'break': { // gems burst in their own colours
+        const gem = ITEMS[msg.ore]?.gem ? ITEMS[msg.ore] : null;
+        this.sfx.play(gem ? 'coin' : 'rock');
+        this.addEffect(new Debris(msg.x, msg.z, gem ? [gem.tint, gem.glow, 0xffffff] : [0x8d8d8d, 0x6e6e6e, 0xa8a29a], gem ? 18 : 10));
+        if (gem) this.floatAt(msg, `${gem.name}!`, '#ffffff');
+        break;
+      }
     }
   }
 

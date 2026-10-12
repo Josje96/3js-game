@@ -76,13 +76,14 @@ for (const [id, d] of Object.entries(DUNGEONS)) {
 
 /** Ore you can mine: deeper floors have better rocks. Weights by total depth. */
 export function oresFor(depth) {
+  // gems (amethyst → opal) are the rare sparkly ones
   if (depth <= 3) return { stone: 6, copper: 3 };
-  if (depth <= 6) return { stone: 4, copper: 3, silver: 2 };
-  if (depth <= 20) return { stone: 3, silver: 3, goldore: 2 };
-  if (depth <= 50) return { stone: 2, silver: 3, goldore: 3, mythril: 1 };
-  if (depth <= 120) return { stone: 2, goldore: 3, mythril: 3, obsidian: 1 };
-  if (depth <= 200) return { stone: 1, goldore: 2, mythril: 3, obsidian: 3, starstone: 1 };
-  return { stone: 1, mythril: 2, obsidian: 3, starstone: 3 };
+  if (depth <= 6) return { stone: 4, copper: 3, silver: 2, amethyst: 0.4 };
+  if (depth <= 20) return { stone: 3, silver: 3, goldore: 2, amethyst: 0.8, sapphire: 0.3 };
+  if (depth <= 50) return { stone: 2, silver: 3, goldore: 3, mythril: 1, amethyst: 0.6, sapphire: 0.7, emerald: 0.3 };
+  if (depth <= 120) return { stone: 2, goldore: 3, mythril: 3, obsidian: 1, sapphire: 0.6, emerald: 0.7, ruby: 0.3 };
+  if (depth <= 200) return { stone: 1, goldore: 2, mythril: 3, obsidian: 3, starstone: 1, emerald: 0.6, ruby: 0.7, opal: 0.25 };
+  return { stone: 1, mythril: 2, obsidian: 3, starstone: 3, ruby: 0.7, opal: 0.5 };
 }
 
 /** Total depth: how far down this floor is across all dungeons (sets how tough things are). */
@@ -171,7 +172,8 @@ export const ENEMIES = {
 };
 export const SLIME_STATS = ENEMIES; // older name
 
-export const ROCK_HP = { stone: 2, copper: 4, silver: 7, goldore: 11, mythril: 16, obsidian: 24, starstone: 32 };
+export const ROCK_HP = { stone: 2, copper: 4, silver: 7, goldore: 11, mythril: 16, obsidian: 24, starstone: 32,
+  amethyst: 8, sapphire: 13, emerald: 18, ruby: 26, opal: 34 }; // gems: a bit tougher than the metal found beside them
 
 // Breakable barrels: `style` picks the model, hp = hits with a starter weapon (damage 2-3).
 export const BARREL_STYLES = { barrel: 3, keg: 3, small: 1 };

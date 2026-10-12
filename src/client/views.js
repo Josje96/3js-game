@@ -11,6 +11,7 @@ import { ENEMIES } from '../shared/dungeons.js';
 import { FurnitureView } from './furniture.js';
 import { dropTinyShadows } from './merge.js';
 import { enchantWeapon } from './enchant.js';
+import { glowTexture } from './effects.js';
 
 // sitting on a chair: how far the body drops and leans back, and how the legs and arms bend (radians)
 const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM = 0.5;
@@ -604,24 +605,79 @@ const ROCK_MODELS = { stone: 'blocks/stone', copper: 'blocks/stone_with_copper',
 // rocks of the deeper ores reuse a block model, recoloured like the ore's item
 const ROCK_LOOKS = (ore) => ({ model: ROCK_MODELS[ore] ?? ITEMS[ore]?.model ?? 'blocks/stone', tint: ROCK_MODELS[ore] ? null : ITEMS[ore]?.tint });
 
+// metal ores glint now and then in this colour; gems glint in their own
+const ORE_GLINT = { silver: 0xeef6ff, goldore: 0xfff0a0, mythril: 0xbff0ff, obsidian: 0xe0b8ff, starstone: 0xfff8d8 };
+
 export class RockView {
   constructor(e) {
     this.root = new THREE.Group();
-    const look = ROCK_LOOKS(e.ore);
-    const model = tintModel(cloneModel(look.model), look.tint);
+    this.body = new THREE.Group(); // everything that shakes when hit
+    this.root.add(this.body);
+    const def = ITEMS[e.ore], seed = Math.abs(e.x * 13 + e.z * 7);
     const s = 0.85;
+    const look = def?.gem ? { model: 'blocks/stone', tint: null } : ROCK_LOOKS(e.ore);
+    const model = tintModel(cloneModel(look.model), look.tint);
     model.scale.setScalar(s);
     model.position.y = s;
-    model.rotation.y = ((e.x * 13 + e.z * 7) % 4) * Math.PI / 2 + 0.2;
-    this.root.add(model);
+    model.rotation.y = (seed % 4) * Math.PI / 2 + 0.2;
+    this.body.add(model);
+    this.time = (seed % 100) / 10;
+    this.gems = [];
+    if (def?.gem) {
+      // a cluster of glowing crystals bursting out of the top, and smaller ones from the sides
+      for (const [x, y, z, k, tilt] of [[0, 1.4, 0, 1.35, 0], [0.75, 0.9, 0.2, 0.6, -0.9], [-0.6, 0.7, -0.45, 0.55, 0.8]]) {
+        const c = cloneModel('props/crystalcluster');
+        const box = new THREE.Box3().setFromObject(c), size = box.getSize(new THREE.Vector3());
+        c.scale.setScalar((1.5 / Math.max(size.x, size.z, 0.01)) * k);
+        c.position.set(x, y, z);
+        c.rotation.set(0, seed + x * 3, tilt);
+        c.traverse((o) => {
+          if (!o.isMesh) return;
+          o.material = new THREE.MeshStandardMaterial({ color: def.tint, emissive: def.glow, emissiveIntensity: 0.55, roughness: 0.12, metalness: 0.25, transparent: true, opacity: 0.92 });
+          this.gems.push(o.material);
+        });
+        this.body.add(c);
+      }
+      this.rainbow = !!def.rainbow;
+    }
+    // glints: little stars that flash on the rock's surface
+    const glint = def?.gem ? 0xffffff : ORE_GLINT[e.ore];
+    this.glints = [];
+    if (glint != null) {
+      const n = def?.gem ? 5 : 3;
+      for (let i = 0; i < n; i++) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: glint, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+        const a = (seed + i * 2.4) % (Math.PI * 2);
+        sp.position.set(Math.cos(a) * 0.8, 0.5 + ((seed * (i + 1)) % 10) / 8, Math.sin(a) * 0.8);
+        sp.userData = { phase: i * 1.7 + seed, speed: 0.9 + (i % 3) * 0.35 };
+        this.body.add(sp);
+        this.glints.push(sp);
+      }
+    }
     this.root.position.set(e.x, 0, e.z);
     this.shake = 0;
   }
   apply() { this.shake = 0.2; }
   hit() { this.shake = 0.2; }
   update(dt) {
+    this.time += dt;
     this.shake = Math.max(0, this.shake - dt);
-    this.root.children[0].position.x = this.shake > 0 ? Math.sin(this.shake * 90) * 0.12 : 0;
+    this.body.position.x = this.shake > 0 ? Math.sin(this.shake * 90) * 0.12 : 0;
+    for (const g of this.glints) { // a quick twinkle every couple of seconds
+      const k = Math.max(0, Math.sin(this.time * g.userData.speed * 2 + g.userData.phase)) ** 12;
+      g.material.opacity = k;
+      g.scale.setScalar(0.25 + k * 0.6);
+    }
+    if (this.gems.length) {
+      const pulse = 0.45 + Math.sin(this.time * 2.2) * 0.2;
+      for (const m of this.gems) {
+        m.emissiveIntensity = pulse;
+        if (this.rainbow) { // an opal: colours drift through the rainbow
+          m.color.setHSL((this.time * 0.08) % 1, 0.7, 0.72);
+          m.emissive.setHSL((this.time * 0.08 + 0.1) % 1, 0.9, 0.45);
+        }
+      }
+    }
   }
   dispose() { this.root.removeFromParent(); }
 }
