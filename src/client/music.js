@@ -6,15 +6,16 @@
 const MOODS = {
   home:  { scale: 'lydian',  root: 65, bpm: 76,  lead: ['musicbox', 'harp'],  arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.55, sparkle: 0.25 },
   town:  { scale: 'major',   root: 67, bpm: 104, lead: ['flute', 'marimba'], arp: 'pluck', bass: true,  pad: true, drums: true,  density: 0.7,  sparkle: 0.12 },
-  mine:  { scale: 'dorian',  root: 62, bpm: 84,  lead: ['bell', 'musicbox'], arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.4,  sparkle: 0.3 },
-  ruins: { scale: 'aeolian', root: 64, bpm: 72,  lead: ['flute', 'bell'],    arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.45, sparkle: 0.3 },
-  frost: { scale: 'lydian',  root: 69, bpm: 80,  lead: ['bell', 'musicbox'], arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.45, sparkle: 0.45 },
-  grotto:{ scale: 'dorian',  root: 60, bpm: 92,  lead: ['marimba', 'flute'], arp: 'pluck', bass: true,  pad: true, drums: true,  density: 0.55, sparkle: 0.2 },
-  lava:  { scale: 'aeolian', root: 57, bpm: 112, lead: ['flute', 'marimba'], arp: 'pluck', bass: true,  pad: true, drums: true,  density: 0.6,  sparkle: 0.05 },
-  crystal:{ scale: 'lydian', root: 71, bpm: 88,  lead: ['bell', 'harp'],     arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.5,  sparkle: 0.5 },
-  spooky:{ scale: 'aeolian', root: 59, bpm: 70,  lead: ['musicbox', 'bell'], arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.35, sparkle: 0.2 },
-  sea:   { scale: 'dorian',  root: 64, bpm: 78,  lead: ['flute', 'harp'],    arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.45, sparkle: 0.35 },
-  keep:  { scale: 'aeolian', root: 60, bpm: 96,  lead: ['flute', 'marimba'], arp: 'pluck', bass: true,  pad: true, drums: true,  density: 0.55, sparkle: 0.1 },
+  // underground it's dark: `dread` = a low drone, a slow heartbeat, sparse lead, now and then an eerie sting
+  mine:  { scale: 'phrygian', root: 50, bpm: 58, lead: ['bell', 'musicbox'], arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.22, sparkle: 0.06, dread: true },
+  ruins: { scale: 'aeolian', root: 52, bpm: 62,  lead: ['flute', 'bell'],    arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.3,  sparkle: 0.08, dread: true },
+  frost: { scale: 'aeolian', root: 57, bpm: 64,  lead: ['bell', 'musicbox'], arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.3,  sparkle: 0.15, dread: true },
+  grotto:{ scale: 'phrygian', root: 52, bpm: 70, lead: ['marimba', 'bell'],  arp: 'pluck', bass: true,  pad: true, drums: false, density: 0.3,  sparkle: 0.08, dread: true },
+  lava:  { scale: 'harmonic', root: 50, bpm: 76, lead: ['flute', 'marimba'], arp: 'pluck', bass: true,  pad: true, drums: true,  density: 0.4,  sparkle: 0.03, dread: true },
+  crystal:{ scale: 'harmonic', root: 57, bpm: 64, lead: ['bell', 'harp'],    arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.3,  sparkle: 0.2,  dread: true },
+  spooky:{ scale: 'phrygian', root: 50, bpm: 56, lead: ['musicbox', 'bell'], arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.2,  sparkle: 0.06, dread: true },
+  sea:   { scale: 'aeolian', root: 52, bpm: 62,  lead: ['flute', 'harp'],    arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.3,  sparkle: 0.1,  dread: true },
+  keep:  { scale: 'harmonic', root: 52, bpm: 72, lead: ['flute', 'marimba'], arp: 'pluck', bass: true,  pad: true, drums: true,  density: 0.4,  sparkle: 0.04, dread: true },
   boss:  { scale: 'aeolian', root: 62, bpm: 128, lead: ['marimba', 'flute'], arp: 'pluck', bass: true,  pad: false, drums: true, density: 0.8,  sparkle: 0.05 },
 };
 
@@ -23,6 +24,8 @@ const SCALES = {
   lydian:  [0, 2, 4, 6, 7, 9, 11],
   dorian:  [0, 2, 3, 5, 7, 9, 10],
   aeolian: [0, 2, 3, 5, 7, 8, 10],
+  phrygian: [0, 1, 3, 5, 7, 8, 10], // the dark one: that flat second
+  harmonic: [0, 2, 3, 5, 7, 8, 11], // harmonic minor: spooky-castle
 };
 
 // which scale degree (0-based) tends to follow which — a tiny Markov chain of cute progressions
@@ -50,6 +53,7 @@ const RHYTHMS = [
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const midiHz = (m) => 440 * 2 ** ((m - 69) / 12);
 const STORE_KEY = 'fdg.music';
+const MUSIC_LEVEL = 0.48; // music sits under the sound effects (was 0.8)
 
 export class Music {
   constructor() {
@@ -72,7 +76,7 @@ export class Music {
       if (!AC) return;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = this.muted ? 0 : this.volume * 0.8;
+      this.master.gain.value = this.muted ? 0 : this.volume * MUSIC_LEVEL;
       // a little room: convolution reverb from decaying noise + a soft echo
       this.reverb = this.ctx.createConvolver();
       this.reverb.buffer = this.impulse(2.6);
@@ -109,7 +113,7 @@ export class Music {
 
   setVolume(v) { this.volume = v; this.applyGain(); this.store(); }
   toggleMute() { this.muted = !this.muted; this.applyGain(); this.store(); return this.muted; }
-  applyGain() { this.master?.gain.setTargetAtTime(this.muted ? 0 : this.volume * 0.8, this.ctx.currentTime, 0.1); }
+  applyGain() { this.master?.gain.setTargetAtTime(this.muted ? 0 : this.volume * MUSIC_LEVEL, this.ctx.currentTime, 0.1); }
   store() { try { localStorage.setItem(STORE_KEY, JSON.stringify({ volume: this.volume, muted: this.muted })); } catch { /* ignore */ } }
 
   /** Switch to a mood ('home', 'town', 'mine', 'ruins', 'boss'): fade out, start a new piece. */
@@ -195,7 +199,17 @@ export class Music {
       this.bass(this.scaleNote(deg + (Math.random() < 0.5 ? 4 : 0), -2), t0 + beat * 2, beat * 1.4);
     }
 
-    if (P.arpStyle !== 'off') {
+    if (m.dread) { // a low hum under everything, a slow heartbeat, and sometimes something unsettling
+      this.pad(this.key - 12, t0, beat * 4.2);
+      if (bar % 2 === 0) { this.thump(t0, 0.22); this.thump(t0 + beat * 0.45, 0.14); }
+      if (Math.random() < 0.14) { // two bells a semitone apart, high and quiet
+        const at = t0 + (2 + Math.floor(Math.random() * 4)) * e8, n = this.scaleNote(deg + 14, 0);
+        this.voice('bell', n, at, beat * 2, 0.045, true);
+        this.voice('bell', n + 1, at + e8 * 0.5, beat * 2, 0.035, true);
+      }
+    }
+
+    if (P.arpStyle !== 'off' && !(m.dread && bar % 2 === 1)) { // underground the arpeggio only stirs every other bar
       const order = { up: [0, 1, 2, 1, 0, 1, 2, 1], updown: [0, 1, 2, 3, 2, 1, 0, 1], broken: [0, 2, 1, 2, 0, 2, 1, 3] }[P.arpStyle];
       for (let i = 0; i < 8; i++) {
         if (Math.random() < 0.12) continue; // little gaps keep it airy
