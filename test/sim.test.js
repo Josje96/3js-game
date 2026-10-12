@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildLayout, isWalkableChar } from '../src/shared/locations.js';
+import { generateFloor } from '../src/shared/mapgen.js';
 import { DUNGEONS, dungeonKey } from '../src/shared/dungeons.js';
 import { MAPS } from '../src/shared/maps.js';
 import { CELL, PROTOCOL_VERSION } from '../src/shared/config.js';
@@ -65,6 +66,19 @@ test('dungeon floors are deterministic, connected, and have a way up', () => {
     }
   }
   assert.notDeepEqual(buildLayout('mine/3', 1).rows, buildLayout('mine/3', 2).rows, 'different seeds differ');
+});
+
+test('mapgen: rooms have personalities — most floors hide an outcrop in a room', () => {
+  let withOutcrops = 0, total = 0;
+  for (let floor = 1; floor <= 100; floor += 7) {
+    for (let seed = 1; seed <= 40; seed++) {
+      const f = generateFloor('mine', floor, seed);
+      total++;
+      const enclosed = (z, x) => f.rows[z][x] === '#' && [[1, 0], [-1, 0], [0, 1], [0, -1]].every(([dx, dz]) => f.rows[z + dz][x + dx] !== '#');
+      if (Array.from({ length: f.h - 2 }, (_, i) => i + 1).some((z) => Array.from({ length: f.w - 2 }, (_, i) => i + 1).some((x) => enclosed(z, x)))) withOutcrops++;
+    }
+  }
+  assert.ok(withOutcrops > total * 0.4, `only ${withOutcrops}/${total} floors have an interior outcrop — the room personalities are gone?`);
 });
 
 // --- server ---------------------------------------------------------------

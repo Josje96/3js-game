@@ -22,7 +22,7 @@ Most important first. Tick things off in the same commit that does them.
 ## Ideas / smaller things
 - [ ] Dungeons still look samey within a biome: more room shapes in `shared/mapgen.js` (caves, halls, bridges).
 - [ ] Unique boss attacks (currently chase / pounce / shoot + summons).
-- [ ] Forge recipes for deeper ores (mythril, obsidian, starstone) — they only sell for now.
+- [x] Forge recipes for deeper ores (mythril, obsidian, starstone) — done in round 3: Mythril Brand & Bulwark, Obsidian Edge, Night Staff, Star Piercer, Star Cleaver; blueprints gate on where the ores spawn.
 - [ ] Sound effects (hits, coins, chains breaking, night chime).
 - [ ] Touch controls for tablets/phones.
 - [ ] Villagers are only on each player's own screen; fine, but they can't be talked to.
