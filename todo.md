@@ -13,7 +13,7 @@ Most important first. Tick things off in the same commit that does them.
 - [ ] Old saves: load a real family save (back it up first) and check the v9 room upgrade — beds should
       each sit in their own room, and everyone can style their own room at the Decorator.
 - [x] Merge branches `round-2` and `round-3` into `main`.
-- [ ] Push the dungeon-floor crash fix (86d142f): every dungeon floor was an empty blue room after round 3.
+- [x] Push the dungeon-floor crash fix (86d142f): every dungeon floor was an empty blue room after round 3.
 
 ## Asked for, not done yet
 - [x] **Blender assets** to make places less repetitive — done in round 3: `tools/blender/make_props.py`
