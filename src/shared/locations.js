@@ -59,7 +59,7 @@ export function buildLayout(key, seed, opts = {}) {
 
   layout.props = layout.props.map((p, i) => {
     const def = PROPS[p.type];
-    return { id: `prop${i}`, ...def, ...p, z: p.z + (def.offsetZ ?? 0) };
+    return { id: `prop${i}`, ...def, ...p, rot: def.rot ?? p.rot, z: p.z + (def.offsetZ ?? 0) };
   });
   layout.solids = layout.props.flatMap((p) => p.blocks
     ? p.blocks.map(([dx, dz, r]) => ({ x: p.x + dx * Math.cos(p.rot ?? 0) + dz * Math.sin(p.rot ?? 0), z: p.z - dx * Math.sin(p.rot ?? 0) + dz * Math.cos(p.rot ?? 0), r }))

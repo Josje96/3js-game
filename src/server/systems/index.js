@@ -18,6 +18,7 @@ import * as combat from './combat.js';
 import * as day from './day.js';
 import * as decor from './decor.js';
 import * as dungeons from './dungeons.js';
+import * as enchant from './enchant.js';
 import * as home from './home.js';
 import * as pets from './pets.js';
 import * as progression from './progression.js';
@@ -26,7 +27,7 @@ import * as shop from './shop.js';
 import * as town from './town.js';
 import * as wallet from './wallet.js';
 
-export const SYSTEMS = { combat, day, decor, dungeons, home, pets, progression, seasons, shop, town, wallet };
+export const SYSTEMS = { combat, day, decor, dungeons, enchant, home, pets, progression, seasons, shop, town, wallet };
 
 /** Copy every system's methods onto the class; collect interactions and hooks. */
 export function installSystems(cls) {

@@ -44,6 +44,9 @@ export const PROPS = {
   mirror:     { build: 'mirror', radius: 0.7, offsetZ: -1.3, interact: 'mirror', prompt: 'Mirror (hair & face)' },
   wardrobe:   { build: 'wardrobe', radius: 1.2, offsetZ: -0.9, interact: 'wardrobe', prompt: 'Wardrobe (change outfit)' },
   petkeeper:  { npc: 'Ranger', npcName: 'Pet Keeper', radius: 2.3, offsetZ: -0.9, blocks: STALL_BLOCKS, interact: 'pets', prompt: 'Pet Keeper (pets & treats)', stall: 0xff9ab8, pets: true },
+  // a shady figure in the town's far corner, under a dark tent with a bubbling cauldron, turned to face the town
+  enchanter:  { build: 'enchanterTent', npc: 'Rogue_Hooded', npcName: 'Enchanter', npcLook: { hat: 'own', cape: 'own', dye: 'midnight', face: 'eyepatch' },
+                rot: -Math.PI * 0.75, radius: 1.6, blocks: [[0, -0.9, 1.7], [0, 0.7, 0.8]], interact: 'enchant', prompt: 'Enchanter (make your weapons stronger)' },
   shopkeeper: { npc: 'Mage', npcName: 'Shopkeeper', npcLook: { hat: 'none', hair: 'bun', hairColor: 'ginger', clothes: 'sunday', cape: 'none' },
                 radius: 2.3, offsetZ: -0.9, blocks: STALL_BLOCKS, interact: 'shop', prompt: 'Shop (gear, armor, food, fashion)', stall: 0x4f8ce0 },
 };

@@ -10,6 +10,7 @@ import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
 import { FurnitureView } from './furniture.js';
 import { dropTinyShadows } from './merge.js';
+import { enchantWeapon } from './enchant.js';
 
 // sitting on a chair: how far the body drops and leans back, and how the legs and arms bend (radians)
 const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM = 0.5;
@@ -108,7 +109,7 @@ const LOW_HP = 0.3;              // flash red at or below this share of max heal
 const CAPE_PART = /_Cape$/;
 
 export class CharacterView {
-  constructor({ cls, look, name, weapon, shield = null, armor = null, isLocal = false }) {
+  constructor({ cls, look, name, weapon, ench = 0, shield = null, armor = null, isLocal = false }) {
     this.root = new THREE.Group();
     this.cls = cls;
     this.model = cloneCharacter((CLASSES[cls] ?? CLASSES.Knight).model);
@@ -140,7 +141,7 @@ export class CharacterView {
     // GLTFLoader strips '.' from node names: 'handslot.r' -> 'handslotr'
     this.hand = this.model.getObjectByName('handslotr') ?? this.model.getObjectByName('handslot.r');
     this.weaponObj = null;
-    this.setWeapon(weapon);
+    this.setWeapon(weapon, ench);
     this.offHand = this.model.getObjectByName('handslotl') ?? this.model.getObjectByName('handslot.l');
     this.setShield(shield);
     this.setArmor(armor);
@@ -153,15 +154,21 @@ export class CharacterView {
     this.target = null; // for remote interpolation
   }
 
-  setWeapon(id) {
-    if (this.weaponId === id) return;
+  /** The weapon in hand; `ench` = its enchant level (glow, size, sparkles, flames: client/enchant.js). */
+  setWeapon(id, ench = 0) {
+    ench = ench | 0;
+    if (this.weaponId === id && this.weaponEnch === ench) return;
     this.weaponId = id;
+    this.weaponEnch = ench;
     this.weaponObj?.removeFromParent();
     this.weaponObj = null;
+    this.weaponFx = null;
     const model = ITEMS[id]?.model;
     if (model && this.hand) {
       this.weaponObj = tintModel(cloneModel(model), ITEMS[id].tint);
+      if (ench > 0) this.weaponFx = enchantWeapon(this.weaponObj, ench);
       this.hand.add(this.weaponObj);
+      this.flashMats = null; // new materials: collect them again for the low-health flash
     }
   }
 
@@ -439,6 +446,7 @@ export class CharacterView {
   update(dt) {
     this.time += dt;
     for (const b of this.borrowed) b.children[0]?.userData.update?.(this.time); // flapping wings
+    this.weaponFx?.update(this.time);
     if (this.target) {
       const k = smooth(dt);
       this.root.position.x += (this.target.x - this.root.position.x) * k;

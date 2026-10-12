@@ -16,6 +16,7 @@ import { Input } from './input.js';
 import { Hud } from './hud.js';
 import { Music, moodFor } from './music.js';
 import { Sfx } from './sfx.js';
+import { ENCHANT_LOOKS } from '../shared/enchant.js';
 
 /** What the fort looks like, reduced to what a re-render depends on (so a change re-dresses it). */
 function houseKey(h) {
@@ -128,7 +129,7 @@ export class GameClient {
         if (this.self && msg.hp < this.self.hp) this.me?.play('hurt');
         this.self = msg;
         this.hud.setSelf(msg);
-        this.me?.setWeapon(msg.weapon);
+        this.me?.setWeapon(msg.weapon, msg.enchants?.[msg.weapon]);
         this.me?.setShield(msg.shield);
         this.me?.setArmor(msg.armor);
         this.me?.setHealth(msg.hp / msg.maxHp);
@@ -220,7 +221,7 @@ export class GameClient {
   }
 
   makeMe() {
-    const me = new CharacterView({ cls: this.profile.cls, look: this.profile.look, name: this.profile.name, weapon: this.self?.weapon, shield: this.self?.shield, armor: this.self?.armor, isLocal: true });
+    const me = new CharacterView({ cls: this.profile.cls, look: this.profile.look, name: this.profile.name, weapon: this.self?.weapon, ench: this.self?.enchants?.[this.self?.weapon], shield: this.self?.shield, armor: this.self?.armor, isLocal: true });
     if (this.self) me.setHealth(this.self.hp / this.self.maxHp);
     return me;
   }
@@ -315,7 +316,7 @@ export class GameClient {
     let v = this.others.get(p.id);
     if (v && v.cls !== p.cls) { v.dispose(); this.others.delete(p.id); v = null; } // changed outfit
     if (!v) {
-      v = new CharacterView({ cls: p.cls, look: p.look, name: p.name, weapon: p.weapon, shield: p.shield });
+      v = new CharacterView({ cls: p.cls, look: p.look, name: p.name, weapon: p.weapon, ench: p.ench, shield: p.shield });
       v.lastAct = p.act;
       this.scene.add(v.root);
       this.others.set(p.id, v);
@@ -324,7 +325,7 @@ export class GameClient {
     v.maxHp = p.maxHp;
     v.netAnim = p.anim;
     v.setHealth(p.hp / p.maxHp);
-    v.setWeapon(p.weapon);
+    v.setWeapon(p.weapon, p.ench);
     v.setLook(p.look);
     v.setShield(p.shield);
     v.setArmor(p.armor);
@@ -382,6 +383,13 @@ export class GameClient {
         break;
       case 'chest': this.sfx.play('chest'); this.floatAt(msg, 'Treasure!', '#ffd23f'); break;
       case 'smash': this.sfx.play('smash'); this.addEffect(new Debris(msg.x, msg.z, [0x9a6a3c, 0x7a5030, 0xb58250, 0x5a5a5a])); break;
+      case 'enchant': { // a weapon just got stronger: a burst of its new colour
+        const glow = ENCHANT_LOOKS[msg.level - 1]?.glow ?? 0xb070ff;
+        this.sfx.play('nova');
+        this.addEffect(new Debris(msg.x, msg.z, [glow, 0xffffff, glow], 30));
+        this.floatAt(msg.id === this.you ? this.pos : msg, `+${msg.level}!`, '#e0b0ff');
+        break;
+      }
       case 'nova':
         this.sfx.play('nova');
         this.addEffect(new NovaBlast(msg.x, msg.z, SPELL_RADIUS));
@@ -453,6 +461,8 @@ export class GameClient {
         onSell: (item, qty) => this.conn.send({ t: 'sell', item, qty }),
         onBuyStyle: (slot, id) => this.conn.send({ t: 'buyStyle', slot, id }),
       });
+    } else if (msg.kind === 'enchanter') {
+      this.hud.openEnchanter({ onEnchant: (item) => this.conn.send({ t: 'enchant', item }) });
     } else if (msg.kind === 'forge') {
       this.hud.openForge({ onForge: (recipe) => this.conn.send({ t: 'forge', recipe }) });
     } else if (msg.kind === 'pets') {

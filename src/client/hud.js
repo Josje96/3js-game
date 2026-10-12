@@ -7,6 +7,7 @@ import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost } from '../shared/pets.js';
 import { seasonOf, dayOfSeason, isBossDay, calendar, dateLabel } from '../shared/seasons.js';
+import { ENCHANT_LOOKS, enchantCost, enchantedName, enchantDamage } from '../shared/enchant.js';
 
 /** The night screen's season line: which season it is, and whether its boss has come to town. */
 function seasonLine(day) {
@@ -146,7 +147,7 @@ export class Hud {
     const heals = inv.filter(([id]) => ITEMS[id].heal), treats = inv.filter(([id]) => ITEMS[id].petHeal);
     const loot = inv.filter(([id]) => !ITEMS[id].heal && !ITEMS[id].petHeal);
     this.inv.innerHTML = [
-      slot('weapon', `${iconImg(itemIcon(s.weapon))}${esc(weapon?.name ?? s.weapon)} <b>${weapon?.damage ?? 1}</b>`, 'Your weapon (C to change)'),
+      slot('weapon', `${iconImg(itemIcon(s.weapon))}${esc(weapon?.name ?? s.weapon)}${s.enchants?.[s.weapon] ? ` <b class="ench">+${s.enchants[s.weapon]}</b>` : ''} <b>${(weapon?.damage ?? 1) + enchantDamage(s.weapon, s.enchants?.[s.weapon])}</b>`, 'Your weapon (C to change)'),
       shield ? slot('weapon', iconImg(itemIcon(s.shield)) || '🛡', `${shield.name}: ${itemStat(shield)}`) : '',
       armor ? slot('weapon', iconImg(itemIcon(s.armor)) || '🥋', `${armor.name}: ${itemStat(armor)}`) : '',
       group('Q', 'eat / drink', heals),
@@ -493,15 +494,47 @@ export class Hud {
         const it = ITEMS[id];
         const on = id === s.weapon || id === s.shield || id === s.armor;
         const stat = it.kind === 'weapon'
-          ? `⚔ ${attackDamage(id, s.stats)} <small>${STATS[weaponStat(id)].icon}${it.ranged ? ' ranged' : ''}</small>`
+          ? `⚔ ${attackDamage(id, s.stats, s.enchants?.[id])} <small>${STATS[weaponStat(id)].icon}${it.ranged ? ' ranged' : ''}</small>`
           : itemStat(it);
-        const b = el('button', `shop-row${on ? ' selected' : ''}`, `<span>${iconImg(itemIcon(id))}${esc(it.name)}</span><span>${stat}</span>`);
+        const b = el('button', `shop-row${on ? ' selected' : ''}`, `<span>${iconImg(itemIcon(id))}${esc(enchantedName(id, s.enchants?.[id]))}</span><span>${stat}</span>`);
         const removable = it.kind === 'shield' || it.kind === 'armor';
         b.addEventListener('click', () => (on && removable ? onEquip(null, it.kind) : onEquip(id)));
         b.title = on ? (removable ? 'Click to take it off' : 'Equipped') : 'Click to equip';
         bag.append(b);
       }
       box.append(bag, closeButton(this));
+    });
+  }
+
+  /** The Enchanter: spend gold, ore and Arcane Essence to make one of your weapons stronger (and shinier). */
+  openEnchanter({ onEnchant }) {
+    this.openModal((box) => {
+      const s = this.self, gold = s?.gold ?? 0, have = (item) => s?.inventory?.[item] ?? 0;
+      box.append(el('h2', null, `The Enchanter <span class="gold">🪙 ${gold}</span>`),
+        el('p', 'muted', `“Psst. Bring me <b>Arcane Essence</b> — the big beasts carry it, bosses mostly — and some ore, and I’ll make that weapon sing.” You have <b>${have('essence')}</b> essence.`));
+      const list = el('div', 'forge-list');
+      const weapons = (s?.gear ?? []).filter((id) => ITEMS[id]?.kind === 'weapon');
+      for (const id of weapons) {
+        const level = s.enchants?.[id] ?? 0, cost = enchantCost(id, level);
+        const now = attackDamage(id, s.stats, level);
+        if (!cost) {
+          list.append(el('div', 'forge-row', `<b>${iconImg(itemIcon(id))}${esc(enchantedName(id, level))} <small class="muted">⚔ ${now}</small></b><span class="needs ok">Fully enchanted ✨</span>`));
+          continue;
+        }
+        const [ore, oreN] = cost.ore;
+        const needs = [['essence', cost.essence], [ore, oreN]].map(([item, n]) =>
+          `<span class="${have(item) >= n ? 'ok' : 'short'}">${esc(ITEMS[item].name)} ${have(item)}/${n}</span>`).join(' · ');
+        const next = attackDamage(id, s.stats, level + 1);
+        const row = el('div', 'forge-row', `<b>${iconImg(itemIcon(id))}${esc(enchantedName(id, level))} <small class="muted">⚔ ${now} → ${next} · ${ENCHANT_LOOKS[level].name.toLowerCase()}</small></b><span class="needs">${needs} · <span class="gold">🪙 ${cost.gold}</span></span>`);
+        const ready = gold >= cost.gold && have('essence') >= cost.essence && have(ore) >= oreN;
+        const b = el('button', ready ? 'primary' : '', `Enchant to +${level + 1}`);
+        b.disabled = !ready;
+        b.addEventListener('click', () => this.askToBuy(`enchant your ${ITEMS[id].name} to +${level + 1}`, cost.gold, () => onEnchant(id)));
+        row.append(b);
+        list.append(row);
+      }
+      if (!weapons.length) list.append(el('p', 'muted', 'You don’t have any weapons to enchant.'));
+      box.append(list, closeButton(this));
     });
   }
 

@@ -284,3 +284,71 @@ export function makeChains() {
   };
   return api;
 }
+
+/**
+ * The Enchanter's corner (he stands at the origin, facing +z): a dark patched tent behind him, a
+ * cloth-draped counter with a glowing crystal ball and candles, a bubbling cauldron, a hanging
+ * purple lantern and a sign with a rune. Shady, but it glows invitingly at night.
+ */
+export function makeEnchanterTent() {
+  const g = new THREE.Group();
+  const cloth = std(0x2a1a3a, { roughness: 0.95 }), patch = std(0x4a2a5a, { roughness: 0.95 }), wood = std(0x3a2618);
+  const tent = mesh(g, new THREE.ConeGeometry(2.4, 3.6, 4, 1, true), cloth, 0, 1.8, -1.9);
+  tent.rotation.y = Math.PI / 4;
+  tent.material.side = THREE.DoubleSide;
+  mesh(g, new THREE.BoxGeometry(0.7, 0.5, 0.05), patch, -0.6, 1.4, -0.7).rotation.set(-0.5, 0, 0.2); // patches
+  mesh(g, new THREE.BoxGeometry(0.4, 0.4, 0.05), patch, 0.8, 0.9, -0.9).rotation.set(-0.5, 0, -0.3);
+  mesh(g, new THREE.CylinderGeometry(0.05, 0.05, 4.2, 6), wood, 0, 2.1, -1.9); // tent pole poking out the top
+  // the counter, with a purple cloth hanging down the front
+  mesh(g, new THREE.BoxGeometry(1.8, 0.9, 0.7), wood, 0, 0.45, 0.85);
+  mesh(g, new THREE.BoxGeometry(1.9, 0.06, 0.8), std(0x5a2a7a), 0, 0.92, 0.85);
+  mesh(g, new THREE.BoxGeometry(1.9, 0.6, 0.04), std(0x5a2a7a), 0, 0.62, 1.26);
+  const orb = mesh(g, new THREE.SphereGeometry(0.26, 16, 12), new THREE.MeshStandardMaterial({ color: 0xc8a0ff, emissive: 0x9a5aff, emissiveIntensity: 1.4, transparent: true, opacity: 0.85, roughness: 0.1 }), 0, 1.22, 0.85);
+  orb.castShadow = false;
+  mesh(g, new THREE.CylinderGeometry(0.18, 0.22, 0.1, 10), std(0xb8902a, { metalness: 0.7 }), 0, 0.99, 0.85);
+  const flame = new THREE.MeshBasicMaterial({ color: 0xffd27a });
+  for (const [x, h] of [[-0.7, 0.3], [-0.55, 0.2], [0.65, 0.25]]) {
+    mesh(g, new THREE.CylinderGeometry(0.04, 0.04, h, 6), std(0xf0e6d0), x, 0.95 + h / 2, 0.75);
+    mesh(g, new THREE.SphereGeometry(0.035, 6, 4), flame, x, 0.98 + h, 0.75).castShadow = false;
+  }
+  // the cauldron, bubbling green
+  const pot = mesh(g, new THREE.SphereGeometry(0.55, 14, 10, 0, Math.PI * 2, Math.PI * 0.35, Math.PI * 0.65), std(0x1e1e22, { metalness: 0.4 }), 1.7, 0.6, 0.2);
+  pot.material.side = THREE.DoubleSide;
+  const brew = mesh(g, new THREE.CircleGeometry(0.47, 16), new THREE.MeshBasicMaterial({ color: 0x5aff7a }), 1.7, 0.85, 0.2);
+  brew.rotation.x = -Math.PI / 2;
+  const bubbles = [];
+  for (let i = 0; i < 5; i++) {
+    const b = mesh(g, new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0x9aff9a, transparent: true }), 1.7, 0.9, 0.2);
+    b.castShadow = false;
+    bubbles.push({ b, a: i * 1.3, r: 0.12 + (i % 3) * 0.1 });
+  }
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0x5aff7a, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+  glow.position.set(1.7, 1.2, 0.2);
+  glow.scale.setScalar(1.8);
+  g.add(glow);
+  // a lantern hanging off a crooked pole, glowing purple
+  mesh(g, new THREE.CylinderGeometry(0.06, 0.07, 3, 6), wood, -1.6, 1.5, 0.4).rotation.z = 0.08;
+  mesh(g, new THREE.BoxGeometry(0.9, 0.06, 0.06), wood, -1.25, 2.95, 0.4);
+  const lantern = mesh(g, new THREE.BoxGeometry(0.3, 0.4, 0.3), new THREE.MeshStandardMaterial({ color: 0xd0a0ff, emissive: 0xa060ff, emissiveIntensity: 1.6 }), -0.9, 2.6, 0.4);
+  lantern.castShadow = false;
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xb070ff, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
+  halo.position.set(-0.9, 2.6, 0.4);
+  halo.scale.setScalar(2.2);
+  g.add(halo);
+  // a sign with a glowing rune
+  mesh(g, new THREE.CylinderGeometry(0.05, 0.05, 1.4, 6), wood, -1.5, 0.7, 1.4);
+  mesh(g, new THREE.BoxGeometry(0.8, 0.55, 0.06), wood, -1.5, 1.3, 1.42);
+  const rune = mesh(g, new THREE.TorusGeometry(0.16, 0.03, 6, 5), new THREE.MeshBasicMaterial({ color: 0xc890ff }), -1.5, 1.3, 1.47);
+  rune.castShadow = false;
+  g.userData.update = (t) => {
+    for (const { b, a, r } of bubbles) { // bubbles rise and pop in the brew
+      const u = ((t * 0.6 + a) % 1);
+      b.position.set(1.7 + Math.cos(a * 3) * r, 0.86 + u * 0.35, 0.2 + Math.sin(a * 3) * r);
+      b.material.opacity = 1 - u;
+    }
+    orb.material.emissiveIntensity = 1.1 + Math.sin(t * 2.2) * 0.4;
+    halo.material.opacity = 0.55 + Math.sin(t * 3.1) * 0.15;
+    rune.rotation.z = t * 0.5;
+  };
+  return g;
+}

@@ -1,0 +1,125 @@
+{
+ "version": 10,
+ "id": "wmv5ssh9v6w1b",
+ "name": "Test",
+ "seed": "fixture10",
+ "createdAt": 1791842551411,
+ "updatedAt": 1791842551411,
+ "day": 1,
+ "flags": {},
+ "dungeons": {
+  "mine": {
+   "deepest": 0,
+   "unlocked": true,
+   "completed": false
+  },
+  "ruins": {
+   "deepest": 0,
+   "unlocked": false,
+   "completed": false
+  },
+  "keep": {
+   "deepest": 0,
+   "unlocked": false,
+   "completed": false
+  }
+ },
+ "players": {
+  "mom": {
+   "name": "mom",
+   "cls": "Knight",
+   "level": 1,
+   "xp": 0,
+   "points": 0,
+   "stats": {
+    "str": 2,
+    "dex": 0,
+    "int": 0,
+    "vit": 2
+   },
+   "hp": 26,
+   "maxHp": 26,
+   "gold": 1234,
+   "weapon": "steelblade",
+   "gear": [
+    "sword",
+    "steelblade"
+   ],
+   "blueprints": [],
+   "inventory": {
+    "potion": 2,
+    "silver": 12
+   },
+   "shield": null,
+   "armor": null,
+   "closet": [],
+   "pets": [],
+   "pet": null,
+   "look": {
+    "hat": "own",
+    "cape": "own",
+    "back": "none",
+    "dye": "none",
+    "clothes": "none",
+    "hair": "none",
+    "hairColor": "brown",
+    "face": "none",
+    "skin": "none"
+   }
+  },
+  "kid": {
+   "name": "kid",
+   "cls": "Knight",
+   "level": 1,
+   "xp": 0,
+   "points": 0,
+   "stats": {
+    "str": 2,
+    "dex": 0,
+    "int": 0,
+    "vit": 2
+   },
+   "hp": 26,
+   "maxHp": 26,
+   "gold": 50,
+   "weapon": "sword",
+   "gear": [
+    "sword"
+   ],
+   "blueprints": [],
+   "inventory": {
+    "potion": 2
+   },
+   "shield": null,
+   "armor": null,
+   "closet": [],
+   "pets": [],
+   "pet": null,
+   "look": {
+    "hat": "own",
+    "cape": "own",
+    "back": "none",
+    "dye": "none",
+    "clothes": "none",
+    "hair": "none",
+    "hairColor": "brown",
+    "face": "none",
+    "skin": "none"
+   }
+  }
+ },
+ "house": {
+  "level": 1,
+  "storage": {},
+  "beds": {
+   "mom": 0,
+   "kid": 1
+  },
+  "furniture": [],
+  "owned": {},
+  "styles": [],
+  "wall": "stone",
+  "floor": "oak",
+  "roomStyles": {}
+ }
+}

@@ -279,3 +279,4 @@ h1, h2, h3, .loc, .night-day, .xp-level, .title-logo { font-family: 'MedievalSha
 .gfx-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .gfx-row input[type=checkbox] { width: auto; margin: 0; }
 .gfx-row .selected { background: var(--accent); color: #2a1600; }
+.slot .ench { color: #d8a8ff; }

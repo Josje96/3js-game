@@ -26,7 +26,7 @@ export const methods = {
   resolveAttack(p, { rot: r, loc: key }) {
     const loc = this.locations.get(p.loc);
     if (!loc || p.loc !== key || p.hp <= 0) return;
-    const dmg = attackDamage(p.weapon, p.stats);
+    const dmg = attackDamage(p.weapon, p.stats, p.enchants?.[p.weapon]);
     const ranged = ITEMS[p.weapon]?.ranged;
     if (ranged) {
       loc.spawn({
@@ -51,7 +51,7 @@ export const methods = {
     const loc = this.locations.get(p.loc);
     if (!loc) return;
     p.lastSpell = this.time;
-    const dmg = attackDamage(p.weapon, p.stats) * SPELL_DAMAGE;
+    const dmg = attackDamage(p.weapon, p.stats, p.enchants?.[p.weapon]) * SPELL_DAMAGE;
     for (const e of [...loc.entities.values()]) {
       if (e.type !== 'slime' || dist2(e, p) > SPELL_RADIUS * SPELL_RADIUS) continue;
       this.hitEntity(p, loc, e, dmg, p);
@@ -100,6 +100,8 @@ export const methods = {
     if (Math.random() < 0.3) this.dropItem(loc, e, 'slimegoo', 1);
     if (e.boss || Math.random() < 0.035) this.dropGear(loc, e, e.boss ? 4 : 0);
     if (e.boss) this.dropBlueprint(loc, e, 4);
+    const essence = this.essenceFrom(e, loc.layout.depth ?? 1); // for the Enchanter: rare
+    if (essence) this.dropItem(loc, e, 'essence', essence);
     this.sendToLocation(loc.key, { t: 'fx', kind: 'pop', x: e.x, z: e.z, variant: e.variant });
     this.shareXp(loc, e.boss ? XP.boss : XP.slime(e.maxHp));
     if (e.boss) this.bossDefeated(loc, e);
@@ -135,6 +137,7 @@ export const methods = {
     if (Math.random() < 0.5) this.dropItem(loc, e, 'potion', 1);
     if (Math.random() < 0.35) this.dropGear(loc, e);
     if (Math.random() < 0.3) this.dropBlueprint(loc, e);
+    if (Math.random() < 0.2) this.dropItem(loc, e, 'essence', 1);
     this.sendToLocation(loc.key, { t: 'fx', kind: 'chest', x: e.x, z: e.z });
   },
 

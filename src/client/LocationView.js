@@ -9,13 +9,14 @@ import { makeGrass, makeWater, makeTrees, makeSpringBanks, pondEdge } from './na
 import { wallpaperTexture } from './wallpaper.js';
 import { PetView } from './pets.js';
 import { DECORATIONS } from './decorations.js';
-import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench } from './town.js';
+import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent } from './town.js';
 import { Villagers } from './villagers.js';
 import { TOWNSFOLK } from '../shared/townsfolk.js';
 import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
 import { roomIndexAt } from '../shared/locations.js';
 import { THEMES } from './themes.js';
 import { mergeStatic, dropTinyShadows } from './merge.js';
+import { buildTownFun } from './townfun.js';
 
 /** Wooden signpost for the healing spring. */
 function makeSpringSign() {
@@ -461,12 +462,14 @@ export class LocationView {
 
   }
 
-  /** Pebble Town's extras: villagers strolling, banners on the walls. */
+  /** Pebble Town's extras: villagers strolling, bunting, butterflies, chimney smoke, banners on the walls. */
   buildTownLife() {
     const L = this.layout;
     const villagers = new Villagers(L, this.rand);
     villagers.addTo(this.group);
     this.animated.push({ update: (dt) => villagers.update(dt, this.uTime.value), dispose: () => villagers.dispose() });
+    const fun = buildTownFun(L, this.group, this.rand); // bunting, butterflies, chimney smoke
+    this.animated.push({ update: () => fun.update(this.uTime.value) });
     // banners hanging on the inside of the north castle wall, and either side of the fort's door
     const colors = ['red', 'blue', 'yellow', 'green'];
     for (let cx = 2; cx < L.w - 2; cx += 4) {
@@ -517,6 +520,13 @@ export class LocationView {
         if (!p.pets) { stall.position.set(p.x, 0, p.z); holder.add(stall); }
       }
       if (p.build === 'forge') this.buildForge(p);
+      if (p.build === 'enchanterTent') { // the Enchanter's corner, round its keeper
+        const tent = makeEnchanterTent();
+        tent.position.set(p.x, 0, p.z);
+        tent.rotation.y = p.rot ?? 0;
+        holder.add(tent);
+        this.animated.push({ update: () => tent.userData.update(this.uTime.value) });
+      }
       if (p.light && !p.build) torchLights.push(p);
       if (p.requiresFlag) this.flagged.push({ holder, flag: p.requiresFlag });
     }

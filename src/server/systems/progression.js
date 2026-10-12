@@ -62,7 +62,7 @@ export const methods = {
       return;
     }
     p.gear.push(item);
-    const score = (id) => (def.kind === 'weapon' ? attackDamage(id, p.stats) : def.kind === 'shield' ? ITEMS[id]?.block ?? 0 : ITEMS[id]?.armor ?? 0);
+    const score = (id) => (def.kind === 'weapon' ? attackDamage(id, p.stats, p.enchants?.[id]) : def.kind === 'shield' ? ITEMS[id]?.block ?? 0 : ITEMS[id]?.armor ?? 0);
     const better = score(item) > score(p[def.kind]);
     if (better) p[def.kind] = item;
     this.toast(p, `New ${def.kind}: ${def.name}!${better ? ' Equipped.' : ' Press C to equip it.'}`);

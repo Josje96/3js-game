@@ -109,6 +109,7 @@ export const ITEMS = {
   slimegoo:    { name: 'Slime Goo',       kind: 'loot', sell: 2,  model: 'dungeon/bottle_B_green' },
   mythril:     { name: 'Mythril Ore',     kind: 'loot', sell: 30, model: 'blocks/stone_with_silver', tint: 0x7fd8ff },
   obsidian:    { name: 'Obsidian',        kind: 'loot', sell: 55, model: 'blocks/stone_dark', tint: 0x9a6ad0 },
+  essence:     { name: 'Arcane Essence',  kind: 'loot', sell: 60, model: 'dungeon/bottle_B_green', tint: 0xb070ff }, // for enchanting: bosses drop it
   starstone:   { name: 'Starstone',       kind: 'loot', sell: 90, model: 'blocks/stone_with_gold', tint: 0xfff6c0 },
 
   // a blueprint teaches its recipe when picked up (see FORGE_RECIPES)

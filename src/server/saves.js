@@ -60,6 +60,7 @@ export function newPlayerRecord({ name, cls }) {
     pets: [],                      // owned pets: [{ id, species, name, level, xp }]
     pet: null,                     // id of the one following you around
     look: { hat: 'own', cape: 'own', back: 'none', dye: 'none' },
+    enchants: {},                  // weapon enchant levels from the Enchanter: { [weaponId]: 1..5 }
   };
 }
 
@@ -69,7 +70,7 @@ export function newPlayerRecord({ name, cls }) {
  * and in a migration that fills it in for old saves.
  */
 export const PLAYER_FIELDS = ['name', 'cls', 'look', 'level', 'xp', 'points', 'stats', 'hp', 'maxHp', 'gold',
-  'weapon', 'shield', 'armor', 'gear', 'blueprints', 'inventory', 'closet', 'pets', 'pet'];
+  'weapon', 'shield', 'armor', 'gear', 'blueprints', 'inventory', 'closet', 'pets', 'pet', 'enchants'];
 
 /**
  * Save upgrades, oldest first. Each step brings a save up to `version`.
@@ -170,6 +171,12 @@ export const MIGRATIONS = [
         Object.assign(f, { room, dx: f.x - o.x * 4, dz: f.z - o.z * 4 });
         delete f.x; delete f.z;
       }
+    },
+  },
+  {
+    version: 11, // the Enchanter: weapons can be enchanted (levels kept per player)
+    up(save) {
+      for (const p of Object.values(save.players ?? {})) p.enchants ??= {};
     },
   },
 ];

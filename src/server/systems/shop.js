@@ -68,6 +68,7 @@ export const methods = {
       if (p.weapon === item || p.shield === item || p.armor === item) return this.toast(p, `Take off your ${def.name} first (C).`);
       const price = sellValue(item);
       p.gear = p.gear.filter((g) => g !== item);
+      if (p.enchants) delete p.enchants[item]; // the magic goes with it
       this.earn(p, price);
       this.toast(p, `Sold ${def.name} for ${price} gold`);
       this.writeRecord(p);

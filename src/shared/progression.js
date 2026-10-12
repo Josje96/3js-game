@@ -4,6 +4,7 @@
 
 import { PLAYER_BASE_HP } from './config.js';
 import { ITEMS } from './items.js';
+import { enchantDamage } from './enchant.js';
 
 export const STATS = {
   str: { name: 'Strength', icon: '💪', about: 'Hit harder with swords, axes and daggers' },
@@ -40,9 +41,9 @@ export function weaponStat(weaponId) {
   return r === 'arrow' ? 'dex' : r === 'magic' ? 'int' : 'str';
 }
 
-/** Damage of one hit: the weapon plus half the matching stat. */
-export function attackDamage(weaponId, stats) {
-  const base = ITEMS[weaponId]?.damage ?? 1;
+/** Damage of one hit: the weapon (plus its enchantment, if any) plus half the matching stat. */
+export function attackDamage(weaponId, stats, enchant = 0) {
+  const base = (ITEMS[weaponId]?.damage ?? 1) + enchantDamage(weaponId, enchant);
   return base + Math.floor((stats?.[weaponStat(weaponId)] ?? 0) / 2);
 }
 

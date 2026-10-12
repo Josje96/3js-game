@@ -74,6 +74,7 @@ export const methods = {
     const fighters = loc.livePlayers().filter((p) => (p.x - SEASON_ARENA.x) ** 2 + (p.z - SEASON_ARENA.z) ** 2 < FIGHT_RANGE ** 2);
     for (let i = 0; i < Math.max(1, fighters.length); i++) this.dropItem(loc, e, s.loot[Math.floor(Math.random() * s.loot.length)], 1);
     this.dropBlueprint(loc, e, e._depth ?? 1);
+    this.dropItem(loc, e, 'essence', this.essenceFrom(e, e._depth ?? 1));
     this.sendToLocation(loc.key, { t: 'fx', kind: 'pop', x: e.x, z: e.z, variant: e.variant });
     this.sendToLocation(loc.key, { t: 'fx', kind: 'nova', x: e.x, z: e.z });
     this.shareXp(loc, XP.boss * XP_MUL);
