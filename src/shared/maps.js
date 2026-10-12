@@ -49,7 +49,7 @@ export const MAPS = {
       'X..~~~~h......HHHdHHHH......RRmRR..X',
       'X..~~~~..........=............=....X',
       'X.f~~~~.f..t.....=........t...=....X',
-      'X...f............p............=....X',
+      'X...f............P............=....X',
       'X......==....l...=....l....====SGGGX',
       'X....n..========================gGGX',
       'X.t......==k===F====K===v==n....GGGX',
@@ -107,4 +107,5 @@ export const LEGEND = {
   'u': { base: '.', spot: 'dummy' },
   's': { base: '.', spot: 'trainingSlime' },
   'p': { base: '.', spawn: true },
+  'P': { base: '=', spawn: true }, // a spawn point that sits on a path (the town's front door)
 };

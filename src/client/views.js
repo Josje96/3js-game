@@ -4,7 +4,7 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES } from '
 import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, skinSplit } from './cosmetics.js';
+import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -186,6 +186,16 @@ export class CharacterView {
     }
   }
 
+  /** A slot on a bone: `pos`/`size` in world units, remembered as the bone-local transform. */
+  anchorAt(boneName, pos, size) {
+    const bone = this.model.getObjectByName(boneName);
+    if (!bone) return null;
+    const scale = size.isVector3 ? size : new THREE.Vector3(size, size, size);
+    const local = bone.matrixWorld.clone().invert()
+      .multiply(new THREE.Matrix4().compose(pos, new THREE.Quaternion(), scale));
+    return { bone, local };
+  }
+
   /**
    * Where hand-made hats and back items go, measured once in the rest pose:
    * a bone to follow plus the bone-local transform of "top of the head" / "middle of the back".
@@ -259,11 +269,6 @@ export class CharacterView {
     // mirror: hair, face and skin
     const hc = HAIR_COLORS[hairColor]?.color ?? HAIR_COLORS.brown.color;
     const tone = SKINS[skin]?.color;
-    if (hair !== 'none') {
-      this.attach('hat', buildHair(hair, hc));
-      this.attach('scalp', buildScalp(tone));
-    }
-    if (face !== 'none') this.attach('face', buildFace(face, hc));
     if (this.headMesh) {
       const hm = this.headMesh;
       hm.userData.baseGeo ??= hm.geometry;
@@ -272,7 +277,16 @@ export class CharacterView {
       if (hm.material !== hm.userData.baseMat) hm.material.dispose();
       hm.material = tone ? hm.userData.baseMat.clone() : hm.userData.baseMat;
       if (tone) hm.material.color.multiply(new THREE.Color(tone));
+      // the scalp ball fills the hollow head: size it to the skin that's left (the skull), not
+      // to the head mesh, whose hair mass would lean it out over the eyes
+      const s = hair !== 'none' && hm.material.map?.image ? scalpOf(hm.userData.baseGeo, hm.material.map.image, hm.name.replace(/_Head$/, '')) : null;
+      if (s) this.anchors.scalp = this.anchorAt('head', new THREE.Vector3(s.cx, s.cy, s.cz), new THREE.Vector3(s.sx, s.sy, s.sz));
     }
+    if (hair !== 'none') {
+      this.attach('hat', buildHair(hair, hc));
+      this.attach('scalp', buildScalp(tone));
+    }
+    if (face !== 'none') this.attach('face', buildFace(face, hc));
     this.setClothes(CLOTHES[clothes]);
     // dye: give cape meshes their own copy of the (shared) material, painted a flat colour
     // (multiplying over a red cape's texture would just give muddy red)

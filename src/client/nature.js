@@ -448,30 +448,94 @@ export function makeTrees(cells, rand, uTime) {
  * The healing spring's magic: a glowing ring around the pool's edge, and a ring of flowers
  * outside the stone rim. `rim` = the radius the pool's stones sit on.
  */
-export function makeSpringRing(cx, cz, radius, rand) {
+/** A rounded-rectangle path (used for the spring's halo). */
+function roundedRect(path, hw, hh, k) {
+  path.moveTo(-hw + k, -hh);
+  path.lineTo(hw - k, -hh);
+  path.absarc(hw - k, -hh + k, k, -Math.PI / 2, 0, false);
+  path.lineTo(hw, hh - k);
+  path.absarc(hw - k, hh - k, k, 0, Math.PI / 2, false);
+  path.lineTo(-hw + k, hh);
+  path.absarc(-hw + k, hh - k, k, Math.PI / 2, Math.PI, false);
+  path.lineTo(-hw, -hh + k);
+  path.absarc(-hw + k, -hh + k, k, Math.PI, -Math.PI / 2, false);
+}
+
+/**
+ * The healing spring's magic: a glowing halo that hugs the (square) pond's edge, an inner ring
+ * breathing the other way, glowing orbs on the rim, little lights rising like fireflies, and
+ * a soft light over the water.
+ */
+export function makeSpringRing(cx, cz, hw, hh, rand) {
   const group = new THREE.Group();
   const glowMat = new THREE.MeshBasicMaterial({ color: 0x8ff3ff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false });
-  // a soft glow lying on the water's edge
-  const glow = new THREE.Mesh(new THREE.RingGeometry(radius - 0.25, radius, 64), glowMat);
-  glow.rotation.x = -Math.PI / 2;
-  glow.position.set(cx, 0.07, cz);
-  group.add(glow);
+  // the halo lies on the ground just outside the water, following the pond's shape
+  const outer = new THREE.Shape();
+  roundedRect(outer, hw + 0.55, hh + 0.55, Math.min(hw, hh) * 0.42);
+  const inner = new THREE.Path();
+  roundedRect(inner, hw + 0.22, hh + 0.22, Math.min(hw, hh) * 0.42 - 0.33);
+  outer.holes.push(inner);
+  const halo = new THREE.Mesh(new THREE.ShapeGeometry(outer, 12), glowMat);
+  halo.rotation.x = -Math.PI / 2;
+  halo.position.set(cx, 0.07, cz);
+  group.add(halo);
 
-  // glowing orbs around the pool (no green, so they read as magic rather than plants)
+  const innerMat = glowMat.clone();
+  innerMat.color.set(0xd0f6ff);
+  const innerShape = new THREE.Shape();
+  roundedRect(innerShape, hw + 0.1, hh + 0.1, Math.min(hw, hh) * 0.3);
+  const innerRing = new THREE.Mesh(new THREE.ShapeGeometry(innerShape, 12), innerMat);
+  innerRing.rotation.x = -Math.PI / 2;
+  innerRing.position.set(cx, 0.06, cz);
+  group.add(innerRing);
+
+  // glowing orbs around the rim (no green, so they read as magic rather than plants)
   const colors = [0xff8ac6, 0xffe066, 0x9fe8ff, 0xb48cff];
   const orbGeo = new THREE.SphereGeometry(0.1, 10, 8);
-  const count = 12;
-  for (let i = 0; i < count; i++) {
-    const a = (i / count) * Math.PI * 2 + rand(i, 0, 'fa') * 0.2;
-    const r = radius + 0.9 + rand(i, 0, 'fr') * 0.6;
+  const orbs = [];
+  const perim = 2 * (hw + hh);
+  for (let i = 0; i < 12; i++) {
+    let d = (i / 12) * perim + rand(i, 0, 'fa') * 0.6;
+    let x, z;
+    if (d < 2 * hw) { x = -hw + d; z = -hh; }                       // south edge, west->east
+    else if (d < 2 * hw + 2 * hh) { x = hw; z = -hh + (d - 2 * hw); } // east edge
+    else if (d < 4 * hw) { x = hw - (d - 2 * hw - 2 * hh); z = hh; }  // north edge
+    else { x = -hw; z = hh - (d - 4 * hw); }                          // west edge
     const color = colors[i % colors.length];
     const orb = new THREE.Mesh(orbGeo, new THREE.MeshStandardMaterial({ color, roughness: 0.3, emissive: color, emissiveIntensity: 0.6 }));
-    orb.position.set(cx + Math.cos(a) * r, 0.14, cz + Math.sin(a) * r);
+    orb.position.set(cx + x * 1.12, 0.14, cz + z * 1.12);
+    orb.userData = { phase: rand(i, 1, 'fp') * 10 };
     group.add(orb);
+    orbs.push(orb);
   }
 
+  // little lights that drift up out of the water and fade, like fireflies
+  const moteMat = new THREE.SpriteMaterial({ map: sparkleTexture(), color: 0xafe8ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+  const motes = [];
+  for (let i = 0; i < 14; i++) {
+    const s = new THREE.Sprite(moteMat.clone());
+    s.position.set(cx + (rand(i, 2, 'mx') - 0.5) * 2 * hw, 0.2, cz + (rand(i, 2, 'mz') - 0.5) * 2 * hh);
+    s.scale.setScalar(0.22 + rand(i, 3, 'ms') * 0.2);
+    s.userData = { speed: 0.25 + rand(i, 4, 'mv') * 0.35, phase: rand(i, 5, 'mp') };
+    group.add(s);
+    motes.push(s);
+  }
+
+  // a soft light over the water so the pool itself glows
+  const light = new THREE.PointLight(0x9fe8ff, 26, Math.max(hw, hh) * 3.4, 1.8);
+  light.position.set(cx, 2.2, cz);
+  group.add(light);
+
   group.userData.update = (time) => {
-    glowMat.opacity = 0.55 + 0.25 * Math.sin(time * 2.2);
+    glowMat.opacity = 0.5 + 0.25 * Math.sin(time * 2.2);
+    innerMat.opacity = 0.35 + 0.3 * Math.sin(time * 2.2 + Math.PI);
+    light.intensity = 22 + 5 * Math.sin(time * 1.7);
+    for (const orb of orbs) orb.position.y = 0.14 + 0.08 * (1 + Math.sin(time * 2.4 + orb.userData.phase));
+    for (const s of motes) {
+      const rise = ((time * s.userData.speed + s.userData.phase) % 1.4);
+      s.position.y = 0.2 + rise;
+      s.material.opacity = Math.min(1, rise * 3) * (1 - rise / 1.4) * 0.9;
+    }
   };
   return group;
 }

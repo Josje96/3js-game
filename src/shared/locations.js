@@ -8,7 +8,7 @@ import { biomeFor, parseKey, depthOf } from './dungeons.js';
 import { generateFloor } from './mapgen.js';
 import { PROPS } from './props.js';
 
-const WALKABLE = new Set(['.', '=']);
+const WALKABLE = new Set(['.', '=', '~']); // '~': you can wade into the pond
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 export function isWalkableChar(ch) {
