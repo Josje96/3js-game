@@ -22,7 +22,7 @@ Most important first. Tick things off in the same commit that does them.
 - [x] Dungeons still look samey within a biome: done in round 3 — rooms get personalities (pillars, cave outcrops, alcoves, great halls) and some corridors are two wide.
 - [ ] Unique boss attacks (currently chase / pounce / shoot + summons).
 - [x] Forge recipes for deeper ores (mythril, obsidian, starstone) — done in round 3: Mythril Brand & Bulwark, Obsidian Edge, Night Staff, Star Piercer, Star Cleaver; blueprints gate on where the ores spawn.
-- [ ] Sound effects (hits, coins, chains breaking, night chime).
+- [x] Sound effects (hits, coins, chains breaking, night chime) — done in round 3, all generated with WebAudio in `client/sfx.js` (no files); M mutes everything.
 - [ ] Touch controls for tablets/phones.
 - [ ] Villagers are only on each player's own screen; fine, but they can't be talked to.
 - [ ] Run `GameServer` in a Web Worker so the host's rendering never stalls the world.
