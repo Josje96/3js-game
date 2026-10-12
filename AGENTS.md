@@ -23,7 +23,7 @@ Read this file first, then `HANDOFF.md` (what's in the game, how it plays), then
 | `src/shared/` | rules + data used by host and clients: `config.js` (tunables, looks), `items.js`, `dungeons.js`, `furniture.js`, `townsfolk.js`, `maps.js` (ASCII maps), `fort.js` (the fort, drawn per family size), `mapgen.js`, `protocol.js` (every network message) | pure JS, no DOM/three. Anything that shapes a map uses the seeded rng, never `Math.random` |
 | `src/server/` | `GameServer.js` core (connections, loop, travel); `systems/*.js` one file per feature (combat, day, decor, dungeons, home, pets, progression, shop, town, wallet); `LiveLocation.js` entities + AI; `saves.js` | runs only on the host. Owns all outcomes (hp, gold, loot) |
 | `src/net/transports.js` | connections `{ send, sendFast?, onMessage, onClose, close }` | `sendFast` = unreliable lane for positions |
-| `src/client/` | rendering, input, HUD. `GameClient.js`, `LocationView.js`, `views.js`, `themes.js`, `town.js`, `decorations.js`, `furniture.js`, `pets.js`, `enemies.js`, `cosmetics.js`, `effects.js`, `icons.js`, `interp.js`, `hud.js` | never decides outcomes |
+| `src/client/` | rendering, input, HUD. `GameClient.js`, `LocationView.js`, `views.js`, `themes.js`, `town.js`, `decorations.js`, `furniture.js`, `pets.js` + `petkit.js`, `enemies.js`, `cosmetics.js`, `effects.js`, `icons.js`, `interp.js`, `hud.js` | never decides outcomes |
 | `test/` | `bun test`; `fixtures/` = old save files that must keep loading | add a test with every rule change |
 
 ## How to make a change without breaking things
@@ -57,7 +57,10 @@ Read this file first, then `HANDOFF.md` (what's in the game, how it plays), then
 - **Town / fort things**: draw a letter into `shared/maps.js`, map it in `LEGEND`, define the prop in `shared/props.js`;
   handle its `interact` in a system's `interactions`.
 - **Townsperson**: `shared/townsfolk.js` + an `n` on the town map. **Furniture**: `shared/furniture.js` (+ builder in client/furniture.js).
-- **Pet**: `PET_SPECIES` in `shared/pets.js` + `LOOKS` in `client/pets.js` (proportions for four-legged ones).
+- **Pet**: `PET_SPECIES` in `shared/pets.js` + a builder in `MODELS` in `client/pets.js`. Four-legged ones go through
+  `quadruped()` (proportions + a `coat` colour function), birds through `bird()`. Pieces come from `client/petkit.js`:
+  `tube` (bodies, limbs, tails; `bump` sculpts curls/feathers/scales), `leaf` (feathers, ears, fur), `eye`, then `bake()`.
+  `test/pets-look.test.js` builds every species at every stage.
 
 ## Gotchas
 - Family devices use plain `http://192.168…`: no `crypto.randomUUID`, no `navigator.clipboard` — always fall back.
