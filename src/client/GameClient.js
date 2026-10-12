@@ -17,6 +17,11 @@ import { Hud } from './hud.js';
 import { Music, moodFor } from './music.js';
 import { Sfx } from './sfx.js';
 
+/** What the fort looks like, reduced to what a re-render depends on (so a change re-dresses it). */
+function houseKey(h) {
+  return h ? JSON.stringify([h.wall, h.floor, h.roomStyles ?? {}, (h.rooms ?? []).map((r) => r.owner)]) : '';
+}
+
 export class GameClient {
   /**
    * @param conn     connection to the GameServer (local or remote)
@@ -101,7 +106,7 @@ export class GameClient {
     switch (msg.t) {
       case 'welcome': this.you = msg.you; break;
       case 'world': {
-        const restyle = this.layout?.key === 'house' && (msg.house?.wall !== this.world?.house?.wall || msg.house?.floor !== this.world?.house?.floor);
+        const restyle = this.layout?.key === 'house' && houseKey(msg.house) !== houseKey(this.world?.house);
         this.world = msg;
         this.dayLeft = msg.dayLeft;
         if (restyle) this.rebuildScenery();
@@ -110,7 +115,15 @@ export class GameClient {
         this.checkUnlocks();
         break;
       }
-      case 'house': this.house = msg; this.hud.refreshModal?.(); this.hud.renderBuild?.(this); break;
+      case 'house': {
+        const restyle = this.layout?.key === 'house' && houseKey(msg) !== houseKey(this.world?.house);
+        this.house = msg;
+        if (this.world) this.world.house = { wall: msg.wall, floor: msg.floor, roomStyles: msg.roomStyles, rooms: msg.rooms }; // keep world in step
+        if (restyle) this.rebuildScenery();
+        this.hud.refreshModal?.();
+        this.hud.renderBuild?.(this);
+        break;
+      }
       case 'self':
         if (this.self && msg.hp < this.self.hp) this.me?.play('hurt');
         this.self = msg;
@@ -443,6 +456,11 @@ export class GameClient {
         house: () => this.house,
         onBuy: (item) => this.conn.send({ t: 'buyFurniture', item }),
         onStyle: (kind, id) => this.conn.send({ t: 'houseStyle', kind, id }),
+        onRoomStyle: (kind, id) => {
+          const myRoom = (this.house?.rooms ?? []).find((r) => r.owner === this.you);
+          if (!myRoom) return this.hud.toast('Only the family’s own rooms can be styled — you need a bed at the fort.');
+          this.conn.send({ t: 'roomStyle', kind, id, slot: myRoom.slot });
+        },
       });
     } else if (msg.kind === 'elevator') {
       this.hud.openElevator({ name: msg.name, floors: msg.floors, onPick: (floor) => this.conn.send({ t: 'elevator', dungeon: msg.dungeon, floor }) });

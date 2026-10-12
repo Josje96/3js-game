@@ -130,6 +130,15 @@ test('saves: every old save in test/fixtures loads, upgrades and plays', () => {
     }
     for (let i = 0; i < 40; i++) server.step(0.05);
     server.persist();
+    // the fort has a room per player, each with its own styles (v9)
+    const rooms = server.getLocation('house')?.layout.rooms ?? [];
+    for (const [pid, slot] of Object.entries(save.house.beds ?? {})) {
+      assert.ok(slot < rooms.length, `${f}: player ${pid}'s bed slot ${slot} fits in the fort's ${rooms.length} rooms`);
+      assert.equal(server.roomOwner(slot)?.id, pid, `${f}: room ${slot} is ${pid}'s`);
+    }
+    for (const slot of Object.keys(save.house.roomStyles ?? {})) {
+      assert.ok(server.roomOwner(Number(slot)), `${f}: room style on ${slot} but nobody owns that room`);
+    }
     assert.doesNotThrow(() => migrate(JSON.parse(JSON.stringify(save))), `${f}: upgrading twice must be harmless`);
   }
 });

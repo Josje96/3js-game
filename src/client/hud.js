@@ -622,13 +622,18 @@ export class Hud {
     this.speechTimer = setTimeout(() => { s.classList.add('fade'); setTimeout(() => s.remove(), 500); }, 5000);
   }
 
-  /** The Decorator's stall: furniture for the fort (shared by the family), wall colours and floors. */
-  openDecorator({ house, onBuy, onStyle }) {
+  /** The Decorator's stall: furniture for the fort (shared by the family), wall colours and floors.
+   * Walls/floors can dress the whole fort or just your own room. */
+  openDecorator({ house, onBuy, onStyle, onRoomStyle }) {
     this.decoTab ??= 'furniture';
+    this.decoScope ??= 'fort'; // 'fort' = everywhere, 'room' = just your own room
     this.openModal((box) => {
       const gold = this.self?.gold ?? 0, h = house() ?? {};
+      const myRoom = (h.rooms ?? []).find((r) => r.owner === this.you);
       box.append(el('h2', null, `The Decorator <span class="gold">🪙 ${gold}</span>`),
-        el('p', 'muted', 'Everything here is for the whole family’s fort. At home, press B to place furniture.'));
+        el('p', 'muted', myRoom
+          ? `Everything is for the whole family. At home, press B to place furniture — ${myRoom.ownerName}'s room is the one with their bed.`
+          : 'Everything here is for the whole family’s fort. At home, press B to place furniture.'));
       const tabs = el('div', 'tabs');
       for (const [id, label] of [['furniture', '🛋 Furniture'], ['wall', '🎨 Walls'], ['floor', '🪵 Floors']]) {
         const t = el('button', this.decoTab === id ? 'selected' : '', label);
@@ -636,6 +641,15 @@ export class Hud {
         tabs.append(t);
       }
       box.append(tabs);
+      if (this.decoTab !== 'furniture' && myRoom) {
+        const scope = el('div', 'tabs');
+        for (const [id, label] of [['fort', '🧱 Whole fort'], ['room', `🚪 ${myRoom.ownerName}'s room`]]) {
+          const t = el('button', this.decoScope === id ? 'selected' : '', label);
+          t.addEventListener('click', () => { this.decoScope = id; this.refreshModal?.(); });
+          scope.append(t);
+        }
+        box.append(scope);
+      }
       const body = el('div', 'shop-body');
       body.dataset.scroll = `deco-${this.decoTab}`;
       if (this.decoTab === 'furniture') {
@@ -649,13 +663,17 @@ export class Hud {
         }
       } else {
         const table = this.decoTab === 'wall' ? WALL_STYLES : FLOOR_STYLES;
+        const mine = this.decoScope === 'room' && myRoom
+          ? (h.roomStyles?.[myRoom.slot] ?? {})[this.decoTab]
+          : null;
         for (const [id, def] of Object.entries(table)) {
           const owned = !def.price || (h.styles ?? []).includes(`${this.decoTab}:${id}`);
-          const on = h[this.decoTab] === id;
+          const on = mine ? mine === id : h[this.decoTab] === id;
           const sw = def.tint != null ? `<i class="swatch" style="background:#${def.tint.toString(16).padStart(6, '0')}"></i>` : '';
           const row = el('button', `shop-row${on ? ' selected' : ''}`, `<span>${sw}${esc(def.name)}</span><span class="gold">${on ? 'in use' : owned ? 'use' : def.price}</span>`);
           row.disabled = on || (!owned && gold < def.price);
-          row.addEventListener('click', () => (owned ? onStyle(this.decoTab, id) : this.askToBuy(def.name, def.price, () => onStyle(this.decoTab, id))));
+          const pick = this.decoScope === 'room' && myRoom ? onRoomStyle : onStyle;
+          row.addEventListener('click', () => (owned ? pick(this.decoTab, id) : this.askToBuy(def.name, def.price, () => pick(this.decoTab, id))));
           body.append(row);
         }
       }

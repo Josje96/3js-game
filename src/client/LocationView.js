@@ -12,9 +12,8 @@ import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLamp
 import { Villagers } from './villagers.js';
 import { TOWNSFOLK } from '../shared/townsfolk.js';
 import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
+import { roomIndexAt } from '../shared/locations.js';
 import { THEMES } from './themes.js';
-
-/** The healing spring's round pool: its radius, and how far above the grass its surface sits. */
 
 /** Wooden signpost for the healing spring. */
 function makeSpringSign() {
@@ -158,14 +157,21 @@ export class LocationView {
 
   buildIndoor() {
     const L = this.layout, b = this.batch(), th = this.theme;
-    // the fort uses the family's chosen floor and wall colour (bought from the Decorator)
+    // the fort uses the family's chosen floor and wall colour (bought from the Decorator);
+    // each family member's room can override both with styles of their own
     const home = L.key === 'house' ? { floor: FLOOR_STYLES[this.world?.house?.floor] ?? FLOOR_STYLES.oak, wall: WALL_STYLES[this.world?.house?.wall] ?? WALL_STYLES.stone } : null;
+    const roomStyles = home ? (this.world?.house?.roomStyles ?? {}) : null;
     for (let cz = 0; cz < L.h; cz++) {
       for (let cx = 0; cx < L.w; cx++) {
         if (L.isSolidCell(cx, cz)) continue;
         const x = cx * CELL + CELL / 2, z = cz * CELL + CELL / 2;
         const fi = Math.floor(this.rand(cx, cz, 'f') * th.floors.length);
-        if (home) b.add(home.floor.model, { x, z, rot: Math.floor(this.rand(cx, cz, 'r') * 4) * Math.PI / 2 }, home.floor.tint ?? 0xffffff);
+        // whose room is this? (a room's slot is its index: one bed slot per room)
+        const room = home ? roomIndexAt(L, cx, cz) : -1;
+        const rs = room >= 0 ? roomStyles?.[room] : null;
+        const floorStyle = (room >= 0 && rs?.floor != null ? FLOOR_STYLES[rs.floor] : null) ?? home.floor;
+        const wallTint = (room >= 0 && rs?.wall != null ? WALL_STYLES[rs.wall]?.tint : null) ?? home.wall.tint ?? 0xffffff;
+        if (home) b.add(floorStyle.model, { x, z, rot: Math.floor(this.rand(cx, cz, 'r') * 4) * Math.PI / 2 }, floorStyle.tint ?? 0xffffff);
         else b.add(th.floors[fi], { x, z, rot: Math.floor(this.rand(cx, cz, 'r') * 4) * Math.PI / 2 });
 
         for (const dir of [N, E, S, W]) {
@@ -185,7 +191,7 @@ export class LocationView {
           if (ch === 'D') path = 'dungeon/wall_doorway';
           // walls between the camera and the room are cut down so you can see in
           const sy = dir === S ? 0.22 : 1;
-          b.add(path, { x: ex, z: ez, rot, sy }, home ? home.wall.tint ?? 0xffffff : undefined);
+          b.add(path, { x: ex, z: ez, rot, sy }, home ? wallTint : undefined);
         }
       }
     }

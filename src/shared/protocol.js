@@ -38,6 +38,7 @@ export const CLIENT_MESSAGES = {
   chat:      { text: 'str' },
   buyFurniture:    { item: 'str' },
   placeFurniture:  { item: 'str', x: 'num', z: 'num', rot: 'num' },
+  roomStyle:       { kind: 'str', id: 'str', slot: 'int' },
   pickUpFurniture: { id: 'str' },
   houseStyle:      { kind: 'str', id: 'str' },
 };
