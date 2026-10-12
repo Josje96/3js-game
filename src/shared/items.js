@@ -51,6 +51,14 @@ export const ITEMS = {
   goldenaxe:    { name: 'Golden Greataxe',  kind: 'weapon', damage: 9,  forged: true, model: 'items/axe_2handed', swing: 'chop', tint: 0xffd23f },
   crystalstaff: { name: 'Crystal Staff',    kind: 'weapon', damage: 10, forged: true, model: 'items/staff', swing: 'cast', ranged: 'magic', tint: 0x7fe8ff },
   dragonsword:  { name: 'Dragon Sword',     kind: 'weapon', damage: 13, forged: true, model: 'items/sword_2handed_color', swing: 'chop', tint: 0xff5a4a },
+  // the deep ores forge into gear a tier's worth better than the last shop tier you can buy —
+  // mining your way down is the cheaper path, gathering the ore is the work
+  mythrilbrand: { name: 'Mythril Brand',    kind: 'weapon', damage: 16, forged: true, model: 'items/sword_1handed', swing: 'slash', tint: 0x7fd8ff },
+  mythrilbulwark: { name: 'Mythril Bulwark', kind: 'shield', block: 0.52, forged: true, model: 'items/shield_square_color', tint: 0x7fd8ff },
+  obsidianedge: { name: 'Obsidian Edge',    kind: 'weapon', damage: 34, forged: true, model: 'items/sword_2handed', swing: 'chop', tint: 0x5a4a9a },
+  nightstaff:   { name: 'Night Staff',      kind: 'weapon', damage: 33, forged: true, model: 'items/staff', swing: 'cast', ranged: 'magic', tint: 0x9a6ad0 },
+  starpiercer:  { name: 'Star Piercer',     kind: 'weapon', damage: 32, forged: true, model: 'items/dagger', swing: 'stab', tint: 0xfff0a0 },
+  starcleaver:  { name: 'Star Cleaver',     kind: 'weapon', damage: 58, forged: true, model: 'items/axe_2handed', swing: 'chop', tint: 0xfff0a0 },
 
   // --- shields (left hand): a chance to block a hit completely ---
   woodshield:   { name: 'Wooden Shield',  kind: 'shield', block: 0.15, price: 110,   tier: 0, model: 'items/shield_round' },
@@ -165,12 +173,19 @@ export const SWING_IMPACT = { stab: 0.19, slash: 0.27, cast: 0.3, chop: 0.38 };
  */
 export const FORGE_RECIPES = {
   copperblade:  { depth: 1,  gold: 48,  needs: { copper: 6, stone: 4 } },
-  silverbow:    { depth: 3,  gold: 96,  needs: { silver: 5, copper: 3 } },
-  slimewand:    { depth: 3,  gold: 96,  needs: { slimegoo: 6, silver: 2 } },
+  silverbow:    { depth: 4,  gold: 96,  needs: { silver: 5, copper: 3 } },
+  slimewand:    { depth: 4,  gold: 96,  needs: { slimegoo: 6, silver: 2 } },
   silvershield: { depth: 4,  gold: 180, needs: { silver: 6, goldore: 2 } },
   goldenaxe:    { depth: 6,  gold: 240, needs: { goldore: 6, silver: 3 } },
   crystalstaff: { depth: 7,  gold: 300, needs: { goldore: 5, slimegoo: 5 } },
   dragonsword:  { depth: 9,  gold: 720, needs: { goldore: 10, silver: 10 } },
+  // deep ores: their blueprint only drops once you can reach the floor the ore spawns on
+  mythrilbrand: { depth: 50,  gold: 1200,  needs: { mythril: 5, stone: 6 } },
+  mythrilbulwark: { depth: 55, gold: 1800, needs: { mythril: 6, goldore: 4 } },
+  obsidianedge: { depth: 120, gold: 7200,  needs: { obsidian: 8, mythril: 4 } },
+  nightstaff:   { depth: 130, gold: 7800,  needs: { obsidian: 6, goldore: 8 } },
+  starpiercer:  { depth: 200, gold: 30000, needs: { starstone: 4, obsidian: 4 } },
+  starcleaver:  { depth: 210, gold: 44000, needs: { starstone: 10, obsidian: 6 } },
 };
 
 /** A blueprint you don't know yet, from the ones that can drop this deep (or null). */
