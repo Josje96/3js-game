@@ -31,6 +31,8 @@ Most important first. Tick things off in the same commit that does them.
       the Decorator styles the whole fort or just your room; furniture is a family pool but only
       placeable in your own room or the hall. Since then: the fort is a square drawn for the
       family's size (a room per member), you can sit on seats, and there are wallpapers + luxury furniture.
+      Then: rooms only along the top, one common room, door bottom middle, much smaller; styles
+      only ever change the room you pick; sleepers lie head on the pillow; gowns/robes flare so feet stay inside.
 - [ ] Sitting is a hand-bent pose (the free KayKit rig has no sit clip); the sofa's cushion is a bit
       higher than a chair so you sink in slightly. A per-seat height would need it in the `anim` string.
 - [ ] Touch controls for tablets/phones.
