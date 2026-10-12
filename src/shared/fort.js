@@ -1,69 +1,49 @@
-// The Family Fort, drawn for however many family members there are: always a square, a common
-// hall across the middle (wardrobe, mirror, family chest, table), and one private room each,
-// along the top and bottom walls. Fewer rooms = wider rooms; space nobody lives in is part of the hall.
-// Same map letters as shared/maps.js. Rooms are numbered by bed slot: even slots along the top,
-// odd ones along the bottom, left to right, so a room keeps its side when someone new moves in.
+// The Family Fort, drawn for however many family members there are: a row of small private rooms
+// along the top (one each), one common room below them (wardrobe, mirror, family chest, table),
+// and the front door in the middle of the bottom wall. The fort only grows sideways, one room at a
+// time, so it stays snug. Same map letters as shared/maps.js. Rooms are numbered by bed slot,
+// left to right, so a room keeps its place when someone new moves in.
 
-export const FORT_SIZE = 17;       // cells along each side, outer walls included
-export const MAX_ROOMS = 10;       // five a side; more family members than this share
-const INNER = FORT_SIZE - 2;       // 15 cells between the outer walls
-const ROOM_DEPTH = 4;
-const TOP_WALL = 1 + ROOM_DEPTH;   // the wall row between the top rooms and the hall (5)
-const BOTTOM_WALL = FORT_SIZE - 2 - ROOM_DEPTH; // ...and between the hall and the bottom rooms (11)
-export const HALL = { x: 1, z: TOP_WALL + 1 }; // the hall's top-left cell (furniture there is saved relative to it)
+export const MAX_ROOMS = 10;       // more family members than this share
+const ROOM_W = 3;                  // cells across each room
+const ROOM_DEPTH = 3;
+const HALL_DEPTH = 4;
+const TOP_WALL = 1 + ROOM_DEPTH;   // the wall row between the rooms and the common room (4)
+export const FORT_DEPTH = TOP_WALL + HALL_DEPTH + 2; // rows, outer walls included (10)
+export const HALL = { x: 1, z: TOP_WALL + 1 }; // the common room's top-left cell (furniture there is saved relative to it)
 
-/** Column spans for `k` rooms side by side between the outer walls, 1-cell walls between. */
-function spans(k) {
-  if (!k) return [];
-  const free = INNER - (k - 1), base = Math.floor(free / k), extra = free - base * k;
-  const out = [];
-  let x = 1;
-  for (let i = 0; i < k; i++) {
-    const w = base + (i >= k - extra ? 1 : 0); // the leftovers go to the rooms on the right
-    out.push({ x, w });
-    x += w + 1;
-  }
-  return out;
-}
+/** Cells across the fort (outer walls included) for `k` room spaces side by side. */
+export const fortWidth = (k) => k * (ROOM_W + 1) + 1;
 
 /** The fort map (rows + rooms + portals) for `n` family members. */
 export function fortMap(n) {
   n = Math.max(1, Math.min(MAX_ROOMS, Math.floor(n) || 1));
-  const top = Math.ceil(n / 2), bottom = Math.floor(n / 2);
-  const grid = Array.from({ length: FORT_SIZE }, () => Array(FORT_SIZE).fill('#'));
+  // at least two spaces, so one person's fort isn't a corridor: a space nobody lives in yet
+  // is left open, part of the common room
+  const k = Math.max(2, n), W = fortWidth(k);
+  const grid = Array.from({ length: FORT_DEPTH }, () => Array(W).fill('#'));
   const set = (x, z, ch) => { grid[z][x] = ch; };
   const fill = (x0, z0, w, h, ch = '.') => { for (let z = z0; z < z0 + h; z++) for (let x = x0; x < x0 + w; x++) set(x, z, ch); };
 
-  // the hall: everything between the room rows (down to the outer wall if nobody lives at the bottom)
-  const hallBottom = bottom ? BOTTOM_WALL - 1 : FORT_SIZE - 2;
-  fill(1, TOP_WALL + 1, INNER, hallBottom - TOP_WALL);
-
+  fill(1, HALL.z, W - 2, HALL_DEPTH);
   const rooms = [];
-  // at least two spaces a row, so one person doesn't get a room the width of the fort:
-  // a space nobody lives in yet is left open, part of the common area
-  const addRow = (count, side) => spans(Math.max(2, count)).forEach(({ x, w }, j) => {
-    const z = side === 'top' ? 1 : BOTTOM_WALL + 1;
-    fill(x, z, w, ROOM_DEPTH);
-    if (j >= count) { fill(x, side === 'top' ? TOP_WALL : BOTTOM_WALL, w, 1); return; }
-    // a doorway into the hall, in the middle of the room's wall
-    const dw = w >= 4 ? 2 : 1, dx = x + Math.floor((w - dw) / 2);
-    for (let i = 0; i < dw; i++) set(dx + i, side === 'top' ? TOP_WALL : BOTTOM_WALL, '.');
-    // the bed: against the back wall for top rooms; beside the doorway for bottom ones
-    if (side === 'top') set(x, 1, 'B');
-    else set(dx > x ? x : x + w - 1, BOTTOM_WALL + 1, 'B');
-    rooms[side === 'top' ? j * 2 : j * 2 + 1] = { x, z, w, h: ROOM_DEPTH };
-  });
-  addRow(top, 'top');
-  if (bottom) addRow(bottom, 'bottom');
+  for (let j = 0; j < k; j++) {
+    const x = 1 + j * (ROOM_W + 1);
+    fill(x, 1, ROOM_W, ROOM_DEPTH);
+    if (j >= n) { fill(x, TOP_WALL, ROOM_W, 1); continue; }
+    set(x + 1, TOP_WALL, '.'); // a doorway into the common room
+    set(x, 1, 'B');            // the bed, against the back wall
+    rooms[j] = { x, z: 1, w: ROOM_W, h: ROOM_DEPTH };
+  }
 
-  // the common area: dressing corner on the left, chest and table on the right, door on the east wall
-  const mid = TOP_WALL + 3; // the hall's middle row (8)
-  set(3, mid - 1, 'W');
-  set(5, mid - 1, 'M');
-  set(8, mid, 'p');
-  set(11, mid - 1, 'T');
-  set(13, mid + 1, 'C');
-  set(FORT_SIZE - 1, mid, 'D');
+  // the common room: dressing corner on the left, chest and table on the right, door bottom middle
+  const mid = Math.floor(W / 2);
+  set(1, HALL.z, 'W');
+  set(3, HALL.z, 'M');
+  set(mid, HALL.z + 1, 'p');
+  set(W - 3, HALL.z + 2, 'T');
+  set(W - 2, HALL.z, 'C');
+  set(mid, FORT_DEPTH - 1, 'D');
 
   return {
     title: 'Family Fort',
