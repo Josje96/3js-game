@@ -54,6 +54,21 @@ export const FURNITURE = {
   fountain:   { name: 'Indoor fountain', build: 'fountain', price: 5600, radius: 1.2, luxury: true },
   piano:      { name: 'Grand piano', build: 'piano', price: 7000, radius: 1.5, luxury: true },
   throne:     { name: 'Golden throne', build: 'throne', price: 8000, radius: 0.9, seat: { face: 0 }, luxury: true },
+  // the luxury collection, part 2 (`lightY` / `lightColor` move or tint the glow)
+  rockinghorse:{ name: 'Rocking horse', build: 'rockinghorse', price: 2000, radius: 0.7, luxury: true },
+  mirror:     { name: 'Gilded mirror', build: 'mirror', price: 2200, radius: 0.5, luxury: true },
+  birdcage:   { name: 'Golden birdcage', build: 'birdcage', price: 2400, radius: 0.5, luxury: true },
+  musicbox:   { name: 'Ballerina music box', build: 'musicbox', price: 2500, radius: 0.5, luxury: true },
+  teaset:     { name: 'Royal tea table', build: 'teaset', price: 2600, radius: 0.8, luxury: true },
+  bearrug:    { name: 'Bear rug', build: 'bearrug', price: 2800, radius: 0, luxury: true },
+  tapestry:   { name: 'Royal crest tapestry', build: 'tapestry', price: 3000, radius: 0.5, luxury: true },
+  telescope:  { name: 'Brass telescope', build: 'telescope', price: 3400, radius: 0.6, luxury: true },
+  crystalball:{ name: 'Wizard’s crystal ball', build: 'crystalball', price: 3800, radius: 0.5, light: true, lightY: 1.4, lightColor: 0xb48cff, luxury: true },
+  armor:      { name: 'Suit of armour', build: 'armor', price: 4800, radius: 0.6, luxury: true },
+  bathtub:    { name: 'Golden bathtub', build: 'bathtub', price: 5200, radius: 1.1, luxury: true },
+  chandelier: { name: 'Crystal chandelier', build: 'chandelier', price: 6000, radius: 0, light: true, lightY: 2.6, luxury: true },
+  organ:      { name: 'Pipe organ', build: 'organ', price: 9000, radius: 1.3, luxury: true },
+  hoard:      { name: 'Dragon’s hoard', build: 'hoard', price: 12000, radius: 1.1, luxury: true },
 };
 
 /** Wall colours for the fort (painted over the stone walls). `price` 0 = the one you start with. */
