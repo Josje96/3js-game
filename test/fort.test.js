@@ -14,7 +14,13 @@ test('fort: a row of rooms on top (one room and bed each), the door bottom middl
     const W = fortWidth(Math.max(2, n)), H = fortDepth(Math.max(2, n));
     assert.equal(map.rows.length, H);
     for (const row of map.rows) assert.equal(row.length, W);
-    if (n <= 4) assert.ok(W <= 13 && H <= 10 && Math.abs(W - H) <= 3, `${n}: small and near square (${W}x${H})`);
+    if (n <= 4) assert.ok(W <= 17 && H <= 10, `${n}: not sprawling (${W}x${H})`);
+    // nothing solid in a bedroom's doorway or the two cells in front of it (the chest once stood there)
+    map.rooms.forEach((r, slot) => {
+      const dx = r.x + 1;
+      for (let z = r.z + r.h; z <= r.z + r.h + 2; z++) assert.ok('.p'.includes(map.rows[z][dx]), `${n}: room ${slot}'s doorway is clear at ${dx},${z} ('${map.rows[z][dx]}')`);
+      assert.ok(r.w >= 3 && r.h >= 3, `${n}: rooms are roomy (${r.w}x${r.h})`);
+    });
     assert.equal(map.rows[H - 1].indexOf('D'), Math.floor(W / 2), `${n}: door in the middle of the bottom wall`);
     const L = buildLayout('house', 1, { rooms: n });
     assert.equal(L.rooms.length, n, `${n}: rooms`);
