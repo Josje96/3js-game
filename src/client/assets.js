@@ -14,7 +14,7 @@ const pending = new Map();
 const loaded = new Map();
 
 function url(path) {
-  const glb = path.startsWith('characters/') || path.startsWith('anims/');
+  const glb = path.startsWith('characters/') || path.startsWith('anims/') || path.startsWith('props/');
   return `${BASE}${path}${glb ? '.glb' : '.gltf'}`;
 }
 

@@ -15,6 +15,7 @@
 //           v  the Decorator's stall (appears once the King Slime is beaten)   w  fountain   l  lamp post
 //           n  a townsperson you can talk to (each n gets the next one in shared/townsfolk.js)
 //           f  flower bed   u  training dummy   s  practice slime (both live in the training yard)
+//           c  produce crate   y  hay bale   S  signpost (all generated: bun run make-props)
 
 export const MAPS = {
   house: {
@@ -44,23 +45,23 @@ export const MAPS = {
       'YXXXXXXXXXXXXXXXXYXXXXXXXXXXXXXXXXXY',
       'X.............HHHHHHHH.............X',
       'X..f..f.......HHHHHHHH......RRRRR..X',
-      'X.f~~~~.....t.HHHHHHHH..t...RRRRR..X',
+      'X.f~~~~.....t.HHHHHHHH..tS..RRRRR..X',
       'X..~~~~h......HHHdHHHH......RRmRR..X',
       'X..~~~~..........=............=....X',
       'X.f~~~~.f..t.....=........t...=....X',
       'X...f............p............=....X',
-      'X......==....l...=....l....====.GGGX',
+      'X......==....l...=....l....====SGGGX',
       'X....n..========================gGGX',
       'X.t......==k===F====K===v==n....GGGX',
       'X........==================........X',
-      'Y........==================.l......Y',
+      'Y..c.....==================.l......Y',
       'X...t...t=n================b...t...X',
-      'X........========w=====n===........X',
-      'X........==================.....QQQX',
+      'X........========w=====n===..c.....X',
+      'X........==================.S...QQQX',
       'X.....==========================qQQX',
       'X.....=..l........=.......l.....QQQX',
       'X.++++.++++.......=..n.............X',
-      'X.+.......+.....n.=..........n.....X',
+      'X.+.y...y.+.....n.=..........n.....X',
       'X.+.......+..t....=.......b........X',
       'X.+.u...s.+...E...=.E...E...E..t...X',
       'X.+.......+.......=................X',
@@ -100,6 +101,9 @@ export const LEGEND = {
   'l': { base: '.', prop: 'lamp' },
   'n': { base: '.', prop: 'townsfolk' },
   'f': { base: '.', decor: 'flowers' },
+  'c': { base: '.', prop: 'crate' },
+  'y': { base: '.', prop: 'haybale' },
+  'S': { base: '.', prop: 'signpost' },
   'u': { base: '.', spot: 'dummy' },
   's': { base: '.', spot: 'trainingSlime' },
   'p': { base: '.', spawn: true },

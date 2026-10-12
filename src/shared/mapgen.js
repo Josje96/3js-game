@@ -4,7 +4,30 @@
 
 import { CELL } from './config.js';
 import { DUNGEONS, ROCK_HP, BARREL_STYLES, biomeFor, isBossFloor, makeEnemy, depthOf, oresFor } from './dungeons.js';
+import { PROPS } from './props.js';
 import { makeRng } from './rng.js';
+
+/** Flavour props per biome theme (see client/themes.js THEMES): keys without an entry get none. */
+const THEME_PROPS = {
+  dungeon: ['rails', 'minecart', 'support', 'stalagmite'],
+  frost: ['stalagmite', 'crystalcluster'],
+  grotto: ['stalagmite', 'rails'],
+  lava: ['stalagmite', 'crystalcluster'],
+  crystal: ['crystalcluster', 'stalagmite'],
+  bone: ['bonepile', 'stalagmite'],
+  nest: ['bonepile', 'support'],
+  gold: ['minecart', 'crate', 'rails'],
+  shadow: ['bonepile', 'stalagmite'],
+  magma: ['stalagmite', 'crystalcluster', 'rails'],
+  ruins: ['crate', 'bonepile', 'signpost'],
+  coral: ['bonepile', 'stalagmite'],
+  library: ['crate', 'support'],
+  kelp: ['crate', 'bonepile'],
+  pearl: ['crystalcluster', 'bonepile'],
+  abyss: ['bonepile', 'crystalcluster'],
+  keep: ['crate', 'signpost', 'support'],
+  throne: ['bonepile', 'crystalcluster', 'signpost'],
+};
 
 export function generateFloor(dungeonId, floor, seed) {
   const biome = biomeFor(dungeonId, floor);
@@ -225,6 +248,20 @@ export function generateFloor(dungeonId, floor, seed) {
         if (i > 0) taken.push({ ...q, r: 0.7 });
         const style = i === 0 ? rng.pick(['barrel', 'keg']) : 'small';
         initial.push({ type: 'barrel', style, x: q.x, z: q.z, hp: BARREL_STYLES[style], rot: rng.range(0, Math.PI * 2) });
+      }
+    }
+
+    // flavour props from the generated set (tools/blender/make_props.py): a mine cart on its
+    // rails, broken supports, stalagmites, crystals, bones — whatever this biome's walls suggest
+    const flavour = THEME_PROPS[biome.theme] ?? [];
+    for (const room of rest) {
+      let n = rng.int(0, 2) + (rng.chance(0.3) ? 1 : 0);
+      while (n-- > 0 && flavour.length) {
+        const type = rng.pick(flavour);
+        const r = PROPS[type].radius;
+        const p = place(room, Math.max(r, 0.4));
+        if (!p) continue;
+        props.push({ type, x: p.x, z: p.z, rot: rng.int(0, 3) * Math.PI / 2 });
       }
     }
   }

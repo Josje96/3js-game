@@ -20,7 +20,7 @@ Most important first. Tick things off in the same commit that does them.
 - [ ] Decide the discussion items (below) before building any of them.
 
 ## Ideas / smaller things
-- [ ] Dungeons still look samey within a biome: more room shapes in `shared/mapgen.js` (caves, halls, bridges).
+- [x] Dungeons still look samey within a biome: done in round 3 — rooms get personalities (pillars, cave outcrops, alcoves, great halls) and some corridors are two wide.
 - [ ] Unique boss attacks (currently chase / pounce / shoot + summons).
 - [x] Forge recipes for deeper ores (mythril, obsidian, starstone) — done in round 3: Mythril Brand & Bulwark, Obsidian Edge, Night Staff, Star Piercer, Star Cleaver; blueprints gate on where the ores spawn.
 - [ ] Sound effects (hits, coins, chains breaking, night chime).
