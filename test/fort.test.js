@@ -35,6 +35,13 @@ test('fort: one room and one bed per family member, all above the hall, every ro
     const [wx, wz, mx, mz] = [w.x, w.z, m.x, m.z].map((v) => Math.floor(v / 4));
     assert.ok(wz === mz && mx === wx + 1, `${n}: side by side`);
     assert.ok(L.isSolidCell(wx, wz - 1) && L.isSolidCell(mx, mz - 1), `${n}: against the wall`);
+    // ...never standing in a doorway or in front of one: the doorway cells and the cells below them stay free
+    for (const r of L.rooms) for (let x = r.x; x < r.x + r.w; x++) {
+      if (L.isSolidCell(x, r.z + r.h)) continue; // wall, not doorway
+      for (const [cx, cz] of [[x, r.z + r.h], [x, r.z + r.h + 1]]) {
+        assert.ok(![wx, mx].includes(cx) || cz !== wz, `${n}: wardrobe/mirror clear of room ${r.x}'s doorway`);
+      }
+    }
     assert.ok(seen.has(`${D.cx + D.dir[0]},${D.cz + D.dir[1]}`), `${n}: the door is reachable`);
   }
 });
