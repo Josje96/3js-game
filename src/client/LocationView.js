@@ -9,7 +9,7 @@ import { makeGrass, makeWater, makeTrees, makeSpringBanks, pondEdge } from './na
 import { wallpaperTexture } from './wallpaper.js';
 import { PetView } from './pets.js';
 import { DECORATIONS } from './decorations.js';
-import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent } from './town.js';
+import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth } from './town.js';
 import { Villagers } from './villagers.js';
 import { TOWNSFOLK } from '../shared/townsfolk.js';
 import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
@@ -520,8 +520,8 @@ export class LocationView {
         if (!p.pets) { stall.position.set(p.x, 0, p.z); holder.add(stall); }
       }
       if (p.build === 'forge') this.buildForge(p);
-      if (p.build === 'enchanterTent') { // the Enchanter's corner, round its keeper
-        const tent = makeEnchanterTent();
+      if (p.build === 'enchanterTent' || p.build === 'bankBooth') { // a corner or booth round its keeper
+        const tent = p.build === 'bankBooth' ? makeBankBooth() : makeEnchanterTent();
         tent.position.set(p.x, 0, p.z);
         tent.rotation.y = p.rot ?? 0;
         holder.add(tent);

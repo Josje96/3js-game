@@ -1,7 +1,7 @@
 // HTML overlay on top of the 3D canvas.
 import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_SHOP_STOCK, shopTier, sellValue, isGear } from '../shared/items.js';
 import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
-import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle } from '../shared/config.js';
+import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle, BANK_OPEN_FEE } from '../shared/config.js';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
@@ -120,7 +120,7 @@ export class Hud {
     this.status.innerHTML = `
       <div class="loc">${esc(this.locTitle)}</div>
       <div class="hpbar"><div style="width:${frac}%"></div><span>❤ ${hp}</span></div>${petRow}
-      <div class="row"><span class="gold">🪙 ${s?.gold ?? 0}</span><span>${dateLabel(w?.day ?? 1)}</span></div>
+      <div class="row"><span class="gold">🪙 ${s?.gold ?? 0}${s?.bank != null ? ` <small class="bank" title="In the bank (safe)">🏦 ${s.bank}</small>` : ''}</span><span>${dateLabel(w?.day ?? 1)}</span></div>
       <div class="row day-clock${(w?.dayLeft ?? 999) <= 60 ? ' soon' : ''}"><span>${(w?.dayLeft ?? 999) <= 60 ? '🌙 Get home! Night in' : '🌅 Night in'} ${clock(w?.dayLeft ?? 0)}</span><span title="Day ${dayOfSeason(w?.day ?? 1)} of ${seasonOf(w?.day ?? 1).name}">${seasonOf(w?.day ?? 1).icon} ${seasonOf(w?.day ?? 1).name}</span></div>`;
   }
 
@@ -512,6 +512,70 @@ export class Hud {
         bag.append(b);
       }
       box.append(bag, closeButton(this));
+    });
+  }
+
+  /** The bank: open an account (once), put gold in or take it out, send gold to family. */
+  openBank({ family, onAction }) {
+    this.bankSend ??= { to: family[0]?.id ?? null, amount: '' };
+    this.openModal((box) => {
+      const s = this.self ?? {}, gold = s.gold ?? 0;
+      box.append(el('h2', null, `The Bank <span class="gold">🪙 ${gold}</span>`));
+      if (s.bank == null) {
+        box.append(el('p', 'muted', `“Gold in your pocket can be dropped when you faint. Gold in my vault is <b>never</b> lost — and you can send it to your family.” Opening an account costs <b>${BANK_OPEN_FEE}</b> gold.`));
+        const open = el('button', 'primary', `Open an account (${BANK_OPEN_FEE} gold)`);
+        open.disabled = gold < BANK_OPEN_FEE;
+        open.addEventListener('click', () => this.askToBuy('open a bank account', BANK_OPEN_FEE, () => onAction('open')));
+        box.append(open, closeButton(this));
+        return;
+      }
+      box.append(el('p', null, `In the vault: <b class="gold">🏦 ${s.bank}</b> — safe even if you faint.`));
+      const amountRow = (label, max, action) => {
+        const row = el('div', 'bank-row', `<b>${label}</b>`);
+        for (const n of [100, 1000]) {
+          const b = el('button', 'small', `${n}`);
+          b.disabled = max < n;
+          b.addEventListener('click', () => onAction(action, n));
+          row.append(b);
+        }
+        const all = el('button', 'small primary', `All (${max})`);
+        all.disabled = max <= 0;
+        all.addEventListener('click', () => onAction(action, max));
+        row.append(all);
+        return row;
+      };
+      box.append(amountRow('Put in', gold, 'deposit'), amountRow('Take out', s.bank, 'withdraw'));
+      if (family.length) {
+        const send = el('div', 'bank-row', '<b>Send to</b>');
+        const who = el('select');
+        for (const f of family) {
+          const o = el('option', null, esc(f.name));
+          o.value = f.id;
+          if (f.id === this.bankSend.to) o.selected = true;
+          who.append(o);
+        }
+        who.addEventListener('change', () => { this.bankSend.to = who.value; });
+        const amount = el('input', 'bank-amount');
+        amount.type = 'number';
+        amount.min = '1';
+        amount.placeholder = 'gold';
+        amount.value = this.bankSend.amount ?? '';
+        amount.addEventListener('input', () => { this.bankSend.amount = amount.value; });
+        amount.addEventListener('keydown', (e) => e.stopPropagation());
+        const go = el('button', 'small primary', 'Send 💌');
+        go.addEventListener('mousedown', (e) => e.preventDefault()); // keep the amount box focused until we've read it
+        go.addEventListener('click', () => {
+          const n = Math.floor(Number(amount.value));
+          if (!(n > 0)) return this.toast('How much gold should we send?');
+          if (n > s.bank) return this.toast(`You only have ${s.bank} gold in the bank.`);
+          onAction('send', n, who.value);
+          this.bankSend.amount = '';
+          amount.blur();
+        });
+        send.append(who, amount, go);
+        box.append(send, el('p', 'muted small-note', 'Sending comes out of your bank. It goes into their bank, or their purse if they don’t have an account.'));
+      }
+      box.append(closeButton(this));
     });
   }
 

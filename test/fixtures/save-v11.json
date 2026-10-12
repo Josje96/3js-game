@@ -1,0 +1,128 @@
+{
+ "version": 11,
+ "id": "wmv5txe82exnr",
+ "name": "Test",
+ "seed": "fixture11",
+ "createdAt": 1791844460354,
+ "updatedAt": 1791844460354,
+ "day": 1,
+ "flags": {},
+ "dungeons": {
+  "mine": {
+   "deepest": 0,
+   "unlocked": true,
+   "completed": false
+  },
+  "ruins": {
+   "deepest": 0,
+   "unlocked": false,
+   "completed": false
+  },
+  "keep": {
+   "deepest": 0,
+   "unlocked": false,
+   "completed": false
+  }
+ },
+ "players": {
+  "mom": {
+   "name": "mom",
+   "cls": "Knight",
+   "level": 1,
+   "xp": 0,
+   "points": 0,
+   "stats": {
+    "str": 2,
+    "dex": 0,
+    "int": 0,
+    "vit": 2
+   },
+   "hp": 26,
+   "maxHp": 26,
+   "gold": 777,
+   "weapon": "sword",
+   "gear": [
+    "sword",
+    "steelblade"
+   ],
+   "blueprints": [],
+   "inventory": {
+    "potion": 2
+   },
+   "shield": null,
+   "armor": null,
+   "closet": [],
+   "pets": [],
+   "pet": null,
+   "look": {
+    "hat": "own",
+    "cape": "own",
+    "back": "none",
+    "dye": "none",
+    "clothes": "none",
+    "hair": "none",
+    "hairColor": "brown",
+    "face": "none",
+    "skin": "none"
+   },
+   "enchants": {
+    "steelblade": 2
+   }
+  },
+  "kid": {
+   "name": "kid",
+   "cls": "Knight",
+   "level": 1,
+   "xp": 0,
+   "points": 0,
+   "stats": {
+    "str": 2,
+    "dex": 0,
+    "int": 0,
+    "vit": 2
+   },
+   "hp": 26,
+   "maxHp": 26,
+   "gold": 30,
+   "weapon": "sword",
+   "gear": [
+    "sword"
+   ],
+   "blueprints": [],
+   "inventory": {
+    "potion": 2
+   },
+   "shield": null,
+   "armor": null,
+   "closet": [],
+   "pets": [],
+   "pet": null,
+   "look": {
+    "hat": "own",
+    "cape": "own",
+    "back": "none",
+    "dye": "none",
+    "clothes": "none",
+    "hair": "none",
+    "hairColor": "brown",
+    "face": "none",
+    "skin": "none"
+   },
+   "enchants": {}
+  }
+ },
+ "house": {
+  "level": 1,
+  "storage": {},
+  "beds": {
+   "mom": 0,
+   "kid": 1
+  },
+  "furniture": [],
+  "owned": {},
+  "styles": [],
+  "wall": "stone",
+  "floor": "oak",
+  "roomStyles": {}
+ }
+}

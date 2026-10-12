@@ -283,3 +283,7 @@ h1, h2, h3, .loc, .night-day, .xp-level, .title-logo { font-family: 'MedievalSha
 .gfx-row input[type=checkbox] { width: auto; margin: 0; }
 .gfx-row .selected { background: var(--accent); color: #2a1600; }
 .slot .ench { color: #d8a8ff; }
+.bank-row { display: flex; align-items: center; gap: 6px; margin: 6px 0; flex-wrap: wrap; }
+.bank-row b { min-width: 70px; }
+.bank-amount { width: 90px; }
+.hud-status small.bank { color: #bcd7ff; margin-left: 6px; }

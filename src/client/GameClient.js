@@ -467,6 +467,8 @@ export class GameClient {
         onSell: (item, qty) => this.conn.send({ t: 'sell', item, qty }),
         onBuyStyle: (slot, id) => this.conn.send({ t: 'buyStyle', slot, id }),
       });
+    } else if (msg.kind === 'bank') {
+      this.hud.openBank({ family: msg.family, onAction: (action, amount, to) => this.conn.send({ t: 'bank', action, amount, to }) });
     } else if (msg.kind === 'enchanter') {
       this.hud.openEnchanter({ onEnchant: (item) => this.conn.send({ t: 'enchant', item }) });
     } else if (msg.kind === 'forge') {

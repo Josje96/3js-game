@@ -352,3 +352,28 @@ export function makeEnchanterTent() {
   };
   return g;
 }
+
+/** The Banker's booth (he stands at the origin, facing +z): a stone counter with a brass rail,
+ * stacks of coins, a strongbox behind him and a sign with a big gold coin on it. */
+export function makeBankBooth() {
+  const g = new THREE.Group();
+  const stone = std(0xd8d2c4), dark = std(0x8a7f70), brass = std(0xd9a93a, { metalness: 0.7, roughness: 0.3 });
+  const gold = std(0xffd23f, { metalness: 0.8, roughness: 0.25, emissive: 0x6a4a00, emissiveIntensity: 0.3 });
+  mesh(g, new THREE.BoxGeometry(3.2, 1.0, 0.8), stone, 0, 0.5, 0.9); // the counter
+  mesh(g, new THREE.BoxGeometry(3.4, 0.12, 1.0), dark, 0, 1.06, 0.9);
+  for (const x of [-1.5, -0.5, 0.5, 1.5]) mesh(g, new THREE.CylinderGeometry(0.03, 0.03, 0.7, 6), brass, x, 1.45, 1.3);
+  mesh(g, new THREE.BoxGeometry(3.1, 0.05, 0.05), brass, 0, 1.8, 1.3); // brass rail
+  for (const [x, n] of [[-1.0, 5], [-0.75, 3], [0.9, 4]]) { // coin stacks
+    for (let i = 0; i < n; i++) mesh(g, new THREE.CylinderGeometry(0.12, 0.12, 0.04, 14), gold, x, 1.14 + i * 0.045, 0.85);
+  }
+  const box = mesh(g, new THREE.BoxGeometry(1.0, 0.8, 0.7), std(0x5a3a22), -1.1, 0.4, -0.9); // the strongbox
+  mesh(box, new THREE.BoxGeometry(1.04, 0.1, 0.74), brass, 0, 0.1, 0);
+  mesh(box, new THREE.BoxGeometry(0.16, 0.2, 0.05), brass, 0, 0.1, 0.37);
+  // a sign on two posts with a big coin
+  for (const x of [0.9, 1.9]) mesh(g, new THREE.CylinderGeometry(0.06, 0.06, 2.6, 6), std(0x6b4a2c), x, 1.3, -0.9);
+  mesh(g, new THREE.BoxGeometry(1.3, 0.8, 0.08), std(0x2e4a7a), 1.4, 2.4, -0.9);
+  const coin = mesh(g, new THREE.CylinderGeometry(0.3, 0.3, 0.06, 20), gold, 1.4, 2.4, -0.84);
+  coin.rotation.x = Math.PI / 2;
+  g.userData.update = (t) => { coin.rotation.z = t * 1.5; };
+  return g;
+}

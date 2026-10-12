@@ -61,6 +61,7 @@ export function newPlayerRecord({ name, cls }) {
     pet: null,                     // id of the one following you around
     look: { hat: 'own', cape: 'own', back: 'none', dye: 'none' },
     enchants: {},                  // weapon enchant levels from the Enchanter: { [weaponId]: 1..5 }
+    bank: null,                    // gold in the bank (null = no account yet); safe from fainting
   };
 }
 
@@ -70,7 +71,7 @@ export function newPlayerRecord({ name, cls }) {
  * and in a migration that fills it in for old saves.
  */
 export const PLAYER_FIELDS = ['name', 'cls', 'look', 'level', 'xp', 'points', 'stats', 'hp', 'maxHp', 'gold',
-  'weapon', 'shield', 'armor', 'gear', 'blueprints', 'inventory', 'closet', 'pets', 'pet', 'enchants'];
+  'weapon', 'shield', 'armor', 'gear', 'blueprints', 'inventory', 'closet', 'pets', 'pet', 'enchants', 'bank'];
 
 /**
  * Save upgrades, oldest first. Each step brings a save up to `version`.
@@ -177,6 +178,12 @@ export const MIGRATIONS = [
     version: 11, // the Enchanter: weapons can be enchanted (levels kept per player)
     up(save) {
       for (const p of Object.values(save.players ?? {})) p.enchants ??= {};
+    },
+  },
+  {
+    version: 12, // the bank: an account per player (null until they open one)
+    up(save) {
+      for (const p of Object.values(save.players ?? {})) p.bank ??= null;
     },
   },
 ];
