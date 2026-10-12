@@ -13,6 +13,9 @@ import { dropTinyShadows } from './merge.js';
 
 // sitting on a chair: how far the body drops and leans back, and how the legs and arms bend (radians)
 const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM = 0.5;
+// lying in bed: the body (feet first) sits this far towards the foot of the bed so the head lands on the pillow
+const SLEEP_FORWARD = 0.5;
+const SKIRT_GAP = 0.15, SKIRT_MAX_FLARE = 1.7; // skirts: room left round a leg (in body widths), and how far they may flare
 
 const ANIMS = {
   idle: 'Idle_A',
@@ -260,6 +263,7 @@ export class CharacterView {
     this.lookKey = key;
     for (const m of this.borrowed) m.removeFromParent();
     this.borrowed = [];
+    this.skirt = null;
     this.model.traverse((o) => {
       if (!o.isMesh) return;
       if (HAT_PART.test(o.name)) o.visible = hat === 'own';
@@ -326,6 +330,38 @@ export class CharacterView {
     const extra = buildClothes(def.extra, def.jacket);
     if (extra.front) this.attach('front', extra.front);
     if (extra.hips) this.attach('hips', extra.hips);
+    if (extra.hips?.userData.cone && extra.hips.parent) this.skirt = extra.hips;
+  }
+
+  /**
+   * A gown or robe is a stiff cone round the hips, but legs swing when running: flare it out
+   * each frame so it always reaches past the knees and feet instead of them poking through.
+   */
+  fitSkirt(dt) {
+    const sk = this.skirt;
+    this.legBones ??= ['lowerlegl', 'footl', 'toesl', 'lowerlegr', 'footr', 'toesr'].map((n) => this.model.getObjectByName(n));
+    if (this.legBones.some((b) => !b)) return;
+    const { topY, hemY, rTop, rBot } = sk.userData.cone;
+    const holder = sk.parent;
+    // everything from one fresh pass (the root may have moved this frame), so bones and skirt agree
+    this.root.updateMatrixWorld(true);
+    const inv = holder.matrixWorld.clone().invert();
+    const pts = this.legBones.map((b) => new THREE.Vector3().setFromMatrixPosition(b.matrixWorld).applyMatrix4(inv));
+    let need = 1;
+    for (const leg of [pts.slice(0, 3), pts.slice(3)]) {
+      for (let i = 0; i < 2; i++) { // knee→ankle, ankle→toes: check points along the shin and foot
+        for (let k = 0; k <= 4; k++) {
+          const q = leg[i].clone().lerp(leg[i + 1], k / 4);
+          if (q.y > topY || q.y < hemY) continue;
+          const r = rTop + (rBot - rTop) * (topY - q.y) / (topY - hemY);
+          need = Math.max(need, (Math.hypot(q.x, q.z) + SKIRT_GAP) / r);
+        }
+      }
+    }
+    need = Math.min(need, SKIRT_MAX_FLARE);
+    // flare out at once, settle back gently
+    const s = need > sk.scale.x ? need : sk.scale.x + (need - sk.scale.x) * Math.min(1, dt * 6);
+    sk.scale.set(s, 1, s);
   }
 
   borrow(model, part) {
@@ -352,10 +388,10 @@ export class CharacterView {
   setBase(name) {
     if (this.base === name) return;
     this.base = name;
-    // asleep: lying on our back on the bed (the rig has no sleeping clip, so tip the idle pose over)
+    // asleep: lying on our back on the bed, head on the pillow at its -z end (no sleeping clip: tip the idle pose over)
     const asleep = name === 'sleep';
     this.model.rotation.x = asleep ? -Math.PI / 2 : 0;
-    this.model.position.set(0, asleep ? 1.05 : name === 'sit' ? SIT_DROP : 0, asleep ? -0.9 : name === 'sit' ? SIT_BACK : 0);
+    this.model.position.set(0, asleep ? 1.05 : name === 'sit' ? SIT_DROP : 0, asleep ? SLEEP_FORWARD : name === 'sit' ? SIT_BACK : 0);
     if (this.label) this.label.visible = !asleep;
     if (!this.oneShot) this.fadeTo(asleep ? 'idle' : name);
   }
@@ -433,6 +469,7 @@ export class CharacterView {
     }
     this.mixer.update(dt);
     if (this.base === 'sit' && this.rollT == null) this.sitPose();
+    if (this.skirt) this.fitSkirt(dt);
   }
 
   /** Sitting (no clip for it either): bend the idle pose at the hips and knees, hands in the lap. */

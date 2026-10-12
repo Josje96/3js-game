@@ -365,7 +365,7 @@ export class GameClient {
         this.addEffect(new Debris(msg.x, msg.z, [0xffd23f, 0xfff27a, 0xffffff], 18));
         break;
       case 'sleep': // into bed: lie down on it
-        if (msg.id === this.you) { this.sleeping = true; this.pos.x = msg.x; this.pos.z = msg.z; this.pos.rot = (msg.rot ?? 0) + Math.PI; }
+        if (msg.id === this.you) { this.sleeping = true; this.pos.x = msg.x; this.pos.z = msg.z; this.pos.rot = msg.rot ?? 0; } // head towards the headboard (the bed's -z)
         break;
       case 'wake':
         if (msg.id === this.you && this.sleeping) { this.sleeping = false; this.pos.z += 2.6; }

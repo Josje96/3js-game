@@ -423,6 +423,7 @@ const CLOTHES_BUILDERS = {
     }
     const front = new THREE.Group();
     front.add(mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(0xffffff, { roughness: 0.2 }), 0, 0.22, 0.03)); // a pearl
+    skirt.userData.cone = { topY: 0.05, hemY: -1.05, rTop: 0.42, rBot: 0.95 }; // flared by the view so feet stay inside
     return { front, hips: skirt };
   },
   robe() {
@@ -436,6 +437,7 @@ const CLOTHES_BUILDERS = {
     hem.material.side = THREE.DoubleSide;
     hips.add(hem, mesh(new THREE.TorusGeometry(0.7, 0.035, 6, 24), gold, 0, -0.69, 0));
     hips.children.at(-1).rotation.x = Math.PI / 2;
+    hips.userData.cone = { topY: 0.055, hemY: -0.695, rTop: 0.46, rBot: 0.7 };
     return { front, hips };
   },
 };
