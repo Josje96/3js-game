@@ -17,10 +17,11 @@ function mesh(parent, geo, m, x = 0, y = 0, z = 0) {
 const ROOFS = [0xc0453a, 0x3a6ac0, 0x5a9a4a, 0xb0703a, 0x8a4ab0];
 const WALLS = [0xf2e6c8, 0xe8d0b0, 0xf6efe0, 0xdcc8a8];
 
-/** A little townsperson's cottage filling one 4x4 cell: plaster walls, timber, a roof, a chimney. */
+/** A townsperson's cottage filling a 2x2 block of cells: plaster walls, timber, a roof, a chimney. */
 export function makeCottage(x, z, r) {
   const g = new THREE.Group();
   g.position.set(x, 0, z);
+  g.scale.setScalar(1.9); // the door is a little taller than a person; the house fills a 2x2 block of cells
   const wall = std(WALLS[Math.floor(r * 40) % WALLS.length]), wood = std(0x6b4a2c), roof = std(ROOFS[Math.floor(r * 10) % ROOFS.length], { roughness: 0.6 });
   mesh(g, new THREE.BoxGeometry(3.4, 2.6, 3.2), wall, 0, 1.3, 0);
   for (const sx of [-1, 1]) mesh(g, new THREE.BoxGeometry(0.18, 2.6, 0.18), wood, sx * 1.66, 1.3, 1.56);

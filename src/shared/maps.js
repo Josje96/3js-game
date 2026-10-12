@@ -5,12 +5,13 @@
 //           =  path / cobblestones                  ~  water
 //           t  tree (outdoors, same as #)
 //           H  fort building   R  rock mound   G  ancient (ruins) gate stonework   Q  shadow keep gate stonework
-//           X  castle wall     Y  castle tower   +  fence   E  cottage
+//           X  castle wall     Y  castle tower   +  fence   E  cottage (a 2x2 block of E's is one house)
 // Portals:  (solid cells you walk into; each must touch exactly one walkable cell)
 //           D  house door (inside)   d  house door (outside)
 //           m  mine entrance         g  ruins gate        q  shadow keep gate
 // Props:    C  chest   T  table   b  barrel   W  wardrobe   M  mirror   k  shopkeeper   p  spawn point
 //           B  a bed slot in the fort (each family member gets one; see server/systems/home.js)
+// The fort itself isn't drawn here: shared/fort.js draws it for however many family members there are.
 //           h  healing spring sign (put it on the edge of a pond)   K  pet keeper + stall   F  forge + blacksmith
 //           v  the Decorator's stall (appears once the King Slime is beaten)   w  fountain   l  lamp post
 //           n  a townsperson you can talk to (each n gets the next one in shared/townsfolk.js)
@@ -18,44 +19,6 @@
 //           c  produce crate   y  hay bale   S  signpost (all generated: bun run make-props)
 
 export const MAPS = {
-  house: {
-    title: 'Family Fort',
-    theme: 'wood',
-    rows: [
-      '#####################',
-      '#B...#B...#B...#B...#',
-      '#....#....#....#....#',
-      '#....#....#....#....#',
-      '#....#....#....#....#',
-      '##..###..###..###..##',
-      '#...................#',
-      '#...W.......T.......D',
-      '#.........p.........#',
-      '#.........M..C......#',
-      '##..###..###..###..##',
-      '#B...#B...#B...#B...#',
-      '#....#....#....#....#',
-      '#....#....#....#....#',
-      '#....#....#....#....#',
-      '#####################',
-    ],
-    // the eight private rooms: one per family member, claimed by whoever's bed is in it.
-    // Rectangles in cell coords; every B (bed slot) must sit inside one.
-    rooms: [
-      { x: 1, z: 1, w: 4, h: 4 },
-      { x: 6, z: 1, w: 4, h: 4 },
-      { x: 11, z: 1, w: 4, h: 4 },
-      { x: 16, z: 1, w: 4, h: 4 },
-      { x: 1, z: 11, w: 4, h: 4 },
-      { x: 6, z: 11, w: 4, h: 4 },
-      { x: 11, z: 11, w: 4, h: 4 },
-      { x: 16, z: 11, w: 4, h: 4 },
-    ],
-    portals: {
-      D: { to: 'town', portal: 'd' },
-    },
-  },
-
   town: {
     title: 'Pebble Town',
     theme: 'outdoor',
@@ -81,8 +44,8 @@ export const MAPS = {
       'X.++++.++++.......=..n.............X',
       'X.+.y...y.+.....n.=..........n.....X',
       'X.+.......+..t....=.......b........X',
-      'X.+.u...s.+...E...=.E...E...E..t...X',
-      'X.+.......+.......=................X',
+      'X.+.u...s.+...EE..=.EE..EE..EE.t...X',
+      'X.+.......+...EE..=.EE..EE..EE.....X',
       'X.+++++++++........t...............X',
       'X..................................X',
       'YXXXXXXXXXXYXXXXXXXXXXXXYXXXXXXXXXXY',

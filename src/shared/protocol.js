@@ -49,7 +49,7 @@ export const CLIENT_MESSAGES = {
  *   kicked   { reason }                      you can't (or can no longer) play here
  *   world    { name, seed, day, flags, dungeons, night, dayLeft, ... }   world-wide state, ~1/s
  *   self     { hp, maxHp, level, xp, gear, inventory, pets, ... }        your own character
- *   enter    { key, seed, epoch, x, z, ents, players }  you arrived somewhere: rebuild the scene
+ *   enter    { key, seed, opts, epoch, x, z, ents, players }  you arrived somewhere: rebuild the scene (opts: e.g. the fort's room count)
  *   snap     { players, ents, gone }         reliable, when something changed: new/changed entities in full,
  *                                            removed ids, players whose looks changed (in full)
  *   pos      { time, players, ents }         20×/s over the fast lane (may be lost): players as

@@ -120,7 +120,8 @@ function cellQuads(cells, y, uvScale, colorAt) {
  * @param rand   (cx, cz, salt) => [0, 1) stable per cell
  * @param uTime  shared { value } uniform for the wind
  */
-export function makeGrass(cells, rand, uTime) {
+/** `skip(x, z)`: no tufts there (under the pond's water). */
+export function makeGrass(cells, rand, uTime, { skip = null } = {}) {
   const group = new THREE.Group();
   // big-scale tint per corner so the repeating texture doesn't read as a grid
   const tint = (x, z) => {
@@ -167,9 +168,10 @@ export function makeGrass(cells, rand, uTime) {
   for (const [cx, cz] of cells) {
     const n = 4 + Math.floor(rand(cx, cz, 'tn') * 5);
     for (let i = 0; i < n; i++) {
+      const x = cx * CELL + rand(cx, cz, `tx${i}`) * CELL, z = cz * CELL + rand(cx, cz, `tz${i}`) * CELL;
+      if (skip?.(x, z)) continue;
       spots.push({
-        x: cx * CELL + rand(cx, cz, `tx${i}`) * CELL,
-        z: cz * CELL + rand(cx, cz, `tz${i}`) * CELL,
+        x, z,
         rot: rand(cx, cz, `tr${i}`) * Math.PI * 2,
         s: 0.7 + rand(cx, cz, `ts${i}`) * 0.8,
       });
@@ -222,8 +224,13 @@ export function makeWater(cells, rand, uTime, { healing = false, disc = null, li
   const group = new THREE.Group();
   // subdivide each cell so the vertex waves have something to bend
   const geos = [];
-  if (disc) { // a round pool: one disc instead of square cells
-    const g = new THREE.CircleGeometry(disc.r, 48);
+  if (disc) { // a round pool: one disc instead of square cells (`disc.edge(angle)` = an uneven shore)
+    const g = new THREE.CircleGeometry(1, 64);
+    const p = g.attributes.position;
+    for (let i = 1; i < p.count; i++) {
+      const a = Math.atan2(p.getY(i), p.getX(i)), r = disc.edge ? disc.edge(a) : disc.r;
+      p.setXY(i, Math.cos(a) * r, Math.sin(a) * r);
+    }
     g.rotateX(-Math.PI / 2);
     g.translate(disc.x, disc.y, disc.z);
     geos.push(g);
@@ -278,7 +285,10 @@ export function makeWater(cells, rand, uTime, { healing = false, disc = null, li
       flower.position.set(r * 0.2, 0.06, 0);
       holder.add(flower);
     }
-    holder.position.set(cx * CELL + 0.8 + rand(cx, cz, 'lx') * (CELL - 1.6), level + 0.03, cz * CELL + 0.8 + rand(cx, cz, 'lz') * (CELL - 1.6));
+    if (disc) {
+      const a = rand(cx, cz, 'lx') * Math.PI * 2, d = (0.3 + rand(cx, cz, 'lz') * 0.5) * (disc.edge ? disc.edge(a) : disc.r);
+      holder.position.set(disc.x + Math.cos(a) * d, level + 0.03, disc.z - Math.sin(a) * d);
+    } else holder.position.set(cx * CELL + 0.8 + rand(cx, cz, 'lx') * (CELL - 1.6), level + 0.03, cz * CELL + 0.8 + rand(cx, cz, 'lz') * (CELL - 1.6));
     holder.rotation.y = rand(cx, cz, 'la') * Math.PI * 2;
     holder.userData.phase = rand(cx, cz, 'lp') * 10;
     group.add(holder);
@@ -291,6 +301,7 @@ export function makeWater(cells, rand, uTime, { healing = false, disc = null, li
       const [cx, cz] = cells[i % cells.length];
       const s = new THREE.Sprite(mat.clone());
       s.userData = { x: cx * CELL + rand(cx, cz, `sx${i}`) * CELL, z: cz * CELL + rand(cx, cz, `sz${i}`) * CELL, phase: rand(cx, cz, `sp${i}`) };
+      if (disc) { const a = rand(cx, cz, `sx${i}`) * Math.PI * 2, d = Math.sqrt(rand(cx, cz, `sz${i}`)) * disc.r * 0.8; s.userData.x = disc.x + Math.cos(a) * d; s.userData.z = disc.z + Math.sin(a) * d; }
       group.add(s);
       sparkles.push(s);
     }
@@ -300,8 +311,8 @@ export function makeWater(cells, rand, uTime, { healing = false, disc = null, li
     for (const s of sparkles) { // float up, fade out, start again
       const u = (time * 0.35 + s.userData.phase) % 1;
       s.position.set(s.userData.x + Math.sin(time * 2 + s.userData.phase * 9) * 0.25, level + u * 2.4, s.userData.z);
-      s.material.opacity = Math.sin(u * Math.PI) * 0.9;
-      s.scale.setScalar(0.35 + 0.3 * Math.sin(u * Math.PI));
+      s.material.opacity = Math.sin(u * Math.PI) * (disc ? 0.55 : 0.9);
+      s.scale.setScalar((disc ? 0.6 : 1) * (0.35 + 0.3 * Math.sin(u * Math.PI)));
     }
     for (const p of pads) {
       p.position.y = level + 0.05 + Math.sin(time * 1.3 + p.userData.phase) * 0.04;
@@ -444,98 +455,82 @@ export function makeTrees(cells, rand, uTime) {
   return group;
 }
 
-/**
- * The healing spring's magic: a glowing ring around the pool's edge, and a ring of flowers
- * outside the stone rim. `rim` = the radius the pool's stones sit on.
- */
-/** A rounded-rectangle path (used for the spring's halo). */
-function roundedRect(path, hw, hh, k) {
-  path.moveTo(-hw + k, -hh);
-  path.lineTo(hw - k, -hh);
-  path.absarc(hw - k, -hh + k, k, -Math.PI / 2, 0, false);
-  path.lineTo(hw, hh - k);
-  path.absarc(hw - k, hh - k, k, 0, Math.PI / 2, false);
-  path.lineTo(-hw + k, hh);
-  path.absarc(-hw + k, hh - k, k, Math.PI / 2, Math.PI, false);
-  path.lineTo(-hw, -hh + k);
-  path.absarc(-hw + k, -hh + k, k, Math.PI, -Math.PI / 2, false);
+/** An uneven, roughly round shoreline: radius at each angle, `r` on average. */
+export function pondEdge(r, rand) {
+  const a1 = rand(0, 0, 'pe1') * 6.3, a2 = rand(0, 0, 'pe2') * 6.3, a3 = rand(0, 0, 'pe3') * 6.3;
+  return (a) => r * (1 + 0.07 * Math.sin(2 * a + a1) + 0.05 * Math.sin(3 * a + a2) + 0.03 * Math.sin(5 * a + a3));
 }
 
 /**
- * The healing spring's magic: a glowing halo that hugs the (square) pond's edge, an inner ring
- * breathing the other way, glowing orbs on the rim, little lights rising like fireflies, and
- * a soft light over the water.
+ * The healing spring's banks: a deep-teal pool bed under the water, smooth stones ringing the
+ * shore, and clumps of reeds and cattails. Nothing glows: it's a calm, safe place.
  */
-export function makeSpringRing(cx, cz, hw, hh, rand) {
+export function makeSpringBanks(cx, cz, edge, rand) {
   const group = new THREE.Group();
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0x8ff3ff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false });
-  // the halo lies on the ground just outside the water, following the pond's shape
-  const outer = new THREE.Shape();
-  roundedRect(outer, hw + 0.55, hh + 0.55, Math.min(hw, hh) * 0.42);
-  const inner = new THREE.Path();
-  roundedRect(inner, hw + 0.22, hh + 0.22, Math.min(hw, hh) * 0.42 - 0.33);
-  outer.holes.push(inner);
-  const halo = new THREE.Mesh(new THREE.ShapeGeometry(outer, 12), glowMat);
-  halo.rotation.x = -Math.PI / 2;
-  halo.position.set(cx, 0.07, cz);
-  group.add(halo);
-
-  const innerMat = glowMat.clone();
-  innerMat.color.set(0xd0f6ff);
-  const innerShape = new THREE.Shape();
-  roundedRect(innerShape, hw + 0.1, hh + 0.1, Math.min(hw, hh) * 0.3);
-  const innerRing = new THREE.Mesh(new THREE.ShapeGeometry(innerShape, 12), innerMat);
-  innerRing.rotation.x = -Math.PI / 2;
-  innerRing.position.set(cx, 0.06, cz);
-  group.add(innerRing);
-
-  // glowing orbs around the rim (no green, so they read as magic rather than plants)
-  const colors = [0xff8ac6, 0xffe066, 0x9fe8ff, 0xb48cff];
-  const orbGeo = new THREE.SphereGeometry(0.1, 10, 8);
-  const orbs = [];
-  const perim = 2 * (hw + hh);
-  for (let i = 0; i < 12; i++) {
-    let d = (i / 12) * perim + rand(i, 0, 'fa') * 0.6;
-    let x, z;
-    if (d < 2 * hw) { x = -hw + d; z = -hh; }                       // south edge, west->east
-    else if (d < 2 * hw + 2 * hh) { x = hw; z = -hh + (d - 2 * hw); } // east edge
-    else if (d < 4 * hw) { x = hw - (d - 2 * hw - 2 * hh); z = hh; }  // north edge
-    else { x = -hw; z = hh - (d - 4 * hw); }                          // west edge
-    const color = colors[i % colors.length];
-    const orb = new THREE.Mesh(orbGeo, new THREE.MeshStandardMaterial({ color, roughness: 0.3, emissive: color, emissiveIntensity: 0.6 }));
-    orb.position.set(cx + x * 1.12, 0.14, cz + z * 1.12);
-    orb.userData = { phase: rand(i, 1, 'fp') * 10 };
-    group.add(orb);
-    orbs.push(orb);
+  // the pool bed: darker in the middle, so the water has some depth
+  const bed = new THREE.CircleGeometry(1, 64);
+  const p = bed.attributes.position, col = [];
+  for (let i = 0; i < p.count; i++) {
+    const a = Math.atan2(p.getY(i), p.getX(i)), k = i === 0 ? 0 : 1, r = edge(a) + 0.15;
+    p.setXY(i, Math.cos(a) * r * k, Math.sin(a) * r * k);
+    col.push(...(k ? [0.36, 0.55, 0.42] : [0.1, 0.3, 0.36]));
   }
+  bed.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  bed.rotateX(-Math.PI / 2);
+  const bedMesh = new THREE.Mesh(bed, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+  bedMesh.position.set(cx, 0.03, cz);
+  bedMesh.receiveShadow = true;
+  group.add(bedMesh);
 
-  // little lights that drift up out of the water and fade, like fireflies
-  const moteMat = new THREE.SpriteMaterial({ map: sparkleTexture(), color: 0xafe8ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
-  const motes = [];
-  for (let i = 0; i < 14; i++) {
-    const s = new THREE.Sprite(moteMat.clone());
-    s.position.set(cx + (rand(i, 2, 'mx') - 0.5) * 2 * hw, 0.2, cz + (rand(i, 2, 'mz') - 0.5) * 2 * hh);
-    s.scale.setScalar(0.22 + rand(i, 3, 'ms') * 0.2);
-    s.userData = { speed: 0.25 + rand(i, 4, 'mv') * 0.35, phase: rand(i, 5, 'mp') };
-    group.add(s);
-    motes.push(s);
+  // smooth river stones along the shore, a few gaps so it doesn't look like a wall
+  const stoneGeo = new THREE.IcosahedronGeometry(1, 1);
+  const stoneMat = new THREE.MeshStandardMaterial({ roughness: 0.9, flatShading: true });
+  const stones = [];
+  for (let i = 0; i < 64; i++) {
+    const a = (i / 64) * Math.PI * 2 + rand(i, 0, 'sa') * 0.05;
+    if (rand(i, 1, 'gap') < 0.18) continue;
+    const r = edge(a) + 0.15 + rand(i, 2, 'sr') * 0.35, s = 0.28 + rand(i, 3, 'ss') * 0.3;
+    stones.push({ x: cx + Math.cos(a) * r, z: cz - Math.sin(a) * r, s, rot: rand(i, 4, 'sy') * 6.3, shade: 0.7 + rand(i, 5, 'sc') * 0.3 });
   }
+  const stoneInst = new THREE.InstancedMesh(stoneGeo, stoneMat, stones.length);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), c = new THREE.Color();
+  stones.forEach((st, i) => {
+    q.setFromAxisAngle(up, st.rot);
+    stoneInst.setMatrixAt(i, m.compose(new THREE.Vector3(st.x, st.s * 0.15, st.z), q, new THREE.Vector3(st.s * 1.3, st.s * 0.55, st.s)));
+    stoneInst.setColorAt(i, c.setRGB(0.62 * st.shade, 0.64 * st.shade, 0.66 * st.shade));
+  });
+  stoneInst.castShadow = stoneInst.receiveShadow = true;
+  group.add(stoneInst);
 
-  // a soft light over the water so the pool itself glows
-  const light = new THREE.PointLight(0x9fe8ff, 26, Math.max(hw, hh) * 3.4, 1.8);
-  light.position.set(cx, 2.2, cz);
-  group.add(light);
-
-  group.userData.update = (time) => {
-    glowMat.opacity = 0.5 + 0.25 * Math.sin(time * 2.2);
-    innerMat.opacity = 0.35 + 0.3 * Math.sin(time * 2.2 + Math.PI);
-    light.intensity = 22 + 5 * Math.sin(time * 1.7);
-    for (const orb of orbs) orb.position.y = 0.14 + 0.08 * (1 + Math.sin(time * 2.4 + orb.userData.phase));
-    for (const s of motes) {
-      const rise = ((time * s.userData.speed + s.userData.phase) % 1.4);
-      s.position.y = 0.2 + rise;
-      s.material.opacity = Math.min(1, rise * 3) * (1 - rise / 1.4) * 0.9;
+  // reeds and cattails in a few clumps at the water's edge, swaying a little
+  const reedGeo = new THREE.CylinderGeometry(0.025, 0.04, 1, 4);
+  reedGeo.translate(0, 0.5, 0);
+  const headGeo = new THREE.CapsuleGeometry(0.07, 0.22, 2, 6);
+  const reedMat = new THREE.MeshStandardMaterial({ color: 0x5f9a3a, roughness: 1 });
+  const headMat = new THREE.MeshStandardMaterial({ color: 0x7a4a26, roughness: 1 });
+  const reeds = [];
+  for (let k = 0; k < 6; k++) {
+    const a0 = (k / 6) * Math.PI * 2 + rand(k, 0, 'ca') * 0.6;
+    for (let j = 0; j < 7; j++) {
+      const a = a0 + (rand(k, j, 'cj') - 0.5) * 0.25, r = edge(a) - 0.2 + rand(k, j, 'cr') * 0.5;
+      reeds.push({ x: cx + Math.cos(a) * r, z: cz - Math.sin(a) * r, h: 1 + rand(k, j, 'ch') * 0.9, lean: (rand(k, j, 'cl') - 0.5) * 0.25, head: rand(k, j, 'hd') > 0.55 });
     }
+  }
+  const sway = [];
+  for (const r of reeds) {
+    const g = new THREE.Group();
+    const stem = new THREE.Mesh(reedGeo, reedMat);
+    stem.scale.y = r.h;
+    g.add(stem);
+    if (r.head) { const h = new THREE.Mesh(headGeo, headMat); h.position.y = r.h + 0.05; g.add(h); }
+    g.position.set(r.x, 0, r.z);
+    g.rotation.z = r.lean;
+    g.userData.lean = r.lean;
+    group.add(g);
+    sway.push(g);
+  }
+  group.userData.update = (time) => {
+    for (const g of sway) g.rotation.z = g.userData.lean + Math.sin(time * 1.4 + g.position.x * 0.7) * 0.05;
   };
   return group;
 }

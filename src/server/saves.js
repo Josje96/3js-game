@@ -27,7 +27,7 @@ export function newSave({ name, seed }) {
       level: 1,
       storage: {},                 // the family chest: { item: count }
       beds: {},                    // playerId -> bed slot in the fort
-      furniture: [],               // placed furniture: [{ id, item, x, z, rot }]
+      furniture: [],               // placed furniture: [{ id, item, room, dx, dz, rot }] (room = bed slot, -1 = the hall; dx/dz from its corner)
       owned: {},                   // furniture bought but not placed yet: { item: count }
       styles: [],                  // wall / floor styles bought, e.g. ['wall:rose']
       wall: 'stone',
@@ -155,6 +155,21 @@ export const MIGRATIONS = [
     up(save) {
       save.house ??= {};
       save.house.roomStyles ??= {};
+    },
+  },
+  {
+    version: 10, // the fort is drawn for the family's size, so furniture is kept relative to its room
+    up(save) {
+      // the old fort: eight 4x4 rooms (top row then bottom row), the hall starting at cell 1,6
+      const old = [1, 6, 11, 16].map((x) => ({ x, z: 1 })).concat([1, 6, 11, 16].map((x) => ({ x, z: 11 })));
+      for (const f of save.house?.furniture ?? []) {
+        if (f.x == null) continue;
+        const cx = Math.floor(f.x / 4), cz = Math.floor(f.z / 4);
+        const room = old.findIndex((r) => cx >= r.x && cx < r.x + 4 && cz >= r.z && cz < r.z + 4);
+        const o = room >= 0 ? old[room] : { x: 1, z: 6 };
+        Object.assign(f, { room, dx: f.x - o.x * 4, dz: f.z - o.z * 4 });
+        delete f.x; delete f.z;
+      }
     },
   },
 ];
