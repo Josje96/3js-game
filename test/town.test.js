@@ -158,3 +158,16 @@ test('town: you can sit on a bench by the fountain (E), facing the fountain', ()
   const toFountain = Math.atan2(fountain.x - bench.x, fountain.z - bench.z);
   assert.ok(Math.abs(Math.atan2(Math.sin(fx.rot - toFountain), Math.cos(fx.rot - toFountain))) < 0.01, 'looking at the fountain');
 });
+
+test('pets: you can rename your pet', () => {
+  const { server, p, c } = world('rename', 'a');
+  server.travel(p.a, 'town');
+  p.a.gold = 5000;
+  c.a.say({ t: 'buyPet', species: 'hedgehog', name: 'Spiky' });
+  const pet = p.a.pets.find((x) => x.species === 'hedgehog');
+  c.a.say({ t: 'renamePet', id: pet.id, name: '  Pricklepuff!! ' });
+  assert.equal(pet.name, 'Pricklepuff');
+  assert.equal(c.a.last('self').pets.find((x) => x.id === pet.id).name, 'Pricklepuff');
+  c.a.say({ t: 'renamePet', id: pet.id, name: '!!!' });
+  assert.equal(pet.name, 'Pricklepuff', 'a name of nothing is ignored');
+});

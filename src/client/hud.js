@@ -283,6 +283,14 @@ export class Hud {
     this.modal.classList.toggle('side', side);
     this.onCloseModal = onClose;
     this.refreshModal = () => {
+      // someone is typing in a box here (renaming a pet...): re-rendering would throw their typing
+      // away (the world updates every second), so wait until they leave the box
+      const typing = document.activeElement;
+      if (typing && this.modal.contains(typing) && (typing.tagName === 'INPUT' || typing.tagName === 'TEXTAREA')) {
+        this.modalStale = true;
+        return;
+      }
+      this.modalStale = false;
       // re-rendering replaces every element, so remember how far each scrolling part was scrolled
       const old = this.modal.firstChild;
       const scrolls = old ? [old, ...old.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll ?? 'box', e.scrollTop]) : [];
@@ -298,6 +306,7 @@ export class Hud {
       }
     };
     this.refreshModal();
+    this.modal.onfocusout = () => setTimeout(() => { if (this.modalStale) this.refreshModal?.(); }, 0);
     this.onModalChange?.(true);
   }
 
@@ -608,7 +617,8 @@ export class Hud {
               input.maxLength = 16;
               input.value = pet.name;
               const ok = el('button', 'small primary', 'Save');
-              const done = () => { onRename(pet.id, input.value); };
+              const done = () => { onRename(pet.id, input.value); input.blur(); };
+              ok.addEventListener('mousedown', (e) => e.preventDefault()); // keep the typing box focused until Save
               ok.addEventListener('click', done);
               input.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') done(); });
               actions.replaceChildren(input, ok);
