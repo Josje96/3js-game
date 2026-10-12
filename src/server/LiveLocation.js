@@ -195,7 +195,9 @@ export class LiveLocation {
           if (e._summon <= 0 && this.count('slime') < 10) {
             e._summon = 7;
             const a = Math.random() * Math.PI * 2;
-            this.spawn(makeEnemy(def.summon, this.layout.depth ?? 1, e.x + Math.cos(a) * 2.5, e.z + Math.sin(a) * 2.5));
+            // helpers share the boss's strength, and its yard if it has one (the seasonal boss in town)
+            const helper = makeEnemy(def.summon, e._depth ?? this.layout.depth ?? 1, e.x + Math.cos(a) * 2.5, e.z + Math.sin(a) * 2.5);
+            this.spawn(e._home ? { ...helper, _home: e._home } : helper);
           }
         }
       } else if (e._home && dist2(e, e._home) > e._home.r ** 2) {

@@ -64,7 +64,8 @@ export function makeLabel(text, color = '#fff') {
   const canvas = document.createElement('canvas');
   canvas.width = 256; canvas.height = 64;
   const ctx = canvas.getContext('2d');
-  ctx.font = 'bold 30px system-ui, sans-serif';
+  let size = 30; // long names (bosses) shrink to fit
+  do ctx.font = `bold ${size}px system-ui, sans-serif`; while (ctx.measureText(text).width > 240 && (size -= 2) > 14);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineWidth = 6;
@@ -172,7 +173,7 @@ export class CharacterView {
     this.armorParts = [];
     const def = ITEMS[id];
     if (!def?.color) return;
-    const parts = buildArmor(def.color, def.tier ?? 0);
+    const parts = buildArmor(def.color, def.tier ?? (def.epic ? 4 : 0));
     const before = this.borrowed.length;
     this.attach('front', parts.chest);
     this.attach('shoulderl', parts.left);

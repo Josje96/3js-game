@@ -6,6 +6,15 @@ import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost } from '../shared/pets.js';
+import { seasonOf, dayOfSeason, isBossDay } from '../shared/seasons.js';
+
+/** The night screen's season line: which season it is, and whether its boss has come to town. */
+function seasonLine(day) {
+  const s = seasonOf(day);
+  return isBossDay(day)
+    ? `${s.icon} ${s.name} begins! ${esc(s.bossName)} is in town — today only.`
+    : `${s.icon} ${s.name}, day ${dayOfSeason(day)}`;
+}
 
 const el = (tag, cls, html) => {
   const e = document.createElement(tag);
@@ -61,6 +70,7 @@ export class Hud {
       <div class="night-card">
         <div class="moon">🌙</div>
         <div class="night-day">Day ${day}</div>
+        <p class="night-season">${seasonLine(day)}</p>
         ${lines.map((t) => `<p>${esc(t)}</p>`).join('')}
         <p class="muted">Game saved. The dungeons have shifted overnight.</p>
       </div>`);
@@ -109,7 +119,7 @@ export class Hud {
       <div class="loc">${esc(this.locTitle)}</div>
       <div class="hpbar"><div style="width:${frac}%"></div><span>❤ ${hp}</span></div>${petRow}
       <div class="row"><span class="gold">🪙 ${s?.gold ?? 0}</span><span>Day ${w?.day ?? 1}</span></div>
-      <div class="row day-clock${(w?.dayLeft ?? 999) <= 60 ? ' soon' : ''}"><span>${(w?.dayLeft ?? 999) <= 60 ? '🌙 Get home! Night in' : '🌅 Night in'} ${clock(w?.dayLeft ?? 0)}</span></div>`;
+      <div class="row day-clock${(w?.dayLeft ?? 999) <= 60 ? ' soon' : ''}"><span>${(w?.dayLeft ?? 999) <= 60 ? '🌙 Get home! Night in' : '🌅 Night in'} ${clock(w?.dayLeft ?? 0)}</span><span title="Day ${dayOfSeason(w?.day ?? 1)} of ${seasonOf(w?.day ?? 1).name}">${seasonOf(w?.day ?? 1).icon} ${seasonOf(w?.day ?? 1).name}</span></div>`;
   }
 
   /** The level-up bar: a wide XP bar above the item bar with your level in the middle. */

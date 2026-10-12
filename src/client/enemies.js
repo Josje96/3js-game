@@ -288,7 +288,7 @@ function tintBody(group, tint) {
   group.traverse((o) => {
     if (!o.isMesh || !o.material.color) return;
     const hsl = {};
-    o.material.color.getHSL(hsl);
+    o.material.color.getHSL(hsl, THREE.SRGBColorSpace); // judge dark/light as it looks, not in linear (where dark rock read as black)
     if (hsl.l < 0.1 || hsl.l > 0.93) return;
     o.material = o.material.clone();
     o.material.color.lerp(c, 0.7);

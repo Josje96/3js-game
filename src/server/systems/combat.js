@@ -94,6 +94,7 @@ export const methods = {
       this.sendToLocation(loc.key, { t: 'fx', kind: 'pop', x: e.x, z: e.z, variant: e.variant });
       return this.practiceSlimeBeaten(loc);
     }
+    if (e.seasonal) return this.seasonBossDefeated(loc, e, p); // the season's boss in town: its own loot
     const [lo, hi] = ENEMIES[e.variant].gold;
     this.dropItem(loc, e, 'gold', Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (e.goldMul ?? 1)));
     if (Math.random() < 0.3) this.dropItem(loc, e, 'slimegoo', 1);

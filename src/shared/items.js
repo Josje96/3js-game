@@ -59,6 +59,15 @@ export const ITEMS = {
   nightstaff:   { name: 'Night Staff',      kind: 'weapon', damage: 33, forged: true, model: 'items/staff', swing: 'cast', ranged: 'magic', tint: 0x9a6ad0 },
   starpiercer:  { name: 'Star Piercer',     kind: 'weapon', damage: 32, forged: true, model: 'items/dagger', swing: 'stab', tint: 0xfff0a0 },
   starcleaver:  { name: 'Star Cleaver',     kind: 'weapon', damage: 58, forged: true, model: 'items/axe_2handed', swing: 'chop', tint: 0xfff0a0 },
+  // --- epic: only dropped by the seasonal bosses in town (never sold in a shop; worth a fortune) ---
+  blossomblade: { name: 'Blossom Blade',    kind: 'weapon', damage: 44, epic: true, sell: 30000, model: 'items/sword_2handed_color', swing: 'slash', tint: 0xffa8cf },
+  petalaegis:   { name: 'Petal Aegis',      kind: 'shield', block: 0.64, epic: true, sell: 28000, model: 'items/shield_badge_color', tint: 0xffc8e0 },
+  sunfirebow:   { name: 'Sunfire Crossbow', kind: 'weapon', damage: 45, epic: true, sell: 30000, model: 'items/crossbow_2handed', swing: 'cast', ranged: 'arrow', tint: 0xffb02a },
+  sunplate:     { name: 'Sunforged Plate',  kind: 'armor', armor: 0.55, epic: true, sell: 30000, color: 0xffb02a, model: 'dungeon/trunk_small_C' },
+  harvestreaper:{ name: 'Harvest Reaper',   kind: 'weapon', damage: 62, epic: true, sell: 34000, model: 'items/axe_2handed', swing: 'chop', tint: 0xd8782a },
+  emberstaff:   { name: 'Ember Staff',      kind: 'weapon', damage: 45, epic: true, sell: 30000, model: 'items/staff', swing: 'cast', ranged: 'magic', tint: 0xff6a2a },
+  frostfang:    { name: 'Frostfang',        kind: 'weapon', damage: 36, epic: true, sell: 28000, model: 'items/dagger', swing: 'stab', tint: 0xbfeaff },
+  glacierplate: { name: 'Glacier Plate',    kind: 'armor', armor: 0.56, epic: true, sell: 32000, color: 0xcfeeff, model: 'dungeon/trunk_small_C' },
 
   // --- shields (left hand): a chance to block a hit completely ---
   woodshield:   { name: 'Wooden Shield',  kind: 'shield', block: 0.15, price: 110,   tier: 0, model: 'items/shield_round' },
