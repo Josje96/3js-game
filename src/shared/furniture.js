@@ -54,6 +54,21 @@ export const FURNITURE = {
   fountain:   { name: 'Indoor fountain', build: 'fountain', price: 2800, radius: 1.2, luxury: true },
   piano:      { name: 'Grand piano', build: 'piano', price: 3500, radius: 1.5, luxury: true },
   throne:     { name: 'Golden throne', build: 'throne', price: 4000, radius: 0.9, seat: { face: 0 }, luxury: true },
+  // the luxury collection, part 2 (`lightY` / `lightColor` move or tint the glow)
+  rockinghorse:{ name: 'Rocking horse', build: 'rockinghorse', price: 1000, radius: 0.7, luxury: true },
+  mirror:     { name: 'Gilded mirror', build: 'mirror', price: 1100, radius: 0.5, luxury: true },
+  birdcage:   { name: 'Golden birdcage', build: 'birdcage', price: 1200, radius: 0.5, luxury: true },
+  musicbox:   { name: 'Ballerina music box', build: 'musicbox', price: 1250, radius: 0.5, luxury: true },
+  teaset:     { name: 'Royal tea table', build: 'teaset', price: 1300, radius: 0.8, luxury: true },
+  bearrug:    { name: 'Bear rug', build: 'bearrug', price: 1400, radius: 0, luxury: true },
+  tapestry:   { name: 'Royal crest tapestry', build: 'tapestry', price: 1500, radius: 0.5, luxury: true },
+  telescope:  { name: 'Brass telescope', build: 'telescope', price: 1700, radius: 0.6, luxury: true },
+  crystalball:{ name: 'Wizard’s crystal ball', build: 'crystalball', price: 1900, radius: 0.5, light: true, lightY: 1.4, lightColor: 0xb48cff, luxury: true },
+  armor:      { name: 'Suit of armour', build: 'armor', price: 2400, radius: 0.6, luxury: true },
+  bathtub:    { name: 'Golden bathtub', build: 'bathtub', price: 2600, radius: 1.1, luxury: true },
+  chandelier: { name: 'Crystal chandelier', build: 'chandelier', price: 3000, radius: 0, light: true, lightY: 2.6, luxury: true },
+  organ:      { name: 'Pipe organ', build: 'organ', price: 4500, radius: 1.3, luxury: true },
+  hoard:      { name: 'Dragon’s hoard', build: 'hoard', price: 6000, radius: 1.1, luxury: true },
 };
 
 /** Wall colours for the fort (painted over the stone walls). `price` 0 = the one you start with. */
