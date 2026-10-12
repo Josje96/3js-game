@@ -511,7 +511,7 @@ test('server: biomes every 10 floors, bosses open the way down, imps throw fireb
 });
 
 test('server: pets follow you, fight enemies, level up and evolve', async () => {
-  const { petStage, EVOLVE_AT } = await import('../src/shared/pets.js');
+  const { petStage, petMaxHp, EVOLVE_AT } = await import('../src/shared/pets.js');
   const { migrate } = await import('../src/server/saves.js');
   const server = new GameServer({ save: newSave({ name: 't', seed: 'pets' }), log: () => {} });
   const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
@@ -537,6 +537,12 @@ test('server: pets follow you, fight enemies, level up and evolve', async () => 
   assert.ok(p.pets[0].level >= EVOLVE_AT[1]);
   assert.equal(petStage(p.pets[0].level), 2);
   assert.ok(c.inbox.some((m) => m.t === 'toast' && /evolving/.test(m.text)));
+  // pets keep growing all the way to level 100, then stop
+  server.petXp(p, pet, 1e6);
+  assert.equal(p.pets[0].level, 100);
+  assert.equal(pet.maxHp, petMaxHp('maple', 100));
+  server.petXp(p, pet, 1e6);
+  assert.equal(p.pets[0].level, 100, 'and no further');
 
   // leaving: the pet goes with you
   server.travel(p, 'house');
@@ -554,7 +560,7 @@ test('server: pets follow you, fight enemies, level up and evolve', async () => 
 });
 
 test('server: pets have health, faint, and are revived at the Pet Keeper for gold', async () => {
-  const { petMaxHp, reviveCost, petTier } = await import('../src/shared/pets.js');
+  const { petMaxHp, reviveCost, petTier, TIER_LOOKS, PET_MAX_LEVEL } = await import('../src/shared/pets.js');
   const server = new GameServer({ save: newSave({ name: 't', seed: 'faint' }), log: () => {} });
   const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
   const p = server.players.get('a');
@@ -591,7 +597,8 @@ test('server: pets have health, faint, and are revived at the Pet Keeper for gol
   assert.ok([...server.locations.get('town').entities.values()].some((e) => e.type === 'pet'), 'back at your side');
 
   // a new look every 5 levels
-  assert.deepEqual([1, 4, 5, 9, 10, 15, 20, 50].map(petTier), [0, 0, 1, 1, 2, 3, 4, 10]);
+  assert.deepEqual([1, 4, 5, 9, 10, 15, 20, 50, 99, 100].map(petTier), [0, 0, 1, 1, 2, 3, 4, 10, 19, 20]);
+  assert.equal(TIER_LOOKS.length - 1, PET_MAX_LEVEL / 5, 'a look for every 5 levels, all the way up');
 });
 
 test('server: the family chest moves items between your bag and the shared store', () => {

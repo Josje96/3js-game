@@ -57,7 +57,8 @@ Read this file first, then `HANDOFF.md` (what's in the game, how it plays), then
 - **Town / fort things**: draw a letter into `shared/maps.js`, map it in `LEGEND`, define the prop in `shared/props.js`;
   handle its `interact` in a system's `interactions`.
 - **Townsperson**: `shared/townsfolk.js` + an `n` on the town map. **Furniture**: `shared/furniture.js` (+ builder in client/furniture.js).
-- **Pet**: `PET_SPECIES` in `shared/pets.js` + `LOOKS` in `client/pets.js` (proportions for four-legged ones).
+- **Pet**: `PET_SPECIES` in `shared/pets.js` + `LOOKS` in `client/pets.js` (proportions for four-legged ones, `bird: true` for birds,
+  `stages` for per-evolution colours). Check every species and stage at `http://localhost:5173/tools/pet-gallery.html`.
 
 ## Gotchas
 - Family devices use plain `http://192.168…`: no `crypto.randomUUID`, no `navigator.clipboard` — always fall back.

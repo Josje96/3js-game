@@ -111,6 +111,7 @@ export const methods = {
       pet.level++;
       up = true;
     }
+    if (pet.level >= PET_MAX_LEVEL) pet.xp = 0; // all grown up: nothing left to fill
     if (!up) return;
     pet.hp += petMaxHp(pet.species, pet.level) - hpBefore; // growing up adds health
     ent.level = pet.level;

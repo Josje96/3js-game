@@ -1,0 +1,96 @@
+<!doctype html>
+<!-- Dev page: every pet at every stage, side by side. With `bun run dev` open
+     http://localhost:5173/tools/pet-gallery.html          all species, levels 1 / 10 / 20
+     ...?levels=1,50,100                                   other levels
+     ...?only=fox,cat&levels=1,10,20,100                   just some species, bigger
+     ...?spin=1                                            turn them slowly; ?walk=1 plays the walk -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Pet gallery</title>
+  <style>
+    body { margin: 0; background: #2b3a2f; color: #eee; font: 12px sans-serif; overflow: hidden; }
+    canvas { display: block; }
+    .lbl { position: absolute; transform: translateX(-50%); pointer-events: none; text-shadow: 0 1px 2px #000; }
+  </style>
+</head>
+<body>
+<script type="module">
+  import * as THREE from 'three';
+  import { PetView } from '/src/client/pets.js';
+  import { PET_SPECIES, petFormName } from '/src/shared/pets.js';
+
+  const q = new URLSearchParams(location.search);
+  const species = q.get('only')?.split(',') ?? Object.keys(PET_SPECIES);
+  const levels = (q.get('levels') ?? '1,10,20').split(',').map(Number);
+  const spin = q.has('spin'), walk = q.has('walk');
+  const cells = species.flatMap((s) => levels.map((l) => ({ s, l })));
+  const cols = q.get('cols') ? Number(q.get('cols')) : species.length > 4 ? levels.length * 4 : levels.length;
+  const rows = Math.ceil(cells.length / cols);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(devicePixelRatio);
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.setScissorTest(true);
+  document.body.append(renderer.domElement);
+
+  let cw = 1, ch = 1;
+  const labels = [];
+  function layout() {
+    renderer.setSize(innerWidth, innerHeight);
+    cw = innerWidth / cols; ch = innerHeight / rows;
+    labels.forEach((lbl, i) => { lbl.style.left = `${(i % cols + 0.5) * cw}px`; lbl.style.top = `${Math.floor(i / cols) * ch + 4}px`; });
+    for (const v of views ?? []) v.cam.aspect = cw / ch, v.cam.updateProjectionMatrix();
+  }
+  let views = null;
+  views = cells.map(({ s, l }, i) => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(i % 2 ? 0x3d5a45 : 0x44634c);
+    scene.add(new THREE.HemisphereLight(0xdfefff, 0x5a4a3a, 1.6));
+    const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+    sun.position.set(2, 4, 3);
+    sun.castShadow = true;
+    scene.add(sun);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(1.4, 32), new THREE.MeshStandardMaterial({ color: 0x6a8a55 }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    const pet = new PetView(s, l);
+    scene.add(pet.root);
+    const cam = new THREE.PerspectiveCamera(30, cw / ch, 0.05, 50);
+    const lbl = document.createElement('div');
+    lbl.className = 'lbl';
+    lbl.textContent = `${petFormName(s, l)} · ${l}`;
+    document.body.append(lbl);
+    labels.push(lbl);
+    return { scene, pet, cam, i };
+  });
+
+  layout();
+  addEventListener('resize', layout);
+  let last = performance.now(), yaw = 0.65;
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (spin) yaw += dt * 0.5;
+    for (const v of views) {
+      v.pet.t += dt;
+      v.pet.animate(dt, walk);
+      const box = new THREE.Box3().setFromObject(v.pet.body);
+      const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+      const d = Math.max(size.x, size.y, size.z) * v.pet.root.scale.x * 2.4 + 0.4;
+      v.cam.position.set(Math.sin(yaw) * d, mid.y * v.pet.root.scale.y + d * 0.35, Math.cos(yaw) * d);
+      v.cam.lookAt(0, mid.y * v.pet.root.scale.y * 0.9, 0);
+      const x = (v.i % cols) * cw, y = innerHeight - (Math.floor(v.i / cols) + 1) * ch;
+      renderer.setViewport(x, y, cw, ch);
+      renderer.setScissor(x, y, cw, ch);
+      renderer.render(v.scene, v.cam);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  window.galleryReady = true;
+</script>
+</body>
+</html>

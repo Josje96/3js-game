@@ -19,8 +19,18 @@ export const TIER_LOOKS = [
   'a rainbow ring',        // 40
   'a soft glow',           // 45
   'a golden shimmer',      // 50
+  'a second ring of stars',// 55
+  'floating gems',         // 60
+  'fairy wings',           // 65
+  'a jewelled crown',      // 70
+  'a sparkle trail',       // 75
+  'a diamond collar',      // 80
+  'an aurora ring',        // 85
+  'starlight wings',       // 90
+  'a little moon of its own', // 95
+  'a legendary rainbow aura!', // 100
 ];
-export const PET_MAX_LEVEL = 50;
+export const PET_MAX_LEVEL = 100;
 
 /**
  * Every species. `atk` = how hard it hits at level 1, `forms` = its name at each stage.
@@ -65,7 +75,7 @@ export function petDamage(species, level) {
 
 export const petXpToNext = (level) => xpToNext(level) - 5;
 
-/** 0 at levels 1-4, 1 at 5-9, 2 at 10-14 ... 10 at 50. */
+/** 0 at levels 1-4, 1 at 5-9, 2 at 10-14 ... 20 at 100. */
 export function petTier(level) {
   return Math.min(TIER_LOOKS.length - 1, Math.floor(level / TIER_EVERY));
 }
