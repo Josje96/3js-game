@@ -43,17 +43,17 @@ export const FURNITURE = {
   ruggreen:   { name: 'Green rug', build: 'rug', color: 0x3ac06a, price: 120, radius: 0 },
   rugpurple:  { name: 'Purple rug', build: 'rug', color: 0x8a5ac0, price: 120, radius: 0 },
   // the luxury collection: for families who've been saving up
-  armchair:   { name: 'Velvet armchair', build: 'armchair', color: 0x9a2a3a, price: 950, radius: 0.7, seat: { face: 0 }, luxury: true },
-  vase:       { name: 'Porcelain vase', build: 'vase', price: 900, radius: 0.4, luxury: true },
-  candelabra: { name: 'Golden candelabra', build: 'candelabra', price: 1200, radius: 0.4, light: true, luxury: true },
-  globe:      { name: 'Explorer’s globe', build: 'globe', price: 1400, radius: 0.5, luxury: true },
-  royalrug:   { name: 'Royal rug', build: 'royalrug', price: 1500, radius: 0, luxury: true },
-  library:    { name: 'Grand bookcase', build: 'library', price: 1600, radius: 1.0, luxury: true },
-  harp:       { name: 'Golden harp', build: 'harp', price: 1800, radius: 0.6, luxury: true },
-  statue:     { name: 'Marble knight statue', build: 'statue', price: 2200, radius: 0.8, luxury: true },
-  fountain:   { name: 'Indoor fountain', build: 'fountain', price: 2800, radius: 1.2, luxury: true },
-  piano:      { name: 'Grand piano', build: 'piano', price: 3500, radius: 1.5, luxury: true },
-  throne:     { name: 'Golden throne', build: 'throne', price: 4000, radius: 0.9, seat: { face: 0 }, luxury: true },
+  armchair:   { name: 'Velvet armchair', build: 'armchair', color: 0x9a2a3a, price: 1900, radius: 0.7, seat: { face: 0 }, luxury: true },
+  vase:       { name: 'Porcelain vase', build: 'vase', price: 1800, radius: 0.4, luxury: true },
+  candelabra: { name: 'Golden candelabra', build: 'candelabra', price: 2400, radius: 0.4, light: true, luxury: true },
+  globe:      { name: 'Explorer’s globe', build: 'globe', price: 2800, radius: 0.5, luxury: true },
+  royalrug:   { name: 'Royal rug', build: 'royalrug', price: 3000, radius: 0, luxury: true },
+  library:    { name: 'Grand bookcase', build: 'library', price: 3200, radius: 1.0, luxury: true },
+  harp:       { name: 'Golden harp', build: 'harp', price: 3600, radius: 0.6, luxury: true },
+  statue:     { name: 'Marble knight statue', build: 'statue', price: 4400, radius: 0.8, luxury: true },
+  fountain:   { name: 'Indoor fountain', build: 'fountain', price: 5600, radius: 1.2, luxury: true },
+  piano:      { name: 'Grand piano', build: 'piano', price: 7000, radius: 1.5, luxury: true },
+  throne:     { name: 'Golden throne', build: 'throne', price: 8000, radius: 0.9, seat: { face: 0 }, luxury: true },
 };
 
 /** Wall colours for the fort (painted over the stone walls). `price` 0 = the one you start with. */
