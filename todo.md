@@ -12,7 +12,8 @@ Most important first. Tick things off in the same commit that does them.
       per tier, armor values, nightfall penalty, and the new deep-ore forge recipes' costs. All first guesses.
 - [ ] Old saves: load a real family save (back it up first) and check the v9 room upgrade — beds should
       each sit in their own room, and everyone can style their own room at the Decorator.
-- [x] Merge branch `round-2` into `main`, push, let GitHub Actions run `bun run check`. (Round 3 merges next.)
+- [x] Merge branches `round-2` and `round-3` into `main`.
+- [ ] Push the dungeon-floor crash fix (86d142f): every dungeon floor was an empty blue room after round 3.
 
 ## Asked for, not done yet
 - [x] **Blender assets** to make places less repetitive — done in round 3: `tools/blender/make_props.py`
@@ -33,6 +34,8 @@ Most important first. Tick things off in the same commit that does them.
 - [ ] Villagers are only on each player's own screen; fine, but they can't be talked to.
 - [ ] Run `GameServer` in a Web Worker so the host's rendering never stalls the world.
 - [ ] Code-split the build (it's ~940 KB of JS in one file).
+- [ ] Type-check the JS (back burner): `checkJs` + `strictNullChecks` via a jsconfig, `tsc --noEmit` in
+      `bun run check`, starting with `shared/` and `client/LocationView.js`. Would have caught the null-`home` crash.
 
 ## To discuss (no code yet)
 - **Desktop app (Electrobun) vs web**: recommendation was to stay web-first (works on every device,

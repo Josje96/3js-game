@@ -41,7 +41,11 @@ Read this file first, then `HANDOFF.md` (what's in the game, how it plays), then
 5. **Gold** only changes through `this.spend(p, n)` / `this.earn(p, n)` (systems/wallet.js). Gold is per player.
 6. **Models**: any model id written in client code must be preloaded — add it to `EXTRA_MODELS` in `client/themes.js`
    (a test checks). Every biome theme needs an entry in `client/themes.js` (a test checks).
-7. **Look at it**: `bun tools/smoke.mjs` and open the screenshots. Tests don't see visuals.
+7. **Look at it — required before merging anything that touches `src/client/`**: with `bun run dev` running,
+   `bun tools/smoke.mjs` must end with `no errors`, and you open the screenshots. `bun run check` cannot
+   catch client crashes: tests don't load the renderer. (A null `home` in `LocationView.js` once blanked every
+   dungeon floor while `check` passed; the default smoke tour would have caught it.) Changed a dungeon, biome
+   or boss? Visit that floor too with a `--steps` file: `server("s.travel(me, 'mine/10', 'U')")`.
 8. Everyone must refresh after an update (protocol versions must match).
 
 ## Recipes
