@@ -9,6 +9,7 @@ import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
 import { FurnitureView } from './furniture.js';
+import { dropTinyShadows } from './merge.js';
 
 const ANIMS = {
   idle: 'Idle_A',
@@ -172,6 +173,7 @@ export class CharacterView {
     this.attach('shoulderr', parts.right);
     this.armorParts = this.borrowed.splice(before); // not part of the look: survives setLook
     this.flashMats = null;
+    dropTinyShadows(this.root);
   }
 
   setShield(id) {
@@ -300,6 +302,7 @@ export class CharacterView {
       if (tint) { m.material.map = null; m.material.color.set(tint); }
     }
     this.flashMats = null; // materials changed: collect them again for the low-health flash
+    dropTinyShadows(this.root);
   }
 
   /** Fancy clothes: body and sleeves become a flat cloth colour (hands stay skin), legs too, plus extras. */

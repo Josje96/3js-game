@@ -33,6 +33,13 @@ Most important first. Tick things off in the same commit that does them.
 - [ ] Touch controls for tablets/phones.
 - [ ] Villagers are only on each player's own screen; fine, but they can't be talked to.
 - [ ] Run `GameServer` in a Web Worker so the host's rendering never stalls the world.
+- [x] Town stutter on laptops: the town drew ~750 calls / 3.4M triangles a frame (dungeons ~50 / 0.2M).
+      Now ~390 / 1.4M at the busy market: buried block faces trimmed, static builders merged
+      (`client/merge.js`), the shadow box fitted to the view, tiny parts cast no shadow, shaders
+      compiled on arrival. Still to confirm on the real laptop (F3).
+- [ ] Places leak GPU memory: `LocationView.dispose()` never frees the geometries/materials its builders
+      make, so every visit to town adds a few hundred buffers. Free what the view created (not cached models).
+- [ ] If the town is still heavy: split the whole-town instanced blocks into chunks so off-screen ones are culled.
 - [ ] Code-split the build (it's ~940 KB of JS in one file).
 - [ ] Type-check the JS (back burner): `checkJs` + `strictNullChecks` via a jsconfig, `tsc --noEmit` in
       `bun run check`, starting with `shared/` and `client/LocationView.js`. Would have caught the null-`home` crash.

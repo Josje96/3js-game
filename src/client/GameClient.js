@@ -90,7 +90,7 @@ export class GameClient {
     this.sun.shadow.bias = -0.0005;
     this.scene.add(this.hemi, this.sun, this.sun.target);
     // lantern that follows you in dark places
-    this.lantern = new THREE.PointLight(0xffd9a0, 30, 22, 1.4);
+    this.lantern = new THREE.PointLight(0xffd9a0, 0, 22, 1.4);
     this.scene.add(this.lantern);
 
     addEventListener('resize', () => {
@@ -169,10 +169,12 @@ export class GameClient {
     const dark = this.layout.dark;
     const theme = this.locView.theme;
     this.scene.background = new THREE.Color(theme.bg);
-    this.scene.fog = dark ? new THREE.Fog(theme.bg, 24, 60) : this.layout.theme === 'outdoor' ? new THREE.Fog(theme.bg, 70, 160) : null;
+    // fog and the lantern exist everywhere (just out of sight / switched off): adding or removing
+    // them makes three.js rebuild every shader, which stutters the first seconds in a new place
+    this.scene.fog = new THREE.Fog(theme.bg, dark ? 24 : this.layout.theme === 'outdoor' ? 70 : 1000, dark ? 60 : this.layout.theme === 'outdoor' ? 160 : 2000);
     this.hemi.intensity = theme.ambient;
     this.sun.intensity = theme.sun;
-    this.lantern.visible = dark;
+    this.lantern.intensity = dark ? 30 : 0;
     this.lantern.color.set(theme.lantern ?? 0xffd9a0);
 
     if (!this.me) this.me = this.makeMe();
@@ -186,6 +188,18 @@ export class GameClient {
     this.interp = new Interpolator(); // a new place: forget the old history
     this.lastPosTime = -1;
     for (const p of msg.players) if (p.id !== this.you) this.updateOther(p);
+    this.warmUp();
+  }
+
+  /**
+   * Compile the new place's shaders before drawing it: the old picture stays up a moment instead
+   * of the first seconds stuttering as each new material is met. Never waits more than 1.5 s.
+   */
+  warmUp() {
+    const token = (this.warming = {});
+    const done = () => { if (this.warming === token) this.warming = null; };
+    this.renderer.compileAsync(this.scene, this.camera).then(done, done);
+    setTimeout(done, 1500);
   }
 
   /** Rebuild the walls and floors of where we are (e.g. the fort got new wallpaper). Entities stay. */
@@ -193,6 +207,7 @@ export class GameClient {
     this.locView?.dispose();
     this.locView = new LocationView(this.layout, this.world);
     this.scene.add(this.locView.group);
+    this.warmUp();
   }
 
   makeMe() {
@@ -499,7 +514,7 @@ export class GameClient {
     this.locView?.update(dt, this.time);
     this.updateSky(dt);
     this.updateCamera(dt);
-    this.renderer.render(this.scene, this.camera);
+    if (!this.warming) this.renderer.render(this.scene, this.camera);
   }
 
   /**
@@ -765,6 +780,31 @@ export class GameClient {
     // the sun's shadow box follows the player
     this.sun.position.set(this.pos.x - 15, 35, this.pos.z + 10);
     this.sun.target.position.set(this.pos.x, 0, this.pos.z);
+    this.fitShadow();
+  }
+
+  /**
+   * Shrink the sun's shadow box to the ground the camera can see. Shadows are drawn for every
+   * caster inside the box, and a fixed square round the player covered lots of town behind the
+   * camera: most of the town's draw calls. Anything whose shadow falls on visible ground stands
+   * between that ground and the sun, so it is still inside the fitted box.
+   */
+  fitShadow() {
+    const cam = this.camera, eye = cam.position, sh = this.sun.shadow.camera;
+    // the light's own axes (as three.js builds them for a camera looking from the sun at its target)
+    const z = _v1.subVectors(this.sun.position, this.sun.target.position).normalize();
+    const x = _v2.crossVectors(_up, z).normalize(), y = _v3.crossVectors(z, x);
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const [nx, ny] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const d = _v4.set(nx, ny, 0.5).unproject(cam).sub(eye);
+      const t = d.y < -1e-3 ? Math.min(-eye.y / d.y, 200) : 200; // where that screen corner meets the ground
+      const p = _v5.copy(eye).addScaledVector(d, t).sub(this.sun.target.position);
+      const px = p.dot(x), py = p.dot(y);
+      minX = Math.min(minX, px); maxX = Math.max(maxX, px); minY = Math.min(minY, py); maxY = Math.max(maxY, py);
+    }
+    const m = 3; // a little spare round the edges
+    Object.assign(sh, { left: minX - m, right: maxX + m, bottom: minY - m, top: maxY + m });
+    sh.updateProjectionMatrix();
   }
 
   dispose() {
@@ -773,6 +813,8 @@ export class GameClient {
     this.conn.close();
   }
 }
+
+const _up = new THREE.Vector3(0, 1, 0), _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _v4 = new THREE.Vector3(), _v5 = new THREE.Vector3();
 
 function round(v) {
   return Math.round(v * 100) / 100;

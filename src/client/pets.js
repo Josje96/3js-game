@@ -3,6 +3,7 @@
 // The first four species are hand-made below; the rest come from makeCritter's kit.
 import * as THREE from 'three';
 import { petStage, petTier } from '../shared/pets.js';
+import { dropTinyShadows } from './merge.js';
 
 const std = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.55, ...extra });
 const EYE_WHITE = std(0xffffff), PUPIL = new THREE.MeshBasicMaterial({ color: 0x111111 }), PINK = std(0xff9ab8);
@@ -465,6 +466,7 @@ export class PetView {
     this.root = new THREE.Group();
     this.root.add(built.body);
     this.root.scale.setScalar(STAGE_SCALE[petStage(level)]);
+    dropTinyShadows(this.root);
     this.body = built.body;
     this.parts = built.parts;
     this.hop = !!built.hop; // bunnies bounce along

@@ -7,6 +7,7 @@ import { PROPS } from '../shared/props.js';
 import { CLASSES } from '../shared/config.js';
 import { FURNITURE, FLOOR_STYLES } from '../shared/furniture.js';
 import { THEMES, EXTRA_MODELS } from './themes.js';
+import { trimBlock } from './merge.js';
 
 const BASE = './models/';
 const loader = new GLTFLoader();
@@ -95,8 +96,10 @@ export function characterClips() {
 /**
  * Many copies of one static model as InstancedMeshes (1 draw call per sub-mesh).
  * `transforms` is a list of { x, y, z, rot, sx, sy, sz }.
+ * `trim` ('ground' | 'wall') drops a voxel block's hidden faces (see merge.js); `shadow: false`
+ * stops it casting shadows (things in the ground needn't).
  */
-export function instanced(path, transforms) {
+export function instanced(path, transforms, { trim = null, shadow = true } = {}) {
   const group = new THREE.Group();
   if (!transforms.length) return group;
   const meshes = [];
@@ -104,8 +107,8 @@ export function instanced(path, transforms) {
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
   for (const mesh of meshes) {
-    const inst = new THREE.InstancedMesh(mesh.geometry, mesh.material, transforms.length);
-    inst.castShadow = true;
+    const inst = new THREE.InstancedMesh(trim ? trimBlock(mesh.geometry, trim) : mesh.geometry, mesh.material, transforms.length);
+    inst.castShadow = shadow;
     inst.receiveShadow = true;
     transforms.forEach((t, i) => {
       q.setFromAxisAngle(up, t.rot ?? 0);

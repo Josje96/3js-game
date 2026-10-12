@@ -14,6 +14,7 @@ import { TOWNSFOLK } from '../shared/townsfolk.js';
 import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
 import { roomIndexAt } from '../shared/locations.js';
 import { THEMES } from './themes.js';
+import { mergeStatic, dropTinyShadows } from './merge.js';
 
 /** Wooden signpost for the healing spring. */
 function makeSpringSign() {
@@ -123,6 +124,7 @@ export class LocationView {
     this.gates = {};       // dungeon id -> { closed, open, glow, chains } (town only)
     this.flagged = [];     // things hidden until a world flag is set (the Decorator's stall)
     this.lampLights = [];
+    this.merged = [];      // geometries made by still(), freed in dispose()
     this.theme = THEMES[layout.theme];
     const r = (cx, cz, salt = '') => hashSeed(layout.seed, cx, cz, salt) / 2 ** 32; // stable per-cell randomness
     this.rand = r;
@@ -131,11 +133,12 @@ export class LocationView {
     if (layout.theme === 'outdoor') this.buildOutdoor();
     else this.buildIndoor();
     this.buildProps();
+    dropTinyShadows(this.group);
     this.setWorld(world);
   }
 
-  /** Collect transforms per model then emit one instanced group per model. */
-  batch() {
+  /** Collect transforms per model then emit one instanced group per model (`opts`: see instanced()). */
+  batch(opts) {
     const map = new Map();
     const tint = this.theme?.tint;
     return {
@@ -147,7 +150,7 @@ export class LocationView {
       },
       flush: () => {
         for (const { path, tint: c, list } of map.values()) {
-          const g = instanced(path, list);
+          const g = instanced(path, list, opts);
           if (c != null) for (const m of g.children) { m.material = m.material.clone(); m.material.color.multiply(new THREE.Color(c)); }
           this.group.add(g);
         }
@@ -253,10 +256,12 @@ export class LocationView {
   }
 
   buildOutdoor() {
-    const L = this.layout, b = this.batch();
+    const L = this.layout, b = this.batch({ trim: 'wall' });
+    // blocks sunk into the ground only ever show their top: no sides, no shadows
+    const ground = this.batch({ trim: 'ground', shadow: false });
     const trees = [], fences = [];
     const block = (path, cx, cz, y, s = 2, extra = {}) =>
-      b.add(path, { x: cx * CELL + CELL / 2 + (extra.dx ?? 0), z: cz * CELL + CELL / 2 + (extra.dz ?? 0), y, s, rot: extra.rot ?? 0 });
+      (y < 0 ? ground : b).add(path, { x: cx * CELL + CELL / 2 + (extra.dx ?? 0), z: cz * CELL + CELL / 2 + (extra.dz ?? 0), y, s, rot: extra.rot ?? 0 });
 
     // the healing spring: the whole pond is water you can wade into, ringed with a glow
     const pondCells = [];
@@ -311,7 +316,7 @@ export class LocationView {
           block('blocks/stone_dark', cx, cz, 2);
           block('blocks/stone_dark', cx, cz, 6);
         } else if (ch === 'E') {
-          this.group.add(makeCottage(cx * CELL + CELL / 2, cz * CELL + CELL / 2, this.rand(cx, cz, 'co')));
+          this.group.add(this.still(makeCottage(cx * CELL + CELL / 2, cz * CELL + CELL / 2, this.rand(cx, cz, 'co'))));
         } else if (ch === '+') {
           fences.push([cx, cz]);
         } else if (ch === 'R' || ch === 'm') {
@@ -324,6 +329,7 @@ export class LocationView {
       }
     }
     b.flush();
+    ground.flush();
 
     // painted grass with swaying tufts, and moving water, on top of the blocks
     const grass = [], water = [];
@@ -355,7 +361,7 @@ export class LocationView {
     }
     const beds = (L.decor ?? []).filter((d) => d.kind === 'flowers');
     if (beds.length) this.group.add(makeFlowers(beds, this.rand));
-    if (fences.length) this.group.add(makeFence(fences, (cx, cz) => L.cell(cx, cz) === '+'));
+    if (fences.length) this.group.add(this.still(makeFence(fences, (cx, cz) => L.cell(cx, cz) === '+')));
     if (L.key === 'town') this.buildTownLife();
 
     // faces for the portals
@@ -405,7 +411,7 @@ export class LocationView {
     if (fountain) {
       for (let i = 0; i < 4; i++) {
         const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-        const bench = makeBench();
+        const bench = this.still(makeBench());
         bench.position.set(fountain.x + Math.cos(a) * 4.2, 0, fountain.z + Math.sin(a) * 4.2);
         bench.rotation.y = -a - Math.PI / 2;
         this.group.add(bench);
@@ -442,12 +448,13 @@ export class LocationView {
         this.animated.push(npc);
         obj = npc.root;
       } else if (p.build === 'lamp') {
-        obj = makeLampPost(lamps++ < 6);
+        obj = this.still(makeLampPost(lamps++ < 6));
         obj.position.set(p.x, 0, p.z);
         if (obj.userData.light) this.lampLights.push(obj.userData.light);
       } else {
         const builders = { wardrobe: makeWardrobe, springSign: makeSpringSign, mirror: makeMirror, fountain: makeFountain };
         obj = builders[p.build]?.() ?? (p.model ? cloneModel(p.model) : new THREE.Group());
+        if (p.build === 'wardrobe' || p.build === 'springSign') this.still(obj);
         obj.position.set(p.x, p.y ?? 0, p.z);
         obj.rotation.y = p.rot ?? 0;
         if (obj.userData.update) this.animated.push({ update: () => obj.userData.update(this.uTime.value) });
@@ -456,7 +463,7 @@ export class LocationView {
       holder.add(obj);
       this.group.add(holder);
       if (p.stall) {
-        const stall = p.pets ? this.buildPetStall(p, p.stall) : makeStall(p.stall, p.interact === 'decorator' ? 'decor' : 'shop');
+        const stall = p.pets ? this.buildPetStall(p, p.stall) : this.still(makeStall(p.stall, p.interact === 'decorator' ? 'decor' : 'shop'));
         if (!p.pets) { stall.position.set(p.x, 0, p.z); holder.add(stall); }
       }
       if (p.build === 'forge') this.buildForge(p);
@@ -538,6 +545,7 @@ export class LocationView {
       s.castShadow = true;
       stall.add(s);
     }
+    this.still(stall); // the stall itself never moves; the pets on it do
     const kinds = ['maple', 'frog', 'bunny', 'cat', 'dragon']; // a few of the 20 on display
     kinds.forEach((kind, i) => {
       const pet = new PetView(kind);
@@ -604,8 +612,15 @@ export class LocationView {
     for (const gate of Object.values(this.gates)) if (gate.glow.visible) gate.glow.material.opacity = 0.55 + Math.sin(time * 3) * 0.2;
   }
 
+  /** Bake a thing that never moves into a few meshes (fewer draw calls; see merge.js). */
+  still(obj) {
+    this.merged.push(...mergeStatic(obj));
+    return obj;
+  }
+
   dispose() {
     for (const a of this.animated) a.dispose?.();
+    for (const g of this.merged) g.dispose();
     this.group.removeFromParent();
   }
 }
