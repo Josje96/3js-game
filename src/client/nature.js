@@ -200,6 +200,12 @@ const WAVES = `
     return vec3(h, dx, dz);
   }`;
 
+/** The water's swell at a point (matches WAVES in the shader), so floating things bob with it. */
+const WAVE_MAX = 0.045 * 2 + 0.025;
+function waveHeight(x, z, t) {
+  return (Math.sin(x * 0.55 + t * 1.3) + Math.sin(z * 0.7 - t * 1.1)) * 0.045 + Math.sin((x + z) * 0.9 + t * 1.9) * 0.025;
+}
+
 let sparkleTex = null;
 function sparkleTexture() {
   if (sparkleTex) return sparkleTex;
@@ -314,8 +320,8 @@ export function makeWater(cells, rand, uTime, { healing = false, disc = null, li
       s.material.opacity = Math.sin(u * Math.PI) * (disc ? 0.55 : 0.9);
       s.scale.setScalar((disc ? 0.6 : 1) * (0.35 + 0.3 * Math.sin(u * Math.PI)));
     }
-    for (const p of pads) {
-      p.position.y = level + 0.05 + Math.sin(time * 1.3 + p.userData.phase) * 0.04;
+    for (const p of pads) { // always on top: just over the highest wave (WAVE_MAX), bobbing a touch with the swell
+      p.position.y = level + WAVE_MAX + 0.02 + (waveHeight(p.position.x, p.position.z, time) + WAVE_MAX) * 0.15;
       p.rotation.y += Math.sin(time * 0.3 + p.userData.phase) * 0.0015;
     }
   };
@@ -471,7 +477,8 @@ export function makeSpringBanks(cx, cz, edge, rand) {
   const bed = new THREE.CircleGeometry(1, 64);
   const p = bed.attributes.position, col = [];
   for (let i = 0; i < p.count; i++) {
-    const a = Math.atan2(p.getY(i), p.getX(i)), k = i === 0 ? 0 : 1, r = edge(a) + 0.15;
+    // a little smaller than the water, so its pale rim never peeks out between the shore stones
+    const a = Math.atan2(p.getY(i), p.getX(i)), k = i === 0 ? 0 : 1, r = Math.max(0.5, edge(a) - 0.25);
     p.setXY(i, Math.cos(a) * r * k, Math.sin(a) * r * k);
     col.push(...(k ? [0.36, 0.55, 0.42] : [0.1, 0.3, 0.36]));
   }
