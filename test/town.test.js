@@ -14,8 +14,9 @@ test('town: market stalls, the forge and the fountain benches are solid all the 
     assert.ok(blocked(L, shop.x + dx, shop.z + dz, PLAYER_RADIUS, L.solids), `stall at ${dx},${dz}`);
   }
   assert.ok(blocked(L, forge.x - 2.2, forge.z + 0.2, PLAYER_RADIUS, L.solids), 'the forge’s furnace');
-  assert.equal(L.benches.length, 4);
-  for (const b of L.benches) assert.ok(blocked(L, b.x, b.z, PLAYER_RADIUS, L.solids), 'a bench');
+  const benches = L.props.filter((q) => q.type === 'bench');
+  assert.equal(benches.length, 4);
+  for (const b of benches) assert.ok(blocked(L, b.x, b.z, PLAYER_RADIUS, L.solids), 'a bench');
 });
 
 const propOf = (server, type) => server.getLocation('town').layout.props.find((q) => q.type === type);
@@ -143,4 +144,17 @@ test('decor: everyone has their own room — its owner styles it and nobody else
   assert.equal(p.kid.gold, before - 260);
   // the room style doesn't move the whole fort
   assert.equal(save.house.wall, 'stone');
+});
+
+test('town: you can sit on a bench by the fountain (E), facing the fountain', () => {
+  const { server, p, c } = world('bench');
+  server.travel(p.a, 'town');
+  const L = server.getLocation('town').layout;
+  const bench = L.props.find((q) => q.type === 'bench'), fountain = L.props.find((q) => q.type === 'fountain');
+  p.a.x = bench.x + Math.sin(bench.rot) * 1.3; p.a.z = bench.z + Math.cos(bench.rot) * 1.3; // in front of it
+  c.a.say({ t: 'interact', id: bench.id });
+  const fx = c.a.all('fx').find((m) => m.kind === 'sit');
+  assert.ok(fx && fx.x === bench.x && fx.z === bench.z, 'sat down');
+  const toFountain = Math.atan2(fountain.x - bench.x, fountain.z - bench.z);
+  assert.ok(Math.abs(Math.atan2(Math.sin(fx.rot - toFountain), Math.cos(fx.rot - toFountain))) < 0.01, 'looking at the fountain');
 });

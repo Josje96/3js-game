@@ -32,6 +32,8 @@ export const PROPS = {
   signpost:   { model: 'props/signpost', radius: 0.25 },
   // town: stalls under canopies around the market square, plus things to look at
   fountain:   { build: 'fountain', radius: 1.9 },
+  // placed round the fountain by shared/locations.js; `r` = how far in front you get up, `seat.face` = which way you sit
+  bench:      { build: 'bench', radius: 0, r: 0.55, interact: 'sit', prompt: 'Sit on the bench', seat: { face: 0 } },
   lamp:       { build: 'lamp', radius: 0.3, light: true },
   townsfolk:  { townsfolk: true, radius: 0.7, interact: 'talk', prompt: 'Talk' },
   decorator:  { npc: 'Rogue', npcName: 'Decorator', npcLook: { hat: 'tophat', clothes: 'suit', hair: 'suave', hairColor: 'ginger', face: 'monocle', cape: 'none' },

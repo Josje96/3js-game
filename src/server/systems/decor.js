@@ -9,9 +9,9 @@ import { HALL } from '../../shared/fort.js';
 
 export const interactions = {
   decorator(p) { this.send(p, { t: 'ui', kind: 'decorator' }); },
-  /** A chair, stool or sofa: sit down on it (walking off gets you up again). */
+  /** A chair, stool, sofa or town bench: sit down on it (walking off gets you up again). */
   sit(p, seat) {
-    const def = FURNITURE[seat.item];
+    const def = seat.seat ? seat : FURNITURE[seat.item]; // a map prop (bench) carries its own seat
     if (!def?.seat) return;
     this.send(p, { t: 'fx', kind: 'sit', id: p.id, x: seat.x, z: seat.z, rot: (seat.rot ?? 0) + def.seat.face, r: seat.r });
   },

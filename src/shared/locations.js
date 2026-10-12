@@ -64,9 +64,10 @@ export function buildLayout(key, seed, opts = {}) {
   layout.solids = layout.props.flatMap((p) => p.blocks
     ? p.blocks.map(([dx, dz, r]) => ({ x: p.x + dx * Math.cos(p.rot ?? 0) + dz * Math.sin(p.rot ?? 0), z: p.z - dx * Math.sin(p.rot ?? 0) + dz * Math.cos(p.rot ?? 0), r }))
     : p.radius > 0 ? [{ x: p.x, z: p.z, r: p.radius }] : []);
-  // the town's benches round the fountain (drawn by the client) are solid too: two circles each
-  layout.benches = townBenches(layout.props);
-  for (const b of layout.benches) for (const s of [-0.55, 0.55]) layout.solids.push({ x: b.x + Math.cos(b.rot) * s, z: b.z - Math.sin(b.rot) * s, r: 0.55 });
+  // the town's benches round the fountain: props you can sit on (E), solid as two circles each
+  const benches = townBenches(layout.props).map((b, i) => ({ id: `bench${i}`, type: 'bench', ...PROPS.bench, ...b }));
+  for (const b of benches) for (const s of [-0.55, 0.55]) layout.solids.push({ x: b.x + Math.cos(b.rot) * s, z: b.z - Math.sin(b.rot) * s, r: 0.55 });
+  layout.props.push(...benches);
   return layout;
 }
 

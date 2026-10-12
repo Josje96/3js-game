@@ -461,18 +461,12 @@ export class LocationView {
 
   }
 
-  /** Pebble Town's extras: villagers strolling, benches round the fountain, banners on the walls. */
+  /** Pebble Town's extras: villagers strolling, banners on the walls. */
   buildTownLife() {
     const L = this.layout;
     const villagers = new Villagers(L, this.rand);
     villagers.addTo(this.group);
     this.animated.push({ update: (dt) => villagers.update(dt, this.uTime.value), dispose: () => villagers.dispose() });
-    for (const b of L.benches ?? []) { // placed (and made solid) in shared/locations.js
-      const bench = this.still(makeBench());
-      bench.position.set(b.x, 0, b.z);
-      bench.rotation.y = b.rot;
-      this.group.add(bench);
-    }
     // banners hanging on the inside of the north castle wall, and either side of the fort's door
     const colors = ['red', 'blue', 'yellow', 'green'];
     for (let cx = 2; cx < L.w - 2; cx += 4) {
@@ -508,9 +502,9 @@ export class LocationView {
         obj.position.set(p.x, 0, p.z);
         if (obj.userData.light) this.lampLights.push(obj.userData.light);
       } else {
-        const builders = { wardrobe: makeWardrobe, springSign: makeSpringSign, mirror: makeMirror, fountain: makeFountain };
+        const builders = { wardrobe: makeWardrobe, springSign: makeSpringSign, mirror: makeMirror, fountain: makeFountain, bench: makeBench };
         obj = builders[p.build]?.() ?? (p.model ? cloneModel(p.model) : new THREE.Group());
-        if (p.build === 'wardrobe' || p.build === 'springSign') this.still(obj);
+        if (p.build === 'wardrobe' || p.build === 'springSign' || p.build === 'bench') this.still(obj);
         obj.position.set(p.x, p.y ?? 0, p.z);
         obj.rotation.y = p.rot ?? 0;
         if (obj.userData.update) this.animated.push({ update: () => obj.userData.update(this.uTime.value) });
