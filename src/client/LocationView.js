@@ -169,8 +169,8 @@ export class LocationView {
         // whose room is this? (a room's slot is its index: one bed slot per room)
         const room = home ? roomIndexAt(L, cx, cz) : -1;
         const rs = room >= 0 ? roomStyles?.[room] : null;
-        const floorStyle = (room >= 0 && rs?.floor != null ? FLOOR_STYLES[rs.floor] : null) ?? home.floor;
-        const wallTint = (room >= 0 && rs?.wall != null ? WALL_STYLES[rs.wall]?.tint : null) ?? home.wall.tint ?? 0xffffff;
+        const floorStyle = (room >= 0 && rs?.floor != null ? FLOOR_STYLES[rs.floor] : null) ?? home?.floor;
+        const wallTint = (room >= 0 && rs?.wall != null ? WALL_STYLES[rs.wall]?.tint : null) ?? home?.wall.tint ?? 0xffffff;
         if (home) b.add(floorStyle.model, { x, z, rot: Math.floor(this.rand(cx, cz, 'r') * 4) * Math.PI / 2 }, floorStyle.tint ?? 0xffffff);
         else b.add(th.floors[fi], { x, z, rot: Math.floor(this.rand(cx, cz, 'r') * 4) * Math.PI / 2 });
 
