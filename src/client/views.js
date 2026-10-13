@@ -523,6 +523,14 @@ const SLIME_COLORS = { green: 0x6ee05a, blue: 0x4fa8ff, red: 0xff5a4f, purple: 0
 const slimeGeo = new THREE.SphereGeometry(0.75, 20, 14);
 slimeGeo.translate(0, 0.75, 0);
 const eyeGeo = new THREE.SphereGeometry(0.11, 8, 6);
+const SLIME_SHINE_GEO = new THREE.SphereGeometry(0.035, 6, 4);
+const SLIME_SHINE = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const SLIME_CORE_GEO = new THREE.SphereGeometry(0.32, 12, 10);
+const SLIME_GLOSS_GEO = new THREE.SphereGeometry(0.2, 10, 6);
+SLIME_GLOSS_GEO.scale(1, 0.35, 0.6);
+const SLIME_GLOSS = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 });
+const SLIME_MOUTH_GEO = new THREE.TorusGeometry(0.1, 0.025, 4, 10, Math.PI);
+const SLIME_BUBBLE_GEO = new THREE.SphereGeometry(0.06, 8, 6);
 const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
 
 export class SlimeView {
@@ -540,6 +548,28 @@ export class SlimeView {
       const eye = new THREE.Mesh(eyeGeo, eyeMat);
       eye.position.set(sx, 0.95, 0.62);
       this.body.add(eye);
+      const shine = new THREE.Mesh(SLIME_SHINE_GEO, SLIME_SHINE); // a twinkle in each eye
+      shine.position.set(sx + 0.04, 1.0, 0.71);
+      this.body.add(shine);
+    }
+    // a jelly that looks like jelly: a darker core, a glossy highlight, a little mouth and bubbles
+    const tint = new THREE.Color(this.mat.color);
+    const core = new THREE.Mesh(SLIME_CORE_GEO, new THREE.MeshStandardMaterial({ color: tint.clone().multiplyScalar(0.55), roughness: 0.5 }));
+    core.position.set(0, 0.6, -0.05);
+    this.body.add(core);
+    const gloss = new THREE.Mesh(SLIME_GLOSS_GEO, SLIME_GLOSS);
+    gloss.position.set(-0.3, 1.15, 0.4);
+    gloss.rotation.set(-0.6, -0.5, 0.4);
+    this.body.add(gloss);
+    const mouth = new THREE.Mesh(SLIME_MOUTH_GEO, eyeMat);
+    mouth.position.set(0, 0.78, 0.7);
+    mouth.rotation.z = Math.PI;
+    this.body.add(mouth);
+    this.bubbles = [];
+    for (let i = 0; i < 3; i++) {
+      const b = new THREE.Mesh(SLIME_BUBBLE_GEO, new THREE.MeshStandardMaterial({ color: tint.clone().lerp(new THREE.Color(0xffffff), 0.5), transparent: true, opacity: 0.6, roughness: 0.2 }));
+      this.body.add(b);
+      this.bubbles.push(b);
     }
     if (e.boss) {
       const crown = new THREE.Mesh(
@@ -548,6 +578,12 @@ export class SlimeView {
       );
       crown.position.y = 1.6;
       this.body.add(crown);
+      for (let i = 0; i < 6; i++) { // jewels on the crown
+        const a = (i / 6) * Math.PI * 2;
+        const gem = new THREE.Mesh(SLIME_BUBBLE_GEO, new THREE.MeshStandardMaterial({ color: [0xff3d6e, 0x3d8aff, 0x3dff8a][i % 3], roughness: 0.2 }));
+        gem.position.set(Math.cos(a) * 0.4, 1.6, Math.sin(a) * 0.4);
+        this.body.add(gem);
+      }
     }
     this.body.scale.setScalar(e.scale ?? 1);
     this.root.add(this.body);
@@ -580,6 +616,12 @@ export class SlimeView {
   }
 
   update(dt) {
+    this.bubbleT = (this.bubbleT ?? 0) + dt;
+    if (this.bubbles) this.bubbles.forEach((b, n) => { // bubbles rising inside the jelly
+      const u = (this.bubbleT * 0.3 + n / 3) % 1;
+      b.position.set(Math.sin(n * 2.1) * 0.3, 0.2 + u * 1.0, Math.cos(n * 2.1) * 0.25);
+      b.scale.setScalar(1 - u * 0.6);
+    });
     const k = smooth(dt, 14);
     const p = this.root.position;
     const moving = Math.hypot(this.target.x - p.x, this.target.z - p.z) > 0.02;

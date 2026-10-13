@@ -165,10 +165,10 @@ export const ENEMIES = {
   wraith:        { hp: 760, damage: 9, speed: 3.2, gold: [450, 450], ai: 'flutter', body: 'ghost', tint: 0x5a3a8a, scale: 2.8, fly: true, summon: 'shadowimp' },
   shadowking:    { hp: 1000, damage: 10, speed: 2.8, gold: [1000, 1000], ai: 'shooter', body: 'skeleton', tint: 0x3a2a5a, scale: 3.0, crown: true, summon: 'shadowimp' },
   // the seasonal bosses: one day in town at the start of each season (shared/seasons.js), scaled to the family
-  bloomcolossus: { hp: 2600, damage: 10, speed: 2.2, gold: [3000, 3000], ai: 'chase', body: 'golem', tint: 0xff9ec8, scale: 3.4, r: 1.4, summon: 'shroom' },
-  sunwyrm:       { hp: 2400, damage: 11, speed: 2.8, gold: [3000, 3000], ai: 'shooter', body: 'dragon', tint: 0xffa52a, scale: 3.2, r: 1.4, summon: 'firebat' },
-  harvestking:   { hp: 2600, damage: 11, speed: 2.8, gold: [3000, 3000], ai: 'chase', body: 'skeleton', tint: 0xd8782a, scale: 3.4, crown: true, summon: 'skeleton' },
-  frosttitan:    { hp: 3000, damage: 12, speed: 2.4, gold: [3000, 3000], ai: 'chase', body: 'yeti', tint: 0xe8f6ff, scale: 3.6, r: 1.4, summon: 'iceslime' },
+  bloomcolossus: { hp: 2600, damage: 10, speed: 2.2, gold: [3000, 3000], ai: 'chase', body: 'treant', scale: 2.6, r: 1.4, summon: 'shroom' },
+  sunwyrm:       { hp: 2400, damage: 11, speed: 2.8, gold: [3000, 3000], ai: 'shooter', body: 'sunserpent', scale: 2.6, r: 1.3, summon: 'firebat' },
+  harvestking:   { hp: 2600, damage: 11, speed: 2.8, gold: [3000, 3000], ai: 'chase', body: 'pumpkinking', scale: 2.6, crown: true, summon: 'skeleton' },
+  frosttitan:    { hp: 3000, damage: 12, speed: 2.4, gold: [3000, 3000], ai: 'chase', body: 'icetitan', scale: 2.6, r: 1.4, summon: 'iceslime' },
 };
 export const SLIME_STATS = ENEMIES; // older name
 
