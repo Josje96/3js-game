@@ -652,3 +652,34 @@ export function makeTreeLights(trees) {
   };
   return lights;
 }
+
+/** Grandma's Easter corner: a big wicker basket heaped with pastel eggs, more eggs in the grass, and spring flowers. */
+export function makeEasterCorner() {
+  const g = new THREE.Group();
+  const wicker = std(0xc8964a, { roughness: 1 }), PASTEL = [0xffb3d1, 0xb3e0ff, 0xfff0a0, 0xc8f0b0, 0xd8c0ff, 0xffd0a8];
+  const basket = new THREE.Group();
+  basket.position.set(2.2, 0, -0.6);
+  g.add(basket);
+  const bowl = mesh(basket, new THREE.CylinderGeometry(0.85, 0.6, 0.7, 16, 1, true), wicker, 0, 0.35, 0);
+  bowl.material = wicker.clone();
+  bowl.material.side = THREE.DoubleSide;
+  for (let i = 0; i < 4; i++) mesh(basket, new THREE.TorusGeometry(0.62 + i * 0.07, 0.03, 4, 20), wicker, 0, 0.1 + i * 0.18, 0).rotation.x = Math.PI / 2; // weave
+  mesh(basket, new THREE.TorusGeometry(0.75, 0.05, 6, 20, Math.PI), wicker, 0, 0.7, 0); // the handle
+  mesh(basket, new THREE.CylinderGeometry(0.78, 0.78, 0.06, 16), std(0x8ad870, { roughness: 1 }), 0, 0.62, 0); // grass lining
+  const egg = (parent, x, y, z, c, s = 1) => {
+    const e = mesh(parent, new THREE.SphereGeometry(0.16 * s, 12, 10), std(c, { roughness: 0.4 }), x, y, z);
+    e.scale.y = 1.3;
+    mesh(e, new THREE.TorusGeometry(0.16 * s, 0.018 * s, 4, 14), std(PASTEL[(PASTEL.indexOf(c) + 2) % PASTEL.length]), 0, 0, 0).rotation.x = Math.PI / 2; // a painted band
+    return e;
+  };
+  for (let i = 0; i < 9; i++) { const a = i * 0.7, r = (i % 3) * 0.22; egg(basket, Math.cos(a) * r, 0.78 + (i % 2) * 0.12, Math.sin(a) * r, PASTEL[i % PASTEL.length]); }
+  for (let i = 0; i < 8; i++) { const a = i * 0.9 + 0.3, r = 1.6 + (i % 3) * 0.5; egg(g, 2.2 + Math.cos(a) * r, 0.2, -0.6 + Math.sin(a) * r * 0.7, PASTEL[(i + 3) % PASTEL.length], 0.9).rotation.z = (i % 2 ? 0.4 : -0.3); }
+  for (let i = 0; i < 10; i++) { // spring flowers
+    const a = i * 0.63, x = -1.2 + Math.cos(a) * 0.9, z = -0.4 + Math.sin(a) * 0.5;
+    mesh(g, new THREE.CylinderGeometry(0.02, 0.02, 0.35, 4), std(0x4f9a3a), x, 0.17, z);
+    for (let k = 0; k < 5; k++) mesh(g, new THREE.SphereGeometry(0.06, 6, 5), std(PASTEL[i % PASTEL.length]), x + Math.cos(k * 1.26) * 0.07, 0.36, z + Math.sin(k * 1.26) * 0.07);
+    mesh(g, new THREE.SphereGeometry(0.04, 6, 5), std(0xffd23f), x, 0.38, z);
+  }
+  g.userData.update = (t) => { basket.rotation.y = Math.sin(t * 0.8) * 0.05; };
+  return g;
+}

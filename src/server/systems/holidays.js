@@ -8,6 +8,7 @@ import { holidayOf, SANTA_SPOT } from '../../shared/seasons.js';
 import { ITEMS } from '../../shared/items.js';
 
 const GIFTS = 'santaGifts';   // save.flags: { day, ids: [players who opened theirs] } (one present each per Christmas)
+const BASKETS = 'easterBaskets'; // save.flags: the same for Grandma's Easter baskets
 const TREATS = ['candycorn', 'candycorn', 'toffeeapple', 'pumpkinpie', 'cider'];
 const PRESENTS = ['feast', 'megapotion', 'elixir', 'gingerbread', 'candycane'];
 
@@ -33,6 +34,7 @@ export function onJoin(p) {
 }
 
 const HELLO = {
+  easter: '🐣 Happy Easter! Grandma is in the town square with an Easter basket for everyone (today only)!',
   halloween: '🎃 Happy Halloween! Everyone’s in costume — knock on the cottage doors in town to trick-or-treat!',
   christmas: '🎄 Merry Christmas! Santa is in the town square with a present for everyone (today only)!',
 };
@@ -56,6 +58,22 @@ export const interactions = {
       this.toast(p, `🍬 Trick or treat! You got ${ITEMS[item].name} and ${gold} gold.`);
     }
     this.sendSelf(p);
+  },
+
+  /** Grandma at Easter: an Easter basket each — chocolate eggs, a honey cake and some gold. */
+  easter(p, grandma) {
+    if (holidayOf(this.save.day) !== 'easter') return;
+    const log = this.save.flags[BASKETS]?.day === this.save.day ? this.save.flags[BASKETS] : (this.save.flags[BASKETS] = { day: this.save.day, ids: [] });
+    if (log.ids.includes(p.id)) return this.toast(p, '👵 You’ve had your basket, sweetheart! Happy Easter!');
+    log.ids.push(p.id);
+    const eggs = 3 + Math.floor(Math.random() * 3), gold = 100 + (p.level ?? 1) * 5;
+    p.inventory.chocolateegg = (p.inventory.chocolateegg ?? 0) + eggs;
+    p.inventory.honeycake = (p.inventory.honeycake ?? 0) + 1;
+    this.earn(p, gold);
+    this.sendToLocation(p.loc, { t: 'fx', kind: 'basket', x: grandma.x, z: grandma.z });
+    this.toast(p, `🧺 Grandma gives you an Easter basket: ${eggs} chocolate eggs, a honey cake and ${gold} gold! “Don’t eat them all at once, dear!”`);
+    this.sendSelf(p);
+    this.persist();
   },
 
   /** Santa: one present each per Christmas — gold plus something special. */
@@ -90,6 +108,12 @@ export const methods = {
         // the cottage (client/town.js) fills this 2x2 block; its door is left of centre on the front
         loc.spawn({ type: 'door', holiday: h, house: house++, x: (cx + 1) * CELL - 1.14, z: (cz + 1) * CELL + 3.6, r: 1.0, interact: 'treat', prompt: 'Trick or treat! 🎃' });
       }
+    } else if (h === 'easter') {
+      loc.spawn({
+        type: 'npc', holiday: h, name: 'Grandma', cls: 'Mage', wear: 'grandma', decor: 'easter',
+        look: { hat: 'none', cape: 'none', hair: 'curly', hairColor: 'blonde', face: 'glasses' },
+        x: SANTA_SPOT.x, z: SANTA_SPOT.z, rot: 0, r: 0.8, interact: 'easter', prompt: 'Talk to Grandma 🐣',
+      });
     } else if (h === 'christmas') {
       loc.spawn({
         type: 'npc', holiday: h, name: 'Santa', cls: 'Barbarian', wear: 'santa', decor: 'christmas',

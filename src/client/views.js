@@ -12,7 +12,7 @@ import { FurnitureView } from './furniture.js';
 import { dropTinyShadows } from './merge.js';
 import { enchantWeapon } from './enchant.js';
 import { glowTexture } from './effects.js';
-import { makeChristmasCorner } from './town.js';
+import { makeChristmasCorner, makeEasterCorner } from './town.js';
 
 // sitting on a chair: how far the body drops and leans back, and how the legs and arms bend (radians)
 const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM = 0.5;
@@ -298,7 +298,7 @@ export class CharacterView {
     this.look = look;
     const wear = this.wear = this.seasonWear();
     const fancy = look?.clothes && look.clothes !== 'none';
-    const costume = wear === 'halloween' ? this.costume : wear === 'santa' ? 'santa' : null;
+    const costume = wear === 'halloween' ? this.costume : wear === 'santa' || wear === 'grandma' ? wear : null;
     if (wear === 'winter' || costume) look = { ...look, hat: 'none' }; // the bobble hat (or costume) goes on instead
     const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red' } = look ?? {};
     const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${hairColor}/${face}/${skin}/${tie}/${wear}`;
@@ -1058,7 +1058,7 @@ export class NpcView {
     this.ch.forceWear = e.wear ?? null;
     this.ch.setLook(e.look);
     this.root.add(this.ch.root);
-    this.decor = e.decor === 'christmas' ? makeChristmasCorner() : null;
+    this.decor = e.decor === 'christmas' ? makeChristmasCorner() : e.decor === 'easter' ? makeEasterCorner() : null;
     if (this.decor) this.root.add(this.decor);
     this.time = 0;
   }

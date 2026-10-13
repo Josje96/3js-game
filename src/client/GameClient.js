@@ -400,6 +400,7 @@ export class GameClient {
       case 'treat': this.sfx.play('coin'); this.floatAt(msg, '🍬 Treat!', '#ffb347'); break; // Halloween
       case 'boo': this.sfx.play('coin'); this.floatAt(msg, '👻 BOO!', '#e8e8ff'); break;
       case 'present': this.sfx.play('coin'); this.floatAt(msg, '🎁 Ho ho ho!', '#ff7a7a'); break; // Santa
+      case 'basket': this.sfx.play('coin'); this.floatAt(msg, '🧺 Happy Easter!', '#ffb3d1'); break; // Grandma
       case 'decor': { // someone used a decoration: its show, and its sound
         this.ents.get(msg.id)?.view?.play?.(msg.use);
         this.sfx.decor(msg.use, msg.on);

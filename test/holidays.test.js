@@ -8,13 +8,14 @@ import { blocked } from '../src/shared/physics.js';
 import { PLAYER_RADIUS } from '../src/shared/config.js';
 import { ITEMS, SHOP_STOCK } from '../src/shared/items.js';
 
-const HALLOWEEN = SEASON_DAYS * 2 + 15, CHRISTMAS = SEASON_DAYS * 3 + 15;
+const EASTER = 15, HALLOWEEN = SEASON_DAYS * 2 + 15, CHRISTMAS = SEASON_DAYS * 3 + 15;
 
 test('holidays: Halloween halfway through autumn, Christmas halfway through winter, one day each, every year', () => {
   assert.equal(holidayOf(HALLOWEEN), 'halloween');
   assert.equal(holidayOf(CHRISTMAS), 'christmas');
   assert.equal(holidayOf(HALLOWEEN + 120), 'halloween', 'next year too');
-  for (const d of [1, 15, 45, HALLOWEEN - 1, HALLOWEEN + 1, CHRISTMAS + 1]) assert.equal(holidayOf(d), null, `day ${d}`);
+  assert.equal(holidayOf(EASTER), 'easter');
+  for (const d of [1, 14, 16, 45, HALLOWEEN - 1, HALLOWEEN + 1, CHRISTMAS + 1]) assert.equal(holidayOf(d), null, `day ${d}`);
   for (const id of ['candycorn', 'toffeeapple', 'candycane']) assert.ok(ITEMS[id]?.heal && !SHOP_STOCK.includes(id), `${id}: a holiday-only treat`);
 });
 
@@ -68,4 +69,22 @@ test('holidays: on Christmas Santa is in the square, with one present for each o
   server.endDay('sleep');
   server.step(0.05);
   assert.equal(inTown(server, (e) => e.holiday).length, 0, 'Santa has gone home');
+});
+
+test('holidays: at Easter Grandma is in the square with a basket for each of us', () => {
+  const { server, save, p, c } = world('easter', 'kid');
+  save.day = EASTER;
+  server.step(0.05);
+  const [grandma] = inTown(server, (e) => e.interact === 'easter');
+  assert.ok(grandma, 'Grandma came');
+  server.travel(p.kid, 'town');
+  p.kid.x = grandma.x; p.kid.z = grandma.z + 1.5;
+  const gold = p.kid.gold;
+  c.kid.say({ t: 'interact', id: grandma.id });
+  assert.ok(p.kid.inventory.chocolateegg >= 3 && p.kid.inventory.honeycake === 1 && p.kid.gold > gold, 'an Easter basket');
+  c.kid.say({ t: 'interact', id: grandma.id });
+  assert.equal(p.kid.inventory.honeycake, 1, 'one basket each');
+  server.endDay('sleep');
+  server.step(0.05);
+  assert.equal(inTown(server, (e) => e.holiday).length, 0, 'Grandma has gone home');
 });

@@ -167,6 +167,7 @@ export const COSTUMES = {
   ghost:   { name: 'Ghost',        clothes: { jacket: 0xf4f4f8, legs: 0xf4f4f8, extra: 'gown' } },
   devil:   { name: 'Little devil', clothes: { jacket: 0xb8202a, legs: 0x8a1a20 } },
   santa:   { name: 'Santa',        clothes: { jacket: 0xc8202a, legs: 0xc8202a, extra: 'coat' } },
+  grandma: { name: 'Grandma',      clothes: { jacket: 0xd8c8f4, legs: 0xf6c8dc, extra: 'gown' } }, // pastel lavender and pink
 };
 export const HALLOWEEN_COSTUMES = ['witch', 'pumpkin', 'ghost', 'devil'];
 
@@ -214,6 +215,8 @@ export function buildCostumeHat(kind) {
       horn.rotation.z = -s * 0.35;
       g.add(horn);
     }
+  } else if (kind === 'grandma') { // a crown of spring flowers in her curls
+    g.add(HAT_BUILDERS.flowers());
   } else if (kind === 'santa') { // a floppy red hat with a white fur brim and a pompom
     const red = mat(0xc8202a, { roughness: 0.8 }), fur = mat(0xf8f8f4, { roughness: 1 });
     const cone = mesh(new THREE.ConeGeometry(0.5, 0.95, 20, 4), red, 0, 0.3, -0.02);

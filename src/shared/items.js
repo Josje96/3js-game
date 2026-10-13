@@ -110,6 +110,7 @@ export const ITEMS = {
   // holiday goodies: only from trick-or-treating (Halloween) and Santa (Christmas), see systems/holidays.js
   candycorn:   { name: 'Candy Corn',      kind: 'consumable', heal: 8,  price: 20, holiday: 'halloween', model: 'dungeon/bottle_B_brown', tint: 0xffa020 },
   toffeeapple: { name: 'Toffee Apple',    kind: 'consumable', heal: 20, price: 50, holiday: 'halloween', model: 'dungeon/plate_food_B', tint: 0xc0302a },
+  chocolateegg: { name: 'Chocolate Egg',  kind: 'consumable', heal: 15, price: 40, holiday: 'easter', model: 'dungeon/bottle_B_brown', tint: 0x7a4a2a },
   candycane:   { name: 'Candy Cane',      kind: 'consumable', heal: 25, price: 60, holiday: 'christmas', model: 'dungeon/bottle_A_green', tint: 0xff5050 },
   petfood:     { name: 'Pet Treat',       kind: 'consumable', petHeal: 12, price: 24,  model: 'dungeon/bottle_B_brown' },
   bigtreat:    { name: 'Deluxe Treat',    kind: 'consumable', petHeal: 45, price: 90,  model: 'dungeon/plate_small' },
