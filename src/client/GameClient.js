@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { CELL, PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
 import { buildLayout, roomIndexAt } from '../shared/locations.js';
 import { DUNGEONS } from '../shared/dungeons.js';
-import { FURNITURE, DECORATOR_FLAG } from '../shared/furniture.js';
+import { FURNITURE, DECORATOR_FLAG, useVerb } from '../shared/furniture.js';
 import { FurnitureView } from './furniture.js';
 import { moveCircle } from '../shared/physics.js';
 import { ITEMS, weaponCooldown, bestHeal } from '../shared/items.js';
@@ -392,6 +392,12 @@ export class GameClient {
       }
       case 'crit': this.floatAt(msg, 'Critical!', '#ffd23f'); break; // a Keen forged weapon
       case 'feast': this.sfx.play('coin'); this.floatAt(msg, '🍗 Yum!', '#ffe9b0'); break;
+      case 'decor': { // someone used a decoration: its show, and its sound
+        this.ents.get(msg.id)?.view?.play?.(msg.use);
+        this.sfx.decor(msg.use, msg.on);
+        if (msg.use === 'hoard') this.addEffect(new Debris(msg.x, msg.z, [0xffd23f, 0xfff27a, 0xd9a93a], 16));
+        break;
+      }
       case 'nova':
         this.sfx.play('nova');
         this.addEffect(new NovaBlast(msg.x, msg.z, SPELL_RADIUS));
@@ -787,6 +793,7 @@ export class GameClient {
       if (e.owner !== this.you) return `${e.ownerName}’s bed`;
       return this.sleeping ? 'Get up' : 'Sleep (the day ends when everyone is in bed)';
     }
+    if (e.interact === 'use') return useVerb(e.item, e.on) ?? 'Use';
     return e.prompt ?? 'Use';
   }
 

@@ -18,57 +18,57 @@ export const FURNITURE = {
   feasttable: { name: 'Feast table', model: 'dungeon/table_long_tablecloth_decorated_A', price: 320, radius: 1.6 },
   bookshelf:  { name: 'Bookshelf', model: 'dungeon/shelf_large', price: 150, radius: 0.9 },
   candleshelf:{ name: 'Candle shelf', model: 'dungeon/shelf_small_candles', price: 110, radius: 0.6, light: true },
-  trunk:      { name: 'Treasure trunk', model: 'dungeon/trunk_large_A', price: 140, radius: 0.9 },
+  trunk:      { name: 'Treasure trunk', model: 'dungeon/trunk_large_A', price: 140, radius: 0.9, use: 'treasure' },
   barrel:     { name: 'Barrel', model: 'dungeon/barrel_large_decorated', price: 50, radius: 0.8 },
   kegs:       { name: 'Little kegs', model: 'dungeon/barrel_small_stack', price: 70, radius: 0.8 },
   crates:     { name: 'Crates', model: 'dungeon/box_stacked', price: 60, radius: 0.9 },
-  candles:    { name: 'Candles', model: 'dungeon/candle_triple', price: 30, radius: 0, light: true },
+  candles:    { name: 'Candles', model: 'dungeon/candle_triple', price: 30, radius: 0, light: true, use: 'light' },
   trophy:     { name: 'Sword & shield trophy', model: 'dungeon/sword_shield_gold', price: 400, radius: 0.6 },
   pillar:     { name: 'Fancy pillar', model: 'dungeon/pillar_decorated', price: 200, radius: 0.8 },
   rugred:     { name: 'Red rug', build: 'rug', color: 0xc0393b, price: 120, radius: 0 },
   rugblue:    { name: 'Blue rug', build: 'rug', color: 0x3b6fc0, price: 120, radius: 0 },
   plant:      { name: 'Potted plant', build: 'plant', price: 80, radius: 0.5 },
-  lamp:       { name: 'Floor lamp', build: 'lamp', price: 150, radius: 0.4, light: true },
+  lamp:       { name: 'Floor lamp', build: 'lamp', price: 150, radius: 0.4, light: true, use: 'light' },
   sofa:       { name: 'Comfy sofa', build: 'sofa', price: 260, radius: 1.2, seat: { face: 0 } },
-  fireplace:  { name: 'Fireplace', build: 'fireplace', price: 500, radius: 1.3, light: true },
-  aquarium:   { name: 'Fish tank', build: 'aquarium', price: 450, radius: 0.9 },
+  fireplace:  { name: 'Fireplace', build: 'fireplace', price: 500, radius: 1.3, light: true, use: 'fire' },
+  aquarium:   { name: 'Fish tank', build: 'aquarium', price: 450, radius: 0.9, use: 'aquarium' },
   petbed:     { name: 'Pet bed', build: 'petbed', price: 90, radius: 0 },
   // room decor, round 3
   desk:       { name: 'Writing desk', model: 'dungeon/table_small_decorated_B', price: 120, radius: 0.8 },
-  toytrunk:   { name: 'Toy trunk', model: 'dungeon/trunk_medium_B', price: 90, radius: 0.8 },
+  toytrunk:   { name: 'Toy trunk', model: 'dungeon/trunk_medium_B', price: 90, radius: 0.8, use: 'toybox' },
   dresser:    { name: 'Dresser', model: 'dungeon/trunk_large_B', price: 160, radius: 0.9 },
   shelfsmall: { name: 'Little shelf', model: 'dungeon/shelf_small', price: 70, radius: 0.6 },
-  clock:      { name: 'Grandfather clock', build: 'clock', price: 380, radius: 0.5 },
-  toybox:     { name: 'Toy box', build: 'toybox', price: 110, radius: 0.7 },
+  clock:      { name: 'Grandfather clock', build: 'clock', price: 380, radius: 0.5, use: 'clock' },
+  toybox:     { name: 'Toy box', build: 'toybox', price: 110, radius: 0.7, use: 'toybox' },
   ruggreen:   { name: 'Green rug', build: 'rug', color: 0x3ac06a, price: 120, radius: 0 },
   rugpurple:  { name: 'Purple rug', build: 'rug', color: 0x8a5ac0, price: 120, radius: 0 },
   // the luxury collection: for families who've been saving up
   armchair:   { name: 'Velvet armchair', build: 'armchair', color: 0x9a2a3a, price: 1900, radius: 0.7, seat: { face: 0 }, luxury: true },
   vase:       { name: 'Porcelain vase', build: 'vase', price: 1800, radius: 0.4, luxury: true },
-  candelabra: { name: 'Golden candelabra', build: 'candelabra', price: 2400, radius: 0.4, light: true, luxury: true },
-  globe:      { name: 'Explorer’s globe', build: 'globe', price: 2800, radius: 0.5, luxury: true },
+  candelabra: { name: 'Golden candelabra', build: 'candelabra', price: 2400, radius: 0.4, light: true, luxury: true, use: 'light' },
+  globe:      { name: 'Explorer’s globe', build: 'globe', price: 2800, radius: 0.5, luxury: true, use: 'globe' },
   royalrug:   { name: 'Royal rug', build: 'royalrug', price: 3000, radius: 0, luxury: true },
   library:    { name: 'Grand bookcase', build: 'library', price: 3200, radius: 1.0, luxury: true },
-  harp:       { name: 'Golden harp', build: 'harp', price: 3600, radius: 0.6, luxury: true },
+  harp:       { name: 'Golden harp', build: 'harp', price: 3600, radius: 0.6, luxury: true, use: 'harp' },
   statue:     { name: 'Marble knight statue', build: 'statue', price: 4400, radius: 0.8, luxury: true },
-  fountain:   { name: 'Indoor fountain', build: 'fountain', price: 5600, radius: 1.2, luxury: true },
-  piano:      { name: 'Grand piano', build: 'piano', price: 7000, radius: 1.5, luxury: true },
+  fountain:   { name: 'Indoor fountain', build: 'fountain', price: 5600, radius: 1.2, luxury: true, use: 'fountain' },
+  piano:      { name: 'Grand piano', build: 'piano', price: 7000, radius: 1.5, luxury: true, use: 'piano' },
   throne:     { name: 'Golden throne', build: 'throne', price: 8000, radius: 0.9, seat: { face: 0 }, luxury: true },
   // the luxury collection, part 2 (`lightY` / `lightColor` move or tint the glow)
-  rockinghorse:{ name: 'Rocking horse', build: 'rockinghorse', price: 2000, radius: 0.7, luxury: true },
+  rockinghorse:{ name: 'Rocking horse', build: 'rockinghorse', price: 2000, radius: 0.7, luxury: true, use: 'rockinghorse' },
   mirror:     { name: 'Gilded mirror', build: 'mirror', price: 2200, radius: 0.5, luxury: true },
-  birdcage:   { name: 'Golden birdcage', build: 'birdcage', price: 2400, radius: 0.5, luxury: true },
-  musicbox:   { name: 'Ballerina music box', build: 'musicbox', price: 2500, radius: 0.5, luxury: true },
+  birdcage:   { name: 'Golden birdcage', build: 'birdcage', price: 2400, radius: 0.5, luxury: true, use: 'birdcage' },
+  musicbox:   { name: 'Ballerina music box', build: 'musicbox', price: 2500, radius: 0.5, luxury: true, use: 'musicbox' },
   teaset:     { name: 'Royal tea table', build: 'teaset', price: 2600, radius: 0.8, luxury: true },
   bearrug:    { name: 'Bear rug', build: 'bearrug', price: 2800, radius: 0, luxury: true },
   tapestry:   { name: 'Royal crest tapestry', build: 'tapestry', price: 3000, radius: 0.5, luxury: true },
-  telescope:  { name: 'Brass telescope', build: 'telescope', price: 3400, radius: 0.6, luxury: true },
-  crystalball:{ name: 'Wizard’s crystal ball', build: 'crystalball', price: 3800, radius: 0.5, light: true, lightY: 1.4, lightColor: 0xb48cff, luxury: true },
-  armor:      { name: 'Suit of armour', build: 'armor', price: 4800, radius: 0.6, luxury: true },
-  bathtub:    { name: 'Golden bathtub', build: 'bathtub', price: 5200, radius: 1.1, luxury: true },
-  chandelier: { name: 'Crystal chandelier', build: 'chandelier', price: 6000, radius: 0, light: true, lightY: 2.6, luxury: true },
-  organ:      { name: 'Pipe organ', build: 'organ', price: 9000, radius: 1.3, luxury: true },
-  hoard:      { name: 'Dragon’s hoard', build: 'hoard', price: 12000, radius: 1.1, luxury: true },
+  telescope:  { name: 'Brass telescope', build: 'telescope', price: 3400, radius: 0.6, luxury: true, use: 'telescope' },
+  crystalball:{ name: 'Wizard’s crystal ball', build: 'crystalball', price: 3800, radius: 0.5, light: true, lightY: 1.4, lightColor: 0xb48cff, luxury: true, use: 'crystalball' },
+  armor:      { name: 'Suit of armour', build: 'armor', price: 4800, radius: 0.6, luxury: true, use: 'armor' },
+  bathtub:    { name: 'Golden bathtub', build: 'bathtub', price: 5200, radius: 1.1, luxury: true, use: 'bathtub' },
+  chandelier: { name: 'Crystal chandelier', build: 'chandelier', price: 6000, radius: 0, light: true, lightY: 2.6, luxury: true, use: 'light' },
+  organ:      { name: 'Pipe organ', build: 'organ', price: 9000, radius: 1.3, luxury: true, use: 'organ' },
+  hoard:      { name: 'Dragon’s hoard', build: 'hoard', price: 12000, radius: 1.1, luxury: true, use: 'hoard' },
 };
 
 /** Wall colours for the fort (painted over the stone walls). `price` 0 = the one you start with. */
@@ -114,4 +114,38 @@ export function blanketFor(playerId) {
   let h = 0;
   for (const ch of String(playerId)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return BLANKETS[h % BLANKETS.length];
+}
+
+/**
+ * What a piece does when you press E on it (`use` on the furniture). `verb` is the prompt;
+ * `toggle` pieces switch on and off (the bath fills, lamps light) and remember it until the fort
+ * reloads; `startOn` = how they come. `say` = a line or two you get told (picked at random).
+ */
+export const USES = {
+  piano:        { verb: 'Play the piano' },
+  organ:        { verb: 'Play the pipe organ' },
+  harp:         { verb: 'Strum the harp' },
+  musicbox:     { verb: 'Wind up the music box' },
+  globe:        { verb: 'Spin the globe' },
+  rockinghorse: { verb: 'Rock the horse' },
+  birdcage:     { verb: 'Whistle to the bird' },
+  aquarium:     { verb: 'Feed the fish' },
+  hoard:        { verb: 'Count the treasure' },
+  armor:        { verb: 'Salute the knight' },
+  toybox:       { verb: 'Rummage for a toy', say: ['You find a squeaky duck! 🦆', 'A wooden sword — en garde!', 'A spinning top whirrs across the floor.', 'A teddy bear. It looks pleased to see you. 🧸'] },
+  treasure:     { verb: 'Open the trunk', say: ['Just old maps and a lot of dust.', 'A love letter… from Grandpa to Grandma! 💌', 'Spare socks. Very glamorous.'] },
+  crystalball:  { verb: 'Gaze into the crystal ball', say: ['🔮 I see… a great treasure, deep in the mine.', '🔮 Beware the one with the crown…', '🔮 A friend will share their gold with you soon.', '🔮 The stars say: eat more pie.', '🔮 Someone in this family snores. Loudly.'] },
+  telescope:    { verb: 'Look through the telescope', say: ['🔭 A shooting star! Make a wish.', '🔭 You can see the Old Mine from up here.', '🔭 A dragon? No… just a very big bird.', '🔭 The moon has a face. It winks at you.'] },
+  clock:        { verb: 'Check the clock' },
+  bathtub:      { verb: ['Fill the bath', 'Empty the bath'], toggle: true },
+  fire:         { verb: ['Light the fire', 'Put out the fire'], toggle: true, startOn: true },
+  light:        { verb: ['Light it', 'Put it out'], toggle: true, startOn: true },
+  fountain:     { verb: ['Turn the fountain on', 'Turn the fountain off'], toggle: true, startOn: true },
+};
+
+/** The E prompt for a placed piece (`on` = a toggle piece's state). */
+export function useVerb(item, on) {
+  const u = USES[FURNITURE[item]?.use];
+  if (!u) return null;
+  return Array.isArray(u.verb) ? u.verb[on ? 1 : 0] : u.verb;
 }

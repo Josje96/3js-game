@@ -1,14 +1,26 @@
 // decor — decorating the Family Fort. The Decorator (in the town market, once the King Slime is
 // beaten) sells furniture, wall colours and floors. Furniture belongs to the whole family: bought
 // pieces wait in save.house.owned until someone places them in the fort (build mode, B).
-import { INTERACT_RANGE, CELL } from '../../shared/config.js';
-import { FURNITURE, WALL_STYLES, FLOOR_STYLES, DECORATOR_FLAG } from '../../shared/furniture.js';
+import { INTERACT_RANGE, CELL, DAY_SECONDS } from '../../shared/config.js';
+import { FURNITURE, WALL_STYLES, FLOOR_STYLES, DECORATOR_FLAG, USES } from '../../shared/furniture.js';
 import { roomIndexAt } from '../../shared/locations.js';
 import { blocked, dist2 } from '../../shared/physics.js';
 import { HALL } from '../../shared/fort.js';
 
 export const interactions = {
   decorator(p) { this.send(p, { t: 'ui', kind: 'decorator' }); },
+  /** E on a decoration: play the piano, fill the bath, light the lamp... (shared/furniture.js USES) */
+  use(p, e, loc) {
+    const def = FURNITURE[e.item], use = USES[def?.use];
+    if (!use || !loc) return;
+    if (use.toggle) { e.on = !e.on; e._dirty = true; }
+    this.sendToLocation(loc.key, { t: 'fx', kind: 'decor', id: e.id, use: def.use, on: !!e.on, x: e.x, z: e.z });
+    if (use.say) this.toast(p, use.say[Math.floor(Math.random() * use.say.length)]);
+    if (def.use === 'clock') {
+      const left = Math.max(0, Math.ceil((DAY_SECONDS - this.dayClock) / 60));
+      this.toast(p, `🕰 Tick, tock… about ${left} minute${left === 1 ? '' : 's'} until night falls.`);
+    }
+  },
   /** A chair, stool, sofa or town bench: sit down on it (walking off gets you up again). */
   sit(p, seat) {
     const def = seat.seat ? seat : FURNITURE[seat.item]; // a map prop (bench) carries its own seat
@@ -47,7 +59,9 @@ export const methods = {
     const x = o.x + f.dx, z = o.z + f.dz;
     if (roomIndexAt(L, Math.floor(x / CELL), Math.floor(z / CELL)) !== (f.room ?? -1)) return null;
     if (blocked(L, x, z, Math.max(def.radius, 0.4) * 0.9, L.solids)) return null;
-    return loc.spawn({ type: 'furniture', item: f.item, fid: f.id, x, z, rot: f.rot ?? 0, r: def.radius, ...(def.seat ? { interact: 'sit', prompt: 'Sit' } : {}) });
+    const use = USES[def.use];
+    return loc.spawn({ type: 'furniture', item: f.item, fid: f.id, x, z, rot: f.rot ?? 0, r: def.radius,
+      ...(def.seat ? { interact: 'sit', prompt: 'Sit' } : use ? { interact: 'use', on: !!use.startOn } : {}) });
   },
 
   decoratorOpen() {

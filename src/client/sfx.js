@@ -79,6 +79,35 @@ export class Sfx {
 
   // ------------------------------------------------------------------ the sounds
 
+  /** Decorations played with E (shared/furniture.js USES). */
+  decor(use, on) {
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    const n = (m) => 440 * 2 ** ((m - 69) / 12);
+    const tune = (notes, { step = 0.22, dur = 0.5, vol = 0.12, type = 'triangle', oct = 0 } = {}) => notes.forEach((m, i) => {
+      if (m != null) this.tone({ type, from: n(m + oct), at: i * step, dur, vol });
+    });
+    switch (use) {
+      case 'piano': tune([67, 72, 76, 79, 76, 72, 74, 77, 81, 79], { step: 0.2, dur: 0.6 }); break;
+      case 'organ': [[48, 55, 60, 64], [53, 57, 60, 65], [55, 59, 62, 67], [48, 55, 60, 64]].forEach((ch, i) => ch.forEach((m) => this.tone({ type: 'sawtooth', from: n(m), at: i * 0.6, dur: 0.75, vol: 0.035 }))); break;
+      case 'harp': this.arpeggio([60, 64, 67, 72, 76, 79, 84].map(n), { step: 0.09, dur: 1.0, vol: 0.09 }); break;
+      case 'musicbox': [84, 88, 91, 88, 86, 84, 83, 86, 84].forEach((m, i) => this.ping(n(m), { at: i * 0.28, dur: 0.6, vol: 0.06 })); break;
+      case 'birdcage': for (let i = 0; i < 4; i++) this.tone({ type: 'sine', from: 2400 + i * 200, to: 3600, at: i * 0.14, dur: 0.09, vol: 0.06 }); break;
+      case 'globe': this.noise({ dur: 0.9, vol: 0.06, type: 'bandpass', from: 700, to: 300 }); break;
+      case 'rockinghorse': for (let i = 0; i < 4; i++) this.tone({ type: 'triangle', from: 160, to: 120, at: i * 0.5, dur: 0.15, vol: 0.08 }); break;
+      case 'aquarium': for (let i = 0; i < 6; i++) this.tone({ type: 'sine', from: 500 + i * 90, to: 900 + i * 90, at: i * 0.12, dur: 0.07, vol: 0.05 }); break;
+      case 'hoard': this.coin(); this.chest(); break;
+      case 'armor': this.clang(); break;
+      case 'toybox': case 'treasure': this.chest(); break;
+      case 'crystalball': this.arpeggio([n(76), n(80), n(83), n(88)], { step: 0.15, dur: 0.9, vol: 0.06 }); break;
+      case 'telescope': this.ping(n(96), { dur: 0.8, vol: 0.06 }); break;
+      case 'clock': for (let i = 0; i < 4; i++) this.tone({ type: 'square', from: i % 2 ? 1400 : 1100, at: i * 0.3, dur: 0.04, vol: 0.04 }); break;
+      case 'bathtub': this.noise({ dur: on ? 1.4 : 0.9, vol: 0.12, type: 'lowpass', from: on ? 1800 : 900, to: on ? 900 : 300 }); break;
+      case 'fountain': this.noise({ dur: 0.8, vol: 0.08, type: 'highpass', from: 2000 }); break;
+      case 'fire': case 'light': on ? this.tone({ type: 'sine', from: 300, to: 900, dur: 0.15, vol: 0.06 }) : this.noise({ dur: 0.3, vol: 0.06, type: 'highpass', from: 1500 }); break;
+      default: this.pop();
+    }
+  }
+
   whoosh() { // a swing through the air
     this.noise({ dur: 0.16, vol: 0.14, type: 'bandpass', from: 500, to: 1400, q: 1.2 });
   }

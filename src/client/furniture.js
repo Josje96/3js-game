@@ -1013,19 +1013,120 @@ export class FurnitureView {
       this.root.add(this.label);
     }
     this.t = Math.random() * 10;
+    this.use = def.use;
+    this.fx = [];          // little things floating off it while it's being used (notes, bubbles...)
+    this.anim = null;      // { use, t }: what it's doing after an E press
+    this.setOn(e.on ?? true);
   }
   apply(e) {
     this.root.position.set(e.x, 0, e.z);
     this.root.rotation.y = e.rot ?? this.root.rotation.y;
+    if (e.on != null) this.setOn(e.on);
   }
+
+  /** The show after an E press: spinning, rocking, hopping, and notes or bubbles drifting up. */
+  animate(dt) {
+    const a = this.anim, i = this.inner;
+    if (this.bubbles && this.on) this.bubbles.forEach((b, k) => { b.position.y = this.water.position.y + 0.06 + Math.abs(Math.sin(this.t * 2 + k)) * 0.05; });
+    if (a) {
+      a.t += dt;
+      const fade = Math.max(0, 1 - a.t / 3);
+      i.rotation.set(0, 0, 0);
+      i.position.y = 0;
+      if (a.use === 'globe') i.rotation.y = (1 - fade * fade) * Math.PI * 6;
+      else if (a.use === 'rockinghorse') i.rotation.x = Math.sin(a.t * 6) * 0.22 * fade;
+      else if (a.use === 'birdcage' || a.use === 'toybox' || a.use === 'treasure' || a.use === 'hoard') i.position.y = Math.abs(Math.sin(a.t * 12)) * 0.1 * fade;
+      else if (a.use === 'armor') i.rotation.z = Math.sin(a.t * 20) * 0.05 * fade;
+      else if (a.use === 'musicbox' || a.use === 'piano' || a.use === 'organ' || a.use === 'harp') i.scale.setScalar(1 + Math.abs(Math.sin(a.t * 8)) * 0.02 * fade);
+      if (a.t > 3) { this.anim = null; i.rotation.set(0, 0, 0); i.position.y = 0; i.scale.setScalar(1); }
+    }
+    // music notes / bubbles drifting up off it
+    for (const f of this.fx) {
+      f.at -= dt;
+      if (f.at > 0) continue;
+      if (!f.sprite) {
+        f.sprite = f.kind === 'note' ? noteSprite() : bubbleSprite();
+        f.x = (Math.random() - 0.5) * 1.2;
+        f.z = (Math.random() - 0.5) * 0.8;
+        this.root.add(f.sprite);
+      }
+      f.life = (f.life ?? 0) + dt;
+      const u = f.life / 2;
+      f.sprite.position.set(f.x + Math.sin(f.life * 4) * 0.2, 1.4 + u * 2.2, f.z);
+      f.sprite.material.opacity = Math.max(0, 1 - u);
+    }
+    for (const f of this.fx) if (f.life > 2) f.sprite.removeFromParent();
+    this.fx = this.fx.filter((f) => !(f.life > 2));
+  }
+
+  /** Toggle pieces: lights and fires out, the bath full or empty, the fountain running or not. */
+  setOn(on) {
+    if (this.on === on) return;
+    this.on = on;
+    this.inner.traverse((o) => { if (o.userData.flicker) o.visible = on; });
+    if (this.use === 'bathtub') {
+      if (!this.water) {
+        const box = new THREE.Box3().setFromObject(this.inner), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+        this.water = new THREE.Mesh(new THREE.BoxGeometry(size.x * 0.78, 0.05, size.z * 0.7), new THREE.MeshStandardMaterial({ color: 0x8fd8ff, transparent: true, opacity: 0.75, roughness: 0.05, emissive: 0x1a4a6a }));
+        this.water.position.set(mid.x, box.min.y + size.y * 0.55, mid.z);
+        this.inner.add(this.water);
+        this.bubbles = [];
+        for (let i = 0; i < 7; i++) {
+          const b = new THREE.Mesh(new THREE.SphereGeometry(0.09 + (i % 3) * 0.04, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, roughness: 0.2 }));
+          b.position.set(mid.x + (Math.sin(i * 2.3) * size.x * 0.3), this.water.position.y + 0.06, mid.z + Math.cos(i * 1.7) * size.z * 0.25);
+          this.inner.add(b);
+          this.bubbles.push(b);
+        }
+      }
+      this.water.visible = on;
+      for (const b of this.bubbles) b.visible = on;
+    }
+  }
+
+  /** Someone pressed E on it: start its little show (sounds are in GameClient). */
+  play(use) {
+    this.anim = { use, t: 0 };
+    if (['piano', 'organ', 'harp', 'musicbox'].includes(use)) for (let i = 0; i < 6; i++) this.fx.push({ kind: 'note', at: i * 0.45 });
+    if (use === 'aquarium' || (use === 'fountain' && this.on)) for (let i = 0; i < 8; i++) this.fx.push({ kind: 'bubble', at: i * 0.15 });
+  }
+
   update(dt) {
     this.t += dt;
     this.inner.userData.update?.(this.t); // ticking clocks, flapping... anything animated
-    if (this.light) this.light.intensity = 7 + Math.sin(this.t * 7) * 0.8 + Math.sin(this.t * 17) * 0.5;
+    if (this.light) this.light.intensity = this.on ? 7 + Math.sin(this.t * 7) * 0.8 + Math.sin(this.t * 17) * 0.5 : 0;
+    this.animate(dt);
     this.inner.traverse((o) => {
       if (o.userData.flicker) o.scale.set(1 + Math.sin(this.t * 13) * 0.1, 1 + Math.sin(this.t * 9) * 0.2, 1);
       if (o.userData.swim != null) { const i = o.userData.swim; o.position.x = Math.sin(this.t * 0.8 + i * 2) * 0.6; o.rotation.y = Math.cos(this.t * 0.8 + i * 2) > 0 ? 0 : Math.PI; }
     });
   }
   dispose() { this.root.removeFromParent(); }
+}
+
+let noteTex = null;
+/** A floating ♪ for music-making furniture. */
+function noteSprite() {
+  if (!noteTex) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const ctx = c.getContext('2d');
+    ctx.font = 'bold 52px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = 'rgba(40,20,60,0.8)';
+    ctx.strokeText('♪', 32, 34);
+    ctx.fillStyle = '#ffe680';
+    ctx.fillText('♪', 32, 34);
+    noteTex = new THREE.CanvasTexture(c);
+    noteTex.colorSpace = THREE.SRGBColorSpace;
+  }
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: noteTex, transparent: true, depthWrite: false }));
+  s.scale.setScalar(0.5);
+  return s;
+}
+
+function bubbleSprite() {
+  const s = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), new THREE.MeshStandardMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.8, roughness: 0.1 }));
+  return s;
 }

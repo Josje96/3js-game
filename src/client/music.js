@@ -53,7 +53,8 @@ const RHYTHMS = [
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const midiHz = (m) => 440 * 2 ** ((m - 69) / 12);
 const STORE_KEY = 'fdg.music';
-const MUSIC_LEVEL = 0.48; // music sits under the sound effects (was 0.8)
+const MASTER_LEVEL = 0.8;  // everything (music and sound effects) at the volume slider
+const MUSIC_MIX = 0.55;    // the music alone sits this far under the sound effects
 
 export class Music {
   constructor() {
@@ -76,7 +77,7 @@ export class Music {
       if (!AC) return;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = this.muted ? 0 : this.volume * MUSIC_LEVEL;
+      this.master.gain.value = this.muted ? 0 : this.volume * MASTER_LEVEL;
       // a little room: convolution reverb from decaying noise + a soft echo
       this.reverb = this.ctx.createConvolver();
       this.reverb.buffer = this.impulse(2.6);
@@ -88,8 +89,13 @@ export class Music {
       this.echo.connect(this.echoFb).connect(this.echo);
       this.echo.connect(this.wet);
       this.bus = this.ctx.createGain(); // per-mood fade in/out
-      this.bus.connect(this.master);
-      this.bus.connect(this.reverb).connect(this.wet).connect(this.master);
+      // the music goes through its own quieter mix before the master; sound effects go straight
+      // to the master (client/sfx.js), so they stand out over the music
+      this.musicMix = this.ctx.createGain();
+      this.musicMix.gain.value = MUSIC_MIX;
+      this.musicMix.connect(this.master);
+      this.bus.connect(this.musicMix);
+      this.bus.connect(this.reverb).connect(this.wet).connect(this.musicMix);
       this.master.connect(this.ctx.destination);
       this.timer = setInterval(() => this.schedule(), 100);
       document.addEventListener('visibilitychange', () => {
@@ -113,7 +119,7 @@ export class Music {
 
   setVolume(v) { this.volume = v; this.applyGain(); this.store(); }
   toggleMute() { this.muted = !this.muted; this.applyGain(); this.store(); return this.muted; }
-  applyGain() { this.master?.gain.setTargetAtTime(this.muted ? 0 : this.volume * MUSIC_LEVEL, this.ctx.currentTime, 0.1); }
+  applyGain() { this.master?.gain.setTargetAtTime(this.muted ? 0 : this.volume * MASTER_LEVEL, this.ctx.currentTime, 0.1); }
   store() { try { localStorage.setItem(STORE_KEY, JSON.stringify({ volume: this.volume, muted: this.muted })); } catch { /* ignore */ } }
 
   /** Switch to a mood ('home', 'town', 'mine', 'ruins', 'boss'): fade out, start a new piece. */

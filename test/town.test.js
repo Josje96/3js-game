@@ -215,3 +215,23 @@ test('town: the whole gap in the training yard fence can be walked through, the 
   assert.ok(blocked(L, 4 * 4 + 2, gap.z, PLAYER_RADIUS, L.solids), 'a fence rail still blocks');
   assert.ok(blocked(L, 2 * 4 + 2, 20 * 4 + 2, PLAYER_RADIUS, L.solids), 'the side fence too');
 });
+
+test('decor: press E on a decoration — the piano plays, the bath fills and empties, lamps go out', () => {
+  const { server, save, c, p } = world('usedecor', 'mom');
+  server.travel(p.mom, 'house');
+  const loc = server.locations.get('house');
+  const put = (item, x, z) => { const f = { id: item, item, room: -1, dx: x - 4, dz: z - 20, rot: 0 }; save.house.furniture.push(f); return server.spawnFurniture(loc, f); };
+  const piano = put('piano', 12, 30), bath = put('bathtub', 30, 30), lamp = put('lamp', 30, 22);
+  assert.equal(piano.interact, 'use');
+  const use = (e) => { p.mom.x = e.x; p.mom.z = e.z + 2.4; c.mom.clear(); c.mom.say({ t: 'interact', id: e.id }); };
+  use(piano);
+  assert.ok(c.mom.all('fx').some((m) => m.kind === 'decor' && m.use === 'piano'), 'it plays');
+  assert.equal(bath.on, false);
+  use(bath);
+  assert.equal(bath.on, true, 'the bath fills');
+  use(bath);
+  assert.equal(bath.on, false, 'and empties');
+  assert.equal(lamp.on, true, 'lamps come lit');
+  use(lamp);
+  assert.equal(lamp.on, false);
+});
