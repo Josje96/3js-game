@@ -69,7 +69,11 @@ export const methods = {
     const def = DUNGEONS[dungeonId], biome = biomeFor(dungeonId, floor);
     const firstTime = !this.save.flags[biome.boss.flag];
     this.save.flags[biome.boss.flag] = true;
-    for (let i = 0; i < 5; i++) this.dropItem(loc, boss, 'gold', Math.ceil((ENEMIES[boss.variant].gold[0] * (boss.goldMul ?? 1)) / 5));
+    for (const q of this.lootSharers(loc, boss)) { // a pile of gold for each fighter
+      this._lootFor = q?.id;
+      for (let i = 0; i < 5; i++) this.dropItem(loc, boss, 'gold', Math.ceil((ENEMIES[boss.variant].gold[0] * (boss.goldMul ?? 1)) / 5));
+    }
+    this._lootFor = null;
     let news = `${boss.name} was defeated!`;
     if (firstTime && biome.boss.flag === 'mineCleared') news += ' A new stall has opened in the town market — the Decorator!';
     if (floor < def.floors) {

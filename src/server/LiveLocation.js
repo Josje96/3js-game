@@ -14,6 +14,7 @@ const RADIUS = { rock: 1.0, chest: 1.0, barrel: 0.75, slime: 0.7, drop: 0.3, lad
 export const SOLID_TYPES = new Set(['rock', 'chest', 'barrel', 'furniture', 'dummy']);
 
 const HITTABLE = new Set(['rock', 'slime', 'chest', 'barrel', 'dummy']);
+const LOOT_PRIVATE = 30; // seconds a share of a kill's loot stays its owner's alone
 
 export class LiveLocation {
   constructor(server, key, seed, opts = {}) {
@@ -303,7 +304,9 @@ export class LiveLocation {
 
   tickDrop(e, dt, players) {
     // drops drift towards nearby players, then get picked up
+    const mine = e.owner && this.server.time - (e._born ?? 0) < LOOT_PRIVATE; // someone's own share of a kill
     for (const p of players) {
+      if (mine && p.id !== e.owner) continue;
       const d2 = dist2(e, p);
       if (d2 < PICKUP_RANGE * PICKUP_RANGE) {
         this.server.pickup(p, e);

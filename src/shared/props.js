@@ -49,7 +49,7 @@ export const PROPS = {
   decorator:  { npc: 'Rogue', npcName: 'Decorator', npcLook: { hat: 'tophat', clothes: 'suit', hair: 'suave', hairColor: 'ginger', face: 'monocle', cape: 'none' },
                 radius: 2.3, offsetZ: -0.9, blocks: STALL_BLOCKS, interact: 'decorator', prompt: 'Decorator (furniture, walls & floors)', stall: 0x7a52b8,
                 requiresFlag: 'mineCleared' },
-  spring:     { build: 'springSign', radius: 0.5, offsetZ: 1.2, interact: 'spring', prompt: 'Healing spring — full heal for 5 gold' },
+  spring:     { build: 'springSign', radius: 0.5, offsetZ: 1.2, interact: 'spring', prompt: 'Healing spring — full heal for 50 gold, and 🍀 luck' },
   forge:      { build: 'forge', npc: 'Barbarian', npcName: 'Blacksmith', radius: 2.0, offsetZ: -0.6, blocks: [[-2.2, 0.2, 1.05], [0, 0.9, 0.9], [0, -0.6, 1.0]], interact: 'forge', prompt: 'Blacksmith (weapons, shields, armor & forging)' },
   mirror:     { build: 'mirror', radius: 0.7, offsetZ: -1.3, interact: 'mirror', prompt: 'Mirror (hair & face)' },
   wardrobe:   { build: 'wardrobe', radius: 1.2, offsetZ: -0.9, interact: 'wardrobe', prompt: 'Wardrobe (change outfit)' },

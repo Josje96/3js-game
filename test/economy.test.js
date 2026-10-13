@@ -117,3 +117,22 @@ test('economy: forged weapons have perks — keen crits, vampiric heals, frost f
   server.hitSlime(p.a, loc, boss, 100);
   assert.equal(1e6 - boss.hp, Math.round(100 * PERK_GIANT));
 });
+
+test('co-op: everyone fighting near a kill gets their own loot, which only they can pick up', async () => {
+  const { world } = await import('./helpers.js');
+  const { server, p } = world('share', 'mom', 'kid');
+  for (const id of ['mom', 'kid']) server.travel(p[id], 'mine/2', 'U');
+  const loc = server.locations.get(p.mom.loc);
+  for (const e of [...loc.entities.values()]) if (e.type === 'slime' || e.type === 'drop') loc.remove(e.id);
+  p.kid.x = p.mom.x + 2; p.kid.z = p.mom.z;
+  const e = loc.spawn({ type: 'slime', variant: 'green', x: p.mom.x + 1, z: p.mom.z, hp: 1, maxHp: 1, damage: 0, speed: 0, goldMul: 1 });
+  server.hitSlime(p.mom, loc, e, 99);
+  const gold = [...loc.entities.values()].filter((d) => d.type === 'drop' && d.item === 'gold');
+  assert.deepEqual(gold.map((d) => d.owner).sort(), ['kid', 'mom'], 'a pile each');
+  // the kid can't take mom's
+  const momsPile = gold.find((d) => d.owner === 'mom');
+  const kidGold = p.kid.gold;
+  p.kid.x = momsPile.x; p.kid.z = momsPile.z; p.mom.x += 30;
+  loc.tickDrop(momsPile, 0.05, [p.kid]);
+  assert.ok(loc.entities.has(momsPile.id) && p.kid.gold === kidGold, 'not the kid’s to take');
+});

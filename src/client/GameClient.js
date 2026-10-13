@@ -248,7 +248,7 @@ export class GameClient {
   }
 
   addEnt(e) {
-    const view = makeEntityView(e);
+    const view = e.type === 'drop' && e.owner && e.owner !== this.you ? null : makeEntityView(e); // someone else's share of the loot
     if (view) this.scene.add(view.root);
     this.ents.set(e.id, { data: e, view });
   }

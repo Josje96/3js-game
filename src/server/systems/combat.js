@@ -5,6 +5,8 @@ import { ITEMS, weaponCooldown, weaponImpact, rollGearDrop, rollBlueprint, isGea
 import { XP, attackDamage } from '../../shared/progression.js';
 import { dist2 } from '../../shared/physics.js';
 
+const LOOT_SHARE_RANGE = 18; // fighting this close to a kill gets you your own share of its loot
+
 export const methods = {
   /** Dodge roll: a moment of invulnerability. (Movement itself is the client's.) */
   on_roll(p) {
@@ -111,12 +113,18 @@ export const methods = {
     }
     if (e.seasonal) return this.seasonBossDefeated(loc, e, p); // the season's boss in town: its own loot
     const [lo, hi] = ENEMIES[e.variant].gold;
-    this.dropItem(loc, e, 'gold', Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (e.goldMul ?? 1) * (lucky ? LUCK_GOLD : 1)));
-    if (Math.random() < 0.3) this.dropItem(loc, e, 'slimegoo', 1);
-    if (e.boss || Math.random() < 0.035 * (lucky ? LUCK_GEAR : 1)) this.dropGear(loc, e, e.boss ? 4 : 0);
-    if (e.boss) this.dropBlueprint(loc, e, 4);
-    const essence = this.essenceFrom(e, loc.layout.depth ?? 1); // for the Enchanter: rare
-    if (essence) this.dropItem(loc, e, 'essence', essence);
+    // co-op: everyone fighting nearby gets their own loot, rolled for them (only they see and pick it up)
+    for (const q of this.lootSharers(loc, e, p)) {
+      this._lootFor = q.id;
+      const luckyQ = q.luckUntil > this.time;
+      this.dropItem(loc, e, 'gold', Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (e.goldMul ?? 1) * (luckyQ ? LUCK_GOLD : 1)));
+      if (Math.random() < 0.3) this.dropItem(loc, e, 'slimegoo', 1);
+      if (e.boss || Math.random() < 0.035 * (luckyQ ? LUCK_GEAR : 1)) this.dropGear(loc, e, e.boss ? 4 : 0);
+      if (e.boss) this.dropBlueprint(loc, e, 4);
+      const essence = this.essenceFrom(e, loc.layout.depth ?? 1); // for the Enchanter: rare
+      if (essence) this.dropItem(loc, e, 'essence', essence);
+    }
+    this._lootFor = null;
     this.sendToLocation(loc.key, { t: 'fx', kind: 'pop', x: e.x, z: e.z, variant: e.variant });
     this.shareXp(loc, e.boss ? XP.boss : XP.slime(e.maxHp));
     if (e.boss) this.bossDefeated(loc, e);
@@ -159,7 +167,7 @@ export const methods = {
   /** A blueprint scroll; which recipe is decided when someone picks it up (so it's new to them). */
   dropBlueprint(loc, at, bonusDepth = 0) {
     const a = Math.random() * Math.PI * 2;
-    loc.spawn({ type: 'drop', item: 'blueprint', qty: 1, depth: (loc.layout.depth ?? 1) + bonusDepth, x: at.x + Math.cos(a) * 0.6, z: at.z + Math.sin(a) * 0.6 });
+    loc.spawn({ type: 'drop', item: 'blueprint', qty: 1, depth: (loc.layout.depth ?? 1) + bonusDepth, x: at.x + Math.cos(a) * 0.6, z: at.z + Math.sin(a) * 0.6, ...this.lootTag() });
   },
 
   /** A weapon or shield on the floor; how good depends on how deep we are. */
@@ -167,9 +175,21 @@ export const methods = {
     this.dropItem(loc, at, rollGearDrop((loc.layout.depth ?? 1) + bonusDepth), 1);
   },
 
+  /** Everyone fighting near a kill (alive, here, within LOOT_SHARE_RANGE) — and whoever made it. */
+  lootSharers(loc, at, killer) {
+    const near = loc.livePlayers().filter((q) => dist2(q, at) < LOOT_SHARE_RANGE * LOOT_SHARE_RANGE);
+    if (killer && !near.includes(killer)) near.push(killer);
+    return near.length ? near : [null];
+  },
+
+  /** A drop on the floor. While `_lootFor` is set (a kill's shared loot) it's that player's alone, for a while. */
   dropItem(loc, at, item, qty) {
     const a = Math.random() * Math.PI * 2, r = Math.random() * 0.8;
-    loc.spawn({ type: 'drop', item, qty, x: at.x + Math.cos(a) * r, z: at.z + Math.sin(a) * r });
+    loc.spawn({ type: 'drop', item, qty, x: at.x + Math.cos(a) * r, z: at.z + Math.sin(a) * r, ...this.lootTag() });
+  },
+
+  lootTag() {
+    return this._lootFor ? { owner: this._lootFor, _born: this.time } : {};
   },
 
   pickup(p, drop) {
