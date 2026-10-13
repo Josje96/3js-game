@@ -342,7 +342,7 @@ export class GameServer {
     // a static prop from the map, or an entity that can be used (beds, furniture...)
     const target = loc?.layout.props.find((q) => q.id === id) ?? loc?.entities.get(id);
     if (!target?.interact || useDistance(target, p) > INTERACT_RANGE) return;
-    if (target.requiresFlag && !this.save.flags[target.requiresFlag]) return this.toast(p, 'Closed for now — it opens once the King Slime at the bottom of the Old Mine is beaten.'); // not in town yet
+    if (target.requiresFlag && !this.save.flags[target.requiresFlag]) return this.toast(p, 'Closed for now — it opens once the Goblin King at the bottom of the Old Mine is beaten.'); // not in town yet
     const handler = INTERACTIONS[target.interact];
     if (handler) handler.call(this, p, target, loc);
     else this.log(`[server] nothing handles interact '${target.interact}'`);

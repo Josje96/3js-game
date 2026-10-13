@@ -46,7 +46,7 @@ export const ITEMS = {
   // --- forged at the anvil in town from a blueprint (never sold). `tint` recolours the model ---
   copperblade:  { name: 'Copper Blade',     kind: 'weapon', damage: 5,  forged: true, perk: 'keen', model: 'items/sword_1handed', swing: 'slash', tint: 0xe08a4a },
   silverbow:    { name: 'Silver Bow',       kind: 'weapon', damage: 6,  forged: true, perk: 'frost', model: 'items/bow_withString', swing: 'cast', ranged: 'arrow', tint: 0xd8e4f0 },
-  slimewand:    { name: 'Slime Wand',       kind: 'weapon', damage: 6,  forged: true, perk: 'vampiric', model: 'items/wand', swing: 'cast', ranged: 'magic', tint: 0x7cff6a },
+  slimewand:    { name: 'Goblin Wand',       kind: 'weapon', damage: 6,  forged: true, perk: 'vampiric', model: 'items/wand', swing: 'cast', ranged: 'magic', tint: 0x7cff6a },
   silvershield: { name: 'Silver Shield',    kind: 'shield', block: 0.4, forged: true, model: 'items/shield_square_color', tint: 0xdde8ff },
   goldenaxe:    { name: 'Golden Greataxe',  kind: 'weapon', damage: 9,  forged: true, perk: 'giant', model: 'items/axe_2handed', swing: 'chop', tint: 0xffd23f },
   crystalstaff: { name: 'Crystal Staff',    kind: 'weapon', damage: 10, forged: true, perk: 'frost', model: 'items/staff', swing: 'cast', ranged: 'magic', tint: 0x7fe8ff },
@@ -119,7 +119,7 @@ export const ITEMS = {
   copper:      { name: 'Copper Ore',      kind: 'loot', sell: 4,  model: 'blocks/stone_with_copper' },
   silver:      { name: 'Silver Ore',      kind: 'loot', sell: 8,  model: 'blocks/stone_with_silver' },
   goldore:     { name: 'Gold Ore',        kind: 'loot', sell: 18, model: 'blocks/stone_with_gold' },
-  slimegoo:    { name: 'Slime Goo',       kind: 'loot', sell: 2,  model: 'dungeon/bottle_B_green' },
+  slimegoo:    { name: 'Goblin Grog',       kind: 'loot', sell: 2,  model: 'dungeon/bottle_B_green' },
   mythril:     { name: 'Mythril Ore',     kind: 'loot', sell: 30, model: 'blocks/stone_with_silver', tint: 0x7fd8ff },
   obsidian:    { name: 'Obsidian',        kind: 'loot', sell: 55, model: 'blocks/stone_dark', tint: 0x9a6ad0 },
   // gem ores: rarer than metal, sparkly rocks deeper down (client/views.js RockView). `glow` = the gem's shine

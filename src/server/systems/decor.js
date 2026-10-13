@@ -1,4 +1,4 @@
-// decor — decorating the Family Fort. The Decorator (in the town market, once the King Slime is
+// decor — decorating the Family Fort. The Decorator (in the town market, once the Goblin King is
 // beaten) sells furniture, wall colours and floors. Furniture belongs to the whole family: bought
 // pieces wait in save.house.owned until someone places them in the fort (build mode, B).
 import { INTERACT_RANGE, CELL, DAY_SECONDS } from '../../shared/config.js';

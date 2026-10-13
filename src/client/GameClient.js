@@ -737,7 +737,7 @@ export class GameClient {
     if (input.consume('build')) {
       if (this.building) this.stopBuilding();
       else if (!home) this.hud.toast('Build mode is for decorating the fort — press B at home.');
-      else if (!this.world?.flags?.[DECORATOR_FLAG]) this.hud.toast('The Decorator comes to town once the King Slime is beaten. Then you can buy furniture!');
+      else if (!this.world?.flags?.[DECORATOR_FLAG]) this.hud.toast('The Decorator comes to town once the Goblin King is beaten. Then you can buy furniture!');
       else { this.building = { item: null, rot: 0 }; this.hud.openBuild(this); }
     }
     if (!this.building) return;
@@ -804,7 +804,7 @@ export class GameClient {
       const d = useDistance(t, this.pos);
       if (d < INTERACT_RANGE && d < bestD) { best = { id: t.id, prompt }; bestD = d; }
     };
-    for (const p of this.layout.props) if (p.interact && !p.hidden) consider(p, p.requiresFlag && !this.world?.flags?.[p.requiresFlag] ? 'Closed — the Decorator opens once the King Slime (bottom of the Old Mine) is beaten' : p.prompt);
+    for (const p of this.layout.props) if (p.interact && !p.hidden) consider(p, p.requiresFlag && !this.world?.flags?.[p.requiresFlag] ? 'Closed — the Decorator opens once the Goblin King (bottom of the Old Mine) is beaten' : p.prompt);
     for (const { data } of this.ents.values()) if (data.interact) consider(data, this.promptFor(data));
     return best;
   }

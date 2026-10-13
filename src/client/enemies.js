@@ -33,8 +33,86 @@ function limb(parent, a, b, r0, r1, m) {
   return mesh;
 }
 
+/** Goblin skin for each of the kinds that used to be slimes (ids unchanged: saves and drops keep them). */
+const GOBLIN_SKIN = { green: 0x6aa84a, blue: 0x4a7ac8, red: 0xc84a3a, purple: 0x8a5ac0, black: 0x4a4a54, iceslime: 0x9ad0e8, king: 0x5a9a3a, emperor: 0x6a4ac0, practice: 0xc8a888 };
+
 // Each builder returns { group, parts, height } — `parts` are what the animation moves.
 const BODIES = {
+  goblin(fire, variant = 'green') { // what used to be the slimes: hunched, big-eared goblins, a colour (and kit) for each kind
+    const g = new THREE.Group();
+    const skinC = GOBLIN_SKIN[variant] ?? ENEMIES[variant]?.color ?? 0x6aa84a;
+    const skin = mat(skinC, { roughness: 0.7 }), dark = mat(new THREE.Color(skinC).multiplyScalar(0.6).getHex(), { roughness: 0.8 });
+    const leather = mat(0x5a3a22, { roughness: 0.9 }), cloth = mat(0x6b5a3a, { roughness: 1 }), tooth = mat(0xf0e6c8), iron = mat(0x6a6a72, { metalness: 0.6, roughness: 0.45 });
+    const legs = [], arms = [];
+    for (const s of [-1, 1]) { // short bowed legs, big bare feet
+      const leg = new THREE.Group();
+      leg.position.set(s * 0.17, 0.62, 0);
+      g.add(leg);
+      limb(leg, [0, 0, 0], [s * 0.08, -0.3, 0.04], 0.09, 0.075, skin);
+      limb(leg, [s * 0.08, -0.3, 0.04], [s * 0.04, -0.56, -0.02], 0.075, 0.06, skin);
+      add(leg, ball(0.1, 8), skin, s * 0.04, -0.58, 0.1, 0.9, 0.5, 1.5);
+      for (let i = 0; i < 3; i++) add(leg, new THREE.ConeGeometry(0.02, 0.05, 4), tooth, s * 0.04 + (i - 1) * 0.045, -0.6, 0.24).rotation.x = Math.PI / 2; // toenails
+      legs.push(leg);
+    }
+    // a hunched body with a pot belly, a ragged leather vest, a belt and a loincloth
+    const body = add(g, ball(0.34, 14), skin, 0, 0.88, 0.02, 1, 1.05, 0.9);
+    body.rotation.x = 0.3;
+    add(g, ball(0.25, 12), skin, 0, 0.78, 0.15, 1, 0.9, 0.9); // belly
+    add(g, new THREE.CylinderGeometry(0.33, 0.36, 0.42, 12, 1, true, Math.PI * 0.3, Math.PI * 1.4), leather, 0, 0.95, -0.01).material.side = THREE.DoubleSide;
+    add(g, new THREE.TorusGeometry(0.33, 0.04, 5, 16), leather, 0, 0.66, 0.02).rotation.x = Math.PI / 2;
+    add(g, new THREE.BoxGeometry(0.08, 0.06, 0.04), iron, 0, 0.66, 0.36); // buckle
+    add(g, new THREE.ConeGeometry(0.2, 0.3, 4), cloth, 0, 0.5, 0.2, 1, 1, 0.3).rotation.x = Math.PI; // loincloth
+    // the head: big and wide, long pointed ears, a hooked nose, a toothy underbite, mean eyes
+    const head = new THREE.Group();
+    head.position.set(0, 1.3, 0.12);
+    g.add(head);
+    add(head, ball(0.3, 14), skin, 0, 0, 0, 1.15, 0.95, 1);
+    add(head, ball(0.2, 10), skin, 0, -0.13, 0.12, 1.25, 0.6, 1); // a heavy jaw
+    for (const s of [-1, 1]) {
+      const ear = add(head, new THREE.ConeGeometry(0.1, 0.5, 6), skin, s * 0.42, 0.06, -0.02, 1, 1, 0.35);
+      ear.rotation.set(0, 0, -s * 1.25);
+      add(head, new THREE.ConeGeometry(0.05, 0.3, 5), dark, s * 0.4, 0.06, 0.0, 1, 1, 0.3).rotation.z = -s * 1.25; // inside the ear
+      add(head, new THREE.ConeGeometry(0.03, 0.1, 4), tooth, s * 0.12, -0.12, 0.3).rotation.x = -0.15; // tusks jutting up
+    }
+    const nose = limb(head, [0, 0.0, 0.26], [0, -0.1, 0.46], 0.07, 0.025, skin);
+    nose.castShadow = false;
+    eyes(head, 0.06, 0.24, 0.12, 0.06, fire ? 0xff7a1a : 0xffd23f);
+    add(head, new THREE.BoxGeometry(0.26, 0.03, 0.04), new THREE.MeshBasicMaterial({ color: 0x1a0a06 }), 0, -0.17, 0.3); // a wide sneer
+    for (let i = 0; i < 4; i++) add(head, new THREE.ConeGeometry(0.018, 0.05, 3), tooth, -0.075 + i * 0.05, -0.155, 0.31);
+    for (let i = 0; i < 5; i++) add(head, new THREE.ConeGeometry(0.03, 0.14, 4), dark, (i - 2) * 0.07, 0.28, -0.05 - Math.abs(i - 2) * 0.04).rotation.x = -0.3; // scraggly tufts
+    for (const s of [-1, 1]) { // long arms down to the knees
+      const arm = new THREE.Group();
+      arm.position.set(s * 0.32, 1.05, 0.05);
+      g.add(arm);
+      limb(arm, [0, 0, 0], [s * 0.1, -0.32, 0.06], 0.07, 0.06, skin);
+      limb(arm, [s * 0.1, -0.32, 0.06], [s * 0.12, -0.6, 0.14], 0.06, 0.05, skin);
+      add(arm, ball(0.08, 8), skin, s * 0.12, -0.64, 0.15);
+      arms.push(arm);
+    }
+    // a crude spiked club in the right hand
+    const club = new THREE.Group();
+    limb(club, [0, -0.1, 0], [0, 0.55, 0.05], 0.035, 0.09, mat(0x6b4a2c, { roughness: 1 }));
+    for (let i = 0; i < 6; i++) { const a = i * 1.05; add(club, new THREE.ConeGeometry(0.025, 0.1, 4), iron, Math.cos(a) * 0.09, 0.42 + (i % 2) * 0.1, 0.05 + Math.sin(a) * 0.09).rotation.set(Math.sin(a) * 1.5, 0, -Math.cos(a) * 1.5); }
+    club.position.set(0.12, -0.66, 0.16);
+    club.rotation.x = 0.6;
+    arms[1].add(club);
+    // each kind kits itself out a little differently
+    const kit = {
+      blue: () => add(head, new THREE.SphereGeometry(0.32, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.42), mat(0x2a4a8a, { roughness: 1 }), 0, 0.03, -0.02), // a bandana
+      red: () => { add(head, new THREE.SphereGeometry(0.33, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.45), iron, 0, 0.02, -0.02); for (const s of [-1, 1]) limb(head, [s * 0.22, 0.2, 0], [s * 0.36, 0.42, -0.05], 0.05, 0.01, tooth); }, // a horned helmet
+      purple: () => { const hood = add(head, new THREE.ConeGeometry(0.36, 0.6, 12, 1, true), mat(0x4a2a6a, { side: THREE.DoubleSide, roughness: 1 }), 0, 0.2, -0.06); hood.rotation.x = -0.2; }, // a shaman's hood
+      black: () => { add(head, new THREE.SphereGeometry(0.34, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.5), iron, 0, 0.0, -0.02); add(g, new THREE.BoxGeometry(0.5, 0.3, 0.06), iron, 0, 0.95, 0.3); }, // helm and breastplate
+      iceslime: () => add(head, ball(0.34, 12), mat(0xf4f8ff, { roughness: 1 }), 0, 0.1, -0.06, 1.05, 0.7, 1), // a fur hat
+      crystalslime: () => { for (let i = 0; i < 5; i++) add(g, new THREE.OctahedronGeometry(0.1, 0), glow(ENEMIES.crystalslime?.color ?? 0xc8a8ff), (i - 2) * 0.12, 1.15 + (i % 2) * 0.1, -0.3).scale.set(0.6, 1.6, 0.6); }, // crystals growing out of its back
+      goldslime: () => { add(g, ball(0.2, 10), mat(0xa07a3a, { roughness: 1 }), -0.32, 0.62, -0.25, 1, 1.2, 1); for (let i = 0; i < 3; i++) add(g, new THREE.CylinderGeometry(0.05, 0.05, 0.02, 10), mat(0xffd23f, { metalness: 0.8, roughness: 0.3 }), -0.32 + i * 0.03, 0.85 + i * 0.03, -0.25); }, // a sack of gold
+      shadowslime: () => { const hood = add(head, new THREE.ConeGeometry(0.38, 0.65, 12, 1, true), mat(0x1a1424, { side: THREE.DoubleSide, roughness: 1 }), 0, 0.15, -0.08); hood.rotation.x = -0.3; },
+      pearlslime: () => add(head, new THREE.SphereGeometry(0.33, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.45), mat(0xfff0f6, { metalness: 0.3, roughness: 0.2 }), 0, 0.02, -0.02), // a shell cap
+      practice: () => { add(g, ball(0.3, 10), mat(0xe0c070, { roughness: 1 }), 0, 0.92, 0.12, 1.1, 1.0, 0.7); club.visible = false; }, // a padded training jerkin, no club
+    };
+    kit[variant]?.();
+    return { group: g, parts: { arms, legs, head }, height: 1.75 };
+  },
+
   skeleton() {
     const g = new THREE.Group();
     const bone = mat(0xf0e8d6, { roughness: 0.8 }), dark = new THREE.MeshBasicMaterial({ color: 0x141414 });
@@ -583,6 +661,7 @@ Object.assign(BODIES, SEASON_BODIES);
 /** Each creature's finish (client/creaturelook.js): its rim-light colour, how grainy its skin is and how fine. */
 const LOOKS = {
   skeleton: { rim: 0x6ad8ff, grain: 0.5, scale: 7 },
+  goblin: { rim: 0xffc060, grain: 0.6, scale: 9 },
   ghost: { rim: 0x8ae8ff, grain: 0.15, scale: 3, rimStrength: 0.8 },
   crab: { rim: 0xff8a5a, grain: 0.7, scale: 6 },
   bat: { rim: 0xb070ff, grain: 0.6, scale: 10 },
@@ -638,12 +717,12 @@ function addCrown(group, height) {
 export class MobView {
   constructor(e, makeLabel) {
     const def = ENEMIES[e.variant] ?? {};
-    this.kind = def.body;
+    this.kind = def.body ?? 'goblin'; // no body of its own = one of the old slimes: a goblin now
     this.fly = !!def.fly;
-    const built = BODIES[def.body](!!def.fire);
-    DETAILS[def.body]?.(built);
+    const built = BODIES[this.kind](!!def.fire, e.variant);
+    DETAILS[this.kind]?.(built);
     if (def.tint != null) tintBody(built.group, def.tint);
-    if (def.crown) addCrown(built.group, built.height);
+    if (def.crown || (this.kind === 'goblin' && e.boss)) addCrown(built.group, built.height);
     this.root = new THREE.Group();
     this.body = built.group;
     this.parts = built.parts;
@@ -729,6 +808,13 @@ export class MobView {
         for (const [i, w] of P.wings.entries()) w.rotation.y = (i ? -1 : 1) * Math.sin(t * 14) * 0.5;
         P.flame.scale.setScalar(1 + Math.sin(t * 20) * 0.2);
         break;
+      case 'goblin': // a scurrying, hunched run; a twitchy, menacing sway when it stops
+        b.position.y += moving ? Math.abs(Math.sin(t * 10)) * 0.08 : 0;
+        b.rotation.x = moving ? 0.12 : 0;
+        for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 10 + i * Math.PI) * 0.8 : -0.3 + Math.sin(t * 2 + i) * 0.12;
+        for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 10 + i * Math.PI + Math.PI) * 0.7 : 0;
+        P.head.rotation.y = moving ? 0 : Math.sin(t * 1.3) * 0.4;
+        break;
       case 'skeleton':
         b.position.y += moving ? Math.abs(Math.sin(t * 8)) * 0.06 : 0;
         for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 8 + i * Math.PI) * 0.7 : -0.2 + Math.sin(t * 2) * 0.05;
@@ -789,6 +875,7 @@ export class MobView {
   dispose() { this.root.removeFromParent(); }
 }
 
+/** Every enemy has a body now: the old slimes are goblins. */
 export function hasMobBody(variant) {
-  return !!ENEMIES[variant]?.body;
+  return !!ENEMIES[variant];
 }

@@ -1,12 +1,12 @@
 // Furniture for the Family Fort: beds (one per family member) and everything the Decorator in
-// town sells once the King Slime is beaten. Placed furniture is a `furniture` entity in the fort,
+// town sells once the Goblin King is beaten. Placed furniture is a `furniture` entity in the fort,
 // saved in save.house.furniture. Ids are stored in saves: never rename or remove one.
 //
 // `model` = a KayKit model, or `build` = a little model made in client/furniture.js.
 // `radius` > 0 blocks movement. `light` = gives off a warm glow. `interact` = what E does.
 // `seat` = you can sit on it (E): `y` = seat height (for the client), `face` = which way you face, added to its rot.
 
-/** The Decorator unlocks when this world flag is set (beating the King Slime on mine floor 10). */
+/** The Decorator unlocks when this world flag is set (beating the Goblin King on mine floor 10). */
 export const DECORATOR_FLAG = 'mineCleared';
 
 export const FURNITURE = {

@@ -13,9 +13,9 @@
 //           B  a bed slot in the fort (each family member gets one; see server/systems/home.js)
 // The fort itself isn't drawn here: shared/fort.js draws it for however many family members there are.
 //           h  healing spring sign (put it on the edge of a pond)   K  pet keeper + stall   F  forge + blacksmith
-//           v  the Decorator's stall (appears once the King Slime is beaten)   w  fountain   l  lamp post
+//           v  the Decorator's stall (appears once the Goblin King is beaten)   w  fountain   l  lamp post
 //           n  a townsperson you can talk to (each n gets the next one in shared/townsfolk.js)
-//           f  flower bed   u  training dummy   s  practice slime (both live in the training yard)
+//           f  flower bed   u  training dummy   s  practice goblin (both live in the training yard)
 //           c  produce crate   y  hay bale   S  signpost (all generated: bun run make-props)
 
 export const MAPS = {

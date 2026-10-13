@@ -76,7 +76,7 @@ function parseAsciiMap(map) {
   const props = [];
   const bedSlots = [];
   const decor = [];          // flower beds etc: looks only
-  const spots = {};          // named points (training dummy, practice slime...)
+  const spots = {};          // named points (training dummy, practice goblin...)
   let spawn = null, folk = 0;
   const rooms = map.rooms ?? []; // the fort's private rooms: [{ x, z, w, h }] in cell coords
   const roomAt = (cx, cz) => rooms.findIndex((r) => cx >= r.x && cx < r.x + r.w && cz >= r.z && cz < r.z + r.h);

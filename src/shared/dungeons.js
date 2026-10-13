@@ -20,7 +20,7 @@ export const DUNGEONS = {
     name: 'The Old Mine', depth: 0, unlockedBy: null, entrance: 'm',
     biomes: [
       biome('The Old Mine', 'dungeon', (f) => (f <= 3 ? ['green'] : f <= 6 ? ['green', 'blue', 'bat'] : ['blue', 'red', 'bat']),
-        { variant: 'king', name: 'King Slime', flag: 'mineCleared' }),
+        { variant: 'king', name: 'Goblin King', flag: 'mineCleared' }),
       biome('Frost Caverns', 'frost', ['iceslime', 'bat', 'yeti'], { variant: 'frostgiant', name: 'Frost Giant', flag: 'frostCleared' }),
       biome('Mushroom Grotto', 'grotto', ['shroom', 'spider', 'purple'], { variant: 'shroomking', name: 'Mushroom King', flag: 'grottoCleared' }),
       biome('Lava Depths', 'lava', ['imp', 'golem', 'firebat'], { variant: 'dragon', name: 'Lava Dragon', flag: 'lavaCleared' }),
@@ -37,7 +37,7 @@ export const DUNGEONS = {
   ruins: {
     name: 'Sunken Ruins', depth: 100, unlockedBy: 'mine', entrance: 'g',
     biomes: [
-      biome('Sunken Ruins', 'ruins', (f) => (f <= 5 ? ['purple', 'bat', 'crab'] : ['black', 'spider', 'crab']), { variant: 'emperor', name: 'Slime Emperor', flag: 'ruinsCleared' }),
+      biome('Sunken Ruins', 'ruins', (f) => (f <= 5 ? ['purple', 'bat', 'crab'] : ['black', 'spider', 'crab']), { variant: 'emperor', name: 'Goblin Warlord', flag: 'ruinsCleared' }),
       biome('Coral Halls', 'coral', ['crab', 'blue', 'iceslime'], { variant: 'crabking', name: 'Crab King', flag: 'ruinsBoss2' }),
       biome('Drowned Library', 'library', ['ghost', 'skeleton', 'shroom'], { variant: 'scholar', name: 'Haunted Scholar', flag: 'ruinsBoss3' }),
       biome('Kelp Forest', 'kelp', ['kelpshroom', 'crab', 'green'], { variant: 'kelpgiant', name: 'Kelp Giant', flag: 'ruinsBoss4' }),

@@ -1,11 +1,11 @@
 // town — Pebble Town's townsfolk (talk with E) and the training yard: a dummy that shows how hard
-// you hit, and a practice slime that can't hurt you, never leaves the yard and comes back when beaten.
+// you hit, and a practice goblin that can't hurt you, never leaves the yard and comes back when beaten.
 import { TOWNSFOLK } from '../../shared/townsfolk.js';
 import { ENEMIES } from '../../shared/dungeons.js';
 import { SEASONS, SEASON_DAYS, seasonOf, dayOfSeason, dateLabel } from '../../shared/seasons.js';
 
-const RESPAWN = 3; // seconds before a beaten practice slime pops back
-const HERO_CHANCE = 0.35; // once the King Slime is beaten, how often townsfolk talk about it
+const RESPAWN = 3; // seconds before a beaten practice goblin pops back
+const HERO_CHANCE = 0.35; // once the Goblin King is beaten, how often townsfolk talk about it
 
 export const interactions = {
   /** The notice board in the square: the date, and when the next seasonal boss is due. */
@@ -25,7 +25,7 @@ export const interactions = {
   },
 };
 
-/** The town was loaded: put the dummy and the practice slime in the training yard. */
+/** The town was loaded: put the dummy and the practice goblin in the training yard. */
 export function onLocation(loc) {
   if (loc.key !== 'town') return;
   const { dummy, trainingSlime } = loc.layout.spots ?? {};
@@ -50,7 +50,7 @@ export const methods = {
     });
   },
 
-  /** The practice slime was beaten: no loot, no XP, just a pop and it's back in a moment. */
+  /** The practice goblin was beaten: no loot, no XP, just a pop and it's back in a moment. */
   practiceSlimeBeaten(loc) {
     loc._practiceAt = this.time + RESPAWN;
   },
