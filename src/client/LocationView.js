@@ -9,7 +9,7 @@ import { makeGrass, makeWater, makeTrees, makeSpringBanks, pondEdge } from './na
 import { wallpaperTexture } from './wallpaper.js';
 import { PetView } from './pets.js';
 import { DECORATIONS } from './decorations.js';
-import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard, makeFeastTable, makeSeasonalStall, makeJackOLantern, makeTreeLights } from './town.js';
+import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard, makeFeastTable, makeSeasonalStall, makeJackOLantern, makeTreeLights, makeSnowman, makeCandyPile } from './town.js';
 import { Villagers } from './villagers.js';
 import { TOWNSFOLK } from '../shared/townsfolk.js';
 import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
@@ -818,13 +818,32 @@ export class LocationView {
       const a = (i / 10) * Math.PI * 2 + 0.3;
       put(fountain.x + Math.cos(a) * 2.6, fountain.z + Math.sin(a) * 2.6, `pf${i}`, 0.8);
     }
+    // and piles of candy dropped about the grass and paths
+    for (let cz = 0; cz < L.h; cz++) for (let cx = 0; cx < L.w; cx++) {
+      if (L.isSolidCell(cx, cz) || this.rand(cx, cz, 'candy') > 0.05) continue;
+      const c = makeCandyPile(this.rand(cx, cz, 'cr'));
+      c.position.set(cx * CELL + 0.8 + this.rand(cx, cz, 'cx') * 2.4, 0, cz * CELL + 0.8 + this.rand(cx, cz, 'cz') * 2.4);
+      pumpkins.add(c);
+    }
     this.halloweenFx = this.still(pumpkins);
     this.group.add(pumpkins);
+    // Christmas: snowmen on the grass
+    const snowmen = new THREE.Group();
+    for (let cz = 0; cz < L.h; cz++) for (let cx = 0; cx < L.w; cx++) {
+      if (L.cell(cx, cz) !== '.' || this.rand(cx, cz, 'snowman') > 0.035) continue;
+      const sm = makeSnowman(this.rand(cx, cz, 'sr'));
+      sm.position.set(cx * CELL + CELL / 2, 0, cz * CELL + CELL / 2);
+      sm.rotation.y = (this.rand(cx, cz, 'sa') - 0.5) * 1.2;
+      snowmen.add(sm);
+    }
+    this.still(snowmen);
+    this.group.add(snowmen);
     this.christmasFx = makeTreeLights(treeSpots);
     this.group.add(this.christmasFx);
     this.animated.push({ update: () => {
       const h = holidayOf(this.world?.day ?? 1);
       pumpkins.visible = h === 'halloween';
+      snowmen.visible = h === 'christmas';
       this.christmasFx.visible = h === 'christmas';
       if (this.christmasFx.visible) this.christmasFx.userData.update(this.uTime.value);
     } });

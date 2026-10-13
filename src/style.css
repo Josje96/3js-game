@@ -297,3 +297,5 @@ h1, h2, h3, .loc, .night-day, .xp-level, .title-logo { font-family: 'MedievalSha
 .hud-status .row.next-season small { font-size: 11px; }
 .pet-card.locked { opacity: 0.55; filter: grayscale(0.6); }
 .hud-season-sleep { display: none; position: absolute; bottom: 122px; left: 50%; transform: translateX(-50%); pointer-events: auto; }
+.hud-inv .slot.gift { pointer-events: auto; cursor: pointer; border: 1px solid var(--gold); background: rgba(216, 48, 42, 0.35); color: #fff; font: inherit; border-radius: 6px; padding: 2px 8px; }
+.present-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }

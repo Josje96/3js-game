@@ -18,6 +18,7 @@ import { Music, moodFor } from './music.js';
 import { Sfx } from './sfx.js';
 import { ENCHANT_LOOKS } from '../shared/enchant.js';
 import { useDistance } from '../shared/props.js';
+import { holidayOf } from '../shared/seasons.js';
 
 /** What the fort looks like, reduced to what a re-render depends on (so a change re-dresses it). */
 function houseKey(h) {
@@ -106,7 +107,10 @@ export class GameClient {
 
   onMessage(msg) {
     switch (msg.t) {
-      case 'welcome': this.you = msg.you; this.hud.you = msg.you; break;
+      case 'welcome':
+        this.you = msg.you; this.hud.you = msg.you;
+        this.hud.onPresents = () => this.hud.openPresents({ onOpen: (item) => this.conn.send({ t: 'openPresent', item }), onSend: (item, to) => this.conn.send({ t: 'sendPresent', item, to }) });
+        break;
       case 'world': {
         const restyle = this.layout?.key === 'house' && houseKey(msg.house) !== houseKey(this.world?.house);
         this.world = msg;
@@ -599,7 +603,9 @@ export class GameClient {
   updateSky(dt) {
     if (!this.layout || this.layout.theme !== 'outdoor' || !this.locView) return;
     this.dayLeft = Math.max(0, (this.dayLeft ?? 600) - dt);
-    const dusk = Math.min(1, Math.max(0, 1 - this.dayLeft / 120));
+    // Halloween in town: a spooky dusk all day long (the lamps lit, the jack-o'-lanterns glowing)
+    const spooky = this.layout.key === 'town' && holidayOf(this.world?.day ?? 1) === 'halloween';
+    const dusk = Math.max(spooky ? 0.82 : 0, Math.min(1, Math.max(0, 1 - this.dayLeft / 120)));
     const theme = this.locView.theme;
     const sky = new THREE.Color(theme.bg);
     if (dusk > 0) sky.lerp(new THREE.Color(0xff9a6a), Math.min(1, dusk * 2)).lerp(new THREE.Color(0x2a2352), Math.max(0, dusk * 2 - 1));

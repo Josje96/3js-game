@@ -609,6 +609,10 @@ export function makeChristmasCorner() {
     mesh(box, new THREE.BoxGeometry(0.06, s + 0.01, s + 0.01), std(ribbon), 0, 0, 0);
     for (const sx of [-1, 1]) mesh(box, new THREE.TorusGeometry(0.06, 0.02, 6, 10), std(ribbon), sx * 0.06, s / 2 + 0.04, 0).rotation.y = Math.PI / 2;
   }
+  const sleigh = makeSleigh(); // his sleigh and reindeer, behind him
+  sleigh.position.set(-2.4, 0, -3.2);
+  sleigh.rotation.y = 0.5;
+  g.add(sleigh);
   // Santa's sack, bulging with more presents
   const sack = mesh(g, new THREE.SphereGeometry(0.5, 14, 12), std(0xa0302a, { roughness: 0.95 }), -1.1, 0.48, -0.3);
   sack.scale.set(1, 1.1, 0.9);
@@ -624,17 +628,25 @@ export function makeChristmasCorner() {
 /** Twinkling lights wound round a tree (Christmas: on every tree in town). `trees` = [{ x, z, s }]. */
 export function makeTreeLights(trees) {
   const COLORS = [0xff4a4a, 0xffd23f, 0x4ad0ff, 0x6aff7a, 0xff8ae0].map((c) => new THREE.Color(c));
-  const PER = 26, n = trees.length * PER;
-  const lights = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), Math.max(1, n));
+  // the crowns' real shapes (client/nature.js treeGeometry): a pine is four stacked cones, the leafy trees a big ball at 4 up
+  const PINE = [[2.1, 2.4, 2.0], [1.7, 2.1, 3.3], [1.25, 1.8, 4.5], [0.7, 1.3, 5.5]]; // [radius, height, middle]
+  const PER = 24, n = trees.length * PER;
+  const lights = new THREE.InstancedMesh(new THREE.SphereGeometry(0.11, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), Math.max(1, n));
   const m = new THREE.Matrix4();
   let k = 0;
   for (const t of trees) {
     for (let i = 0; i < PER; i++, k++) {
-      // wound round the crown's surface: a cone for pines, a ball for the leafy trees (client/nature.js)
-      const u = i / PER, a = u * Math.PI * 2 * 4 + t.x;
-      const y = t.kind === 'pine' ? 1.3 + u * 4.2 : 2.3 + u * 3.3;
-      const rr = (t.kind === 'pine' ? 2.2 * (1 - (y - 0.8) / 5.6) + 0.3 : Math.sqrt(Math.max(0, 2.6 ** 2 - (y - 4) ** 2)) + 0.45) * t.s;
-      m.makeTranslation(t.x + Math.cos(a) * rr, y * t.s, t.z + Math.sin(a) * rr);
+      const a = i * 2.39996 + t.x; // golden-angle spread round the crown
+      let x, y, z;
+      if (t.kind === 'pine') { // on a tier's sloping side, in its lower part (the upper part hides under the next tier)
+        const [r, h, mid] = PINE[i % 4], u = 0.08 + ((i * 0.37) % 0.45);
+        const rr = r * (1 - u) * 0.98;
+        x = Math.cos(a) * rr; z = Math.sin(a) * rr; y = mid - h / 2 + u * h;
+      } else { // on the big ball (its flat faces sit a little inside the round)
+        const y0 = 4 + (((i * 0.61) % 1) - 0.45) * 2.4, rr = Math.sqrt(Math.max(0, (1.9 * 0.97) ** 2 - (y0 - 4) ** 2));
+        x = Math.cos(a) * rr; z = Math.sin(a) * rr; y = y0;
+      }
+      m.makeTranslation(t.x + x * t.s, y * t.s, t.z + z * t.s);
       lights.setMatrixAt(k, m);
       lights.setColorAt(k, COLORS[k % COLORS.length]);
     }
@@ -681,5 +693,83 @@ export function makeEasterCorner() {
     mesh(g, new THREE.SphereGeometry(0.04, 6, 5), std(0xffd23f), x, 0.38, z);
   }
   g.userData.update = (t) => { basket.rotation.y = Math.sin(t * 0.8) * 0.05; };
+  return g;
+}
+
+/** A snowman: three snowballs, coal eyes and buttons, a carrot nose, twig arms, a scarf and a top hat. */
+export function makeSnowman(r = 0.5) {
+  const g = new THREE.Group(), snow = std(0xf6faff, { roughness: 1 }), coal = std(0x1a1a1a);
+  const s = 0.85 + r * 0.35;
+  mesh(g, new THREE.SphereGeometry(0.7, 16, 12), snow, 0, 0.6, 0);
+  mesh(g, new THREE.SphereGeometry(0.5, 16, 12), snow, 0, 1.5, 0);
+  mesh(g, new THREE.SphereGeometry(0.36, 16, 12), snow, 0, 2.2, 0);
+  for (const sx of [-1, 1]) mesh(g, new THREE.SphereGeometry(0.05, 6, 5), coal, sx * 0.12, 2.28, 0.31);
+  mesh(g, new THREE.ConeGeometry(0.05, 0.3, 8), std(0xff7a1a), 0, 2.2, 0.45).rotation.x = Math.PI / 2;
+  for (const y of [1.35, 1.55, 1.75]) mesh(g, new THREE.SphereGeometry(0.045, 6, 5), coal, 0, y, 0.48 - Math.abs(y - 1.55) * 0.3);
+  for (const sx of [-1, 1]) { const arm = mesh(g, new THREE.CylinderGeometry(0.025, 0.035, 0.9, 5), std(0x5a3a22), sx * 0.75, 1.65, 0); arm.rotation.z = -sx * 1.1; }
+  const scarf = [0xd8302a, 0x2f7a3a, 0x3a6ac0][Math.floor(r * 3)];
+  mesh(g, new THREE.TorusGeometry(0.33, 0.07, 6, 18), std(scarf, { roughness: 1 }), 0, 1.92, 0).rotation.x = Math.PI / 2;
+  mesh(g, new THREE.BoxGeometry(0.14, 0.4, 0.05), std(scarf, { roughness: 1 }), 0.18, 1.72, 0.3).rotation.z = 0.2;
+  mesh(g, new THREE.CylinderGeometry(0.38, 0.38, 0.04, 16), coal, 0, 2.5, 0);
+  mesh(g, new THREE.CylinderGeometry(0.25, 0.25, 0.4, 16), coal, 0, 2.72, 0);
+  g.scale.setScalar(s);
+  return g;
+}
+
+/** A little pile of wrapped sweets (Halloween). */
+export function makeCandyPile(r = 0.5) {
+  const g = new THREE.Group(), COLS = [0xff4a8a, 0xffd23f, 0x7fd8ff, 0x9aff6a, 0xff8a2a, 0xb48cff];
+  for (let i = 0; i < 9; i++) {
+    const a = i * 2.3 + r * 6, d = (i % 3) * 0.14, c = COLS[(i + Math.floor(r * 6)) % COLS.length];
+    const sweet = new THREE.Group();
+    sweet.position.set(Math.cos(a) * d, 0.07 + (i > 5 ? 0.09 : 0), Math.sin(a) * d);
+    sweet.rotation.y = a;
+    mesh(sweet, new THREE.CylinderGeometry(0.06, 0.06, 0.12, 8), std(c, { roughness: 0.3 }), 0, 0, 0).rotation.z = Math.PI / 2;
+    for (const sx of [-1, 1]) mesh(sweet, new THREE.ConeGeometry(0.05, 0.08, 6), std(c, { roughness: 0.3 }), sx * 0.1, 0, 0).rotation.z = -sx * Math.PI / 2; // twisted wrapper ends
+    g.add(sweet);
+  }
+  mesh(g, new THREE.CylinderGeometry(0.015, 0.015, 0.3, 4), std(0xffffff), 0.2, 0.15, 0.1).rotation.z = 0.5; // a lollipop
+  mesh(g, new THREE.CylinderGeometry(0.09, 0.09, 0.03, 12), std(0xff4a8a, { roughness: 0.3 }), 0.27, 0.29, 0.1).rotation.x = Math.PI / 2;
+  return g;
+}
+
+/** Santa's sleigh behind him, and two reindeer harnessed to it (Rudolph at the front). */
+function makeSleigh() {
+  const g = new THREE.Group(), red = std(0xb81e26, { roughness: 0.5 }), gold = std(0xffcf3f, { metalness: 0.7, roughness: 0.3 });
+  mesh(g, new THREE.BoxGeometry(1.6, 0.6, 2.4), red, 0, 0.75, 0);
+  mesh(g, new THREE.BoxGeometry(1.6, 0.8, 0.3), red, 0, 1.1, -1.1); // the high back
+  for (const sx of [-1, 1]) {
+    const runner = mesh(g, new THREE.TorusGeometry(0.4, 0.05, 6, 12, Math.PI / 2), gold, sx * 0.7, 0.42, 1.0);
+    runner.rotation.y = Math.PI / 2;
+    mesh(g, new THREE.BoxGeometry(0.08, 0.08, 2.6), gold, sx * 0.7, 0.05, -0.1);
+    for (const z of [-0.8, 0.6]) mesh(g, new THREE.BoxGeometry(0.06, 0.4, 0.06), gold, sx * 0.7, 0.25, z);
+  }
+  mesh(g, new THREE.BoxGeometry(1.65, 0.08, 2.45), gold, 0, 1.06, 0);
+  mesh(g, new THREE.SphereGeometry(0.45, 12, 10), std(0x8a2a22, { roughness: 1 }), 0.2, 1.3, -0.4); // a sack of presents
+  for (const [x, z, c] of [[-0.4, 0.4, 0x2f7a3a], [-0.3, -0.2, 0x3a6ac0], [0.4, 0.6, 0xffd23f]]) mesh(g, new THREE.BoxGeometry(0.35, 0.35, 0.35), std(c), x, 1.25, z);
+  const deer = (x, z, rudolph) => {
+    const d = new THREE.Group(), fur = std(0x8a5a34, { roughness: 1 }), dark = std(0x4a2e1a);
+    d.position.set(x, 0, z);
+    mesh(d, new THREE.CapsuleGeometry(0.28, 0.7, 4, 10), fur, 0, 1.0, 0).rotation.x = Math.PI / 2;
+    for (const [lx, lz] of [[-0.18, 0.35], [0.18, 0.35], [-0.18, -0.35], [0.18, -0.35]]) mesh(d, new THREE.CylinderGeometry(0.06, 0.05, 0.85, 6), fur, lx, 0.45, lz);
+    mesh(d, new THREE.CylinderGeometry(0.12, 0.16, 0.5, 8), fur, 0, 1.35, 0.5).rotation.x = -0.5; // neck
+    const head = mesh(d, new THREE.SphereGeometry(0.2, 10, 8), fur, 0, 1.65, 0.72);
+    head.scale.set(0.9, 0.9, 1.3);
+    mesh(d, new THREE.SphereGeometry(0.07, 8, 6), rudolph ? std(0xff2020, { emissive: 0xff2020, emissiveIntensity: 1 }) : dark, 0, 1.6, 0.98); // the nose
+    for (const sx of [-1, 1]) {
+      mesh(d, new THREE.SphereGeometry(0.035, 6, 5), std(0x111111), sx * 0.1, 1.72, 0.88);
+      const antler = new THREE.Group();
+      antler.position.set(sx * 0.12, 1.82, 0.62);
+      antler.rotation.z = -sx * 0.5;
+      mesh(antler, new THREE.CylinderGeometry(0.025, 0.03, 0.45, 5), std(0xd8c8a0), 0, 0.22, 0);
+      for (let k = 0; k < 2; k++) mesh(antler, new THREE.CylinderGeometry(0.02, 0.025, 0.2, 5), std(0xd8c8a0), sx * 0.08, 0.2 + k * 0.15, 0).rotation.z = -sx * 0.9;
+      d.add(antler);
+    }
+    mesh(d, new THREE.TorusGeometry(0.2, 0.04, 6, 14), std(0xd8302a), 0, 1.3, 0.48).rotation.x = Math.PI / 2 - 0.5; // a collar with bells
+    mesh(d, new THREE.SphereGeometry(0.05, 6, 5), gold, 0, 1.12, 0.6);
+    return d;
+  };
+  g.add(deer(0, 3.0, false), deer(0, 4.8, true));
+  for (const sx of [-1, 1]) mesh(g, new THREE.BoxGeometry(0.03, 0.03, 3.2), std(0x6b4a2c), sx * 0.3, 0.95, 2.6); // the reins
   return g;
 }

@@ -111,6 +111,9 @@ export const ITEMS = {
   candycorn:   { name: 'Candy Corn',      kind: 'consumable', heal: 8,  price: 20, holiday: 'halloween', model: 'dungeon/bottle_B_brown', tint: 0xffa020 },
   toffeeapple: { name: 'Toffee Apple',    kind: 'consumable', heal: 20, price: 50, holiday: 'halloween', model: 'dungeon/plate_food_B', tint: 0xc0302a },
   chocolateegg: { name: 'Chocolate Egg',  kind: 'consumable', heal: 15, price: 40, holiday: 'easter', model: 'dungeon/bottle_B_brown', tint: 0x7a4a2a },
+  // presents (kind 'gift'): open them from the 🎁 in your bag, or give them to someone in the family
+  present:      { name: 'Wrapped Present', kind: 'gift', price: 200, tier: 0, model: 'dungeon/box_small_decorated', tint: 0xd8302a },
+  santapresent: { name: 'Santa’s Present', kind: 'gift', santa: true, model: 'dungeon/box_small_decorated', tint: 0x2f8a4a },
   candycane:   { name: 'Candy Cane',      kind: 'consumable', heal: 25, price: 60, holiday: 'christmas', model: 'dungeon/bottle_A_green', tint: 0xff5050 },
   petfood:     { name: 'Pet Treat',       kind: 'consumable', petHeal: 12, price: 24,  model: 'dungeon/bottle_B_brown' },
   bigtreat:    { name: 'Deluxe Treat',    kind: 'consumable', petHeal: 45, price: 90,  model: 'dungeon/plate_small' },
@@ -162,7 +165,7 @@ export const SHOP_SECTIONS = [
   { id: 'weapons', name: 'Weapons', icon: '⚔', kinds: ['weapon'] },
   { id: 'shields', name: 'Shields', icon: '🛡', kinds: ['shield'] },
   { id: 'armor', name: 'Armor', icon: '🥋', kinds: ['armor'] },
-  { id: 'food', name: 'Food & potions', icon: '🍎', kinds: ['consumable'] },
+  { id: 'food', name: 'Food, potions & presents', icon: '🍎', kinds: ['consumable', 'gift'] },
 ];
 
 /** What the town shop sells: everything with a shop `tier` (the buyer's level decides which tiers are open). */

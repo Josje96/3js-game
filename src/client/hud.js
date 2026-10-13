@@ -164,7 +164,8 @@ export class Hud {
     const group = (key, label, ids) => (ids.length
       ? `<span class="slot-group" title="${esc(`${key}: ${label}`)}"><kbd>${key}</kbd>${ids.map(([id, n]) => slot('use', `${iconImg(itemIcon(id))}×${n}`, `${ITEMS[id].name}: ${itemStat(ITEMS[id])}`)).join('')}</span>` : '');
     const heals = inv.filter(([id]) => ITEMS[id].heal), treats = inv.filter(([id]) => ITEMS[id].petHeal);
-    const loot = inv.filter(([id]) => !ITEMS[id].heal && !ITEMS[id].petHeal);
+    const gifts = inv.filter(([id]) => ITEMS[id].kind === 'gift');
+    const loot = inv.filter(([id]) => !ITEMS[id].heal && !ITEMS[id].petHeal && ITEMS[id].kind !== 'gift');
     this.inv.innerHTML = [
       slot('weapon', `${iconImg(itemIcon(s.weapon))}${esc(weapon?.name ?? s.weapon)}${s.enchants?.[s.weapon] ? ` <b class="ench">+${s.enchants[s.weapon]}</b>` : ''} <b>${(weapon?.damage ?? 1) + enchantDamage(s.weapon, s.enchants?.[s.weapon])}</b>`, 'Your weapon (C to change)'),
       shield ? slot('weapon', iconImg(itemIcon(s.shield)) || '🛡', `${shield.name}: ${itemStat(shield)}`) : '',
@@ -172,7 +173,9 @@ export class Hud {
       group('Q', 'eat / drink', heals),
       group('G', 'feed pet', treats),
       loot.length ? slot('bag', `🎒 ${loot.reduce((a, [, n]) => a + n, 0)}`, loot.map(([id, n]) => `${ITEMS[id].name} ×${n}`).join('\n')) : '',
+      gifts.length ? `<button class="slot gift" data-gift title="Presents: open or give">🎁 ×${gifts.reduce((a, [, n]) => a + n, 0)}</button>` : '',
     ].join('');
+    this.inv.querySelector('[data-gift]')?.addEventListener('click', () => this.onPresents?.());
   }
 
   setInvite({ code, status, isHost }) {
@@ -839,6 +842,30 @@ export class Hud {
           box.append(more);
         }
       }
+      box.append(closeButton(this));
+    });
+  }
+
+  /** Your presents: open one, or send it to someone in the family who's playing. */
+  openPresents({ onOpen, onSend }) {
+    this.openModal((box) => {
+      const inv = Object.entries(this.self?.inventory ?? {}).filter(([id, n]) => n > 0 && ITEMS[id]?.kind === 'gift');
+      box.append(el('h2', null, '🎁 Presents'));
+      if (!inv.length) box.append(el('p', 'muted', 'No presents. The Shopkeeper sells them — buy one to give to someone!'));
+      const others = (this.roster ?? []).filter((p) => p.id !== this.you);
+      for (const [id, n] of inv) {
+        const row = el('div', 'present-row', `<b>${esc(ITEMS[id].name)}</b> ×${n}`);
+        const open = el('button', 'primary', 'Open it!');
+        open.addEventListener('click', () => onOpen(id));
+        row.append(open);
+        for (const p of others) {
+          const send = el('button', '', `Give to ${esc(p.name)}`);
+          send.addEventListener('click', () => onSend(id, p.id));
+          row.append(send);
+        }
+        box.append(row);
+      }
+      if (inv.length && !others.length) box.append(el('p', 'muted', 'When someone else in the family is playing you can give them one.'));
       box.append(closeButton(this));
     });
   }

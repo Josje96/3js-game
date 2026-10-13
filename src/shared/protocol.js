@@ -42,6 +42,8 @@ export const CLIENT_MESSAGES = {
   buySeasonal:     { item: 'str' },
   eatFeast:        { table: 'str' },
   sleepSeason:     { bed: 'str' },
+  openPresent:     { item: 'str' },
+  sendPresent:     { item: 'str', to: 'str' },
   enchant:         { item: 'str' },
   roomStyle:       { kind: 'str', id: 'str', slot: 'int' },
   pickUpFurniture: { id: 'str' },

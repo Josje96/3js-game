@@ -166,10 +166,15 @@ export const COSTUMES = {
   pumpkin: { name: 'Pumpkin head', clothes: { jacket: 0x2f6a2a, legs: 0x2a4a22 } },
   ghost:   { name: 'Ghost',        clothes: { jacket: 0xf4f4f8, legs: 0xf4f4f8, extra: 'gown' } },
   devil:   { name: 'Little devil', clothes: { jacket: 0xb8202a, legs: 0x8a1a20 } },
+  vampire: { name: 'Vampire',      clothes: { jacket: 0x141018, legs: 0x141018, extra: 'bowtie' } },
+  cat:     { name: 'Black cat',    clothes: { jacket: 0x1a1a20, legs: 0x1a1a20 } },
+  mummy:   { name: 'Mummy',        clothes: { jacket: 0xe8e0c8, legs: 0xd8cfb4 } },
+  skeleton: { name: 'Skeleton',    clothes: { jacket: 0x1a1a1a, legs: 0x1a1a1a } },
+  pirate:  { name: 'Pirate',       clothes: { jacket: 0x8a1a1a, legs: 0x2a2a2a, extra: 'sash' } },
   santa:   { name: 'Santa',        clothes: { jacket: 0xc8202a, legs: 0xc8202a, extra: 'coat' } },
   grandma: { name: 'Grandma',      clothes: { jacket: 0xd8c8f4, legs: 0xf6c8dc, extra: 'gown' } }, // pastel lavender and pink
 };
-export const HALLOWEEN_COSTUMES = ['witch', 'pumpkin', 'ghost', 'devil'];
+export const HALLOWEEN_COSTUMES = ['witch', 'pumpkin', 'ghost', 'devil', 'vampire', 'cat', 'mummy', 'skeleton', 'pirate'];
 
 export function buildCostumeHat(kind) {
   const g = new THREE.Group();
@@ -215,6 +220,37 @@ export function buildCostumeHat(kind) {
       horn.rotation.z = -s * 0.35;
       g.add(horn);
     }
+  } else if (kind === 'vampire') { // slicked-back black hair with a widow's peak, and a tall red-lined collar
+    const black = mat(0x141018, { roughness: 0.5 });
+    g.add(mesh(new THREE.SphereGeometry(0.6, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.42), black, 0, -0.5, -0.02));
+    g.add(mesh(new THREE.ConeGeometry(0.08, 0.22, 4), black, 0, -0.08, 0.5)).children.at(-1).rotation.x = Math.PI * 0.95; // the peak
+    for (const s of [-1, 1]) {
+      const collar = mesh(new THREE.PlaneGeometry(0.5, 0.7), mat(0x8a0a1a, { side: THREE.DoubleSide, roughness: 0.6 }), s * 0.32, -0.95, -0.15);
+      collar.rotation.set(-0.2, s * 0.7, 0);
+      g.add(collar);
+    }
+  } else if (kind === 'cat') { // black cat ears with pink insides
+    for (const s of [-1, 1]) {
+      g.add(mesh(new THREE.ConeGeometry(0.16, 0.34, 4), mat(0x1a1a20), s * 0.3, 0.05, 0, 1, 1, 0.5)).children.at(-1).rotation.z = -s * 0.3;
+      g.add(mesh(new THREE.ConeGeometry(0.09, 0.22, 4), mat(0xff9ab8), s * 0.3, 0.03, 0.05, 1, 1, 0.3)).children.at(-1).rotation.z = -s * 0.3;
+    }
+  } else if (kind === 'mummy') { // a head wrapped in bandages, two dark eyes peeping out
+    const wrap = mat(0xe8e0c8, { roughness: 1 });
+    g.add(mesh(new THREE.SphereGeometry(0.61, 18, 12), wrap, 0, -0.5, 0));
+    for (let i = 0; i < 6; i++) g.add(mesh(new THREE.TorusGeometry(0.6 - Math.abs(i - 2.5) * 0.06, 0.035, 4, 24), mat(0xd8cfb4), 0, -0.2 - i * 0.12, 0, 1, 1, 1)).children.at(-1).rotation.set(Math.PI / 2 + (i % 2 ? 0.15 : -0.12), 0, 0);
+    for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.07, 8, 6), mat(0x101010), s * 0.18, -0.45, 0.56, 1.2, 0.7, 0.4));
+  } else if (kind === 'skeleton') { // a skull mask
+    const bone = mat(0xf2ede0, { roughness: 0.7 }), dark = mat(0x101010);
+    g.add(mesh(new THREE.SphereGeometry(0.6, 18, 12), bone, 0, -0.5, 0.02));
+    for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.13, 10, 8), dark, s * 0.2, -0.45, 0.52, 1, 1.1, 0.5));
+    g.add(mesh(new THREE.ConeGeometry(0.06, 0.1, 3), dark, 0, -0.62, 0.58)).children.at(-1).rotation.x = Math.PI;
+    for (let i = 0; i < 5; i++) g.add(mesh(new THREE.BoxGeometry(0.05, 0.08, 0.02), dark, -0.12 + i * 0.06, -0.8, 0.5));
+  } else if (kind === 'pirate') { // a red bandana with its knot, and an eyepatch
+    g.add(mesh(new THREE.SphereGeometry(0.6, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.45), mat(0xc0202a, { roughness: 0.8 }), 0, -0.48, 0));
+    for (let i = 0; i < 9; i++) g.add(mesh(new THREE.SphereGeometry(0.03, 6, 4), mat(0xffffff), Math.sin(i * 0.7) * 0.5, -0.2 + (i % 3) * 0.08, Math.cos(i * 0.7) * 0.45));
+    g.add(mesh(new THREE.SphereGeometry(0.1, 8, 6), mat(0xc0202a), 0.35, -0.3, -0.45));
+    g.add(mesh(new THREE.CircleGeometry(0.1, 12), mat(0x101010), 0.19, -0.45, 0.6));
+    g.add(mesh(new THREE.TorusGeometry(0.6, 0.012, 4, 30), mat(0x101010), 0, -0.4, 0)).children.at(-1).rotation.set(Math.PI / 2 - 0.35, 0.3, 0);
   } else if (kind === 'grandma') { // a crown of spring flowers in her curls
     g.add(HAT_BUILDERS.flowers());
   } else if (kind === 'santa') { // a floppy red hat with a white fur brim and a pompom

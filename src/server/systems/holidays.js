@@ -6,11 +6,13 @@
 import { CELL } from '../../shared/config.js';
 import { holidayOf, SANTA_SPOT } from '../../shared/seasons.js';
 import { ITEMS } from '../../shared/items.js';
+import { STYLE_SLOTS } from '../../shared/config.js';
+
+const PRESENT_TREATS = ['pie', 'bigpotion', 'megapotion', 'feast', 'honeycake', 'candycane', 'chocolateegg', 'gingerbread', 'toffeeapple'];
 
 const GIFTS = 'santaGifts';   // save.flags: { day, ids: [players who opened theirs] } (one present each per Christmas)
 const BASKETS = 'easterBaskets'; // save.flags: the same for Grandma's Easter baskets
 const TREATS = ['candycorn', 'candycorn', 'toffeeapple', 'pumpkinpie', 'cider'];
-const PRESENTS = ['feast', 'megapotion', 'elixir', 'gingerbread', 'candycane'];
 
 /** The town was loaded: put today's holiday things in it. */
 export function onLocation(loc) {
@@ -82,18 +84,55 @@ export const interactions = {
     const log = this.save.flags[GIFTS]?.day === this.save.day ? this.save.flags[GIFTS] : (this.save.flags[GIFTS] = { day: this.save.day, ids: [] });
     if (log.ids.includes(p.id)) return this.toast(p, '🎅 Ho ho ho! You’ve had your present — Merry Christmas!');
     log.ids.push(p.id);
-    const item = PRESENTS[Math.floor(Math.random() * PRESENTS.length)];
-    const gold = 150 + (p.level ?? 1) * 10;
-    p.inventory[item] = (p.inventory[item] ?? 0) + 1;
-    this.earn(p, gold);
+    p.inventory.santapresent = (p.inventory.santapresent ?? 0) + 1;
     this.sendToLocation(p.loc, { t: 'fx', kind: 'present', x: santa.x, z: santa.z });
-    this.toast(p, `🎁 Santa gives you a present: ${ITEMS[item].name} and ${gold} gold! Ho ho ho!`);
+    this.toast(p, '🎁 Santa gives you a big wrapped present! Ho ho ho! Click the 🎁 in your bag to open it.');
     this.sendSelf(p);
     this.persist();
   },
 };
 
 export const methods = {
+  /** Open a present from your bag: gold and a treat — and from Santa, maybe something to wear. */
+  on_openPresent(p, { item }) {
+    const def = ITEMS[item];
+    if (def?.kind !== 'gift' || !p.inventory[item]) return;
+    p.inventory[item]--;
+    if (!p.inventory[item]) delete p.inventory[item];
+    const santa = !!def.santa;
+    const gold = Math.round((santa ? 200 : 60) + Math.random() * (santa ? 300 : 180));
+    const treat = PRESENT_TREATS[Math.floor(Math.random() * PRESENT_TREATS.length)];
+    this.earn(p, gold);
+    p.inventory[treat] = (p.inventory[treat] ?? 0) + 1;
+    let extra = '';
+    if (santa || Math.random() < 0.15) { // something to wear you don't have yet
+      const wish = Object.entries(STYLE_SLOTS).filter(([slot]) => ['hat', 'dye', 'back', 'clothes'].includes(slot))
+        .flatMap(([slot, table]) => Object.entries(table).filter(([id, d]) => d.price && !d.seasonal && !(p.closet ?? []).includes(`${slot}:${id}`)).map(([id, d]) => ({ slot, id, name: d.name })));
+      if (wish.length) {
+        const w = wish[Math.floor(Math.random() * wish.length)];
+        (p.closet ??= []).push(`${w.slot}:${w.id}`);
+        extra = `, and ${w.name} to wear (it's in your wardrobe)`;
+      }
+    }
+    this.sendToLocation(p.loc, { t: 'fx', kind: 'present', x: p.x, z: p.z });
+    this.toast(p, `🎁 You open the present: ${gold} gold, ${ITEMS[treat].name}${extra}!`);
+    this.writeRecord?.(p);
+    this.sendSelf(p);
+  },
+
+  /** Give a present from your bag to someone else in the family who's playing. */
+  on_sendPresent(p, { item, to }) {
+    const def = ITEMS[item], q = this.players.get(to);
+    if (def?.kind !== 'gift' || !p.inventory[item] || !q || q === p) return;
+    p.inventory[item]--;
+    if (!p.inventory[item]) delete p.inventory[item];
+    q.inventory[item] = (q.inventory[item] ?? 0) + 1;
+    this.toast(p, `🎁 You sent ${q.name} a present!`);
+    this.toast(q, `🎁 ${p.name} sent you a present! Click the 🎁 in your bag to open it.`);
+    this.sendSelf(p);
+    this.sendSelf(q);
+  },
+
   /** Make the town match the day: cottage doors to knock on at Halloween, Santa at Christmas. */
   syncHoliday(loc) {
     const h = holidayOf(this.save.day);
@@ -111,8 +150,13 @@ export const methods = {
     } else if (h === 'easter') {
       loc.spawn({
         type: 'npc', holiday: h, name: 'Grandma', cls: 'Mage', wear: 'grandma', decor: 'easter',
-        look: { hat: 'none', cape: 'none', hair: 'curly', hairColor: 'blonde', face: 'glasses' },
+        look: { hat: 'none', cape: 'none', hair: 'curly', hairColor: 'blonde' },
         x: SANTA_SPOT.x, z: SANTA_SPOT.z, rot: 0, r: 0.8, interact: 'easter', prompt: 'Talk to Grandma 🐣',
+      });
+      loc.spawn({ // and Grandpa, in his Sunday waistcoat
+        type: 'npc', holiday: h, name: 'Grandpa', cls: 'Ranger',
+        look: { hat: 'none', cape: 'none', hair: 'suave', hairColor: 'black', clothes: 'sunday', face: 'mustache' },
+        x: SANTA_SPOT.x - 2.2, z: SANTA_SPOT.z + 0.4, rot: 0.3, r: 0.8,
       });
     } else if (h === 'christmas') {
       loc.spawn({

@@ -55,16 +55,19 @@ test('holidays: on Christmas Santa is in the square, with one present for each o
   assert.ok(!blocked(L, SANTA_SPOT.x, SANTA_SPOT.z + 1.5, PLAYER_RADIUS, L.solids), 'you can walk up to Santa');
   for (const id of ['mom', 'kid']) server.travel(p[id], 'town');
   const visit = (id) => { p[id].x = santa.x; p[id].z = santa.z + 1.5; c[id].say({ t: 'interact', id: santa.id }); };
+  visit('mom');
+  assert.equal(p.mom.inventory.santapresent, 1, 'a present from Santa');
+  visit('mom');
+  assert.equal(p.mom.inventory.santapresent, 1, 'one present each');
   const gold = p.mom.gold;
-  visit('mom');
-  const got = p.mom.gold - gold, items = Object.values(p.mom.inventory).reduce((a, b) => a + b, 0);
-  assert.ok(got >= 150, 'gold in the present');
-  visit('mom');
-  assert.equal(p.mom.gold - gold, got, 'one present each');
-  assert.equal(Object.values(p.mom.inventory).reduce((a, b) => a + b, 0), items);
-  const kidGold = p.kid.gold;
+  c.mom.say({ t: 'openPresent', item: 'santapresent' });
+  assert.ok(!p.mom.inventory.santapresent && p.mom.gold >= gold + 200, 'opened: gold inside');
   visit('kid');
-  assert.ok(p.kid.gold > kidGold, 'the kid gets one too');
+  assert.equal(p.kid.inventory.santapresent, 1, 'the kid gets one too');
+  // presents can be given to each other
+  c.kid.say({ t: 'sendPresent', item: 'santapresent', to: 'mom' });
+  assert.equal(p.mom.inventory.santapresent, 1, 'the kid gave mom their present');
+  assert.ok(!p.kid.inventory.santapresent);
   assert.deepEqual(save.flags.santaGifts.ids.sort(), ['kid', 'mom'], 'remembered in the save');
   server.endDay('sleep');
   server.step(0.05);
