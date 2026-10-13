@@ -13,6 +13,10 @@ export function blocked(layout, x, z, r, solids = []) {
         if (hitsFence(layout, cx, cz, x, z, r)) return true;
         continue;
       }
+      if (layout.thinWalls && layout.cell(cx, cz) === '#') { // a thin wall down the middle of the cell (the fort)
+        if (hitsThinWall(layout, cx, cz, x, z, r)) return true;
+        continue;
+      }
       // solid cell rectangle grown by the wall thickness
       const x0 = cx * CELL - WALL_PAD, x1 = (cx + 1) * CELL + WALL_PAD;
       const z0 = cz * CELL - WALL_PAD, z1 = (cz + 1) * CELL + WALL_PAD;
@@ -38,6 +42,26 @@ function hitsFence(layout, cx, cz, x, z, r) {
   if (layout.cell(cx - 1, cz) === '+') boxes.push([mx - CELL / 2, mx, mz - FENCE_HALF, mz + FENCE_HALF]);
   if (layout.cell(cx, cz + 1) === '+') boxes.push([mx - FENCE_HALF, mx + FENCE_HALF, mz, mz + CELL / 2]);
   if (layout.cell(cx, cz - 1) === '+') boxes.push([mx - FENCE_HALF, mx + FENCE_HALF, mz - CELL / 2, mz]);
+  return boxes.some(([x0, x1, z0, z1]) => {
+    const nx = Math.max(x0, Math.min(x, x1)), nz = Math.max(z0, Math.min(z, z1));
+    return (nx - x) ** 2 + (nz - z) ** 2 < r * r;
+  });
+}
+
+/**
+ * A thin wall (layouts with `thinWalls`: the fort): a pillar in the middle of the wall cell and the
+ * wall out to each neighbouring solid cell, WALL_PAD either side of the middle line. The rest of the
+ * cell is floor you can walk on, right up to the wall (client/LocationView.js buildThinWalls).
+ */
+function hitsThinWall(layout, cx, cz, x, z, r) {
+  const mx = cx * CELL + CELL / 2, mz = cz * CELL + CELL / 2, t = WALL_PAD;
+  const inside = (ax, az) => ax >= 0 && az >= 0 && ax < layout.w && az < layout.h;
+  const wall = (ax, az) => inside(ax, az) && layout.isSolidCell(ax, az);
+  const boxes = [[mx - t, mx + t, mz - t, mz + t]];
+  if (wall(cx + 1, cz)) boxes.push([mx, (cx + 1) * CELL, mz - t, mz + t]);
+  if (wall(cx - 1, cz)) boxes.push([cx * CELL, mx, mz - t, mz + t]);
+  if (wall(cx, cz + 1)) boxes.push([mx - t, mx + t, mz, (cz + 1) * CELL]);
+  if (wall(cx, cz - 1)) boxes.push([mx - t, mx + t, cz * CELL, mz]);
   return boxes.some(([x0, x1, z0, z1]) => {
     const nx = Math.max(x0, Math.min(x, x1)), nz = Math.max(z0, Math.min(z, z1));
     return (nx - x) ** 2 + (nz - z) ** 2 < r * r;

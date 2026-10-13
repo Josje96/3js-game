@@ -191,6 +191,7 @@ export class LocationView {
           const nx = cx + dir[0], nz = cz + dir[1];
           if (!L.isSolidCell(nx, nz)) continue;
           const ch = L.cell(nx, nz);
+          if (L.thinWalls && ch === '#') continue; // drawn by buildThinWalls
           const ex = x + dir[0] * CELL / 2, ez = z + dir[1] * CELL / 2;
           const rot = EDGE_ROT.get(dir);
           if (ch === 'U') {
@@ -209,9 +210,10 @@ export class LocationView {
         }
       }
     }
+    if (L.thinWalls) this.buildThinWalls(b, home, roomStyles, papers);
     b.flush();
     if (papers.length) this.buildWallpaper(papers);
-    if (home) this.buildWallTops();
+    if (home && !L.thinWalls) this.buildWallTops();
     if (th.deco) this.buildDecorations(th.deco);
     // soft glow on the floor in front of each exit so they're easy to find
     for (const portal of Object.values(L.portals)) {
@@ -229,6 +231,81 @@ export class LocationView {
     this.group.add(under);
   }
 
+  /**
+   * Thin walls (the fort, `layout.thinWalls`): each wall cell holds one wall down its middle, 1 thick
+   * (matching shared/physics.js hitsThinWall), instead of two faces a cell apart with nothing
+   * between. Straight runs get a whole wall piece; corners and junctions half pieces round a stone
+   * pillar. The floor runs under the wall cells right up to the wall, each quarter in the floor
+   * style of the room it opens onto, and each side of a wall gets that room's paint or wallpaper.
+   * Walls in the bottom row (between the camera and the rooms) are cut down so you can see in.
+   */
+  buildThinWalls(b, home, roomStyles, papers) {
+    const L = this.layout, th = this.theme;
+    const inside = (cx, cz) => cx >= 0 && cz >= 0 && cx < L.w && cz < L.h;
+    const walk = (cx, cz) => inside(cx, cz) && !L.isSolidCell(cx, cz);
+    const styleAt = (cx, cz) => { // the floor and wall style of the room this (walkable) cell is in
+      const room = roomIndexAt(L, cx, cz), rs = room >= 0 ? roomStyles?.[room] : null;
+      return room >= 0 ? { floor: FLOOR_STYLES[rs?.floor] ?? FLOOR_STYLES.oak, wall: WALL_STYLES[rs?.wall] ?? WALL_STYLES.stone } : home;
+    };
+    // which walkable cell a bit of wall-cell floor (or a wall side) opens onto: straight out first, then round the corner
+    const regionOf = (cx, cz, a, c) => [[cx + a[0], cz + a[1]], [cx + c[0], cz + c[1]], [cx + a[0] + c[0], cz + a[1] + c[1]]].find(([x, z]) => walk(x, z));
+    // shelves only on the common room's walls: never over a bed
+    const bedroomNear = (cx, cz) => [N, E, S, W].some(([dx, dz]) => walk(cx + dx, cz + dz) && roomIndexAt(L, cx + dx, cz + dz) >= 0);
+    const pillars = [];
+    for (let cz = 0; cz < L.h; cz++) {
+      for (let cx = 0; cx < L.w; cx++) {
+        if (L.cell(cx, cz) !== '#') continue;
+        let near = false;
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (walk(cx + dx, cz + dz)) near = true;
+        if (!near) continue;
+        const x = cx * CELL + CELL / 2, z = cz * CELL + CELL / 2;
+        // floor: a quarter tile in each corner of the cell that's inside a room
+        for (const qx of [-1, 1]) for (const qz of [-1, 1]) {
+          const r = regionOf(cx, cz, [qx, 0], [0, qz]);
+          if (!r) continue;
+          const fs = styleAt(r[0], r[1])?.floor ?? FLOOR_STYLES.oak;
+          b.add(fs.model, { x: x + qx * CELL / 4, z: z + qz * CELL / 4, sx: 0.5, sz: 0.5, rot: 0 }, fs.tint ?? 0xffffff);
+        }
+        const arms = [N, E, S, W].filter(([dx, dz]) => inside(cx + dx, cz + dz) && L.isSolidCell(cx + dx, cz + dz));
+        const low = cz === L.h - 1; // the bottom wall: cut down so the camera sees into the rooms
+        const sy = low ? 0.22 : 1;
+        const straight = arms.length === 2 && arms[0][0] === -arms[1][0] && arms[0][1] === -arms[1][1];
+        const pieces = straight
+          ? [{ d: arms[0], x, z, len: CELL, path: bedroomNear(cx, cz) ? 'dungeon/wall' : th.walls[Math.floor(this.rand(cx, cz, 'w') * th.walls.length)] }]
+          : arms.map((d) => ({ d, x: x + d[0] * CELL / 4, z: z + d[1] * CELL / 4, len: CELL / 2, path: 'dungeon/wall' }));
+        if (!straight) pillars.push({ x, z, sy });
+        for (const p of pieces) {
+          const along = p.d[0] !== 0; // runs east-west
+          b.add(p.path, { x: p.x, z: p.z, rot: along ? 0 : Math.PI / 2, sx: p.len / CELL, sy });
+          // each side: the paint or wallpaper of the room it faces
+          for (const s of along ? [N, S] : [E, W]) {
+            const r = straight ? (walk(cx + s[0], cz + s[1]) ? [cx + s[0], cz + s[1]] : null) : regionOf(cx, cz, s, p.d);
+            const ws = r && styleAt(r[0], r[1])?.wall;
+            if (ws && (ws.pattern || (ws.tint != null && ws.tint !== 0xffffff))) papers.push({ style: ws, x: p.x, z: p.z, rot: Math.atan2(s[0], s[1]), sy, len: p.len });
+          }
+        }
+      }
+    }
+    // the front door: its doorway sits in the room's edge as before, with short walls back to the thin wall line
+    for (const portal of Object.values(L.portals)) {
+      const { cx, cz, dir } = portal;
+      const ex = cx * CELL + CELL / 2 + dir[0] * CELL / 2, ez = cz * CELL + CELL / 2 + dir[1] * CELL / 2;
+      const sy = cz === L.h - 1 ? 0.22 : 1;
+      for (const side of [-1, 1]) { // along the door cell's sides, from the doorway out to the middle of the cell
+        const sxp = dir[1] !== 0 ? ex + side * CELL / 2 : ex - dir[0] * CELL / 4, szp = dir[1] !== 0 ? ez - dir[1] * CELL / 4 : ez + side * CELL / 2;
+        b.add('dungeon/wall', { x: sxp, z: szp, rot: dir[1] !== 0 ? Math.PI / 2 : 0, sx: 0.5, sy });
+      }
+    }
+    if (pillars.length) {
+      const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1.15, 4, 1.15), new THREE.MeshStandardMaterial({ color: 0x6f6b66, roughness: 0.95 }), pillars.length);
+      const m = new THREE.Matrix4();
+      pillars.forEach((p, i) => inst.setMatrixAt(i, m.compose(new THREE.Vector3(p.x, 2 * p.sy, p.z), new THREE.Quaternion(), new THREE.Vector3(1, p.sy, 1))));
+      inst.castShadow = inst.receiveShadow = true;
+      this.group.add(inst);
+      this.merged.push(inst.geometry);
+    }
+  }
+
   /** Wallpaper: a patterned panel just in front of each papered wall face, over a wooden skirting board. */
   buildWallpaper(papers) {
     const plane = new THREE.PlaneGeometry(CELL, 3.6);
@@ -239,12 +316,13 @@ export class LocationView {
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), v = new THREE.Vector3();
     const place = (inst, list, out, sy) => list.forEach((p, i) => {
       q.setFromAxisAngle(up, p.rot);
-      inst.setMatrixAt(i, m.compose(v.set(p.x + Math.sin(p.rot) * out, 0, p.z + Math.cos(p.rot) * out), q, new THREE.Vector3(1, sy(p), 1)));
+      inst.setMatrixAt(i, m.compose(v.set(p.x + Math.sin(p.rot) * out, 0, p.z + Math.cos(p.rot) * out), q, new THREE.Vector3((p.len ?? CELL) / CELL, sy(p), 1)));
     });
     const byStyle = new Map();
     for (const p of papers) { if (!byStyle.has(p.style)) byStyle.set(p.style, []); byStyle.get(p.style).push(p); }
     for (const [style, list] of byStyle) {
-      const inst = new THREE.InstancedMesh(plane, new THREE.MeshStandardMaterial({ map: wallpaperTexture(style.pattern), roughness: 0.85 }), list.length);
+      // a wallpaper pattern, or (thin walls) just the room's paint colour
+      const inst = new THREE.InstancedMesh(plane, new THREE.MeshStandardMaterial(style.pattern ? { map: wallpaperTexture(style.pattern), roughness: 0.85 } : { color: style.tint, roughness: 0.9 }), list.length);
       place(inst, list, 0.52, (p) => p.sy);
       inst.receiveShadow = true;
       this.group.add(inst);

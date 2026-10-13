@@ -10,6 +10,8 @@ import { generateFloor } from './mapgen.js';
 import { PROPS } from './props.js';
 
 const WALKABLE = new Set(['.', '=', '~']); // '~': you can wade into the pond
+/** How much further back a thin wall's face is than a whole-cell wall's: the wall moved from the cell's edge to its middle. */
+export const THIN_WALL_GAIN = CELL / 2;
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 export function isWalkableChar(ch) {
@@ -59,7 +61,11 @@ export function buildLayout(key, seed, opts = {}) {
 
   layout.props = layout.props.map((p, i) => {
     const def = PROPS[p.type];
-    return { id: `prop${i}`, ...def, ...p, rot: def.rot ?? p.rot, z: p.z + (def.offsetZ ?? 0) };
+    // things standing by a wall (the wardrobe, mirror and chest; the plant) stay against it: with thin
+    // walls that wall is THIN_WALL_GAIN further back. The feast table (seats) stays in the middle.
+    const pcx = Math.floor(p.x / CELL), pcz = Math.floor(p.z / CELL);
+    const thinBack = !layout.thinWalls || def.seats ? 0 : layout.cell(pcx, pcz - 1) === '#' ? THIN_WALL_GAIN : layout.cell(pcx, pcz + 1) === '#' ? -THIN_WALL_GAIN : 0;
+    return { id: `prop${i}`, ...def, ...p, rot: def.rot ?? p.rot, z: p.z + (def.offsetZ ?? 0) - thinBack };
   });
   layout.solids = layout.props.flatMap((p) => p.blocks
     ? p.blocks.map(([dx, dz, r]) => ({ x: p.x + dx * Math.cos(p.rot ?? 0) + dz * Math.sin(p.rot ?? 0), z: p.z - dx * Math.sin(p.rot ?? 0) + dz * Math.cos(p.rot ?? 0), r }))
@@ -94,7 +100,8 @@ function parseAsciiMap(map) {
         if (room < 0 && rooms.length) throw new Error(`a bed slot at ${cx},${cz} is outside every room`);
         // the pillow end goes against the wall: a bed by a wall below it is turned round (pillow at +z)
         const down = map.rows[cz + 1]?.[cx] === '#' && map.rows[cz - 1]?.[cx] !== '#';
-        const slot = { x: pos.x, z: pos.z + (down ? 0.6 : -0.6), rot: down ? Math.PI : 0, room };
+        const back = map.thinWalls ? 0.6 + THIN_WALL_GAIN : 0.6; // with thin walls the wall is further back
+        const slot = { x: pos.x, z: pos.z + (down ? back : -back), rot: down ? Math.PI : 0, room };
         if (room >= 0) bedSlots[room] = slot; // bed slot = room number
         else bedSlots.push(slot);
       }
@@ -103,6 +110,7 @@ function parseAsciiMap(map) {
   return {
     title: map.title,
     theme: map.theme,
+    thinWalls: !!map.thinWalls,
     dark: false,
     w, h, rows,
     portals: structuredClone(map.portals),

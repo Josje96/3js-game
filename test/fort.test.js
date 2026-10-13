@@ -139,3 +139,32 @@ test('fort: every bed has its pillow against a wall, and you wake up on open flo
     }
   }
 });
+
+test('fort: thin walls — you can walk right up to a wall, but not through it, and the fort is sealed', async () => {
+  const { blocked, moveCircle } = await import('../src/shared/physics.js');
+  const { PLAYER_RADIUS, CELL } = await import('../src/shared/config.js');
+  const { server } = world('thin', 'a', 'b', 'c', 'd');
+  const L = server.getLocation('house').layout;
+  assert.ok(L.thinWalls);
+  let strips = 0;
+  for (let cz = 1; cz < L.h - 1; cz++) for (let cx = 1; cx < L.w - 1; cx++) {
+    if (L.cell(cx, cz) !== '#') continue;
+    const mx = cx * CELL + CELL / 2, mz = cz * CELL + CELL / 2;
+    assert.ok(blocked(L, mx, mz, PLAYER_RADIUS, []), `the middle of wall cell ${cx},${cz} is wall`);
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { // the floor beside it, where it opens onto a room
+      if (L.isSolidCell(cx + dx, cz + dz)) continue;
+      strips++;
+      const sx = mx + dx * (CELL / 2 - PLAYER_RADIUS - 0.05) * 0.9 + dx * 0.2, sz = mz + dz * (CELL / 2 - PLAYER_RADIUS - 0.05) * 0.9 + dz * 0.2;
+      if (!L.isSolidCell(cx + (dz ? 1 : 0), cz + (dx ? 1 : 0)) || !L.isSolidCell(cx - (dz ? 1 : 0), cz - (dx ? 1 : 0))) continue; // only along straight walls
+      assert.ok(!blocked(L, sx, sz, PLAYER_RADIUS, []), `you can stand in the strip by wall ${cx},${cz}`);
+    }
+  }
+  assert.ok(strips > 10, 'plenty of wall-side floor');
+  // walking hard at a wall from a room never gets you through it, and nobody gets out of the fort
+  const start = L.bedSlots[0];
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    let x = start.x, z = start.z + 2.6;
+    for (let i = 0; i < 400; i++) ({ x, z } = moveCircle(L, x, z, dx * 0.2, dz * 0.2, PLAYER_RADIUS, []));
+    assert.ok(x > 0 && z > 0 && x < L.w * CELL && z < L.h * CELL, 'still inside the fort');
+  }
+});

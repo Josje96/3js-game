@@ -77,6 +77,7 @@ export function fortMap(n) {
   return {
     title: 'Family Fort',
     theme: 'wood',
+    thinWalls: true, // walls are thin, down the middle of their cells (shared/physics.js)
     rows: grid.map((r) => r.join('')),
     rooms,
     portals: { D: { to: 'town', portal: 'd' } },
