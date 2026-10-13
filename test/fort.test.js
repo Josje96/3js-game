@@ -100,7 +100,14 @@ test('fort: sit down at the feast table and you eat (and heal) while you stay si
   p.mom.x = table.x + 1; p.mom.z = table.z + 2.8;
   p.mom.hp = 3;
   c.mom.say({ t: 'interact', id: table.id });
-  assert.ok(c.mom.all('fx').some((m) => m.kind === 'sit'), 'sat down at a seat');
+  const sat = c.mom.all('fx').find((m) => m.kind === 'sit');
+  assert.ok(sat, 'sat down at a seat');
+  assert.ok(sat.up && !blocked(L, sat.up.x, sat.up.z, PLAYER_RADIUS, L.solids), 'getting up puts you on clear floor, not inside the table');
+  // standing at the mirror, the mirror is what E uses — not the table
+  const { useDistance } = await import('../src/shared/props.js');
+  const mirror = L.props.find((q) => q.interact === 'mirror');
+  const atMirror = { x: mirror.x, z: mirror.z + 1.6 };
+  assert.ok(useDistance(mirror, atMirror) < useDistance(table, atMirror), 'the mirror is nearer than any seat');
   assert.equal(p.mom.hp, 3, 'no food until you’re sitting');
   p.mom.anim = 'sit';
   for (let i = 0; i < 20; i++) server.step(0.25); // five seconds at the table

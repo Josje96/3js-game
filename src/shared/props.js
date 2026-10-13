@@ -34,7 +34,7 @@ export const PROPS = {
   fountain:   { build: 'fountain', radius: 1.9 },
   // the fort's long feast table (14 long, benches either side): sit down with E and eat — it heals.
   // `seats` = where you sit [dx, dz, facing]
-  feast:      { build: 'feast', radius: 6.5, offsetZ: 2, interact: 'feast', prompt: 'Sit down to the feast (stay sitting to eat and heal)',
+  feast:      { build: 'feast', radius: 1, offsetZ: 2, interact: 'feast', prompt: 'Sit down to the feast (stay sitting to eat and heal)',
                 // the table and both benches are solid end to end (you sit down onto a seat with E)
                 blocks: [-6.5, -5, -3.5, -2, -0.5, 1, 2.5, 4, 5.5, 6.5].flatMap((dx) => [[dx, 0, 1.0], [dx, -1.75, 0.4], [dx, 1.75, 0.4]]),
                 seats: [-4.5, -1.5, 1.5, 4.5].flatMap((dx) => [[dx, -1.75, 0], [dx, 1.75, Math.PI]]) },
@@ -63,3 +63,14 @@ export const PROPS = {
   shopkeeper: { npc: 'Mage', npcName: 'Shopkeeper', npcLook: { hat: 'none', hair: 'bun', hairColor: 'ginger', clothes: 'sunday', cape: 'none' },
                 radius: 2.3, offsetZ: -0.9, blocks: STALL_BLOCKS, interact: 'shop', prompt: 'Shop (food, potions, fashion, sell loot)', stall: 0x4f8ce0 },
 };
+
+/**
+ * How far `who` is from being able to use `t` (0 or less = touching it). Long things with seats
+ * (the feast table) count from their nearest seat, so they don't reach over everything nearby.
+ */
+export function useDistance(t, who) {
+  if (t.seats?.length) {
+    return Math.min(...t.seats.map(([dx, dz]) => Math.hypot(t.x + dx - who.x, t.z + dz - who.z))) - 0.6;
+  }
+  return Math.hypot(t.x - who.x, t.z - who.z) - (t.radius ?? t.r ?? 0);
+}

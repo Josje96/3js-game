@@ -11,10 +11,12 @@ import { MAX_ROOMS } from '../../shared/fort.js';
 export const interactions = {
   /** The feast table: sit down at the nearest seat. You eat while you stay sitting (see tick). */
   feast(p, table) {
-    const seats = (table.seats ?? []).map(([dx, dz, face]) => ({ x: table.x + dx, z: table.z + dz, rot: face }));
+    const seats = (table.seats ?? []).map(([dx, dz, face]) => ({ x: table.x + dx, z: table.z + dz, rot: face, side: Math.sign(dz) }));
     if (!seats.length) return;
     const seat = seats.reduce((a, b) => ((a.x - p.x) ** 2 + (a.z - p.z) ** 2 <= (b.x - p.x) ** 2 + (b.z - p.z) ** 2 ? a : b));
-    this.send(p, { t: 'fx', kind: 'sit', id: p.id, x: seat.x, z: seat.z, rot: seat.rot, r: 0.6 });
+    // getting up: step back off the bench, away from the table (forwards would be into it)
+    const up = { x: seat.x, z: table.z + seat.side * 3.0 };
+    this.send(p, { t: 'fx', kind: 'sit', id: p.id, x: seat.x, z: seat.z, rot: seat.rot, r: 0.6, up });
     Object.assign(p, { x: seat.x, z: seat.z });
     p.feasting = { since: this.time, next: this.time + FEAST_EVERY };
     this.toast(p, p.hp < p.maxHp ? '🍗 Tuck in! Stay sitting to eat — every bite heals.' : '🍗 You sit down to the feast. (You’re already full of beans.)');

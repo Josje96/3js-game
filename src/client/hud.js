@@ -253,9 +253,25 @@ export class Hud {
    * Ask before spending gold: shows "Buy X for N gold?" at the bottom of the open window.
    * The window re-renders often (gold changes...), so the question lives on the Hud.
    */
-  askToBuy(label, price, run) {
-    this.pendingBuy = { label, price, run };
+  /**
+   * Ask before buying. `preview` = a sneak peek: { img } (a picture, shown big next to the
+   * question) and/or { tryOn: { slot, id } } (clothes: put them on your character to see).
+   */
+  askToBuy(label, price, run, preview = null) {
+    this.endTryOn();
+    this.pendingBuy = { label, price, run, preview };
+    if (preview?.tryOn) {
+      this.tryOn?.(preview.tryOn.slot, preview.tryOn.id); // GameClient dresses you up and zooms in
+      this.modal.classList.add('side');                    // ...and the shop steps aside so you can see
+    }
     this.refreshModal?.();
+  }
+
+  /** Take off whatever we were trying on in a shop. */
+  endTryOn() {
+    if (!this.pendingBuy?.preview?.tryOn) return;
+    this.untryOn?.();
+    this.modal.classList.remove('side');
   }
 
   askToSell(label, price, run) {
@@ -267,12 +283,13 @@ export class Hud {
     const q = this.pendingBuy;
     if (!q) return null;
     const verb = q.sell ? 'Sell' : q.label.startsWith('forge ') ? 'Pay to' : 'Buy';
-    const bar = el('div', 'confirm-bar', `<span>${verb} <b>${esc(q.label)}</b> for <span class="gold">🪙 ${q.price}</span>?</span>`);
+    const peek = q.preview?.img ? `<span class="peek">${q.preview.img}</span>` : q.preview?.tryOn ? '<span class="peek-note">👀 Trying it on!</span>' : '';
+    const bar = el('div', 'confirm-bar', `${peek}<span>${verb} <b>${esc(q.label)}</b> for <span class="gold">🪙 ${q.price}</span>?</span>`);
     const yes = el('button', 'primary', q.sell ? 'Sell it' : 'Buy it!');
     const no = el('button', '', 'Cancel');
     yes.disabled = !q.sell && (this.self?.gold ?? 0) < q.price;
-    yes.addEventListener('click', () => { this.pendingBuy = null; q.run(); this.refreshModal?.(); });
-    no.addEventListener('click', () => { this.pendingBuy = null; this.refreshModal?.(); });
+    yes.addEventListener('click', () => { this.endTryOn(); this.pendingBuy = null; q.run(); this.refreshModal?.(); });
+    no.addEventListener('click', () => { this.endTryOn(); this.pendingBuy = null; this.refreshModal?.(); });
     bar.append(yes, no);
     setTimeout(() => yes.focus(), 0);
     return bar;
@@ -313,6 +330,8 @@ export class Hud {
 
   closeModal() {
     if (!this.modalOpen || this.isFatal) return;
+    this.endTryOn();
+    this.pendingBuy = null;
     this.modal.classList.add('hidden');
     this.modal.innerHTML = '';
     this.onCloseModal?.();
@@ -364,7 +383,7 @@ export class Hud {
           const locked = it.tier > tier;
           const row = el('button', `shop-row${locked ? ' locked' : ''}`, `<span>${iconImg(itemIcon(id))}${esc(it.name)} <small>${itemStat(it)}</small></span><span class="gold">${owned ? '✓' : locked ? '🔒' : it.price}</span>`);
           row.disabled = locked || owned || gold < it.price;
-          row.addEventListener('click', () => this.askToBuy(it.name, it.price, () => onBuy(id)));
+          row.addEventListener('click', () => this.askToBuy(it.name, it.price, () => onBuy(id), { img: iconImg(itemIcon(id)) }));
           body.append(row);
         }
       }
@@ -418,7 +437,7 @@ export class Hud {
         const swatch = def.color != null ? `<i class="swatch" style="background:#${def.color.toString(16).padStart(6, '0')}"></i>` : '';
         const b = el('button', 'shop-row', `<span>${swatch}${esc(def.name)}</span><span class="gold">${owned ? '✓' : def.price}</span>`);
         b.disabled = owned || gold < def.price;
-        b.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuyStyle(slot, id)));
+        b.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuyStyle(slot, id), { tryOn: { slot, id } }));
         grid.append(b);
       }
       wrap.append(grid);
@@ -648,7 +667,7 @@ export class Hud {
       const ready = !owned && gold >= r.gold && Object.entries(r.needs).every(([item, n]) => have(item) >= n);
       const b = el('button', ready ? 'primary' : '', owned ? 'Made ✓' : 'Forge');
       b.disabled = !ready;
-      b.addEventListener('click', () => this.askToBuy(`forge ${it.name}`, r.gold, () => onForge(id)));
+      b.addEventListener('click', () => this.askToBuy(`forge ${it.name}`, r.gold, () => onForge(id), { img: iconImg(itemIcon(id)) }));
       row.append(b);
       list.append(row);
     }
@@ -724,7 +743,7 @@ export class Hud {
           const it = ITEMS[id], have = this.self?.inventory?.[id] ?? 0;
           const b = el('button', 'shop-row', `<span>${esc(it.name)} <small>${itemStat(it)}${have ? ` · you have ${have}` : ''}</small></span><span class="gold">${it.price}</span>`);
           b.disabled = gold < it.price;
-          b.addEventListener('click', () => this.askToBuy(it.name, it.price, () => onBuyItem(id)));
+          b.addEventListener('click', () => this.askToBuy(it.name, it.price, () => onBuyItem(id), { img: iconImg(itemIcon(id)) }));
           treats.append(b);
         }
         box.append(treats);
@@ -778,7 +797,7 @@ export class Hud {
           const have = h.owned?.[id] ?? 0;
           const row = el('button', 'shop-row', `<span>${iconImg(furnitureIcon(id))}${esc(def.name)}${have ? ` <small>${have} waiting at home</small>` : ''}</span><span class="gold">${def.price}</span>`);
           row.disabled = gold < def.price;
-          row.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuy(id)));
+          row.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuy(id), { img: iconImg(furnitureIcon(id)) }));
           body.append(row);
         }
       } else {
@@ -787,7 +806,7 @@ export class Hud {
           const owned = !def.price || (h.styles ?? []).includes(`${kind}:${id}`);
           const row = el('button', 'shop-row', `<span>${styleSwatch(def)}${esc(def.name)}</span><span class="gold">${owned ? 'owned ✓' : def.price}</span>`);
           row.disabled = owned || gold < def.price;
-          row.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuyStyle(kind, id)));
+          row.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuyStyle(kind, id), { img: styleSwatch(def).replace('class="swatch"', 'class="swatch big"') }));
           body.append(row);
         }
       }

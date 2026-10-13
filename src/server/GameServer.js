@@ -14,6 +14,7 @@ import { LiveLocation } from './LiveLocation.js';
 import { newPlayerRecord, PLAYER_FIELDS } from './saves.js';
 import { installSystems } from './systems/index.js';
 import { checkClientMessage } from '../shared/protocol.js';
+import { useDistance } from '../shared/props.js';
 
 const PORTAL_GRACE = 1.0; // seconds after arriving somewhere before exits work
 
@@ -339,7 +340,7 @@ export class GameServer {
     const loc = this.locations.get(p.loc);
     // a static prop from the map, or an entity that can be used (beds, furniture...)
     const target = loc?.layout.props.find((q) => q.id === id) ?? loc?.entities.get(id);
-    if (!target?.interact || dist2(p, target) > (INTERACT_RANGE + (target.radius ?? target.r ?? 0)) ** 2) return;
+    if (!target?.interact || useDistance(target, p) > INTERACT_RANGE) return;
     if (target.requiresFlag && !this.save.flags[target.requiresFlag]) return; // not in town yet
     const handler = INTERACTIONS[target.interact];
     if (handler) handler.call(this, p, target, loc);

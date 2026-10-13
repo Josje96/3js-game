@@ -17,6 +17,7 @@ import { Hud } from './hud.js';
 import { Music, moodFor } from './music.js';
 import { Sfx } from './sfx.js';
 import { ENCHANT_LOOKS } from '../shared/enchant.js';
+import { useDistance } from '../shared/props.js';
 
 /** What the fort looks like, reduced to what a re-render depends on (so a change re-dresses it). */
 function houseKey(h) {
@@ -154,6 +155,7 @@ export class GameClient {
   standUp() {
     const s = this.sitting, d = s.r + PLAYER_RADIUS + 0.15;
     this.sitting = null;
+    if (s.up) { this.pos.x = s.up.x; this.pos.z = s.up.z; return; } // a bench: step back off it, away from the table
     this.pos.x = s.x + Math.sin(s.rot) * d;
     this.pos.z = s.z + Math.cos(s.rot) * d;
   }
@@ -372,7 +374,7 @@ export class GameClient {
         if (msg.id === this.you && this.sleeping) { this.sleeping = false; this.pos.z += 2.6; }
         break;
       case 'sit': // onto a chair: sit facing out of it; walking gets you up in front of it
-        if (msg.id === this.you) { this.sitting = { x: msg.x, z: msg.z, rot: msg.rot, r: msg.r }; this.pos.x = msg.x; this.pos.z = msg.z; this.pos.rot = msg.rot; }
+        if (msg.id === this.you) { this.sitting = { x: msg.x, z: msg.z, rot: msg.rot, r: msg.r, up: msg.up }; this.pos.x = msg.x; this.pos.z = msg.z; this.pos.rot = msg.rot; }
         break;
       case 'nightWarning': this.sfx.play('chime'); this.hud.nightWarning(msg.seconds); break;
       case 'dodge': if (msg.id === this.you) { this.sfx.play('dodge'); this.floatAt(this.pos, 'Dodged!', '#c9f7ff'); } break;
@@ -470,6 +472,11 @@ export class GameClient {
 
   openUi(msg) {
     if (msg.kind === 'shop' || msg.kind === 'smith') {
+      this.hud.tryOn = (slot, id) => { // a sneak peek in the shop: wear it for a moment, close up
+        this.me?.setLook({ ...cleanLook(this.profile.look), [slot]: id });
+        this.closeUp = true;
+      };
+      this.hud.untryOn = () => { this.me?.setLook(cleanLook(this.profile.look, this.self?.closet)); this.closeUp = false; };
       this.hud.openShop({
         vendor: msg.kind,
         onForge: (recipe) => this.conn.send({ t: 'forge', recipe }),
@@ -780,7 +787,7 @@ export class GameClient {
   nearestInteractable() {
     let best = null, bestD = Infinity;
     const consider = (t, prompt) => {
-      const d = Math.hypot(t.x - this.pos.x, t.z - this.pos.z) - (t.radius ?? t.r ?? 0);
+      const d = useDistance(t, this.pos);
       if (d < INTERACT_RANGE && d < bestD) { best = { id: t.id, prompt }; bestD = d; }
     };
     for (const p of this.layout.props) if (p.interact && !p.hidden) consider(p, p.prompt);
