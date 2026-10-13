@@ -111,7 +111,7 @@ test('town: the Decorator opens after the King Slime; furniture is bought, place
   const door = house.layout.portals.D.arrive;
   c.kid.say({ t: 'placeFurniture', item: 'sofa', x: door.x, z: door.z - 0.5, rot: 0 });
   assert.equal(save.house.furniture.length, 0, 'not blocking the door');
-  const spot = { x: 6, z: 50 }; // the west end of the common room, clear of the furniture by the walls
+  const spot = { x: 6, z: 30 }; // the west end of the common room, clear of the furniture by the walls
   p.kid.x = spot.x + 4; p.kid.z = spot.z - 2;
   c.kid.say({ t: 'placeFurniture', item: 'sofa', x: spot.x, z: spot.z, rot: Math.PI });
   assert.equal(save.house.furniture.length, 1);
@@ -144,17 +144,17 @@ test('decor: everyone has their own room — its owner styles it and nobody else
   c.kid.say({ t: 'buyFurniture', item: 'stool' });
   assert.equal(save.house.owned.stool, 1);
   server.travel(p.kid, 'house');
-  p.kid.x = 12; p.kid.z = 18; // in mom's doorway, in reach of her room
-  c.kid.say({ t: 'placeFurniture', item: 'stool', x: 12, z: 13, rot: 0 });
+  p.kid.x = 10; p.kid.z = 18; // in mom's doorway, in reach of her room
+  c.kid.say({ t: 'placeFurniture', item: 'stool', x: 10, z: 13, rot: 0 });
   assert.equal(save.house.furniture.length, 0, 'mom’s room is mom’s');
-  p.mom.x = 12; p.mom.z = 18;
-  c.mom.say({ t: 'placeFurniture', item: 'stool', x: 12, z: 13, rot: 0 });
+  p.mom.x = 10; p.mom.z = 18;
+  c.mom.say({ t: 'placeFurniture', item: 'stool', x: 10, z: 13, rot: 0 });
   assert.equal(save.house.furniture.length, 1, 'mom furnishes her own room');
 
   // styling: buy in town, then put it up yourself, only in the room you're standing in,
   // and only if it's your own room or the common room
   const at = (pl, x, z) => { pl.x = x; pl.z = z; };
-  at(p.kid, 10, 32); // in the kid's own room (room 1, second row)
+  at(p.kid, 10, 46); // in the kid's own room (room 1, bottom left)
   c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'stone', slot: 1 }); // 'stone' is the free one
   assert.equal(save.house.roomStyles[1]?.wall, 'stone');
   c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'sky', slot: 1 });   // not bought yet
@@ -171,12 +171,12 @@ test('decor: everyone has their own room — its owner styles it and nobody else
   assert.equal(p.kid.gold, before - 260);
   assert.equal(save.house.roomStyles[1]?.wall, 'stone', 'buying doesn’t put it up');
   server.travel(p.kid, 'house');
-  at(p.kid, 10, 32);
+  at(p.kid, 10, 46);
   c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'dusk', slot: 1 });
   assert.equal(save.house.roomStyles[1]?.wall, 'dusk', 'put up in the kid’s room');
   assert.notEqual(save.house.wall, 'dusk', 'only that room');
   assert.ok(!save.house.roomStyles[0], 'mom’s room untouched');
-  at(p.kid, 30, 46); // the common room is everyone's
+  at(p.kid, 20, 28); // the common room is everyone's
   c.kid.say({ t: 'roomStyle', kind: 'floor', id: 'oak', slot: -1 });
   c.kid.say({ t: 'roomStyle', kind: 'wall', id: 'dusk', slot: -1 });
   assert.equal(save.house.wall, 'dusk');

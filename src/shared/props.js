@@ -32,6 +32,10 @@ export const PROPS = {
   signpost:   { model: 'props/signpost', radius: 0.25 },
   // town: stalls under canopies around the market square, plus things to look at
   fountain:   { build: 'fountain', radius: 1.9 },
+  // the town square's dressing: all solid, nobody walks through them
+  planter:    { build: 'planter', radius: 1.0 },
+  cart:       { build: 'cart', radius: 1.0, blocks: [[-0.8, 0, 1.0], [0.8, 0, 1.0]] },
+  noticeboard:{ build: 'noticeboard', radius: 0.6, interact: 'notices', prompt: 'Read the notice board' },
   // placed round the fountain by shared/locations.js; `r` = how far in front you get up, `seat.face` = which way you sit
   bench:      { build: 'bench', radius: 0, r: 0.55, interact: 'sit', prompt: 'Sit on the bench', seat: { face: 0 } },
   lamp:       { build: 'lamp', radius: 0.3, light: true },

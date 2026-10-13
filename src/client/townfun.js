@@ -17,6 +17,24 @@ export function buildTownFun(layout, group, rand) {
   const lamps = layout.props.filter((p) => p.build === 'lamp');
   const fountain = layout.props.find((p) => p.build === 'fountain');
 
+  // --- a mosaic inlaid in the paving round the fountain: two rings of tiles and blue spokes
+  if (fountain) {
+    const tiles = [];
+    for (const [r, n, colors] of [[6.0, 40, [0xc8643a, 0xf0e2c0]], [7.1, 48, [0xf0e2c0, 0x4f7fc0]]]) {
+      for (let i = 0; i < n; i++) tiles.push({ a: (i / n) * Math.PI * 2, r, color: colors[i % 2], w: (2 * Math.PI * r) / n * 0.86, d: 0.8 });
+    }
+    for (let i = 0; i < 8; i++) for (let k = 0; k < 4; k++) tiles.push({ a: (i / 8) * Math.PI * 2 + Math.PI / 8, r: 2.7 + k * 0.75, color: k % 2 ? 0xf0e2c0 : 0x4f7fc0, w: 0.55, d: 0.6 });
+    const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.04, 1), new THREE.MeshStandardMaterial({ roughness: 0.7 }), tiles.length);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+    tiles.forEach((t, i) => {
+      q.setFromAxisAngle(up, -t.a + Math.PI / 2);
+      inst.setMatrixAt(i, m.compose(new THREE.Vector3(fountain.x + Math.cos(t.a) * t.r, 0.07, fountain.z + Math.sin(t.a) * t.r), q, new THREE.Vector3(t.w, 1, t.d)));
+      inst.setColorAt(i, new THREE.Color(t.color));
+    });
+    inst.receiveShadow = true;
+    group.add(inst);
+  }
+
   // --- bunting: strings of little pennants
   const strings = [];
   if (fountain) {

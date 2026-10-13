@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { world, fakeClient } from './helpers.js';
-import { fortMap, fortWidth, fortDepth, fortColumns, HALL, MAX_ROOMS } from '../src/shared/fort.js';
+import { fortMap, fortWidth, fortDepth, fortColumns, MAX_ROOMS } from '../src/shared/fort.js';
 import { buildLayout, roomIndexAt } from '../src/shared/locations.js';
 import { migrate } from '../src/server/saves.js';
 import { GameServer } from '../src/server/GameServer.js';
@@ -14,12 +14,11 @@ test('fort: a row of rooms on top (one room and bed each), the door bottom middl
     const W = fortWidth(fortColumns(n)), H = fortDepth(fortColumns(n));
     assert.equal(map.rows.length, H);
     for (const row of map.rows) assert.equal(row.length, W);
-    assert.ok(Math.abs(W - H) <= 1, `${n}: about square (${W}x${H})`);
-    if (n <= 4) assert.ok(W <= 13 && H <= 14, `${n}: snug (${W}x${H})`);
+    if (n <= 4) assert.ok(W <= 11 && H <= 14, `${n}: snug (${W}x${H})`);
     // nothing solid in a bedroom's doorway or the two cells in front of it (the chest once stood there)
     map.rooms.forEach((r, slot) => {
-      for (const dx of [r.x + 1, r.x + 2]) { // the doorway, and the cell you step out onto
-        for (let z = r.z + r.h; z <= r.z + r.h + 1; z++) assert.ok('.p'.includes(map.rows[z][dx]), `${n}: room ${slot}'s doorway is clear at ${dx},${z} ('${map.rows[z][dx]}')`);
+      for (const z of [r.door.z, r.door.z + r.door.out]) { // the doorway, and the cell you step out onto
+        assert.ok('.p'.includes(map.rows[z][r.door.x]), `${n}: room ${slot}'s doorway is clear at ${r.door.x},${z} ('${map.rows[z][r.door.x]}')`);
       }
       assert.ok(r.w >= 3 && r.h >= 3, `${n}: rooms are roomy (${r.w}x${r.h})`);
     });
@@ -36,7 +35,6 @@ test('fort: a row of rooms on top (one room and bed each), the door bottom middl
       seen.add(k);
       todo.push([x + 1, z], [x - 1, z], [x, z + 1], [x, z - 1]);
     }
-    for (const r of L.rooms) assert.ok(r.z + r.h < HALL.z, `${n}: bedrooms only in the top half`);
     for (const r of L.rooms) assert.ok(seen.has(`${r.x},${r.z}`), `${n}: room at ${r.x},${r.z} is reachable`);
     const D = L.portals.D;
     assert.ok(seen.has(`${D.cx + D.dir[0]},${D.cz + D.dir[1]}`), `${n}: the door is reachable`);

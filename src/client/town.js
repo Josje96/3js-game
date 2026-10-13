@@ -377,3 +377,64 @@ export function makeBankBooth() {
   g.userData.update = (t) => { coin.rotation.z = t * 1.5; };
   return g;
 }
+
+/** A stone flower planter for the town square, spilling over with flowers. */
+export function makePlanter() {
+  const g = new THREE.Group();
+  const stone = std(0xc9bfae), rim = std(0xa89c88), soil = std(0x5a3a22);
+  mesh(g, new THREE.BoxGeometry(1.8, 0.7, 1.8), stone, 0, 0.35, 0);
+  mesh(g, new THREE.BoxGeometry(2.0, 0.14, 2.0), rim, 0, 0.74, 0);
+  mesh(g, new THREE.BoxGeometry(1.6, 0.1, 1.6), soil, 0, 0.78, 0);
+  const leaf = std(0x4fa83a), colors = [0xff6b8a, 0xffd23f, 0xb48cff, 0xff9a3a, 0xffffff];
+  for (let i = 0; i < 14; i++) {
+    const a = i * 2.4, r = 0.25 + (i % 4) * 0.17;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    mesh(g, new THREE.CylinderGeometry(0.025, 0.03, 0.4, 4), leaf, x, 1.0, z);
+    const bloom = mesh(g, new THREE.SphereGeometry(0.13, 8, 6), std(colors[i % colors.length], { roughness: 0.5 }), x, 1.22, z);
+    bloom.scale.y = 0.7;
+  }
+  for (let i = 0; i < 6; i++) { // trailing leaves over the rim
+    const a = (i / 6) * Math.PI * 2;
+    mesh(g, new THREE.SphereGeometry(0.18, 8, 6), leaf, Math.cos(a) * 0.85, 0.72, Math.sin(a) * 0.85).scale.set(1, 0.5, 1);
+  }
+  return g;
+}
+
+/** A market cart piled with produce: pumpkins, apples, cabbages and a sack. */
+export function makeCart() {
+  const g = new THREE.Group();
+  const wood = std(0x8a5a34), dark = std(0x5a3a22);
+  mesh(g, new THREE.BoxGeometry(2.6, 0.6, 1.5), wood, 0, 0.95, 0);
+  mesh(g, new THREE.BoxGeometry(2.7, 0.1, 1.6), dark, 0, 1.28, 0);
+  for (const s of [-1, 1]) {
+    const wheel = mesh(g, new THREE.CylinderGeometry(0.55, 0.55, 0.12, 14), dark, -0.6, 0.55, s * 0.82);
+    wheel.rotation.x = Math.PI / 2;
+    mesh(g, new THREE.CylinderGeometry(0.1, 0.1, 0.14, 8), wood, -0.6, 0.55, s * 0.88).rotation.x = Math.PI / 2;
+  }
+  mesh(g, new THREE.BoxGeometry(0.15, 0.6, 0.15), wood, 1.1, 0.35, 0.55);   // legs at the front
+  mesh(g, new THREE.BoxGeometry(0.15, 0.6, 0.15), wood, 1.1, 0.35, -0.55);
+  for (const s of [-1, 1]) mesh(g, new THREE.BoxGeometry(1.3, 0.08, 0.08), wood, 1.9, 0.9, s * 0.5).rotation.z = 0.2; // handles
+  const pumpkin = std(0xff8a2a), apple = std(0xd8302a), cabbage = std(0x7cc85a);
+  for (const [x, z] of [[-0.8, -0.3], [-0.4, 0.35], [-0.95, 0.4]]) mesh(g, new THREE.SphereGeometry(0.28, 10, 8), pumpkin, x, 1.48, z).scale.y = 0.75;
+  for (let i = 0; i < 9; i++) mesh(g, new THREE.SphereGeometry(0.1, 8, 6), apple, 0.2 + (i % 3) * 0.2, 1.38 + Math.floor(i / 3) * 0.06, -0.4 + Math.floor(i / 3) * 0.2);
+  for (const [x, z] of [[0.75, 0.3], [0.9, -0.2]]) mesh(g, new THREE.SphereGeometry(0.22, 10, 8), cabbage, x, 1.45, z);
+  mesh(g, new THREE.SphereGeometry(0.32, 10, 8), std(0xd8c8a0), 0.3, 1.5, 0.4).scale.set(1, 1.2, 0.9); // a flour sack
+  return g;
+}
+
+/** The town notice board: a little roofed board with pinned papers. */
+export function makeNoticeBoard() {
+  const g = new THREE.Group();
+  const wood = std(0x6b4a2c);
+  for (const x of [-0.8, 0.8]) mesh(g, new THREE.BoxGeometry(0.14, 2.4, 0.14), wood, x, 1.2, 0);
+  mesh(g, new THREE.BoxGeometry(1.8, 1.1, 0.1), std(0x9a6a3c), 0, 1.6, 0);
+  const roof = mesh(g, new THREE.BoxGeometry(2.1, 0.08, 0.6), std(0xc0453a), 0, 2.45, 0);
+  roof.rotation.x = 0.15;
+  const papers = [0xfff6dc, 0xffe9b0, 0xdff0ff, 0xffd6e4];
+  for (let i = 0; i < 5; i++) {
+    const p = mesh(g, new THREE.BoxGeometry(0.32, 0.4, 0.02), std(papers[i % papers.length]), -0.55 + i * 0.27, 1.6 + (i % 2 ? 0.18 : -0.12), 0.07);
+    p.rotation.z = (i % 3 - 1) * 0.12;
+    mesh(g, new THREE.SphereGeometry(0.025, 6, 4), std(0xd8302a), p.position.x, p.position.y + 0.17, 0.09);
+  }
+  return g;
+}
