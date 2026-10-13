@@ -70,10 +70,10 @@ export class Hud {
   // ---------------------------------------------------------------- status
 
   /** The night screen: a moonlit card with the new day's number, shown for a few seconds. */
-  nightScreen({ day, reason, fainted = [], days = 1 }) {
+  nightScreen({ day, reason, fainted = [] }) {
     this.nightEl?.remove();
     const lines = reason === 'sleep'
-      ? [days > 1 ? `Everyone snuggled into bed… and slept for ${days} days! 💤` : 'Everyone snuggled into bed…']
+      ? ['Everyone snuggled into bed…']
       : ['Night fell!', ...fainted.map((f) => `${f.name} was out after dark and fainted${f.lost ? ` (dropped ${f.lost} gold)` : ''}.`)];
     const n = el('div', 'night-screen', `
       <div class="night-sky"></div>
@@ -286,20 +286,6 @@ export class Hud {
     if (!this.pendingBuy?.preview?.tryOn) return;
     this.untryOn?.();
     this.modal.classList.remove('side');
-  }
-
-  /** Into bed: how many days to sleep for. */
-  openSleep({ options, onPick }) {
-    this.openModal((box) => {
-      box.append(el('h2', null, '💤 Time for bed'), el('p', 'muted', 'How long would you like to sleep? With the family, the night passes once everyone’s in bed, for the fewest days anyone picked. (A new season always wakes you up on its first day.)'));
-      const row = el('div', 'sleep-days');
-      for (const d of options) {
-        const b = el('button', d === 1 ? 'primary' : '', d === 1 ? 'Until morning' : `${d} days`);
-        b.addEventListener('click', () => { this.closeModal(); onPick(d); });
-        row.append(b);
-      }
-      box.append(row, closeButton(this));
-    });
   }
 
   /** The feast table: buy food? */

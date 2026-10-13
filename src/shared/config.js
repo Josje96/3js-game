@@ -31,7 +31,6 @@ export const BANK_OPEN_FEE = 250;        // opening an account at the bank (gold
 export const SPRING_COST = 50;       // gold for a full heal (and LUCK) at the healing spring by the fort
 export const LUCK_SECONDS = 120;     // the spring's luck: how long it lasts
 export const LUCK_GOLD = 1.25, LUCK_CRIT = 0.1, LUCK_GEAR = 2; // while lucky: more gold, a lucky crit now and then, gear drops twice as often
-export const SLEEP_DAYS = [1, 2, 3, 5, 7, 14]; // how long you can choose to sleep in your bed
 export const FEAST_COST = 10;        // gold for food at the fort's feast table (heals half your health)
 export const AUTOSAVE_SECONDS = 30;
 

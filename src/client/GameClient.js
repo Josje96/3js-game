@@ -486,8 +486,6 @@ export class GameClient {
         onSell: (item, qty) => this.conn.send({ t: 'sell', item, qty }),
         onBuyStyle: (slot, id) => this.conn.send({ t: 'buyStyle', slot, id }),
       });
-    } else if (msg.kind === 'sleep') {
-      this.hud.openSleep({ options: msg.options, onPick: (days) => this.conn.send({ t: 'sleepFor', bed: msg.bed, days }) });
     } else if (msg.kind === 'feast') {
       this.hud.openFeast({ ...msg, onYes: () => this.conn.send({ t: 'eatFeast', table: msg.table }) });
     } else if (msg.kind === 'seasonal') {

@@ -1,6 +1,6 @@
 // home — the Family Fort: a bed for every family member (the day ends when everyone online is in
 // bed), the wardrobe, mirror and family chest, and the healing spring in town.
-import { INTERACT_RANGE, SPRING_COST, LUCK_SECONDS, FEAST_COST, SLEEP_DAYS, CLASSES, CELL, cleanLook } from '../../shared/config.js';
+import { INTERACT_RANGE, SPRING_COST, LUCK_SECONDS, FEAST_COST, CLASSES, CELL, cleanLook } from '../../shared/config.js';
 import { useDistance } from '../../shared/props.js';
 import { FURNITURE, blanketFor } from '../../shared/furniture.js';
 import { ITEMS } from '../../shared/items.js';
@@ -14,11 +14,17 @@ export const interactions = {
   feast(p, table) {
     this.send(p, { t: 'ui', kind: 'feast', table: table.id, price: FEAST_COST, heal: Math.ceil(p.maxHp * FEAST_HEAL) });
   },
-  /** Your own bed: choose how long to sleep (or get up again). Someone else's: it's theirs. */
+  /** Your own bed: lie down (or get up again). Someone else's: it's theirs. */
   sleep(p, bed) {
     if (bed.owner !== p.id) return this.toast(p, `That’s ${bed.ownerName}’s bed! Yours has your name on it.`);
     if (p.sleeping) return this.wakeUp(p);
-    this.send(p, { t: 'ui', kind: 'sleep', bed: bed.id, options: SLEEP_DAYS });
+    p.sleeping = true;
+    this.send(p, { t: 'fx', kind: 'sleep', id: p.id, x: bed.x, z: bed.z, rot: bed.rot });
+    const asleep = [...this.players.values()].filter((x) => x.sleeping).length;
+    if (asleep < this.players.size) {
+      this.broadcast({ t: 'toast', text: `${p.name} is in bed (${asleep} of ${this.players.size} asleep). The day ends when everyone is in bed.` });
+    }
+    this.checkAllAsleep();
   },
   /** The healing spring: a full heal and two minutes of luck (more gold, lucky hits, better drops). */
   spring(p) {
@@ -133,26 +139,9 @@ export const methods = {
     this.toast(p, `🍗 Yum! +${healed} health. (-${FEAST_COST} gold)`);
   },
 
-  /** Into bed for `days` days (one of SLEEP_DAYS). */
-  on_sleepFor(p, { bed: id, days }) {
-    if (!SLEEP_DAYS.includes(days) || p.sleeping) return;
-    const bed = this.locations.get(p.loc)?.entities.get(id);
-    if (bed?.interact !== 'sleep' || bed.owner !== p.id || useDistance(bed, p) > INTERACT_RANGE) return;
-    p.sleeping = true;
-    p.sleepDays = days;
-    this.send(p, { t: 'fx', kind: 'sleep', id: p.id, x: bed.x, z: bed.z, rot: bed.rot });
-    const asleep = [...this.players.values()].filter((x) => x.sleeping).length;
-    if (asleep < this.players.size) {
-      const long = days > 1 ? ` for ${days} days` : '';
-      this.broadcast({ t: 'toast', text: `${p.name} is in bed${long} (${asleep} of ${this.players.size} asleep). The day ends when everyone is in bed.` });
-    }
-    this.checkAllAsleep();
-  },
-
-  /** Stardew-style: once everyone online is asleep, the night passes — for the fewest days anyone picked. */
+  /** Stardew-style: once everyone online is asleep, the night passes. */
   checkAllAsleep() {
-    const all = [...this.players.values()];
-    if (all.length && all.every((x) => x.sleeping)) this.endDay('sleep', Math.min(...all.map((x) => x.sleepDays ?? 1)));
+    if (this.players.size && [...this.players.values()].every((x) => x.sleeping)) this.endDay('sleep');
   },
 
   /** The family chest's contents: shared by everyone, kept in the save. */

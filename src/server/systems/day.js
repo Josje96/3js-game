@@ -2,7 +2,6 @@
 // who isn't home in the fort faints and loses half their gold, and the day ends for everyone.
 // A day also ends early when everyone online is in bed (see home.js). Dungeons reshuffle each day.
 import { DAY_SECONDS, NIGHT_WARNINGS, NIGHT_GOLD_PENALTY } from '../../shared/config.js';
-import { daysToNextSeason } from '../../shared/seasons.js';
 import { petMaxHp } from '../../shared/pets.js';
 
 export function tick(dt) {
@@ -26,7 +25,7 @@ export const methods = {
    * Ends today. 'nightfall': whoever is outside the fort faints (half their gold). 'sleep': everyone
    * went to bed. Then everybody wakes up healed next to their bed on the next day.
    */
-  endDay(reason, days = 1) {
+  endDay(reason) {
     const fainted = [];
     if (reason === 'nightfall') {
       for (const p of this.players.values()) {
@@ -36,17 +35,14 @@ export const methods = {
         fainted.push({ name: p.name, lost });
       }
     }
-    // a long sleep wakes you on the first day of a new season, so nobody sleeps through its boss
-    days = Math.min(Math.max(1, days | 0), daysToNextSeason(this.save.day));
-    this.save.day += days;
+    this.save.day++;
     this.dayClock = 0;
     this.warned = new Set();
     // the night screen goes up first, so nobody sees the world being rebuilt behind it
-    this.broadcast({ t: 'night', day: this.save.day, reason, fainted, days });
+    this.broadcast({ t: 'night', day: this.save.day, reason, fainted });
     for (const p of [...this.players.values()]) {
       p.hp = p.maxHp;
       p.sleeping = false;
-      p.sleepDays = 1;
       for (const pet of p.pets) if (!pet.fainted) pet.hp = petMaxHp(pet.species, pet.level); // fainted ones need the Pet Keeper
       this.travel(p, 'house', null, this.bedSpot(p));
       const f = fainted.find((x) => x.name === p.name);

@@ -44,13 +44,7 @@ test('day: everyone has their own bed, and the day ends once everybody is in bed
   assert.notDeepEqual([bedOf('mom').x, bedOf('mom').z], [bedOf('kid').x, bedOf('kid').z]);
 
   const day = save.day;
-  const goToBed = (id, days = 1) => {
-    p[id].x = bedOf(id).x; p[id].z = bedOf(id).z + 2;
-    c[id].say({ t: 'interact', id: bedOf(id).id });
-    const ask = c[id].last('ui');
-    assert.equal(ask.kind, 'sleep', 'the bed asks how long');
-    c[id].say({ t: 'sleepFor', bed: ask.bed, days });
-  };
+  const goToBed = (id) => { p[id].x = bedOf(id).x; p[id].z = bedOf(id).z + 2; c[id].say({ t: 'interact', id: bedOf(id).id }); };
   goToBed('kid');
   assert.ok(p.kid.sleeping);
   // the kid tries mom's bed too: not theirs
@@ -73,39 +67,7 @@ test('day: if the last person awake leaves, the sleepers get their morning', () 
   const bed = [...server.locations.get('house').entities.values()].find((e) => e.item === 'bed' && e.owner === 'mom');
   p.mom.x = bed.x; p.mom.z = bed.z + 2;
   c.mom.say({ t: 'interact', id: bed.id });
-  c.mom.say({ t: 'sleepFor', bed: bed.id, days: 1 });
   const day = save.day;
   server.dropConnection([...server.conns].find(([, x]) => x.playerId === 'kid')[0]);
   assert.equal(save.day, day + 1);
-});
-
-test('day: sleep for several days — everyone in bed, the night lasts the fewest days anyone picked', () => {
-  const { server, save, c, p } = world('long', 'mom', 'kid');
-  const beds = [...server.locations.get('house').entities.values()].filter((e) => e.item === 'bed');
-  const bedOf = (id) => beds.find((b) => b.owner === id);
-  const lieDown = (id, days) => { p[id].x = bedOf(id).x; p[id].z = bedOf(id).z + 2; c[id].say({ t: 'interact', id: bedOf(id).id }); c[id].say({ t: 'sleepFor', bed: bedOf(id).id, days }); };
-  // not your bed, not a choice on the list, or too far away: nothing
-  p.kid.x = bedOf('mom').x; p.kid.z = bedOf('mom').z + 2;
-  c.kid.say({ t: 'sleepFor', bed: bedOf('mom').id, days: 3 });
-  assert.ok(!p.kid.sleeping, 'not your bed');
-  p.kid.x = bedOf('kid').x; p.kid.z = bedOf('kid').z + 2;
-  c.kid.say({ t: 'sleepFor', bed: bedOf('kid').id, days: 1000 });
-  assert.ok(!p.kid.sleeping, 'not a choice');
-  const day = save.day;
-  lieDown('kid', 7);
-  lieDown('mom', 3);
-  assert.equal(save.day, day + 3, 'slept 3 days (the fewest picked)');
-  assert.equal(c.mom.last('night').days, 3);
-  lieDown('kid', 7);
-  lieDown('mom', 7);
-  assert.equal(save.day, day + 10, 'and another 7');
-});
-
-test('day: a long sleep stops at the first day of a new season (nobody sleeps through the boss)', async () => {
-  const { isBossDay } = await import('../src/shared/seasons.js');
-  const { server, save } = world('season-sleep', 'mom');
-  save.day = 28;
-  server.endDay('sleep', 14);
-  assert.equal(save.day, 31, 'woke on the first day of summer');
-  assert.ok(isBossDay(save.day));
 });
