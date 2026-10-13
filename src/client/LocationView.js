@@ -9,7 +9,7 @@ import { makeGrass, makeWater, makeTrees, makeSpringBanks, pondEdge } from './na
 import { wallpaperTexture } from './wallpaper.js';
 import { PetView } from './pets.js';
 import { DECORATIONS } from './decorations.js';
-import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard, makeFeastTable, makeSeasonalStall, makeJackOLantern, makeTreeLights, makeSnowman, makeCandyPile } from './town.js';
+import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard, makeFeastTable, makeSeasonalStall, makeJackOLantern, makeTreeLights, makeSnowman, makeCandyPile, makeBlueberryBush, makeLeafPile, makeRainbow, makeCottageSeasons } from './town.js';
 import { Villagers } from './villagers.js';
 import { TOWNSFOLK } from '../shared/townsfolk.js';
 import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
@@ -18,8 +18,8 @@ import { THEMES } from './themes.js';
 import { mergeStatic, dropTinyShadows } from './merge.js';
 import { buildTownFun } from './townfun.js';
 import { makeWasteland } from './wasteland.js';
-import { seasonOf, holidayOf } from '../shared/seasons.js';
-import { SeasonParticles, easeSeasonLook, SEASON_LOOK, WINTER, snowOnTops } from './seasonfx.js';
+import { seasonOf, holidayOf, isRainyDay } from '../shared/seasons.js';
+import { SeasonParticles, SpringBirds, easeSeasonLook, SEASON_LOOK, WINTER, snowOnTops } from './seasonfx.js';
 
 /** Wooden signpost for the healing spring. */
 function makeSpringSign() {
@@ -490,8 +490,9 @@ export class LocationView {
     const treeGroup = makeTrees(trees, this.rand, this.uTime);
     this.group.add(treeGroup);
     if (L.key === 'town') this.buildHolidays(treeGroup.userData.spots);
+    if (L.key === 'town') this.buildSeasonDress(spring ? { x: pond0.x, z: pond0.z, r: pondR } : null);
     if (L.key === 'town') { // the season shows outdoors: colours (shaders) and drifting petals/leaves/snow
-      this.seasonFx = new SeasonParticles(this.group);
+      this.seasonFx = new SeasonParticles(this.group, { w: L.w * CELL, h: L.h * CELL });
       easeSeasonLook(seasonOf(this.world?.day ?? 1).id, 0, true);
     }
     const disc = spring ? { x: pond0.x, z: pond0.z, y: 0.1, r: pondR, edge } : null;
@@ -782,7 +783,10 @@ export class LocationView {
       easeSeasonLook(season, dt);
       WINTER.value = SEASON_LOOK.value.w;
       this.setSeasonWear();
-      this.seasonFx.setSeason(season);
+      this.raining = isRainyDay(this.world?.day ?? 1);
+      this.seasonFx.setSeason(this.raining ? 'rain' : season);
+      if (this.seasonDress) for (const [id, g] of Object.entries(this.seasonDress)) g.visible = id === season;
+      if (this.birds) { this.birds.visible = season === 'spring' && !this.raining; if (season === 'spring') this.birds.update(time); }
       if (focus) this.seasonFx.update(dt, time, focus);
     }
     for (const a of this.animated) a.update(dt);
@@ -847,6 +851,37 @@ export class LocationView {
       this.christmasFx.visible = h === 'christmas';
       if (this.christmasFx.visible) this.christmasFx.userData.update(this.uTime.value);
     } });
+  }
+
+  /**
+   * Things that come and go with the seasons (shown by update): spring birds; summer blueberry
+   * bushes and a rainbow over the healing spring; autumn leaf piles; each cottage's seasonal dressing.
+   */
+  buildSeasonDress(pond) {
+    const L = this.layout, dress = { spring: new THREE.Group(), summer: new THREE.Group(), autumn: new THREE.Group(), winter: new THREE.Group() };
+    const grass = [];
+    for (let cz = 0; cz < L.h; cz++) for (let cx = 0; cx < L.w; cx++) {
+      const ch = L.cell(cx, cz);
+      if (ch === 'E' && L.cell(cx - 1, cz) !== 'E' && L.cell(cx, cz - 1) !== 'E') { // a cottage: dress it for each season
+        const looks = makeCottageSeasons((cx + 1) * CELL, (cz + 1) * CELL, this.rand(cx, cz, 'cs'));
+        for (const id of Object.keys(dress)) dress[id].add(looks[id]);
+      }
+      if (ch !== '.' || L.isSolidCell(cx, cz)) continue;
+      const x = cx * CELL + 0.8 + this.rand(cx, cz, 'gx') * 2.4, z = cz * CELL + 0.8 + this.rand(cx, cz, 'gz') * 2.4;
+      grass.push({ x, z });
+      const r = this.rand(cx, cz, 'season-bit');
+      if (r < 0.06) { const b = makeBlueberryBush(this.rand(cx, cz, 'bb')); b.position.set(x, 0, z); dress.summer.add(b); }
+      else if (r < 0.14) { const l = makeLeafPile(this.rand(cx, cz, 'lp')); l.position.set(x, 0, z); l.rotation.y = r * 40; dress.autumn.add(l); }
+    }
+    if (pond) { // a rainbow arching over the healing spring
+      const bow = makeRainbow(pond.r + 4);
+      bow.position.set(pond.x, 0, pond.z - 1);
+      dress.summer.add(bow);
+    }
+    for (const g of Object.values(dress)) { this.still(g); this.group.add(g); }
+    this.seasonDress = dress;
+    const centre = { x: L.w * CELL / 2, z: L.h * CELL / 2 };
+    this.birds = new SpringBirds(this.group, grass.filter((_, i) => i % 7 === 3), centre);
   }
 
   /** Flowers: gone under the snow in winter. */

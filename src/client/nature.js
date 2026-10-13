@@ -131,7 +131,7 @@ export function makeGrass(cells, rand, uTime, { skip = null } = {}) {
     return [k * (0.95 + n * 0.08), k, k * 0.92];
   };
   const carpetMat = new THREE.MeshStandardMaterial({ map: grassTexture(), vertexColors: true, roughness: 1 });
-  seasonalShader(carpetMat, '1.0', 'fract(vMapUv.x * 7.0 + vMapUv.y * 3.0)');
+  seasonalShader(carpetMat, '1.0', '0.5 + 0.5 * sin(vMapUv.x * 2.3 + sin(vMapUv.y * 1.7) * 2.0)'); // a soft, slow change of shade (no stripes)
   const carpet = new THREE.Mesh(cellQuads(cells, 0.02, GRASS_TILE, tint), carpetMat);
   carpet.receiveShadow = true;
   group.add(carpet);
@@ -442,30 +442,38 @@ export function makeTrees(cells, rand, uTime) {
       s: 0.8 + rand(cx, cz, 'ts') * 0.45,
     });
   }
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 });
-  mat.onBeforeCompile = (shader) => {
+  const treeMat = (evergreen) => {
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 });
+    mat.onBeforeCompile = (shader) => {
     // only the leaves change with the season (green-ish vertex colours), not trunks or blossom
     // blossom trees only flower in spring: the rest of the year their pink turns to leaves, which then follow the season
-    seasonFragment(shader, 'max(clamp((vColor.g - max(vColor.r, vColor.b)) * 6.0, 0.0, 1.0), bloom)', 'fract(vColor.b * 13.0 + vColor.r * 7.0)', `
+    // each leafy tree turns its own autumn colour (yellow, orange or red); pines stay green (but take the snow)
+    seasonFragment(shader, 'max(clamp((vColor.g - max(vColor.r, vColor.b)) * 14.0, 0.0, 1.0), bloom)', 'fract(vTreeSeed + fract(vColor.b * 13.0 + vColor.r * 7.0) * 0.22)', `
       float bloom = clamp((vColor.r - vColor.g) * 4.0, 0.0, 1.0) * step(0.55, vColor.b);
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.32, 0.58, 0.24) * (0.8 + vColor.r * 0.4), bloom * (1.0 - uSeason.x));`);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.32, 0.58, 0.24) * (0.8 + vColor.r * 0.4), bloom * (1.0 - uSeason.x));`, evergreen ? 'vec4(uSeason.x + uSeason.z, uSeason.y, 0.0, uSeason.w)' : 'uSeason', 'varying float vTreeSeed;', evergreen ? '' : `
+      diffuseColor.rgb = mix(diffuseColor.rgb, treeAutumn(preSeason, fract(vTreeSeed + fract(vColor.b * 13.0 + vColor.r * 7.0) * 0.22)), uSeason.z * clamp((vColor.g - max(vColor.r, vColor.b)) * 14.0, 0.0, 1.0) * 0.9);`);
     shader.uniforms.uTime = uTime;
-    shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`.replace('#include <begin_vertex>', `
+    shader.vertexShader = `uniform float uTime;\nvarying float vTreeSeed;\n${shader.vertexShader}`.replace('#include <begin_vertex>', `
       #include <begin_vertex>
       #ifdef USE_INSTANCING
         vec2 base = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
       #else
         vec2 base = vec2(0.0);
       #endif
+      vTreeSeed = fract(sin(dot(base, vec2(12.9898, 78.233))) * 43758.5453);
       float bend = max(position.y - 2.0, 0.0);
       float sway = sin(uTime * 1.1 + base.x * 0.17 + base.y * 0.11) * 0.7 + sin(uTime * 2.3 + base.x * 0.5) * 0.3;
       transformed.x += sway * bend * 0.035;
       transformed.z += sway * bend * 0.015;`);
+    };
+    mat.customProgramCacheKey = () => (evergreen ? 'tree-evergreen' : 'tree');
+    return mat;
   };
+  const mat = treeMat(false), pineMat = treeMat(true);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
   for (const [kind, list] of Object.entries(byKind)) {
     if (!list.length) continue;
-    const inst = new THREE.InstancedMesh(treeGeos[kind], mat, list.length);
+    const inst = new THREE.InstancedMesh(treeGeos[kind], kind === 'pine' ? pineMat : mat, list.length);
     list.forEach((t, i) => {
       q.setFromAxisAngle(up, t.rot);
       inst.setMatrixAt(i, m.compose(new THREE.Vector3(t.x, 0, t.z), q, new THREE.Vector3(t.s, t.s, t.s)));
@@ -560,12 +568,14 @@ export function makeSpringBanks(cx, cz, edge, rand) {
 }
 
 /** Make a material follow the season (client/seasonfx.js): `leaf` = how much it changes, `grain` = autumn's orange/red mix. */
-function seasonFragment(shader, leaf, grain, pre = '') {
+function seasonFragment(shader, leaf, grain, pre = '', season = 'uSeason', decl = '', post = '') {
   shader.uniforms.uSeason = SEASON_LOOK;
-  shader.fragmentShader = `uniform vec4 uSeason;\n${SEASON_GLSL}\n${shader.fragmentShader}`.replace('#include <color_fragment>', `
+  shader.fragmentShader = `uniform vec4 uSeason;\n${decl}\n${SEASON_GLSL}\n${shader.fragmentShader}`.replace('#include <color_fragment>', `
     #include <color_fragment>
     ${pre}
-    diffuseColor.rgb = seasonal(diffuseColor.rgb, ${leaf}, ${grain});`);
+    vec3 preSeason = diffuseColor.rgb;
+    diffuseColor.rgb = seasonalIn(diffuseColor.rgb, ${leaf}, ${grain}, ${season});
+    ${post}`);
 }
 function seasonalShader(mat, leaf, grain) {
   mat.onBeforeCompile = (shader) => {

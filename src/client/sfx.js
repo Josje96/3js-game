@@ -147,6 +147,15 @@ export class Sfx {
     for (let i = 0; i < 3; i++) this.tone({ type: 'triangle', from: 220 + Math.random() * 200, at: i * 0.05, dur: 0.1, vol: 0.09 });
   }
 
+  caw() { // a crow: two harsh, falling calls
+    for (const at of [0, 0.32]) {
+      this.tone({ type: 'sawtooth', from: 760, to: 520, at, dur: 0.18, vol: 0.05 });
+      this.noise({ at, dur: 0.16, vol: 0.05, type: 'bandpass', from: 1400, to: 900, q: 2 });
+    }
+  }
+  tweet() { // a little songbird: quick rising chirps
+    for (let i = 0; i < 3; i++) this.tone({ type: 'sine', from: 2600 + i * 200, to: 3600 + i * 250, at: i * 0.11, dur: 0.07, vol: 0.035 });
+  }
   coin() { // the classic two-note coin
     this.ping(988, { at: 0, dur: 0.09, vol: 0.1 });
     this.ping(1319, { at: 0.07, dur: 0.4, vol: 0.11 });

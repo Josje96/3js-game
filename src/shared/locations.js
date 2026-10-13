@@ -108,6 +108,10 @@ function parseAsciiMap(map) {
         if (room >= 0) bedSlots[room] = slot; // bed slot = room number
         else bedSlots.push(slot);
       }
+      if (ch === 'n') { // a townsperson stands on whatever ground is round them: no square of grass in the paving
+        const round = [map.rows[cz]?.[cx - 1], map.rows[cz]?.[cx + 1], map.rows[cz - 1]?.[cx], map.rows[cz + 1]?.[cx]];
+        if (round.filter((c) => c === '=').length >= 2) return '=';
+      }
       return leg.portal ? ch : leg.base;
     }).join(''));
   return {

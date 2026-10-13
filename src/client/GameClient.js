@@ -18,7 +18,8 @@ import { Music, moodFor } from './music.js';
 import { Sfx } from './sfx.js';
 import { ENCHANT_LOOKS } from '../shared/enchant.js';
 import { useDistance } from '../shared/props.js';
-import { holidayOf } from '../shared/seasons.js';
+import { holidayOf, seasonOf } from '../shared/seasons.js';
+import { SEASON_LOOK } from './seasonfx.js';
 
 /** What the fort looks like, reduced to what a re-render depends on (so a change re-dresses it). */
 function houseKey(h) {
@@ -572,6 +573,7 @@ export class GameClient {
     this.effects = this.effects.filter((fx) => !fx.done || (fx.dispose(), false));
     this.locView?.update(dt, this.time, this.pos);
     this.updateSky(dt);
+    this.ambientSounds(dt);
     this.updateCamera(dt);
     if (!this.warming) this.renderer.render(this.scene, this.camera);
   }
@@ -611,11 +613,25 @@ export class GameClient {
     if (dusk > 0) sky.lerp(new THREE.Color(0xff9a6a), Math.min(1, dusk * 2)).lerp(new THREE.Color(0x2a2352), Math.max(0, dusk * 2 - 1));
     this.scene.background.copy(sky);
     this.scene.fog?.color.copy(sky);
-    this.sun.intensity = theme.sun * (1 - dusk * 0.85);
+    const town = this.layout.key === 'town', summer = town ? SEASON_LOOK.value.y : 0, rain = town && this.locView.raining;
+    if (rain) sky.lerp(new THREE.Color(0x8a96a4), 0.7); // a grey, rainy spring day
+    this.scene.background.copy(sky);
+    this.scene.fog?.color.copy(sky);
+    // summer: a brighter sun and darker shadows (less fill light); rain: dimmer all round
+    this.sun.intensity = theme.sun * (1 - dusk * 0.85) * (1 + summer * 0.35) * (rain ? 0.5 : 1);
     this.sun.color.setRGB(1, 0.95 - dusk * 0.4, 0.87 - dusk * 0.55);
-    this.hemi.intensity = theme.ambient * (1 - dusk * 0.5);
+    this.hemi.intensity = theme.ambient * (1 - dusk * 0.5) * (1 - summer * 0.22) * (rain ? 0.8 : 1);
     for (const l of this.locView.lampLights) l.intensity = 14 * Math.min(1, dusk * 1.5); // lamps come on at dusk
     this.hemi.color.setRGB(1, 1, 1).lerp(new THREE.Color(0xffa070), Math.min(1, dusk * 2)).lerp(new THREE.Color(0x7a6ad0), Math.max(0, dusk * 2 - 1));
+  }
+
+  /** Now and then outdoors: a crow cawing in autumn, birdsong in spring (not in the rain). */
+  ambientSounds(dt) {
+    if (this.layout?.key !== 'town' || !this.locView) return;
+    this.ambientT = (this.ambientT ?? 8) - dt;
+    if (this.ambientT > 0) return;
+    const season = seasonOf(this.world?.day ?? 1).id;
+    if (season === 'autumn') { this.sfx.play('caw'); this.ambientT = 18 + Math.random() * 25; } else if (season === 'spring' && !this.locView.raining) { this.sfx.play('tweet'); this.ambientT = 6 + Math.random() * 10; } else this.ambientT = 10;
   }
 
   solids() {

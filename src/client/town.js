@@ -773,3 +773,95 @@ function makeSleigh() {
   for (const sx of [-1, 1]) mesh(g, new THREE.BoxGeometry(0.03, 0.03, 3.2), std(0x6b4a2c), sx * 0.3, 0.95, 2.6); // the reins
   return g;
 }
+
+/** A blueberry bush (summer): a round dark-green bush dotted with blue berries. */
+export function makeBlueberryBush(r = 0.5) {
+  const g = new THREE.Group(), leaf = std(0x2f6a32, { roughness: 0.9, flatShading: true }), berry = std(0x3a4ab8, { roughness: 0.3 });
+  for (const [x, y, z, s] of [[0, 0.5, 0, 0.6], [0.45, 0.4, 0.1, 0.42], [-0.4, 0.38, 0.15, 0.45], [0.1, 0.42, -0.4, 0.4]]) mesh(g, new THREE.IcosahedronGeometry(s, 1), leaf, x, y, z);
+  for (let i = 0; i < 24; i++) {
+    const a = i * 2.4 + r * 5, h = 0.25 + ((i * 0.37) % 0.6), rr = 0.55 + Math.sin(i) * 0.08;
+    mesh(g, new THREE.SphereGeometry(0.06, 6, 5), berry, Math.cos(a) * rr * (1 - h * 0.4), h + 0.15, Math.sin(a) * rr * (1 - h * 0.4));
+  }
+  g.scale.setScalar(0.8 + r * 0.5);
+  return g;
+}
+
+/** A heap of fallen leaves (autumn): red, orange and yellow. */
+export function makeLeafPile(r = 0.5) {
+  const g = new THREE.Group(), COLS = [0xd84a1a, 0xf08a1a, 0xf2c02a, 0xb8381a, 0xe8a030];
+  mesh(g, new THREE.SphereGeometry(0.7, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), std(COLS[Math.floor(r * 5)], { roughness: 1 }), 0, 0, 0).scale.set(1.3, 0.55, 1.1);
+  for (let i = 0; i < 22; i++) {
+    const a = i * 2.4 + r * 6, d = (i % 4) * 0.25, h = 0.38 - d * 0.35;
+    const lf = mesh(g, new THREE.CircleGeometry(0.13, 5), std(COLS[(i + Math.floor(r * 5)) % COLS.length], { side: THREE.DoubleSide, roughness: 1 }), Math.cos(a) * d * 1.2, h, Math.sin(a) * d);
+    lf.rotation.set(-Math.PI / 2 + Math.sin(i) * 0.6, a, Math.cos(i * 3) * 0.6);
+  }
+  g.scale.setScalar(0.9 + r * 0.5);
+  return g;
+}
+
+/** A rainbow arching over the healing spring (summer): seven see-through bands. */
+export function makeRainbow(radius = 9) {
+  const g = new THREE.Group();
+  [0xff4a4a, 0xff9a2a, 0xffe14a, 0x5ad86a, 0x4aa8ff, 0x5a5ad8, 0xa060e0].forEach((c, i) => {
+    const band = new THREE.Mesh(new THREE.TorusGeometry(radius - i * 0.38, 0.2, 6, 48, Math.PI), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.55, depthWrite: false }));
+    g.add(band);
+  });
+  return g;
+}
+
+/**
+ * Seasonal dressing for a cottage (client/town.js makeCottage; x, z its middle): spring flower pots
+ * and a garland, summer sunflowers and a hanging basket, autumn corn stalks, gourds and a leaf
+ * wreath, winter a holly wreath and icicles on the eaves. Returns { spring, summer, autumn, winter } groups.
+ */
+export function makeCottageSeasons(x, z, r = 0.5) {
+  const door = { x: x - 1.14, z: z + 3.2 }, out = {};
+  const at = (g, dx, dz, y = 0) => { g.position.set(door.x + dx, y, door.z + dz); return g; };
+  const grp = () => new THREE.Group();
+  // spring: flower pots each side of the door and a garland of blossoms over it
+  out.spring = grp();
+  for (const sx of [-1, 1]) {
+    const pot = at(grp(), sx * 1.3, 0.4);
+    mesh(pot, new THREE.CylinderGeometry(0.28, 0.2, 0.4, 10), std(0xc0703a), 0, 0.2, 0);
+    for (let i = 0; i < 7; i++) mesh(pot, new THREE.SphereGeometry(0.11, 6, 5), std([0xff8ac8, 0xffe066, 0xb48cff, 0xffffff][i % 4]), Math.cos(i * 0.9) * 0.18, 0.5 + (i % 2) * 0.1, Math.sin(i * 0.9) * 0.18);
+    out.spring.add(pot);
+  }
+  for (let i = 0; i < 9; i++) { const a = Math.PI * (i / 8); mesh(out.spring, new THREE.SphereGeometry(0.09, 6, 5), std([0xff8ac8, 0xffffff, 0xffe066][i % 3]), door.x + Math.cos(a) * 0.95, 3.1 + Math.sin(a) * 0.35, door.z - 0.05); } // a garland over the door
+  // summer: tall sunflowers by the wall, a hanging basket by the door
+  out.summer = grp();
+  for (const dx of [1.7, 2.3]) {
+    const s = at(grp(), dx, -0.3);
+    mesh(s, new THREE.CylinderGeometry(0.04, 0.05, 2.2, 6), std(0x3f8a2a), 0, 1.1, 0);
+    mesh(s, new THREE.CylinderGeometry(0.32, 0.32, 0.08, 14), std(0xffd23f), 0, 2.25, 0.05).rotation.x = Math.PI / 2 - 0.3;
+    mesh(s, new THREE.CylinderGeometry(0.15, 0.15, 0.1, 12), std(0x5a3a1a), 0, 2.25, 0.1).rotation.x = Math.PI / 2 - 0.3;
+    out.summer.add(s);
+  }
+  const basket = at(grp(), -1.1, -0.2, 2.2);
+  mesh(basket, new THREE.SphereGeometry(0.3, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), std(0x8a5a2a), 0, 0, 0);
+  for (let i = 0; i < 8; i++) mesh(basket, new THREE.SphereGeometry(0.08, 6, 5), std([0xff4a6a, 0xffffff, 0xff9a2a][i % 3]), Math.cos(i * 0.8) * 0.22, 0.05, Math.sin(i * 0.8) * 0.22);
+  out.summer.add(basket);
+  // autumn: corn stalk bundles, a few gourds, and a leaf wreath on the door
+  out.autumn = grp();
+  for (const sx of [-1, 1]) {
+    const corn = at(grp(), sx * 1.35, 0.2);
+    for (let i = 0; i < 7; i++) { const st = mesh(corn, new THREE.ConeGeometry(0.05, 1.8, 4), std(0xd8b860, { roughness: 1 }), Math.cos(i) * 0.12, 0.9, Math.sin(i) * 0.12); st.rotation.z = Math.cos(i * 2) * 0.12; }
+    mesh(corn, new THREE.TorusGeometry(0.17, 0.04, 4, 10), std(0xa0302a), 0, 0.7, 0).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 2; i++) mesh(corn, new THREE.SphereGeometry(0.17 - i * 0.04, 10, 8), std([0xe8781a, 0xf2c040][i]), sx * 0.35 + i * 0.25, 0.15, 0.35).scale.y = 0.8;
+    out.autumn.add(corn);
+  }
+  const wreath = at(grp(), 0, 0.12, 1.9);
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; mesh(wreath, new THREE.CircleGeometry(0.1, 5), std([0xd84a1a, 0xf08a1a, 0xf2c02a][i % 3], { side: THREE.DoubleSide }), Math.cos(a) * 0.28, Math.sin(a) * 0.28, 0); }
+  out.autumn.add(wreath);
+  // winter: a holly wreath with a red bow, and icicles along the front eave
+  out.winter = grp();
+  const holly = at(grp(), 0, 0.12, 1.9);
+  mesh(holly, new THREE.TorusGeometry(0.28, 0.08, 6, 16), std(0x1f6a2a, { roughness: 0.8 }), 0, 0, 0);
+  for (let i = 0; i < 5; i++) mesh(holly, new THREE.SphereGeometry(0.04, 6, 5), std(0xd8202a), Math.cos(i * 1.3) * 0.28, Math.sin(i * 1.3) * 0.28, 0.06);
+  for (const sx of [-1, 1]) mesh(holly, new THREE.ConeGeometry(0.08, 0.16, 4), std(0xd8202a), sx * 0.08, -0.3, 0.06).rotation.z = sx * Math.PI / 2;
+  out.winter.add(holly);
+  for (let i = 0; i < 14; i++) {
+    const ic = mesh(out.winter, new THREE.ConeGeometry(0.06, 0.3 + ((i * 7) % 5) * 0.08, 5), std(0xdff4ff, { roughness: 0.15, emissive: 0x335577, emissiveIntensity: 0.2 }), x - 3.2 + i * 0.5, 4.75, z + 3.25);
+    ic.rotation.x = Math.PI;
+  }
+  return out;
+}

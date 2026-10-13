@@ -52,6 +52,11 @@ export function holidayOf(day) {
   if (dayOfSeason(day) !== HOLIDAY_DAY) return null;
   return { spring: 'easter', autumn: 'halloween', winter: 'christmas' }[seasonOf(day).id] ?? null;
 }
+/** Some spring days it rains (the same days for everyone: worked out from the day number). */
+export function isRainyDay(day) {
+  return seasonOf(day).id === 'spring' && !isBossDay(day) && !holidayOf(day) && ((Math.imul(day, 2654435761) >>> 0) % 100) < 35;
+}
+
 /** Where Santa (Christmas) and Grandma (Easter) stand: in the town square, east of the fountain. */
 export const SANTA_SPOT = { x: 84, z: 62 };
 

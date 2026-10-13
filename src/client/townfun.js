@@ -38,14 +38,15 @@ export function buildTownFun(layout, group, rand) {
   // --- bunting: strings of little pennants
   const strings = [];
   if (fountain) {
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, MAYPOLE_TOP - 2.3, 8), new THREE.MeshStandardMaterial({ color: 0xf4efe6 }));
-    pole.position.set(fountain.x, 2.3 + (MAYPOLE_TOP - 2.3) / 2, fountain.z);
+    const mp = { x: fountain.x, z: fountain.z - 4.6 }; // just north of the fountain, between its benches
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, MAYPOLE_TOP, 8), new THREE.MeshStandardMaterial({ color: 0xf4efe6 }));
+    pole.position.set(mp.x, MAYPOLE_TOP / 2, mp.z);
     group.add(pole);
     const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.45), new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffb020, emissiveIntensity: 0.6, metalness: 0.4 }));
-    star.position.set(fountain.x, MAYPOLE_TOP + 0.3, fountain.z);
+    star.position.set(mp.x, MAYPOLE_TOP + 0.3, mp.z);
     group.add(star);
     parts.push((t) => { star.rotation.y = t * 0.8; });
-    for (const l of lamps) strings.push([{ x: fountain.x, y: MAYPOLE_TOP, z: fountain.z }, { x: l.x, y: LAMP_TOP, z: l.z }]);
+    for (const l of lamps) strings.push([{ x: mp.x, y: MAYPOLE_TOP, z: mp.z }, { x: l.x, y: LAMP_TOP, z: l.z }]);
   }
   // lamp to lamp round the square: each lamp to its nearest neighbours (not across the whole town)
   const seen = new Set();

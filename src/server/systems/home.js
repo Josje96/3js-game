@@ -26,14 +26,15 @@ export const interactions = {
   /** The healing spring: a full heal and two minutes of luck (more gold, lucky hits, better drops). */
   spring(p) {
     if (!this.spend(p, SPRING_COST, 'the healing spring')) return;
-    p.luckUntil = this.time + LUCK_SECONDS;
+    const summer = seasonOf(this.save.day).id === 'summer'; // summer: the luck lasts twice as long
+    p.luckUntil = this.time + LUCK_SECONDS * (summer ? 2 : 1);
     const healed = p.maxHp - p.hp;
     p.hp = p.maxHp;
     const pet = p.pets.find((x) => x.id === p.pet && !x.fainted);
     if (pet) { pet.hp = petMaxHp(pet.species, pet.level); this.syncPetEnt(p); } // a splash for the pet too
     this.sendSelf(p);
     this.sendToLocation(p.loc, { t: 'fx', kind: 'heal', id: p.id, x: p.x, z: p.z, amount: healed });
-    this.toast(p, `The spring sparkles… fully healed, and 🍀 lucky for ${LUCK_SECONDS / 60} minutes! (-${SPRING_COST} gold)`);
+    this.toast(p, `The spring sparkles… fully healed, and 🍀 lucky for ${(LUCK_SECONDS * (summer ? 2 : 1)) / 60} minutes${summer ? ' (summer!)' : ''}! (-${SPRING_COST} gold)`);
   },
   wardrobe(p) { this.send(p, { t: 'ui', kind: 'wardrobe' }); },
   mirror(p) { this.send(p, { t: 'ui', kind: 'mirror' }); },

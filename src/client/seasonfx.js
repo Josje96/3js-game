@@ -61,13 +61,20 @@ export function easeSeasonLook(season, dt, snap = false) {
  * gold in summer, orange-red in autumn and snowy in winter. `LEAF` (0..1) says how leafy it is.
  */
 export const SEASON_GLSL = `
-  vec3 seasonal(vec3 c, float leaf, float grain) {
+  vec3 seasonalIn(vec3 c, float leaf, float grain, vec4 uSeason) {
     float lum = dot(c, vec3(0.3, 0.59, 0.11));
-    vec3 summer = c * vec3(1.18, 1.1, 0.62);
-    vec3 autumn = mix(c, mix(vec3(lum * 1.5, lum * 1.0, lum * 0.4), vec3(lum * 1.7, lum * 0.6, lum * 0.3), grain), 0.7 + leaf * 0.0);
+    vec3 summer = c * vec3(0.86, 1.16, 0.72); // lush, deep green
+    vec3 autumn = mix(c, mix(vec3(lum * 1.5, lum * 1.0, lum * 0.4), vec3(lum * 1.7, lum * 0.6, lum * 0.3), grain), 0.7); // dry, dead-grass tones
     vec3 winter = mix(c, vec3(0.9, 0.94, 1.0), 0.78);
     vec3 out_ = c * uSeason.x + summer * uSeason.y + autumn * uSeason.z + winter * uSeason.w;
     return mix(c, out_, leaf);
+  }
+  vec3 seasonal(vec3 c, float leaf, float grain) { return seasonalIn(c, leaf, grain, uSeason); }
+  // a leafy tree's autumn colour: bright yellow, orange or red (by grain: each tree picks its own)
+  vec3 treeAutumn(vec3 c, float grain) {
+    float lum = dot(c, vec3(0.3, 0.59, 0.11));
+    vec3 yellow = vec3(0.95, 0.78, 0.18) * (0.55 + lum), orange = vec3(0.98, 0.5, 0.12) * (0.55 + lum), red = vec3(0.85, 0.2, 0.12) * (0.55 + lum);
+    return grain < 0.5 ? mix(yellow, orange, grain * 2.0) : mix(orange, red, grain * 2.0 - 1.0);
   }`;
 
 const KINDS = {
@@ -75,13 +82,15 @@ const KINDS = {
   summer: { count: 50, color: [0xfff2a0, 0xffe27a], size: 0.12, fall: -0.15, sway: 0.6, spin: 0, glow: true },
   autumn: { count: 90, color: [0xd8782a, 0xc0392b, 0xffb03a, 0x8a4a1a], size: 0.22, fall: 1.0, sway: 1.6, spin: 4 },
   winter: { count: 220, color: [0xffffff, 0xeaf4ff], size: 0.09, fall: 1.4, sway: 0.5, spin: 0 },
+  rain: { count: 1100, color: [0xb8d0ec, 0xe0ecf8], size: 1, fall: 24, sway: 0, spin: 0, streak: true },
 };
 const BOX = { w: 60, h: 14, d: 44 };
 
 /** Drifting seasonal things around the player (one season at a time). */
 export class SeasonParticles {
-  constructor(group) {
+  constructor(group, bounds = { w: 144, h: 104 }) {
     this.group = group;
+    this.bounds = bounds;
     this.season = null;
     this.mesh = null;
     this.rays = null;
@@ -94,9 +103,10 @@ export class SeasonParticles {
     this.rays?.removeFromParent();
     this.rays = null;
     const k = KINDS[season];
-    const geo = k.glow ? new THREE.PlaneGeometry(1, 1) : season === 'winter' ? new THREE.SphereGeometry(0.5, 6, 4) : new THREE.CircleGeometry(0.5, 5);
+    const geo = k.streak ? new THREE.BoxGeometry(0.04, 0.9, 0.04) : k.glow ? new THREE.PlaneGeometry(1, 1) : season === 'winter' ? new THREE.SphereGeometry(0.5, 6, 4) : new THREE.CircleGeometry(0.5, 5);
     const mat = k.glow
       ? new THREE.MeshBasicMaterial({ map: glowTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
+      : k.streak ? new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.8, depthWrite: false })
       : new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 1 });
     this.mesh = new THREE.InstancedMesh(geo, mat, k.count);
     this.mesh.frustumCulled = false;
@@ -110,9 +120,11 @@ export class SeasonParticles {
     if (season === 'summer') { // long soft shafts of sunlight slanting down
       this.rays = new THREE.Group();
       const mat2 = new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0.1, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-      for (let i = 0; i < 6; i++) {
+      // fixed over the town (they stay put as you walk under them)
+      let i = 0;
+      for (let z = 8; z < this.bounds.h; z += 22) for (let x = 6 + (z % 3) * 7; x < this.bounds.w; x += 24, i++) {
         const ray = new THREE.Mesh(new THREE.PlaneGeometry(4 + i % 3, 30), mat2);
-        ray.position.set((i - 2.5) * 9, 10, -6 + (i % 2) * 8);
+        ray.position.set(x, 10, z);
         ray.rotation.set(0, 0.3, 0.45);
         this.rays.add(ray);
       }
@@ -132,14 +144,75 @@ export class SeasonParticles {
       const wx = x0 + ((((b.x + Math.sin(time * 0.7 + b.ph) * k.sway - x0) % BOX.w) + BOX.w) % BOX.w);
       const wz = z0 + ((((b.z + Math.cos(time * 0.5 + b.ph) * k.sway * 0.6 - z0) % BOX.d) + BOX.d) % BOX.d);
       e.set(time * k.spin + b.ph, time * k.spin * 0.7, b.ph);
-      if (k.glow) q.identity(); else q.setFromEuler(e);
-      const s = k.glow ? b.s * (2 + Math.sin(time * 2 + b.ph)) : b.s;
+      if (k.glow || k.streak) q.identity(); else q.setFromEuler(e);
+      const s = k.streak ? 1 : k.glow ? b.s * (2 + Math.sin(time * 2 + b.ph)) : b.s;
       this.mesh.setMatrixAt(i, m.compose(v.set(wx, b.y, wz), q, sc.set(s, s, s)));
     });
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.rays) {
-      this.rays.position.set(at.x, 0, at.z);
       this.rays.children.forEach((r, i) => { r.material.opacity = 0.09 + Math.sin(time * 0.4 + i) * 0.03; });
+    }
+  }
+}
+
+/**
+ * Little spring birds: a few flocks wheeling over town and some birds hopping about on the grass.
+ * `spots` = grass points to hop around. update(t) animates them.
+ */
+export class SpringBirds {
+  constructor(group, spots, centre) {
+    this.group = new THREE.Group();
+    group.add(this.group);
+    const COLS = [0x8a5a3a, 0x3a6ac0, 0xd8402a, 0xe8c040];
+    const bird = (c) => {
+      const b = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 });
+      b.add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), m));
+      b.children[0].scale.set(0.9, 0.85, 1.3);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), m);
+      head.position.set(0, 0.08, 0.13);
+      b.add(head);
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.07, 4), new THREE.MeshStandardMaterial({ color: 0xffb020 }));
+      beak.position.set(0, 0.07, 0.22);
+      beak.rotation.x = Math.PI / 2;
+      b.add(beak);
+      b.userData.wings = [-1, 1].map((s) => {
+        const w = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.12), new THREE.MeshStandardMaterial({ color: c, side: THREE.DoubleSide, roughness: 0.8 }));
+        w.geometry.translate(s * 0.11, 0, 0);
+        w.rotation.x = -Math.PI / 2;
+        w.position.y = 0.04;
+        const pivot = new THREE.Group();
+        pivot.add(w);
+        b.add(pivot);
+        return pivot;
+      });
+      return b;
+    };
+    this.flocks = [];
+    for (let f = 0; f < 3; f++) {
+      const flock = { r: 14 + f * 9, h: 11 + f * 3, speed: 0.25 + f * 0.07, ph: f * 2, birds: [] };
+      for (let i = 0; i < 5; i++) { const b = bird(COLS[(f + i) % COLS.length]); this.group.add(b); flock.birds.push(b); }
+      this.flocks.push(flock);
+    }
+    this.centre = centre;
+    this.hoppers = spots.slice(0, 10).map((s, i) => { const b = bird(COLS[i % COLS.length]); b.position.set(s.x, 0.12, s.z); this.group.add(b); return { b, s, ph: i * 1.7 }; });
+  }
+
+  set visible(v) { this.group.visible = v; }
+
+  update(t) {
+    for (const f of this.flocks) f.birds.forEach((b, i) => { // wheeling in a loose V, wings beating
+      const a = t * f.speed + f.ph - i * 0.08;
+      b.position.set(this.centre.x + Math.cos(a) * (f.r + (i % 2) * 1.2), f.h + Math.sin(t * 2 + i) * 0.4, this.centre.z + Math.sin(a) * (f.r + (i % 2) * 1.2));
+      b.rotation.y = -a;
+      for (const [k, w] of b.userData.wings.entries()) w.rotation.z = (k ? -1 : 1) * Math.sin(t * 14 + i) * 0.7;
+    });
+    for (const h of this.hoppers) { // peck, hop, look about
+      const u = (t * 0.6 + h.ph) % 4;
+      const hop = u < 1 ? Math.abs(Math.sin(u * Math.PI * 3)) * 0.12 : 0;
+      h.b.position.set(h.s.x + Math.sin(Math.floor(t * 0.15 + h.ph) * 2.3) * 0.8, 0.12 + hop, h.s.z + Math.cos(Math.floor(t * 0.15 + h.ph) * 1.7) * 0.8);
+      h.b.rotation.y = Math.floor(t * 0.5 + h.ph) * 1.3;
+      h.b.rotation.x = u > 2 && u < 2.3 ? 0.6 : 0; // a peck at the ground
+      for (const w of h.b.userData.wings) w.rotation.z = 0;
     }
   }
 }
