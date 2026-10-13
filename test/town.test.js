@@ -207,3 +207,11 @@ test('pets: you can rename your pet', () => {
   c.a.say({ t: 'renamePet', id: pet.id, name: '!!!' });
   assert.equal(pet.name, 'Pricklepuff', 'a name of nothing is ignored');
 });
+
+test('town: the whole gap in the training yard fence can be walked through, the fence itself can’t', () => {
+  const L = buildLayout('town', 1, {});
+  const gap = { x: 6 * 4 + 2, z: 18 * 4 + 2 }; // the opening in the yard's top fence
+  for (const dx of [-3, -1.5, 0, 1.5, 3]) assert.ok(!blocked(L, gap.x + dx, gap.z, PLAYER_RADIUS, L.solids), `walkable at ${dx}`);
+  assert.ok(blocked(L, 4 * 4 + 2, gap.z, PLAYER_RADIUS, L.solids), 'a fence rail still blocks');
+  assert.ok(blocked(L, 2 * 4 + 2, 20 * 4 + 2, PLAYER_RADIUS, L.solids), 'the side fence too');
+});

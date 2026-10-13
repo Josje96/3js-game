@@ -9,6 +9,10 @@ export function blocked(layout, x, z, r, solids = []) {
   for (let cz = minCz; cz <= maxCz; cz++) {
     for (let cx = minCx; cx <= maxCx; cx++) {
       if (!layout.isSolidCell(cx, cz)) continue;
+      if (layout.cell(cx, cz) === '+') { // a fence: only its post and rails block, not the whole cell
+        if (hitsFence(layout, cx, cz, x, z, r)) return true;
+        continue;
+      }
       // solid cell rectangle grown by the wall thickness
       const x0 = cx * CELL - WALL_PAD, x1 = (cx + 1) * CELL + WALL_PAD;
       const z0 = cz * CELL - WALL_PAD, z1 = (cz + 1) * CELL + WALL_PAD;
@@ -20,6 +24,24 @@ export function blocked(layout, x, z, r, solids = []) {
     if ((s.x - x) ** 2 + (s.z - z) ** 2 < (s.r + r) ** 2) return true;
   }
   return false;
+}
+
+/**
+ * A fence cell (client/town.js makeFence): a post in the middle and rails out to each neighbouring
+ * fence cell. A gap in a fence is as wide as it looks, from post to post.
+ */
+const FENCE_HALF = 0.2;
+function hitsFence(layout, cx, cz, x, z, r) {
+  const mx = cx * CELL + CELL / 2, mz = cz * CELL + CELL / 2;
+  const boxes = [[mx - FENCE_HALF, mx + FENCE_HALF, mz - FENCE_HALF, mz + FENCE_HALF]]; // the post
+  if (layout.cell(cx + 1, cz) === '+') boxes.push([mx, mx + CELL / 2, mz - FENCE_HALF, mz + FENCE_HALF]);
+  if (layout.cell(cx - 1, cz) === '+') boxes.push([mx - CELL / 2, mx, mz - FENCE_HALF, mz + FENCE_HALF]);
+  if (layout.cell(cx, cz + 1) === '+') boxes.push([mx - FENCE_HALF, mx + FENCE_HALF, mz, mz + CELL / 2]);
+  if (layout.cell(cx, cz - 1) === '+') boxes.push([mx - FENCE_HALF, mx + FENCE_HALF, mz - CELL / 2, mz]);
+  return boxes.some(([x0, x1, z0, z1]) => {
+    const nx = Math.max(x0, Math.min(x, x1)), nz = Math.max(z0, Math.min(z, z1));
+    return (nx - x) ** 2 + (nz - z) ** 2 < r * r;
+  });
 }
 
 /** Move by (dx, dz), sliding along walls. Returns the new position. */
