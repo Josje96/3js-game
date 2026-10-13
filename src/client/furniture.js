@@ -1400,6 +1400,7 @@ export const FURNITURE_BUILDERS = {
 export class FurnitureView {
   constructor(e, makeLabel) {
     const def = FURNITURE[e.item] ?? {};
+    this.makeLabel = makeLabel;
     this.root = new THREE.Group();
     this.inner = def.build ? FURNITURE_BUILDERS[def.build](def) : cloneModel(def.model ?? 'dungeon/box_small');
     this.root.add(this.inner);
@@ -1434,7 +1435,7 @@ export class FurnitureView {
     if (this.label && e.ownerName && e.ownerName !== this.ownerName) { // renamed: a new sign
       this.ownerName = e.ownerName;
       const old = this.label;
-      this.label = makeLabel(`${e.ownerName}’s bed`, '#ffe9b0');
+      this.label = this.makeLabel(`${e.ownerName}’s bed`, '#ffe9b0');
       this.label.scale.copy(old.scale);
       this.label.position.copy(old.position);
       old.removeFromParent();
