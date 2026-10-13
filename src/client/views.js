@@ -4,7 +4,7 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COL
 import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
+import { browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -256,6 +256,9 @@ export class CharacterView {
       out.hat = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.max.y - 0.05, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
       // the face: front of the head, a bit below the middle (where the eyes are on these chibi heads)
       out.face = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * FACE_EYE_HEIGHT, b.max.z - 0.02), b.max.x - b.min.x);
+      // the eyebrows: exactly where the outfit's own were (cosmetics.js browsOf)
+      const ownBrows = head.material.map?.image ? browsOf(head.geometry, head.material.map.image) : null;
+      if (ownBrows) out.brows = anchor('head', ownBrows.centre.clone().applyMatrix4(head.matrixWorld), b.max.x - b.min.x);
       // the skull under a new hairstyle (the head mesh is hollow where its own hair was)
       const size = b.getSize(new THREE.Vector3());
       const centre = b.getCenter(new THREE.Vector3()).add(new THREE.Vector3(0, size.y * 0.06, -size.z * 0.02));
@@ -300,8 +303,8 @@ export class CharacterView {
     const fancy = look?.clothes && look.clothes !== 'none';
     const costume = wear === 'halloween' ? this.costume : wear === 'santa' || wear === 'grandma' ? wear : null;
     if (wear === 'winter' || costume) look = { ...look, hat: 'none' }; // the bobble hat (or costume) goes on instead
-    const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red' } = look ?? {};
-    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${hairColor}/${face}/${skin}/${tie}/${wear}`;
+    const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red', brows = 'soft' } = look ?? {};
+    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${hairColor}/${face}/${skin}/${tie}/${brows}/${wear}`;
     if (key === this.lookKey) return;
     this.lookKey = key;
     for (const m of this.borrowed) m.removeFromParent();
@@ -328,7 +331,9 @@ export class CharacterView {
     if (this.headMesh) {
       const hm = this.headMesh;
       hm.userData.baseGeo ??= hm.geometry;
-      hm.geometry = hair !== 'none' && hm.material.map?.image ? hairlessHead(hm.userData.baseGeo, hm.material.map.image, hm.name.replace(/_Head$/, '')) : hm.userData.baseGeo;
+      const image = (hm.userData.baseMat ?? hm.material).map?.image, outfit = hm.name.replace(/_Head$/, '');
+      // a new hairstyle carves the outfit's hair away; either way its own brows go (yours are drawn instead)
+      hm.geometry = !image ? hm.userData.baseGeo : hair !== 'none' ? hairlessHead(hm.userData.baseGeo, image, outfit) : browlessHead(hm.userData.baseGeo, image);
       hm.userData.baseMat ??= hm.material;
       if (hm.material !== hm.userData.baseMat) hm.material.dispose();
       hm.material = tone ? hm.userData.baseMat.clone() : hm.userData.baseMat;
@@ -338,8 +343,8 @@ export class CharacterView {
     if (hair !== 'none') {
       this.attach(this.anchors.hair ? 'hair' : 'hat', buildHair(hair, hc));
       this.attach('scalp', buildScalp(tone));
-      this.attach('face', buildBrows(hc)); // eyebrows to match the hair
     }
+    this.attach(this.anchors.brows ? 'brows' : 'face', buildBrows(hc, brows)); // your eyebrows, in your hair colour, where the outfit's own were (they're cut out)
     if (face !== 'none') this.attach('face', buildFace(face, hc));
     // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
     this.setClothes(COSTUMES[costume]?.clothes ?? CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'coat' } : undefined), TIE_COLORS[tie]?.color);

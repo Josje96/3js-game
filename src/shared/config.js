@@ -149,6 +149,17 @@ export const CLOTHES = {
   snowqueen:    { name: 'Snow queen gown', price: 1600, jacket: 0xdff6ff, legs: 0xbfe0ff, extra: 'gown', seasonal: 'winter' },
   wintercoat:   { name: 'Festive red coat', price: 1200, jacket: 0xd8302a, legs: 0x2a2a2a, extra: 'robe', seasonal: 'winter' },
 };
+/** Eyebrow shapes (the mirror). All free; they take the hair colour. */
+export const BROWS = {
+  soft:    { name: 'Soft' },
+  thick:   { name: 'Thick' },
+  thin:    { name: 'Thin' },
+  arched:  { name: 'Arched' },
+  angry:   { name: 'Fierce' },
+  worried: { name: 'Worried' },
+  bushy:   { name: 'Bushy' },
+  unibrow: { name: 'Unibrow' },
+};
 /** The colour of the tie (suit) or bow tie (tuxedo). All free: pick one in the wardrobe. */
 export const TIE_COLORS = {
   red:    { name: 'Red', color: 0xc0303a },
@@ -169,7 +180,7 @@ export const SKINS = {
   blue:  { name: 'Frosty blue', color: 0xa8c8ff },
 };
 
-export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS, tie: TIE_COLORS };
+export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS, tie: TIE_COLORS, brows: BROWS };
 
 /** Is this style free, or already in the closet (a list like ['hat:crown', 'dye:sky'])? */
 export function ownsStyle(closet, slot, id) {
@@ -179,7 +190,7 @@ export function ownsStyle(closet, slot, id) {
 
 /** Sanitise a look from the network or a profile; with a closet, also drops things not owned. */
 export function cleanLook(look, closet = null) {
-  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', clothes: 'none', hair: 'none', hairColor: 'brown', face: 'none', skin: 'none', tie: 'red' };
+  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', clothes: 'none', hair: 'none', hairColor: 'brown', face: 'none', skin: 'none', tie: 'red', brows: 'soft' };
   const out = {};
   for (const slot of Object.keys(fallback)) {
     const v = look?.[slot];

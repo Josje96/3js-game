@@ -423,7 +423,49 @@ const FACE_HI_PER_OUTFIT = {
   Ranger: 0.47,       // his fringe starts at 0.47
   Rogue: 0.555,       // brows end at 0.55, his fringe starts right there
   Rogue_Hooded: 0.555,
+  RogueHooded: 0.555, // (the head mesh is named without the underscore)
 };
+
+// The outfit's own eyebrows are two little raised shapes (islands in the head mesh) sitting just
+// above the two eyes (the dark islands). browsOf finds them, so they can be cut out and the brows
+// you pick in the mirror (buildBrows) drawn exactly where they were, instead of floating over them.
+const browCache = new WeakMap();
+export function browsOf(geo, image) {
+  if (browCache.has(geo)) return browCache.get(geo);
+  const pos = geo.attributes.position, idx = geo.index.array, cols = triangleColours(geo, image);
+  // islands: union-find over vertices, joining vertices that sit at the same point
+  const parent = new Int32Array(pos.count).map((_, i) => i);
+  const find = (a) => { while (parent[a] !== a) a = parent[a] = parent[parent[a]]; return a; };
+  const join = (a, b) => { a = find(a); b = find(b); if (a !== b) parent[a] = b; };
+  const at = new Map();
+  for (let i = 0; i < pos.count; i++) {
+    const k = `${pos.getX(i).toFixed(4)},${pos.getY(i).toFixed(4)},${pos.getZ(i).toFixed(4)}`;
+    if (at.has(k)) join(i, at.get(k)); else at.set(k, i);
+  }
+  for (let t = 0; t < idx.length; t += 3) { join(idx[t], idx[t + 1]); join(idx[t], idx[t + 2]); }
+  const islands = new Map();
+  for (let t = 0; t < idx.length; t += 3) {
+    const r = find(idx[t]), isl = islands.get(r) ?? { tris: [], x: 0, y: 0, z: 0, dark: 0 };
+    for (let k = 0; k < 3; k++) { isl.x += pos.getX(idx[t + k]) / 3; isl.y += pos.getY(idx[t + k]) / 3; isl.z += pos.getZ(idx[t + k]) / 3; }
+    if (Math.max(...cols[t / 3]) < 70) isl.dark++;
+    isl.tris.push(t / 3);
+    islands.set(r, isl);
+  }
+  const list = [...islands.values()].map((i) => ({ ...i, x: i.x / i.tris.length, y: i.y / i.tris.length, z: i.z / i.tris.length, n: i.tris.length }));
+  geo.computeBoundingBox();
+  const H = geo.boundingBox.max.y - geo.boundingBox.min.y;
+  // the eyes: a mirrored pair of small, dark islands on the front of the face
+  const eyes = list.filter((i) => i.n < 150 && i.z > 0.3 && i.dark > i.n * 0.8 && Math.abs(i.x) > 0.1 && Math.abs(i.x) < 0.3);
+  const eyeY = eyes.length ? Math.max(...eyes.map((e) => e.y)) : null;
+  // the brows: small front islands a little above the eyes, out to the sides
+  const brows = eyeY == null ? [] : list.filter((i) => i.n < 150 && i.z > 0.3 && Math.abs(i.x) > 0.12 && Math.abs(i.x) < 0.32 && i.y > eyeY + H * 0.05 && i.y < eyeY + H * 0.25);
+  const out = brows.length === 2 ? {
+    tris: new Set(brows.flatMap((b) => b.tris)),
+    centre: new THREE.Vector3(0, (brows[0].y + brows[1].y) / 2, (brows[0].z + brows[1].z) / 2),
+  } : null;
+  browCache.set(geo, out);
+  return out;
+}
 
 // Some heads paint a lighter "skin" band where their own hair meets the forehead (the Knight's,
 // under his helmet): above this height only the scalp ball and the new hair should show.
@@ -435,8 +477,10 @@ export function hairlessHead(geo, image, outfit) {
     geo.computeBoundingBox();
     const bb = geo.boundingBox, height = bb.max.y - bb.min.y;
     const hi = FACE_HI_PER_OUTFIT[outfit] ?? FACE_HI;
-    const kept = filterTriangles(geo, image, (_, col, [x, y, z]) => {
+    const brows = browsOf(geo, image);
+    const kept = filterTriangles(geo, image, (t, col, [x, y, z]) => {
       const rel = (y - bb.min.y) / height;
+      if (brows?.tris.has(t)) return false; // the outfit's own brows: yours are drawn instead
       const face = z > FACE_Z && Math.abs(x) < FACE_X && rel > FACE_LO && rel < hi;
       return (SKIN(col) && rel < (SKIN_TOP_PER_OUTFIT[outfit] ?? 1)) || face;
     });
@@ -457,6 +501,15 @@ export function hairlessHead(geo, image, outfit) {
     hairlessCache.set(geo, { geo: kept, scalp });
   }
   return hairlessCache.get(geo).geo;
+}
+
+/** The head with its own hair, minus its own eyebrows (they're replaced by the mirror's, see browsOf). */
+const browlessCache = new WeakMap();
+export function browlessHead(geo, image) {
+  const brows = browsOf(geo, image);
+  if (!brows) return geo;
+  if (!browlessCache.has(geo)) browlessCache.set(geo, filterTriangles(geo, image, (t) => !brows.tris.has(t)));
+  return browlessCache.get(geo);
 }
 
 /** Where the scalp ball goes for a carved head (see hairlessHead), or null when there's no carve. */
@@ -625,13 +678,33 @@ export function buildClothes(extra, color, tie) {
 }
 
 /** Eyebrows in the hair colour, drawn over the face's own (face frame: head 1 wide, y 0 at the eyes). */
-export function buildBrows(color) {
+export function buildBrows(color, style = 'soft') {
   const g = new THREE.Group(), m = mat(color, { roughness: 0.8 });
-  for (const s of [-1, 1]) {
-    const brow = mesh(new THREE.CapsuleGeometry(0.028, 0.12, 4, 8), m, s * 0.17, 0.135, 0.035);
-    brow.rotation.z = Math.PI / 2 + s * 0.12;
+  // a straight brow: thickness r, length len, `tilt` > 0 lifts the outer ends, < 0 drops them (a scowl)
+  const bar = (r, len, tilt, y = 0) => {
+    for (const s of [-1, 1]) {
+      const brow = mesh(new THREE.CapsuleGeometry(r, len, 4, 8), m, s * 0.2, y, 0.03);
+      brow.rotation.z = Math.PI / 2 + s * tilt;
+      g.add(brow);
+    }
+  };
+  if (style === 'thick') bar(0.045, 0.13, 0.08);
+  else if (style === 'thin') bar(0.016, 0.13, 0.14);
+  else if (style === 'angry') bar(0.032, 0.13, -0.42, -0.01); // inner ends down: fierce
+  else if (style === 'worried') bar(0.026, 0.12, 0.5, 0.01); // inner ends up
+  else if (style === 'arched') {
+    for (const s of [-1, 1]) {
+      const arc = mesh(new THREE.TorusGeometry(0.09, 0.022, 6, 14, Math.PI * 0.75), m, s * 0.2, -0.04, 0.03);
+      arc.rotation.z = Math.PI * 0.125;
+      g.add(arc);
+    }
+  } else if (style === 'bushy') {
+    for (const s of [-1, 1]) for (let i = 0; i < 5; i++) g.add(mesh(new THREE.SphereGeometry(0.038 + (i % 2) * 0.008, 8, 6), m, s * (0.13 + i * 0.035), Math.sin(i * 0.9) * 0.012, 0.035, 1.2, 0.9, 0.8));
+  } else if (style === 'unibrow') {
+    const brow = mesh(new THREE.CapsuleGeometry(0.032, 0.42, 4, 8), m, 0, 0, 0.035);
+    brow.rotation.z = Math.PI / 2;
     g.add(brow);
-  }
+  } else bar(0.028, 0.12, 0.12); // soft
   return g;
 }
 
