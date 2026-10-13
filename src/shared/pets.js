@@ -57,6 +57,8 @@ export const PET_SPECIES = {
   panda:    { name: 'Panda',     price: 192, atk: 3, forms: ['Panda Cub', 'Panda', 'Master Panda'] },
   dragon:   { name: 'Dragon',    price: 360, atk: 4, forms: ['Baby Dragon', 'Dragon', 'Elder Dragon'] },
   unicorn:  { name: 'Unicorn',   price: 360, atk: 4, forms: ['Pony', 'Unicorn', 'Alicorn'] },
+  snake:    { name: 'Snake',     price: 132, atk: 3, forms: ['Snakelet', 'Python', 'Royal Cobra'] },
+  fairy:    { name: 'Fairy',     price: 240, atk: 3, forms: ['Pixie', 'Fairy', 'Fairy Queen'] },
 };
 
 export function petStage(level) {

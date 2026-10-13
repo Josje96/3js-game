@@ -822,6 +822,126 @@ function snail() {
   return { body: g, parts, headTop: [0, 0.45, 0.0], neck: { at: [0, 0.12, 0.27], dir: [0, 0.6, 1], r: 0.065 } };
 }
 
+// ------------------------------------------------------------------ the snake
+
+/**
+ * A snake lying along the ground, built from overlapping segments so it can slither (the view
+ * waves them side to side), with slit-pupil eyes and a flicking forked tongue. The Royal Cobra
+ * spreads a hood.
+ */
+function snake(stage) {
+  const BASE = [0x5aa04a, 0x9a7a44, 0x2c2c36][stage], DARK = [0x2a5a26, 0x4a3018, 0xd8b040][stage], BELLY = [0xe8e0a0, 0xeadbb4, 0xf0d890][stage];
+  const g = new THREE.Group(), parts = { segs: [] };
+  const N = 12, R = 0.075, Z0 = -0.7, LEN = 1.08;
+  const radius = (u) => R * (0.12 + 0.88 * Math.sin(Math.min(1, u * 1.2) * Math.PI / 2)); // thin tail, full body
+  const skin = (z0, r) => (d, v, p) => {
+    if (d.y < -0.35) return shade(BELLY, Math.sin((p.z + z0) * 160) * 0.06); // belly scales
+    const q = (p.z + z0) * 14, w = Math.abs((((q % 1) + 1) % 1) - 0.5) * 2; // diamonds down the back
+    const back = smooth(0.2, 0.05, Math.abs(p.x) / Math.max(r, 1e-3) - (1 - w) * 0.75);
+    const scale = Math.sin(p.x * 260) * Math.sin((p.z + z0) * 260) * 0.05;
+    return shade(mix(BASE, DARK, back * (d.y > -0.1 ? 1 : 0.4)), scale);
+  };
+  for (let i = 0; i < N; i++) {
+    const u0 = i / N, u1 = (i + 1) / N, z0 = Z0 + u0 * LEN, z1 = Z0 + u1 * LEN + 0.025;
+    const seg = new THREE.Group();
+    seg.position.z = z0;
+    g.add(seg);
+    const r0 = radius(u0), r1 = radius(u1);
+    part(seg, tube([[0, r0 * 0.85, 0, r0, r0 * 0.85], [0, r1 * 0.85, z1 - z0, r1, r1 * 0.85]], { seg: 12, steps: 1, round: true, paint: skin(z0, R) }));
+    parts.segs.push(seg);
+  }
+  const head = new THREE.Group();
+  head.position.set(0, R * 0.85, Z0 + LEN);
+  g.add(head);
+  parts.head = head;
+  part(head, tube([[0, 0, -0.03, R * 0.85, R * 0.75], [0, 0.006, 0.035, R * 1.2, R * 0.7], [0, -0.004, 0.095, R * 0.8, R * 0.45], [0, -0.01, 0.125, R * 0.35, R * 0.25]],
+    { seg: 14, round: true, paint: (d, v, p) => (d.y < -0.4 ? BELLY : shade(mix(BASE, DARK, smooth(0.3, 0.8, d.y) * 0.5), Math.sin(p.x * 300) * Math.sin(p.z * 300) * 0.05)) }));
+  for (const sx of SIDES) {
+    eye(head, [sx * R * 0.85, R * 0.32, 0.05], [sx, 0.35, 0.55], R * 0.28, { iris: stage === 2 ? 0xff5030 : 0xffc020, pupil: 'slit', lid: DARK, lidWidth: 0.15 });
+    part(head, ball(0.004, 5), 0x111111, sx * R * 0.3, 0.004, 0.12); // nostrils
+  }
+  const tongue = new THREE.Group();
+  tongue.position.set(0, -0.012, 0.12);
+  head.add(tongue);
+  parts.tongue = tongue;
+  part(tongue, tube([[0, 0, 0, 0.004], [0, -0.002, 0.04, 0.003]], { seg: 5, steps: 1, color: 0xd8304a }));
+  for (const sx of SIDES) part(tongue, tube([[0, -0.002, 0.04, 0.003], [sx * 0.012, -0.004, 0.065, 0.0012]], { seg: 5, steps: 1, color: 0xd8304a }));
+  if (stage >= 1) for (let i = 0; i < 6; i++) part(head, ball(0.012, 6), DARK, 0, R * 0.62, -0.02 + i * 0.016, 1.4, 0.4, 1); // ridge of scales on the head
+  if (stage >= 2) { // the cobra's hood, spread behind the head, with two eye-spots
+    const hood = leaf(0.2, 0.28, { widest: 0.55, round: 0.95, cup: 0.18, nu: 8, ns: 4,
+      paint: (s, u) => { const spot = Math.hypot(Math.abs(s) - 0.45, u - 0.62); return spot < 0.12 ? (spot < 0.06 ? 0x111111 : 0xf0e0a0) : mix(BASE, DARK, smooth(0.7, 1, Math.abs(s))); } });
+    placed(head, hood, 0xffffff, [0, -0.01, -0.03], [0, 1, -0.35], [0, 0.3, -1]);
+  }
+  bake(g);
+  return { body: g, parts, headTop: [0, R * 2 + (stage >= 2 ? 0.2 : 0.08), Z0 + LEN], neck: { at: [0, R * 0.85, Z0 + LEN - 0.03], dir: [0, 0, 1], r: R * 1.05 } };
+}
+
+// ------------------------------------------------------------------ the fairy
+
+/** A tiny fairy: petal dress, pointy ears, a star wand and butterfly wings; she hovers and sheds glitter. */
+function fairy(stage) {
+  const SKIN_C = 0xffdcc4, DRESS = [0x8fe0a8, 0xf7a0d4, 0xb8a0ff][stage], HAIR = [0xffe27a, 0xff9ac8, 0xf2f4ff][stage];
+  const WING = [[0xc8ffd8, 0x7fe0ff], [0xffd0f0, 0xb48cff], [0xfff0b0, 0xff8ad8]][stage];
+  const g = new THREE.Group(), parts = { wings: [] };
+  // petal skirt: pointed petals round the hips, over a little bodice
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    placed(g, leaf(0.13, 0.08, { widest: 0.55, round: 0.8, cup: 0.25, paint: (s, u) => mix(shade(DRESS, 0.1), shade(DRESS, -0.15), u) }), 0xffffff,
+      [Math.sin(a) * 0.02, 0.22, Math.cos(a) * 0.02], [Math.sin(a) * 0.55, -1, Math.cos(a) * 0.55], [Math.sin(a), 0.4, Math.cos(a)]);
+  }
+  part(g, tube([[0, 0.2, 0, 0.04, 0.035], [0, 0.26, 0, 0.045, 0.04], [0, 0.31, 0, 0.04, 0.035], [0, 0.335, 0, 0.018]], { seg: 12, paint: (d, v) => (v > 0.85 ? SKIN_C : DRESS) }));
+  for (const sx of SIDES) {
+    part(g, tube([[sx * 0.02, 0.2, 0, 0.012], [sx * 0.024, 0.1, 0.01, 0.01], [sx * 0.026, 0.02, 0.005, 0.008]], { seg: 6, color: SKIN_C })); // legs
+    part(g, ball(0.014, 8), shade(DRESS, -0.3), sx * 0.026, 0.012, 0.012, 1, 0.7, 1.5); // slippers
+    part(g, tube([[sx * 0.04, 0.315, 0, 0.011], [sx * 0.075, 0.27, 0.02, 0.009], [sx * 0.085, 0.22, 0.05, 0.008]], { seg: 6, color: SKIN_C })); // arms
+  }
+  // the wand, held up in her right hand, with a glowing star
+  part(g, tube([[0.085, 0.22, 0.05, 0.004], [0.1, 0.33, 0.08, 0.004]], { seg: 5, steps: 1, color: 0xf6efe0 }));
+  const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.025, 0), new THREE.MeshStandardMaterial({ color: 0xffe27a, emissive: 0xffc020, emissiveIntensity: 0.8, roughness: 0.3 }));
+  star.position.set(0.1, 0.345, 0.08);
+  g.add(star);
+  parts.star = star;
+  const head = new THREE.Group();
+  head.position.set(0, 0.4, 0);
+  g.add(head);
+  parts.head = head;
+  part(head, ball(0.062, 16), SKIN_C, 0, 0, 0, 1, 1.05, 0.98);
+  part(head, ball(0.068, 16), HAIR, 0, 0.012, -0.012, 1.02, 0.98, 1); // hair over the back and top
+  part(head, ball(0.035, 10), HAIR, 0, 0.055, -0.05); // a bun
+  for (const sx of SIDES) {
+    part(head, ball(0.03, 10), HAIR, sx * 0.045, 0.03, 0.035, 0.9, 0.6, 0.6); // fringe
+    eye(head, [sx * 0.024, -0.004, 0.054], [sx * 0.25, 0, 1], 0.012, { iris: 0x3a5aff, pupil: 'round' });
+    part(head, ball(0.01, 6), 0xff9a9a, sx * 0.04, -0.022, 0.045, 1, 0.6, 0.4); // rosy cheeks
+    placed(head, leaf(0.05, 0.022, { widest: 0.3, round: 0.9, base: 0.5 }), SKIN_C, [sx * 0.058, 0.0, 0.0], [sx, 0.5, -0.3], [0, 0, 1]); // pointy ears
+  }
+  if (stage >= 2) for (let i = 0; i < 5; i++) { // a little tiara
+    const a = (i - 2) * 0.35;
+    part(head, new THREE.ConeGeometry(0.008, 0.03 + (i === 2 ? 0.015 : 0), 5), 0xffd23f, Math.sin(a) * 0.06, 0.06 + Math.cos(a) * 0.01, Math.cos(a) * 0.035);
+  }
+  // butterfly wings: translucent, shimmering from the root to the tips, a pair each side
+  const wingMat = new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: 0.7, side: THREE.DoubleSide, roughness: 0.2, emissive: 0x332244, depthWrite: false });
+  const ws = [1, 1.2, 1.45][stage];
+  for (const sx of SIDES) {
+    const pivot = new THREE.Group();
+    pivot.position.set(sx * 0.015, 0.31, -0.03);
+    g.add(pivot);
+    parts.wings.push(pivot);
+    for (const [l, w, dy] of [[0.2, 0.15, 0.7], [0.13, 0.1, -0.6]]) {
+      const m = new THREE.Mesh(leaf(l * ws, w * ws, { widest: 0.65, round: 0.6, nu: 6, ns: 3,
+        paint: (s, u) => mix(mix(WING[0], WING[1], u), 0xffffff, smooth(0.85, 1, Math.abs(s)) * 0.6 + smooth(0.95, 1, u) * 0.4) }), wingMat);
+      aim(m, [sx, dy, -0.35], [0, 0, 1]);
+      pivot.add(m);
+    }
+  }
+  // glitter drifting down from her
+  const dust = new THREE.Group();
+  g.add(dust);
+  parts.dust = dust;
+  for (let i = 0; i < 6; i++) dust.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.008, 0), new THREE.MeshBasicMaterial({ color: [0xffffff, 0xfff27a, WING[1]][i % 3] })));
+  bake(g);
+  return { body: g, parts, headTop: [0, 0.5, 0], neck: { at: [0, 0.335, 0], dir: [0, 1, 0], r: 0.03 } };
+}
+
 // ------------------------------------------------------------------ birds
 
 /**
@@ -1030,7 +1150,13 @@ const MODELS = {
   mouse: ['mouse', mouse], hamster: ['round', hamster], hedgehog: ['hog', hedgehog],
   chick: ['bird', chick], duck: ['bird', duck], penguin: ['bird', penguin], owl: ['bird', owl],
   frog: ['frog', frog], turtle: ['turtle', turtle], bee: ['bee', bee], snail: ['snail', snail],
+  snake: ['snake', snake], fairy: ['fairy', fairy],
 };
+
+/** Some pets are bigger than the rest at every stage: a unicorn stands about chest-high to its rider. */
+const SPECIES_SIZE = { unicorn: 1.6 };
+/** How big a pet is drawn: its evolution stage times its species' size. */
+const petScale = (kind, level) => STAGE_SCALE[petStage(level)] * (SPECIES_SIZE[kind] ?? 1);
 
 const twinkle = (r, color) => new THREE.Mesh(new THREE.OctahedronGeometry(r, 0), new THREE.MeshBasicMaterial({ color }));
 
@@ -1234,7 +1360,7 @@ export class PetView {
     const built = buildPet(kind, level);
     this.root = new THREE.Group();
     this.root.add(built.body);
-    this.root.scale.setScalar(STAGE_SCALE[petStage(level)]);
+    this.root.scale.setScalar(petScale(kind, level));
     dropTinyShadows(this.root);
     this.body = built.body;
     this.parts = built.parts;
@@ -1301,6 +1427,29 @@ export class PetView {
       case 'bee':
         b.position.y = 0.2 + Math.sin(t * 4) * 0.08;
         P.wings.forEach((wg, i) => { wg.rotation.z = (i ? -1 : 1) * Math.sin(t * 40) * 0.6; });
+        break;
+      case 'snake': { // a wave travelling down the body, bigger towards the tail; the tongue flicks now and then
+        const sp = moving ? 9 : 1.6, amp = moving ? 0.05 : 0.018, n = P.segs.length;
+        P.segs.forEach((s, i) => {
+          const ph = t * sp - i * 0.75, k = 0.35 + 0.65 * (1 - i / n);
+          s.position.x = Math.sin(ph) * amp * k;
+          s.rotation.y = Math.cos(ph) * amp * k * 4;
+        });
+        P.head.position.x = Math.sin(t * sp - n * 0.75) * amp * 0.3;
+        P.head.rotation.y = Math.cos(t * sp - n * 0.75) * amp * 2;
+        P.tongue.scale.z = (t * 1.3) % 1.7 < 0.22 ? 1 : 0.05;
+        break;
+      }
+      case 'fairy': // hovering at shoulder height, wings a blur, glitter falling
+        b.position.y = 0.5 + Math.sin(t * 3) * 0.06;
+        b.rotation.z = Math.sin(t * 1.7) * 0.06;
+        P.wings.forEach((wg, i) => { wg.rotation.y = (i ? -1 : 1) * (0.25 + Math.sin(t * 24) * 0.45); });
+        P.star.rotation.y = t * 3;
+        P.dust.children.forEach((d, i) => {
+          const u = (t * 0.5 + i / P.dust.children.length) % 1;
+          d.position.set(Math.sin(i * 2.3) * 0.07, 0.2 - u * 0.65, Math.cos(i * 1.7) * 0.07 - 0.03);
+          d.scale.setScalar(1 - u);
+        });
         break;
       case 'snail':
         P.shell.rotation.z = Math.sin(t * 3) * 0.05;
@@ -1369,7 +1518,7 @@ export class PetEntityView {
     this.root.add(this.pet.root);
     this.label = this.makeLabel(`${this.name} · Lv ${e.level}`, this.stage === 2 ? '#ffd23f' : '#c9f7ff');
     this.label.scale.multiplyScalar(0.6);
-    const top = 1.0 * STAGE_SCALE[this.stage] + 0.3;
+    const top = (this.species === 'fairy' ? 1.1 : 1.0) * petScale(this.species, this.level) + 0.3;
     this.label.position.y = top + 0.2;
     this.root.add(this.label);
     // health bar, always shown so you can keep an eye on your buddy
