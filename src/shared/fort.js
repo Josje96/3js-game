@@ -4,18 +4,18 @@
 // middle of the bottom wall, down a little passage between the bottom bedrooms.
 //
 //   ###########
-//   #B..#####B.#     Bed slots: 0 top-left, 1 bottom-left, 2 top-right, 3 bottom-right, then
-//   #...#####..#     another column for slots 4/5..., so a room keeps its place when someone
-//   #...#####..#     new moves in.
-//   ##.#######.#
-//   #W.......M.#   <- the common room
-//   #....p.....#
-//   #...........
-//   #C.......T.#
-//   ##.##.##.###   <- bottom-row doorways
+//   #B...#B...#      Bed slots: 0 top-left, 1 bottom-left, 2 top-right, 3 bottom-right, then
+//   #....#....#      another column for slots 4/5..., so a room keeps its place when someone
+//   #....#....#      new moves in. The two top rooms nearest the middle stretch over the
+//   ##.#####.##      front passage's column and share one wall (no solid dead block between them).
+//   #..WMC....#    <- the common room
+//   #....L....#
+//   #.........#
+//   #.....p...#
+//   ##.##.##.##    <- bottom-row doorways
+//   #...#.#...#
+//   #...#.#...#
 //   #B..#.#B..#
-//   #...#.#...#
-//   #...#.#...#
 //   #####D#####
 //
 // Nothing solid stands in front of a bedroom doorway (tested). Same map letters as shared/maps.js.
@@ -52,13 +52,16 @@ export function fortMap(n) {
   fill(passage, BOTTOM_DOORS, 1, H - 1 - BOTTOM_DOORS);       // the passage down to the front door
   const rooms = [];
   for (let slot = 0; slot < c * 2; slot++) {
-    const top = slot % 2 === 0, x = colX(Math.floor(slot / 2)), z = top ? 1 : BOTTOM_ROOMS;
+    const col = Math.floor(slot / 2), top = slot % 2 === 0, x0 = colX(col), z = top ? 1 : BOTTOM_ROOMS;
     const doorZ = top ? TOP_DOORS : BOTTOM_DOORS, out = top ? 1 : -1; // which way the door opens
-    fill(x, z, ROOM_W, ROOM_DEPTH);
-    if (slot >= n) { fill(x, doorZ, ROOM_W, 1); continue; } // nobody lives here yet: an open nook
-    set(x + 1, doorZ, '.');                                   // a doorway in the middle of the room's wall
+    // the top rooms either side of the middle take one more cell, towards the middle
+    const wide = top && (col === half - 1 || col === half);
+    const x = wide && col === half ? x0 - 1 : x0, w = wide ? ROOM_W + 1 : ROOM_W;
+    fill(x, z, w, ROOM_DEPTH);
+    if (slot >= n) { fill(x, doorZ, w, 1); continue; }       // nobody lives here yet: an open nook
+    set(x0 + 1, doorZ, '.');                                  // a doorway in the room's wall
     set(x, top ? z : z + ROOM_DEPTH - 1, 'B');                // the bed, in the far corner from the door
-    rooms[slot] = { x, z, w: ROOM_W, h: ROOM_DEPTH, door: { x: x + 1, z: doorZ, out } };
+    rooms[slot] = { x, z, w, h: ROOM_DEPTH, door: { x: x0 + 1, z: doorZ, out } };
   }
 
   // the common room: a dressing corner (wardrobe, mirror, family chest side by side against the top
