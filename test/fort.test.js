@@ -88,9 +88,9 @@ test('fort: chairs, stools and sofas can be sat on', () => {
   assert.ok(fx && fx.x === chair.x && fx.z === chair.z, 'sat down on it');
 });
 
-test('fort: sit down at the feast table and you eat (and heal) while you stay sitting; nobody walks through it', async () => {
+test('fort: the feast table asks to buy food (10 gold), then you sit and it heals half your health; nobody walks through it', async () => {
   const { blocked } = await import('../src/shared/physics.js');
-  const { PLAYER_RADIUS } = await import('../src/shared/config.js');
+  const { PLAYER_RADIUS, FEAST_COST } = await import('../src/shared/config.js');
   const { server, p, c } = world('feast', 'mom');
   server.travel(p.mom, 'house');
   const L = server.getLocation('house').layout;
@@ -98,8 +98,16 @@ test('fort: sit down at the feast table and you eat (and heal) while you stay si
   assert.ok(table, 'the common room has a feast table');
   for (const dx of [-6.5, -3, 0, 3, 6.5]) for (const dz of [-1.75, 0, 1.75]) assert.ok(blocked(L, table.x + dx, table.z + dz, PLAYER_RADIUS, L.solids), `solid at ${dx},${dz}`);
   p.mom.x = table.x + 1; p.mom.z = table.z + 2.8;
-  p.mom.hp = 3;
+  p.mom.hp = 3; p.mom.gold = 25;
   c.mom.say({ t: 'interact', id: table.id });
+  const ask = c.mom.last('ui');
+  assert.equal(ask.kind, 'feast', 'it asks first');
+  assert.equal(p.mom.gold, 25, 'nothing paid yet');
+  assert.ok(!c.mom.all('fx').some((m) => m.kind === 'sit'), 'not sat down yet');
+  c.mom.say({ t: 'eatFeast', table: ask.table });
+  assert.equal(FEAST_COST, 10);
+  assert.equal(p.mom.gold, 15);
+  assert.equal(p.mom.hp, 3 + Math.ceil(p.mom.maxHp / 2), 'half the health bar');
   const sat = c.mom.all('fx').find((m) => m.kind === 'sit');
   assert.ok(sat, 'sat down at a seat');
   assert.ok(sat.up && !blocked(L, sat.up.x, sat.up.z, PLAYER_RADIUS, L.solids), 'getting up puts you on clear floor, not inside the table');
@@ -108,13 +116,8 @@ test('fort: sit down at the feast table and you eat (and heal) while you stay si
   const mirror = L.props.find((q) => q.interact === 'mirror');
   const atMirror = { x: mirror.x, z: mirror.z + 1.6 };
   assert.ok(useDistance(mirror, atMirror) < useDistance(table, atMirror), 'the mirror is nearer than any seat');
-  assert.equal(p.mom.hp, 3, 'no food until you’re sitting');
-  p.mom.anim = 'sit';
-  for (let i = 0; i < 20; i++) server.step(0.25); // five seconds at the table
-  assert.ok(p.mom.hp > 3, 'eating heals');
-  for (let i = 0; i < 60; i++) server.step(0.25);
-  assert.equal(p.mom.hp, p.mom.maxHp, 'full in the end');
-  p.mom.hp = 3; p.mom.anim = 'run'; // got up and walked off
-  for (let i = 0; i < 20; i++) server.step(0.25);
-  assert.equal(p.mom.hp, 3, 'no more food once you get up');
+  // no gold, no food
+  p.mom.gold = 5; p.mom.hp = 3;
+  c.mom.say({ t: 'eatFeast', table: ask.table });
+  assert.equal(p.mom.hp, 3);
 });

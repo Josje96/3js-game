@@ -6,7 +6,7 @@ import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost } from '../shared/pets.js';
-import { seasonOf, dayOfSeason, isBossDay, calendar, dateLabel, CALENDAR_NAME } from '../shared/seasons.js';
+import { seasonOf, dayOfSeason, daysToNextSeason, SEASONS, isBossDay, calendar, dateLabel, CALENDAR_NAME } from '../shared/seasons.js';
 import { ENCHANT_LOOKS, enchantCost, enchantedName, enchantDamage } from '../shared/enchant.js';
 import { seasonalPrice } from '../shared/seasonal.js';
 
@@ -17,6 +17,13 @@ function seasonLine(day) {
   return isBossDay(day)
     ? `${newYear}${s.icon} ${s.name} begins! ${esc(s.bossName)} is in town — today only.`
     : `${s.icon} ${s.name}, day ${dayOfSeason(day)}`;
+}
+
+/** "12 days until Summer" (small print under the calendar) */
+function nextSeasonLine(day) {
+  const n = daysToNextSeason(day);
+  const next = SEASONS[(SEASONS.indexOf(seasonOf(day)) + 1) % SEASONS.length];
+  return n === 1 ? `${next.icon} ${next.name} starts tomorrow!` : `${n} days until ${next.name}`;
 }
 
 const el = (tag, cls, html) => {
@@ -63,10 +70,10 @@ export class Hud {
   // ---------------------------------------------------------------- status
 
   /** The night screen: a moonlit card with the new day's number, shown for a few seconds. */
-  nightScreen({ day, reason, fainted = [] }) {
+  nightScreen({ day, reason, fainted = [], days = 1 }) {
     this.nightEl?.remove();
     const lines = reason === 'sleep'
-      ? ['Everyone snuggled into bed…']
+      ? [days > 1 ? `Everyone snuggled into bed… and slept for ${days} days! 💤` : 'Everyone snuggled into bed…']
       : ['Night fell!', ...fainted.map((f) => `${f.name} was out after dark and fainted${f.lost ? ` (dropped ${f.lost} gold)` : ''}.`)];
     const n = el('div', 'night-screen', `
       <div class="night-sky"></div>
@@ -123,7 +130,8 @@ export class Hud {
       <div class="loc">${esc(this.locTitle)}</div>
       <div class="hpbar"><div style="width:${frac}%"></div><span>❤ ${hp}</span></div>${petRow}
       <div class="row"><span class="gold">🪙 ${s?.gold ?? 0}${s?.bank != null ? ` <small class="bank" title="In the bank (safe)">🏦 ${s.bank}</small>` : ''}</span><span title="Counted by ${CALENDAR_NAME}: 120 days a year, 30 a season">${dateLabel(w?.day ?? 1)}</span></div>
-      <div class="row day-clock${(w?.dayLeft ?? 999) <= 60 ? ' soon' : ''}"><span>${(w?.dayLeft ?? 999) <= 60 ? '🌙 Get home! Night in' : '🌅 Night in'} ${clock(w?.dayLeft ?? 0)}</span><span title="Day ${dayOfSeason(w?.day ?? 1)} of ${seasonOf(w?.day ?? 1).name}">${seasonOf(w?.day ?? 1).icon} ${seasonOf(w?.day ?? 1).name}</span></div>${this.luckLeft() > 0 ? `<div class="row luck"><span title="From the healing spring: more gold, lucky hits, better drops">🍀 Lucky ${clock(this.luckLeft())}</span></div>` : ''}`;
+      <div class="row day-clock${(w?.dayLeft ?? 999) <= 60 ? ' soon' : ''}"><span>${(w?.dayLeft ?? 999) <= 60 ? '🌙 Get home! Night in' : '🌅 Night in'} ${clock(w?.dayLeft ?? 0)}</span><span title="Day ${dayOfSeason(w?.day ?? 1)} of ${seasonOf(w?.day ?? 1).name}">${seasonOf(w?.day ?? 1).icon} ${seasonOf(w?.day ?? 1).name}</span></div>
+      <div class="row next-season"><small>${nextSeasonLine(w?.day ?? 1)}</small></div>${this.luckLeft() > 0 ? `<div class="row luck"><span title="From the healing spring: more gold, lucky hits, better drops">🍀 Lucky ${clock(this.luckLeft())}</span></div>` : ''}`;
   }
 
   /** Seconds of the healing spring's luck left. */
@@ -278,6 +286,36 @@ export class Hud {
     if (!this.pendingBuy?.preview?.tryOn) return;
     this.untryOn?.();
     this.modal.classList.remove('side');
+  }
+
+  /** Into bed: how many days to sleep for. */
+  openSleep({ options, onPick }) {
+    this.openModal((box) => {
+      box.append(el('h2', null, '💤 Time for bed'), el('p', 'muted', 'How long would you like to sleep? With the family, the night passes once everyone’s in bed, for the fewest days anyone picked. (A new season always wakes you up on its first day.)'));
+      const row = el('div', 'sleep-days');
+      for (const d of options) {
+        const b = el('button', d === 1 ? 'primary' : '', d === 1 ? 'Until morning' : `${d} days`);
+        b.addEventListener('click', () => { this.closeModal(); onPick(d); });
+        row.append(b);
+      }
+      box.append(row, closeButton(this));
+    });
+  }
+
+  /** The feast table: buy food? */
+  openFeast({ price, heal, onYes }) {
+    this.openModal((box) => {
+      box.append(el('h2', null, '🍗 The Feast Table'), el('p', null, `Would you like to buy food for <span class="gold">🪙 ${price}</span>? It heals half your health (+${heal}).`));
+      const row = el('div', 'sleep-days');
+      const yes = el('button', 'primary', 'Yes please!');
+      yes.disabled = (this.self?.gold ?? 0) < price;
+      yes.addEventListener('click', () => { this.closeModal(); onYes(); });
+      const no = el('button', '', 'No thanks');
+      no.addEventListener('click', () => this.closeModal());
+      row.append(yes, no);
+      box.append(row);
+      setTimeout(() => yes.focus(), 0);
+    });
   }
 
   askToSell(label, price, run) {

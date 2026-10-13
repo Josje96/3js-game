@@ -37,6 +37,11 @@ export function dayOfSeason(day) {
   return ((Math.max(1, day) - 1) % SEASON_DAYS) + 1;
 }
 
+/** How many days until the next season starts (1 on a season's last day). */
+export function daysToNextSeason(day) {
+  return SEASON_DAYS - dayOfSeason(day) + 1;
+}
+
 /** The seasonal boss is in town on the first day of every season. */
 export function isBossDay(day) {
   return dayOfSeason(day) === 1;
