@@ -98,7 +98,7 @@ function makeHpBar(width = 1.4) {
     set(frac) {
       frac = Math.max(0, Math.min(1, frac));
       fg.scale.x = width * frac;
-      fg.position.x = -(width * (1 - frac)) / 2;
+      fg.center.x = frac > 0 ? 0.5 / frac : 0.5; // left-aligned on screen (a sprite's offset would swing with the body's turn)
     },
   };
 }

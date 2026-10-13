@@ -281,7 +281,9 @@ export function generateFloor(dungeonId, floor, seed) {
     w, h,
     rows: grid.map((r) => r.join('')),
     portals,
-    props,
+    // only things you can walk over (rails, torches...): solid scenery (crates, carts, stalagmites,
+    // pillars...) just got people stuck. Smashable barrels and ore rocks are entities, not props.
+    props: props.filter((p) => !(PROPS[p.type]?.radius > 0)),
     initial,
     spawn,
     isBoss,

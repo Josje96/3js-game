@@ -1543,7 +1543,7 @@ export class PetEntityView {
     this.hp = hp;
     const f = Math.max(0, Math.min(1, hp / this.maxHp));
     this.hpFg.scale.x = 0.9 * f;
-    this.hpFg.position.x = -(0.9 * (1 - f)) / 2;
+    this.hpFg.center.x = f > 0 ? 0.5 / f : 0.5; // left-aligned on screen, whichever way the pet faces
     this.hpFg.material.color.set(f > 0.5 ? 0x5cff7a : f > 0.25 ? 0xffd23f : 0xff4a4a);
   }
 

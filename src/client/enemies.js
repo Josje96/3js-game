@@ -685,7 +685,7 @@ function makeHpBar(width) {
   fg.scale.set(width, 0.12, 1);
   bg.renderOrder = 11; fg.renderOrder = 12;
   group.add(bg, fg);
-  return { group, set(f) { f = Math.max(0, Math.min(1, f)); fg.scale.x = width * f; fg.position.x = -(width * (1 - f)) / 2; } };
+  return { group, set(f) { f = Math.max(0, Math.min(1, f)); fg.scale.x = width * f; fg.center.x = f > 0 ? 0.5 / f : 0.5; } }; // the red stays left-aligned on screen whichever way the body faces
 }
 
 const smooth = (dt, rate) => 1 - Math.exp(-dt * rate);
