@@ -98,6 +98,15 @@ export const ITEMS = {
   feast:       { name: 'Hero’s Feast',    kind: 'consumable', heal: 150,  price: 700,  tier: 2, model: 'dungeon/plate_food_A' },
   elixir:      { name: 'Golden Elixir',   kind: 'consumable', heal: 9999, price: 1500, tier: 3, model: 'dungeon/bottle_C_brown' },
   // pet food: sold by the Pet Keeper, fed with G
+  // seasonal treats: only from the Seasonal Trader, in their season (shared/seasonal.js)
+  blossomtea:  { name: 'Blossom Tea',     kind: 'consumable', heal: 14, price: 40,  seasonal: 'spring', model: 'items/mug_full', tint: 0xffb3cc },
+  honeycake:   { name: 'Honey Cake',      kind: 'consumable', heal: 35, price: 90,  seasonal: 'spring', model: 'dungeon/plate_food_A', tint: 0xffd23f },
+  lemonade:    { name: 'Pink Lemonade',   kind: 'consumable', heal: 14, price: 40,  seasonal: 'summer', model: 'dungeon/bottle_A_green', tint: 0xff9ab8 },
+  icecream:    { name: 'Triple Ice Cream', kind: 'consumable', heal: 35, price: 90, seasonal: 'summer', model: 'dungeon/plate_food_B', tint: 0xfff0f6 },
+  cider:       { name: 'Hot Apple Cider', kind: 'consumable', heal: 14, price: 40,  seasonal: 'autumn', model: 'items/mug_full', tint: 0xd8782a },
+  pumpkinpie:  { name: 'Pumpkin Pie',     kind: 'consumable', heal: 35, price: 90,  seasonal: 'autumn', model: 'dungeon/plate_food_A', tint: 0xff8a2a },
+  gingerbread: { name: 'Gingerbread Hero', kind: 'consumable', heal: 14, price: 40, seasonal: 'winter', model: 'dungeon/plate_food_B', tint: 0xc0703a },
+  snowcone:    { name: 'Snow Cone',       kind: 'consumable', heal: 35, price: 90,  seasonal: 'winter', model: 'dungeon/bottle_C_green', tint: 0xbfeaff },
   petfood:     { name: 'Pet Treat',       kind: 'consumable', petHeal: 12, price: 24,  model: 'dungeon/bottle_B_brown' },
   bigtreat:    { name: 'Deluxe Treat',    kind: 'consumable', petHeal: 45, price: 90,  model: 'dungeon/plate_small' },
 

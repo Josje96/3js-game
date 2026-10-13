@@ -24,11 +24,12 @@ import * as home from './home.js';
 import * as pets from './pets.js';
 import * as progression from './progression.js';
 import * as seasons from './seasons.js';
+import * as seasonaltrader from './seasonaltrader.js';
 import * as shop from './shop.js';
 import * as town from './town.js';
 import * as wallet from './wallet.js';
 
-export const SYSTEMS = { bank, combat, day, decor, dungeons, enchant, home, pets, progression, seasons, shop, town, wallet };
+export const SYSTEMS = { bank, combat, day, decor, dungeons, enchant, home, pets, progression, seasons, seasonaltrader, shop, town, wallet };
 
 /** Copy every system's methods onto the class; collect interactions and hooks. */
 export function installSystems(cls) {

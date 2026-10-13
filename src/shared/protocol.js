@@ -39,6 +39,7 @@ export const CLIENT_MESSAGES = {
   buyFurniture:    { item: 'str' },
   placeFurniture:  { item: 'str', x: 'num', z: 'num', rot: 'num' },
   bank:            { action: 'str', amount: 'int?', to: 'str?' },
+  buySeasonal:     { item: 'str' },
   enchant:         { item: 'str' },
   roomStyle:       { kind: 'str', id: 'str', slot: 'int' },
   pickUpFurniture: { id: 'str' },

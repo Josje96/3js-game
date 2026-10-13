@@ -485,3 +485,51 @@ export function makeFeastTable() {
   g.userData.update = (t) => flames.forEach((f, i) => f.scale.set(1, 1.2 + Math.sin(t * 11 + i * 2) * 0.3, 1));
   return g;
 }
+
+/**
+ * The Seasonal Trader's stall, dressed four ways (spring blossom, summer sun, autumn pumpkins,
+ * winter snow). Call `userData.setSeason(id)` to show the right one.
+ */
+export function makeSeasonalStall() {
+  const g = new THREE.Group(), looks = {};
+  const deck = (id, color, dress) => {
+    const v = makeStall(color, 'shop');
+    dress(v);
+    v.visible = false;
+    g.add(v);
+    looks[id] = v;
+  };
+  const ball = (parent, r, color, x, y, z, extra = {}) => mesh(parent, new THREE.SphereGeometry(r, 10, 8), std(color, extra), x, y, z);
+  deck('spring', 0xff9ab8, (v) => {
+    for (let i = 0; i < 9; i++) ball(v, 0.16, i % 2 ? 0xffffff : 0xffb3cc, -2 + i * 0.5, 3.15, 1.95);      // a blossom garland
+    for (const x of [-2.6, 2.6]) { mesh(v, new THREE.CylinderGeometry(0.3, 0.24, 0.5, 12), std(0xe0d6c0), x, 0.25, 1.6); for (let k = 0; k < 5; k++) ball(v, 0.12, [0xff6b8a, 0xffd23f, 0xb48cff][k % 3], x + Math.cos(k) * 0.15, 0.6, 1.6 + Math.sin(k) * 0.15); }
+  });
+  deck('summer', 0xffd23f, (v) => {
+    const sun = mesh(v, new THREE.CircleGeometry(0.45, 20), new THREE.MeshBasicMaterial({ color: 0xffb020 }), 0, 4.45, 0.4);
+    for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; const ray = mesh(v, new THREE.BoxGeometry(0.08, 0.35, 0.02), new THREE.MeshBasicMaterial({ color: 0xffd23f }), Math.cos(a) * 0.65, 4.45 + Math.sin(a) * 0.65, 0.4); ray.rotation.z = a - Math.PI / 2; }
+    sun.castShadow = false;
+    for (const x of [-0.7, 0.7]) mesh(v, new THREE.CylinderGeometry(0.12, 0.14, 0.4, 10), std(0xff9ab8, { transparent: true, opacity: 0.85 }), x, 1.25, 1.3); // lemonade jugs
+  });
+  deck('autumn', 0xd8782a, (v) => {
+    for (const [x, r] of [[-2.6, 0.32], [-2.15, 0.22], [2.5, 0.36]]) ball(v, r, 0xff8a2a, x, r * 0.85, 1.7).scale.y = 0.8;
+    for (let i = 0; i < 9; i++) { const leaf = mesh(v, new THREE.CircleGeometry(0.13, 5), std([0xc0392b, 0xffb03a, 0x8a4a1a][i % 3], { side: THREE.DoubleSide }), -2 + i * 0.5, 3.15, 1.98); leaf.rotation.z = i; }
+  });
+  deck('winter', 0x9fd8ff, (v) => {
+    mesh(v, new THREE.BoxGeometry(4.6, 0.18, 3.3), std(0xffffff, { roughness: 1 }), 0, 3.95, 0.4).rotation.x = -0.28; // snow on the canopy
+    for (let i = 0; i < 10; i++) { const ic = mesh(v, new THREE.ConeGeometry(0.06, 0.35 + (i % 3) * 0.1, 6), std(0xdff6ff, { transparent: true, opacity: 0.85 }), -2.1 + i * 0.47, 3.0, 2.0); ic.rotation.x = Math.PI; }
+    const tree = new THREE.Group();
+    for (const [y, r] of [[0.5, 0.45], [0.85, 0.32], [1.15, 0.2]]) mesh(tree, new THREE.ConeGeometry(r, 0.5, 8), std(0x2f8a4a), 0, y, 0);
+    ball(tree, 0.07, 0xffe27a, 0, 1.42, 0, { emissive: 0xffc020, emissiveIntensity: 0.8 });
+    tree.position.set(2.6, 0, 1.6);
+    v.add(tree);
+  });
+  let shown = null;
+  g.userData.setSeason = (id) => {
+    if (id === shown || !looks[id]) return;
+    if (shown) looks[shown].visible = false;
+    looks[id].visible = true;
+    shown = id;
+  };
+  g.userData.setSeason('spring');
+  return g;
+}

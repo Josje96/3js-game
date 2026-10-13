@@ -75,7 +75,7 @@ export const methods = {
 
   on_buyFurniture(p, { item }) {
     const def = FURNITURE[item];
-    if (!def || def.notForSale || p.loc !== 'town' || !this.decoratorOpen()) return;
+    if (!def || def.notForSale || def.seasonal || p.loc !== 'town' || !this.decoratorOpen()) return;
     if (!this.spend(p, def.price, def.name)) return;
     const owned = this.save.house.owned;
     owned[item] = (owned[item] ?? 0) + 1;

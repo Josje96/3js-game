@@ -57,6 +57,9 @@ export const PROPS = {
   // a shady figure in the town's far corner, under a dark tent with a bubbling cauldron, turned to face the town
   enchanter:  { build: 'enchanterTent', npc: 'Rogue_Hooded', npcName: 'Enchanter', npcLook: { hat: 'own', cape: 'own', dye: 'midnight', face: 'eyepatch' },
                 rot: -Math.PI * 0.75, radius: 1.6, blocks: [[0, -0.9, 1.7], [0, 0.7, 0.8]], interact: 'enchant', prompt: 'Enchanter (make your weapons stronger)' },
+  // the Seasonal Trader: a stall dressed for the season (client/town.js), selling season-only things
+  seasonal:   { build: 'seasonalStall', npc: 'Ranger', npcName: 'Seasonal Trader', npcLook: { hat: 'none', cape: 'none', clothes: 'sunday', hair: 'bun', hairColor: 'ginger' },
+                radius: 2.3, offsetZ: -0.9, blocks: STALL_BLOCKS, interact: 'seasonal', prompt: 'Seasonal Trader (only this season!)' },
   // the Banker's booth east of the market: a stone counter, a strongbox and a sign with a coin
   bank:       { build: 'bankBooth', npc: 'Mage', npcName: 'Banker', npcLook: { hat: 'tophat', clothes: 'suit', face: 'monocle', hair: 'suave', hairColor: 'white', cape: 'none' },
                 radius: 1.8, offsetZ: -0.9, blocks: [[-1.1, 0.5, 1.1], [1.1, 0.5, 1.1], [0, -0.6, 1.0]], interact: 'bank', prompt: 'Bank (keep your gold safe, send gold to family)' },

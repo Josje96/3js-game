@@ -13,6 +13,18 @@ function box(parent, w, h, d, m, x, y, z) {
   return b;
 }
 
+const ball = (r, seg = 14) => new THREE.SphereGeometry(r, seg, Math.max(6, (seg * 0.7) | 0));
+const cyl = (rt, rb, h, seg = 12) => new THREE.CylinderGeometry(rt, rb, h, seg);
+/** Add a mesh to a builder's group: position, optional [sx, sy, sz] scale. */
+function add(g, geo, m, x = 0, y = 0, z = 0, scale = null) {
+  const o = new THREE.Mesh(geo, m);
+  o.position.set(x, y, z);
+  if (scale) o.scale.set(...scale);
+  o.castShadow = o.receiveShadow = true;
+  g.add(o);
+  return o;
+}
+
 /** Hand-made furniture the KayKit pack doesn't have. Each faces +z, standing on y = 0. */
 export const FURNITURE_BUILDERS = {
   rug(def) {
@@ -1148,6 +1160,228 @@ export const FURNITURE_BUILDERS = {
     const win = new THREE.MeshStandardMaterial({ color: 0xfff2b0, emissive: 0xffc860, emissiveIntensity: 0.8 });
     for (const [x, y] of [[-0.35, 1.25], [0.35, 1.25], [-0.35, 0.85], [0.35, 0.85]]) box(g, 0.2, 0.2, 0.02, win, x, y, 0.41).castShadow = false;
     box(g, 0.2, 0.3, 0.02, mat(0x6b4a2c), 0, 0.75, 0.41);
+    return g;
+  },
+  // ---- the Seasonal Trader's decorations (shared/seasonal.js)
+  blossomtree() { // a little cherry tree in a pot, pink blossom clouds
+    const g = new THREE.Group();
+    add(g, cyl(0.35, 0.28, 0.5), mat(0xe0d6c0), 0, 0.25, 0);
+    add(g, cyl(0.07, 0.1, 1.4), mat(0x6b4a2c), 0, 1.15, 0);
+    for (const [x, y, z, r] of [[0, 2.0, 0, 0.5], [0.35, 1.8, 0.1, 0.38], [-0.35, 1.85, -0.1, 0.4], [0.1, 1.7, 0.35, 0.35], [-0.1, 2.25, -0.2, 0.32]]) add(g, ball(r), mat(0xffb3cc, { roughness: 1 }), x, y, z);
+    return g;
+  },
+  bunnyplush() { // a floppy-eared bunny plush
+    const g = new THREE.Group(), fur = mat(0xf4ece4, { roughness: 1 }), pink = mat(0xffb3cc);
+    add(g, ball(0.32), fur, 0, 0.32, 0, [1, 0.9, 0.9]);
+    add(g, ball(0.24), fur, 0, 0.75, 0.05);
+    for (const s of [-1, 1]) { const ear = add(g, ball(0.08), fur, s * 0.1, 1.05, 0, [0.7, 2.6, 0.5]); ear.rotation.z = s * 0.3; add(g, ball(0.035), mat(0x222222), s * 0.08, 0.8, 0.24); }
+    add(g, ball(0.04), pink, 0, 0.72, 0.27);
+    return g;
+  },
+  eggbasket() { // a wicker basket of painted eggs
+    const g = new THREE.Group();
+    add(g, cyl(0.42, 0.32, 0.35), mat(0xc9a06a, { roughness: 1 }), 0, 0.18, 0);
+    add(g, new THREE.TorusGeometry(0.35, 0.03, 6, 20, Math.PI), mat(0xb08a50), 0, 0.36, 0);
+    [0xff9ab8, 0x7fc4ff, 0xffe066, 0xb48cff, 0x8be07a].forEach((c, i) => add(g, ball(0.1), mat(c, { roughness: 0.4 }), Math.cos(i * 1.3) * 0.18, 0.42, Math.sin(i * 1.3) * 0.18, [0.8, 1.1, 0.8]));
+    return g;
+  },
+  birdhouse() { // a little birdhouse on a post
+    const g = new THREE.Group();
+    add(g, cyl(0.05, 0.06, 1.6), mat(0x8a5a34), 0, 0.8, 0);
+    add(g, new THREE.BoxGeometry(0.45, 0.45, 0.4), mat(0x7fc4ff), 0, 1.8, 0);
+    const roof = add(g, new THREE.ConeGeometry(0.42, 0.3, 4), mat(0xc0453a), 0, 2.17, 0);
+    roof.rotation.y = Math.PI / 4;
+    add(g, cyl(0.07, 0.07, 0.05), mat(0x222222), 0, 1.85, 0.2).rotation.x = Math.PI / 2;
+    return g;
+  },
+  tulips() { // a long planter of tulips
+    const g = new THREE.Group();
+    add(g, new THREE.BoxGeometry(1.0, 0.35, 0.4), mat(0xc0703a), 0, 0.18, 0);
+    [0xff5a6a, 0xffd23f, 0xff9ab8, 0xb48cff, 0xff5a6a].forEach((c, i) => {
+      const x = -0.4 + i * 0.2;
+      add(g, cyl(0.015, 0.015, 0.45), mat(0x3fa84a), x, 0.55, 0);
+      add(g, new THREE.ConeGeometry(0.07, 0.16, 6, 1, true), mat(c, { side: THREE.DoubleSide }), x, 0.82, 0).rotation.x = Math.PI;
+    });
+    return g;
+  },
+  maypolemini() { // a little maypole with ribbons
+    const g = new THREE.Group();
+    add(g, cyl(0.04, 0.05, 1.8), mat(0xf4efe6), 0, 0.9, 0);
+    add(g, ball(0.08), mat(0xffd23f), 0, 1.85, 0);
+    [0xff5a6a, 0x7fc4ff, 0xffe066, 0x8be07a].forEach((c, i) => {
+      const a = (i / 4) * Math.PI * 2;
+      const rib = add(g, new THREE.BoxGeometry(0.04, 1.4, 0.01), mat(c), Math.cos(a) * 0.3, 1.1, Math.sin(a) * 0.3);
+      rib.rotation.z = Math.cos(a) * 0.25; rib.rotation.x = -Math.sin(a) * 0.25;
+    });
+    return g;
+  },
+  parasol() { // a striped beach parasol
+    const g = new THREE.Group();
+    add(g, cyl(0.04, 0.04, 2.2), mat(0xf4efe6), 0, 1.1, 0);
+    for (let i = 0; i < 8; i++) {
+      const seg = add(g, new THREE.ConeGeometry(1.2, 0.45, 8, 1, true, (i / 8) * Math.PI * 2, Math.PI / 4), mat(i % 2 ? 0xffffff : 0xff5a6a, { side: THREE.DoubleSide }), 0, 2.25, 0);
+      seg.castShadow = true;
+    }
+    return g;
+  },
+  beachball() { // a big striped beach ball
+    const g = new THREE.Group();
+    [0xff5a6a, 0xffffff, 0x4fa8ff, 0xffe066, 0xffffff, 0x8be07a].forEach((c, i) => add(g, new THREE.SphereGeometry(0.4, 16, 12, (i / 6) * Math.PI * 2, Math.PI / 3), mat(c, { roughness: 0.4 }), 0, 0.4, 0));
+    return g;
+  },
+  sandcastle() { // a sandcastle with towers and a flag
+    const g = new THREE.Group(), sand = mat(0xf0d89a, { roughness: 1 });
+    add(g, new THREE.BoxGeometry(1.0, 0.4, 1.0), sand, 0, 0.2, 0);
+    for (const [x, z] of [[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]]) { add(g, cyl(0.17, 0.2, 0.6), sand, x, 0.3, z); add(g, new THREE.ConeGeometry(0.2, 0.25, 8), sand, x, 0.72, z); }
+    add(g, cyl(0.22, 0.26, 0.8), sand, 0, 0.6, 0);
+    add(g, cyl(0.01, 0.01, 0.4), mat(0x8a5a34), 0, 1.2, 0);
+    add(g, new THREE.BoxGeometry(0.2, 0.12, 0.01), mat(0xff5a6a), 0.1, 1.33, 0);
+    return g;
+  },
+  sunflowers() { // tall sunflowers in a pot
+    const g = new THREE.Group();
+    add(g, cyl(0.3, 0.24, 0.45), mat(0x4f7fc0), 0, 0.22, 0);
+    for (const [x, h] of [[-0.12, 1.7], [0.15, 1.4], [0, 1.2]]) {
+      add(g, cyl(0.025, 0.03, h), mat(0x3fa84a), x, 0.45 + h / 2, 0);
+      add(g, cyl(0.24, 0.24, 0.04, 16), mat(0xffd23f), x, 0.45 + h, 0.05).rotation.x = Math.PI / 2;
+      add(g, cyl(0.11, 0.11, 0.06, 12), mat(0x6b3a1a), x, 0.45 + h, 0.08).rotation.x = Math.PI / 2;
+    }
+    return g;
+  },
+  shellbowl() { // a wooden bowl of seashells and a starfish
+    const g = new THREE.Group();
+    add(g, new THREE.SphereGeometry(0.4, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), mat(0x9a6a3c, { side: THREE.DoubleSide }), 0, 0.4, 0);
+    [0xffe0ea, 0xfff6dc, 0xffc8a0, 0xe0f0ff].forEach((c, i) => add(g, ball(0.09), mat(c, { roughness: 0.3 }), Math.cos(i * 1.6) * 0.18, 0.38, Math.sin(i * 1.6) * 0.18, [1, 0.6, 1.2]));
+    for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; add(g, new THREE.ConeGeometry(0.04, 0.16, 4), mat(0xff8a5a), Math.cos(a) * 0.07, 0.42, Math.sin(a) * 0.07).rotation.set(Math.PI / 2, 0, -a + Math.PI / 2); }
+    return g;
+  },
+  surfboard() { // a surfboard leaning up
+    const g = new THREE.Group();
+    const board = add(g, ball(0.5, 20), mat(0x4fd8c0, { roughness: 0.3 }), 0, 1.0, -0.2, [0.45, 2.0, 0.08]);
+    board.rotation.x = -0.25;
+    add(g, ball(0.5, 20), mat(0xffffff), 0, 1.0, -0.15, [0.08, 1.95, 0.085]).rotation.x = -0.25;
+    return g;
+  },
+  jackolantern() { // a carved pumpkin, glowing
+    const g = new THREE.Group();
+    add(g, ball(0.42), mat(0xff8a2a, { roughness: 0.6 }), 0, 0.38, 0, [1.15, 0.85, 1.15]);
+    add(g, cyl(0.05, 0.06, 0.18), mat(0x4f7a2a), 0, 0.78, 0);
+    const glow = new THREE.MeshBasicMaterial({ color: 0xffd23f });
+    for (const s of [-1, 1]) add(g, new THREE.ConeGeometry(0.07, 0.1, 3), glow, s * 0.15, 0.45, 0.42).rotation.x = Math.PI / 2;
+    add(g, new THREE.BoxGeometry(0.3, 0.06, 0.05), glow, 0, 0.27, 0.43).userData.flicker = true;
+    return g;
+  },
+  scarecrow() { // a friendly scarecrow with a straw hat
+    const g = new THREE.Group();
+    add(g, cyl(0.05, 0.05, 2.0), mat(0x8a5a34), 0, 1.0, 0);
+    add(g, new THREE.BoxGeometry(1.2, 0.08, 0.08), mat(0x8a5a34), 0, 1.4, 0);
+    add(g, new THREE.BoxGeometry(0.5, 0.6, 0.3), mat(0x7a3a8a), 0, 1.3, 0);
+    add(g, ball(0.22), mat(0xe8c87a), 0, 1.85, 0);
+    add(g, cyl(0.4, 0.4, 0.04, 16), mat(0xd8b860), 0, 2.03, 0);
+    add(g, cyl(0.17, 0.2, 0.18, 16), mat(0xd8b860), 0, 2.13, 0);
+    for (const s of [-1, 1]) add(g, ball(0.03), mat(0x222222), s * 0.08, 1.9, 0.19);
+    return g;
+  },
+  leafpile() { // a pile of autumn leaves
+    const g = new THREE.Group(), colors = [0xd8782a, 0xc0392b, 0xffb03a, 0x8a4a1a];
+    for (let i = 0; i < 26; i++) {
+      const a = i * 2.4, r = (i % 7) * 0.12;
+      const l = add(g, new THREE.CircleGeometry(0.16, 5), mat(colors[i % 4], { side: THREE.DoubleSide, roughness: 1 }), Math.cos(a) * r, 0.06 + (0.84 - r) * 0.35 * Math.random(), Math.sin(a) * r);
+      l.rotation.set(-Math.PI / 2 + (Math.random() - 0.5) * 0.8, 0, a);
+    }
+    return g;
+  },
+  applebasket() { // a basket heaped with apples
+    const g = new THREE.Group();
+    add(g, cyl(0.4, 0.3, 0.4), mat(0xc9a06a, { roughness: 1 }), 0, 0.2, 0);
+    for (let i = 0; i < 9; i++) add(g, ball(0.11), mat(i % 3 ? 0xd8302a : 0x8bc84a, { roughness: 0.5 }), Math.cos(i * 2.2) * 0.2 * (i % 2 + 0.3), 0.46 + (i % 3) * 0.05, Math.sin(i * 2.2) * 0.2 * (i % 2 + 0.3));
+    return g;
+  },
+  cornstalks() { // a bundle of dry corn stalks
+    const g = new THREE.Group();
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      const st = add(g, cyl(0.03, 0.04, 1.8), mat(0xd8b860), Math.cos(a) * 0.12, 0.9, Math.sin(a) * 0.12);
+      st.rotation.set(Math.sin(a) * 0.12, 0, -Math.cos(a) * 0.12);
+    }
+    add(g, cyl(0.2, 0.2, 0.08), mat(0x8a2a1a), 0, 0.7, 0);
+    return g;
+  },
+  acornbowl() { // a bowl of acorns, little gourds and a pinecone
+    const g = new THREE.Group();
+    add(g, new THREE.SphereGeometry(0.38, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), mat(0x6b4a2c, { side: THREE.DoubleSide }), 0, 0.38, 0);
+    for (let i = 0; i < 6; i++) { const x = Math.cos(i * 1.1) * 0.2, z = Math.sin(i * 1.1) * 0.2; add(g, ball(0.06), mat(0xa86a3a), x, 0.38, z, [1, 1.2, 1]); add(g, ball(0.065), mat(0x5a3a22), x, 0.44, z, [1, 0.5, 1]); }
+    add(g, ball(0.12), mat(0xffb03a), 0.05, 0.42, 0, [1, 0.8, 1]);
+    add(g, ball(0.1), mat(0x8bc84a), -0.1, 0.42, 0.1, [1, 1.3, 1]);
+    return g;
+  },
+  snowman() { // a snowman with a carrot nose and a scarf
+    const g = new THREE.Group(), snow = mat(0xf8fbff, { roughness: 0.9 });
+    add(g, ball(0.45), snow, 0, 0.42, 0);
+    add(g, ball(0.32), snow, 0, 1.05, 0);
+    add(g, ball(0.22), snow, 0, 1.52, 0);
+    add(g, new THREE.ConeGeometry(0.05, 0.25, 8), mat(0xff8a2a), 0, 1.52, 0.3).rotation.x = Math.PI / 2;
+    for (const s of [-1, 1]) add(g, ball(0.03), mat(0x222222), s * 0.08, 1.6, 0.19);
+    add(g, new THREE.TorusGeometry(0.22, 0.06, 6, 16), mat(0xd8302a), 0, 1.3, 0).rotation.x = Math.PI / 2;
+    add(g, cyl(0.16, 0.16, 0.25), mat(0x222222), 0, 1.85, 0);
+    add(g, cyl(0.26, 0.26, 0.03), mat(0x222222), 0, 1.73, 0);
+    return g;
+  },
+  xmastree() { // a festive tree with baubles and a star
+    const g = new THREE.Group(), pine = mat(0x2f8a4a, { roughness: 0.9 });
+    add(g, cyl(0.1, 0.12, 0.4), mat(0x6b4a2c), 0, 0.2, 0);
+    for (const [y, r] of [[0.8, 0.8], [1.3, 0.62], [1.75, 0.42]]) add(g, new THREE.ConeGeometry(r, 0.8, 10), pine, 0, y, 0);
+    [0xd8302a, 0xffd23f, 0x4fa8ff, 0xff9ab8, 0xffffff, 0xd8302a, 0xffd23f].forEach((c, i) => {
+      const a = i * 2.3, y = 0.6 + (i % 4) * 0.33, r = 0.75 - (i % 4) * 0.17;
+      add(g, ball(0.06), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.4 }), Math.cos(a) * r, y, Math.sin(a) * r);
+    });
+    const star = add(g, new THREE.OctahedronGeometry(0.14), new THREE.MeshStandardMaterial({ color: 0xffe27a, emissive: 0xffc020, emissiveIntensity: 0.8 }), 0, 2.25, 0);
+    star.userData.flicker = true;
+    return g;
+  },
+  giftpile() { // a heap of wrapped presents with ribbons
+    const g = new THREE.Group();
+    for (const [x, z, w, h, c, r] of [[0, 0, 0.5, 0.4, 0xd8302a, 0xffd23f], [0.45, 0.1, 0.35, 0.3, 0x2f8a4a, 0xffffff], [-0.35, 0.2, 0.3, 0.45, 0x4fa8ff, 0xff5a6a], [0.1, 0.05, 0.3, 0.25, 0xffd23f, 0xd8302a]]) {
+      const y = x === 0.1 ? 0.52 : h / 2;
+      add(g, new THREE.BoxGeometry(w, h, w), mat(c), x, y, z);
+      add(g, new THREE.BoxGeometry(w + 0.01, h + 0.01, 0.05), mat(r), x, y, z);
+      add(g, new THREE.BoxGeometry(0.05, h + 0.01, w + 0.01), mat(r), x, y, z);
+    }
+    return g;
+  },
+  snowglobe() { // a giant snow globe with a tiny house and drifting snow
+    const g = new THREE.Group();
+    add(g, cyl(0.38, 0.45, 0.3), mat(0x8a5a34), 0, 0.15, 0);
+    add(g, ball(0.42, 20), new THREE.MeshStandardMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.35, roughness: 0.05 }), 0, 0.68, 0);
+    add(g, new THREE.BoxGeometry(0.2, 0.18, 0.2), mat(0xffd6e4), 0, 0.42, 0);
+    const roof = add(g, new THREE.ConeGeometry(0.17, 0.14, 4), mat(0x4f7fc0), 0, 0.58, 0);
+    roof.rotation.y = Math.PI / 4;
+    const flakes = [];
+    for (let i = 0; i < 10; i++) flakes.push(add(g, ball(0.02, 6), mat(0xffffff), 0, 0, 0));
+    g.userData.update = (t) => flakes.forEach((f, i) => { const u = (t * 0.15 + i / 10) % 1; f.position.set(Math.cos(i * 2.4) * 0.25, 1.0 - u * 0.65, Math.sin(i * 2.4) * 0.25); });
+    return g;
+  },
+  icesculpture() { // a swan carved from ice on a plinth
+    const g = new THREE.Group(), ice = new THREE.MeshStandardMaterial({ color: 0xcfeeff, transparent: true, opacity: 0.75, roughness: 0.05, metalness: 0.1 });
+    add(g, new THREE.BoxGeometry(0.8, 0.4, 0.8), mat(0xf4f4f8), 0, 0.2, 0);
+    add(g, ball(0.32), ice, 0, 0.65, 0, [1.3, 0.8, 0.9]);
+    const neck = add(g, new THREE.TorusGeometry(0.25, 0.06, 8, 16, Math.PI * 1.1), ice, 0.25, 0.95, 0);
+    neck.rotation.z = -0.3;
+    add(g, ball(0.09), ice, 0.45, 1.15, 0);
+    for (const s of [-1, 1]) add(g, ball(0.25), ice, -0.1, 0.8, s * 0.2, [1.1, 0.5, 0.4]).rotation.z = 0.4;
+    return g;
+  },
+  stocking() { // a little rack of hanging stockings
+    const g = new THREE.Group();
+    add(g, cyl(0.04, 0.05, 1.4), mat(0x8a5a34), -0.55, 0.7, 0);
+    add(g, cyl(0.04, 0.05, 1.4), mat(0x8a5a34), 0.55, 0.7, 0);
+    add(g, new THREE.BoxGeometry(1.2, 0.06, 0.06), mat(0x8a5a34), 0, 1.38, 0);
+    [0xd8302a, 0x2f8a4a, 0xd8302a].forEach((c, i) => {
+      const x = -0.35 + i * 0.35;
+      add(g, new THREE.BoxGeometry(0.16, 0.42, 0.1), mat(c), x, 1.1, 0);
+      add(g, new THREE.BoxGeometry(0.24, 0.12, 0.1), mat(c), x + 0.05, 0.86, 0);
+      add(g, new THREE.BoxGeometry(0.18, 0.08, 0.11), mat(0xffffff), x, 1.3, 0);
+    });
     return g;
   },
   petbed() {

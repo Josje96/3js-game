@@ -9,7 +9,7 @@ import { makeGrass, makeWater, makeTrees, makeSpringBanks, pondEdge } from './na
 import { wallpaperTexture } from './wallpaper.js';
 import { PetView } from './pets.js';
 import { DECORATIONS } from './decorations.js';
-import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard, makeFeastTable } from './town.js';
+import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard, makeFeastTable, makeSeasonalStall } from './town.js';
 import { Villagers } from './villagers.js';
 import { TOWNSFOLK } from '../shared/townsfolk.js';
 import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
@@ -17,6 +17,7 @@ import { roomIndexAt } from '../shared/locations.js';
 import { THEMES } from './themes.js';
 import { mergeStatic, dropTinyShadows } from './merge.js';
 import { buildTownFun } from './townfun.js';
+import { seasonOf } from '../shared/seasons.js';
 
 /** Wooden signpost for the healing spring. */
 function makeSpringSign() {
@@ -523,6 +524,12 @@ export class LocationView {
         if (!p.pets) { stall.position.set(p.x, 0, p.z); holder.add(stall); }
       }
       if (p.build === 'forge') this.buildForge(p);
+      if (p.build === 'seasonalStall') { // the Seasonal Trader: the stall changes with the season
+        const stall = makeSeasonalStall();
+        stall.position.set(p.x, 0, p.z);
+        holder.add(stall);
+        this.animated.push({ update: () => stall.userData.setSeason(seasonOf(this.world?.day ?? 1).id) });
+      }
       if (p.build === 'enchanterTent' || p.build === 'bankBooth') { // a corner or booth round its keeper
         const tent = p.build === 'bankBooth' ? makeBankBooth() : makeEnchanterTent();
         tent.position.set(p.x, 0, p.z);

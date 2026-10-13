@@ -96,3 +96,34 @@ test('seasons: the boss grows with the family', () => {
   strong.server.syncSeasonBoss(town);
   assert.ok(bossIn(town).maxHp > bossIn(weak.server.getLocation('town')).maxHp * 5);
 });
+
+test('seasonal trader: only this season’s things, a different set every 6 days, decorations go home', async () => {
+  const { seasonalSet, SEASONAL_STOCK } = await import('../src/shared/seasonal.js');
+  const { FURNITURE } = await import('../src/shared/furniture.js');
+  for (const [season, pool] of Object.entries(SEASONAL_STOCK)) {
+    for (const id of pool.food) assert.equal(ITEMS[id]?.seasonal, season, `${id} is a ${season} treat`);
+    for (const id of pool.decor) assert.equal(FURNITURE[id]?.seasonal, season, `${id} is a ${season} decoration`);
+  }
+  const sets = [1, 7, 13, 19, 25].map((d) => seasonalSet(d).items.map((i) => i.id).sort().join());
+  assert.equal(new Set(sets).size, 5, 'five different sets in a season');
+  assert.equal(seasonalSet(31).season, 'summer');
+
+  const { server, save, p, c } = world('trader', 'mom');
+  server.travel(p.mom, 'town');
+  const stall = server.getLocation('town').layout.props.find((q) => q.interact === 'seasonal');
+  p.mom.x = stall.x; p.mom.z = stall.z + 3;
+  p.mom.gold = 5000;
+  c.mom.say({ t: 'interact', id: stall.id });
+  assert.equal(c.mom.last('ui').kind, 'seasonal');
+  const today = seasonalSet(save.day).items;
+  const decor = today.find((i) => i.kind === 'furniture'), treat = today.find((i) => i.kind === 'item');
+  c.mom.say({ t: 'buySeasonal', item: decor.id });
+  assert.equal(save.house.owned[decor.id], 1, 'the decoration waits at home');
+  c.mom.say({ t: 'buySeasonal', item: treat.id });
+  assert.equal(p.mom.inventory[treat.id], 1);
+  c.mom.say({ t: 'buySeasonal', item: 'snowman' }); // winter's, and it's spring
+  assert.equal(save.house.owned.snowman, undefined, 'not in season');
+  save.flags.mineCleared = true;
+  c.mom.say({ t: 'buyFurniture', item: decor.id });
+  assert.equal(save.house.owned[decor.id], 1, 'the Decorator doesn’t sell seasonal things');
+});

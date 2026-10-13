@@ -613,6 +613,27 @@ export class Hud {
     });
   }
 
+  /** The Seasonal Trader: this season's treats and decorations, a new set every few days. */
+  openSeasonal({ season, set, items, daysLeft, onBuy }) {
+    const names = { spring: '🌸 Spring', summer: '☀️ Summer', autumn: '🍂 Autumn', winter: '❄️ Winter' };
+    this.openModal((box) => {
+      const gold = this.self?.gold ?? 0;
+      box.append(el('h2', null, `Seasonal Trader <span class="gold">🪙 ${gold}</span>`),
+        el('p', 'muted', `${names[season]} specials — only while the season lasts! Stall ${set + 1} of 5: new things in <b>${daysLeft} day${daysLeft === 1 ? '' : 's'}</b>. Decorations go home to the fort (press B there).`));
+      const body = el('div', 'shop-body');
+      for (const { id, kind } of items) {
+        const def = kind === 'item' ? ITEMS[id] : FURNITURE[id];
+        const icon = kind === 'item' ? itemIcon(id) : furnitureIcon(id);
+        const sub = kind === 'item' ? `❤ +${def.heal}` : 'for the fort';
+        const row = el('button', 'shop-row', `<span>${iconImg(icon)}${esc(def.name)} <small>${sub}</small></span><span class="gold">${def.price}</span>`);
+        row.disabled = gold < def.price;
+        row.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuy(id), { img: iconImg(icon) }));
+        body.append(row);
+      }
+      box.append(body, closeButton(this));
+    });
+  }
+
   /** The Enchanter: spend gold, ore and Arcane Essence to make one of your weapons stronger (and shinier). */
   openEnchanter({ onEnchant }) {
     this.openModal((box) => {
@@ -793,7 +814,7 @@ export class Hud {
       body.dataset.scroll = `deco-${this.decoTab}`;
       if (this.decoTab === 'furniture' || this.decoTab === 'luxury') {
         for (const [id, def] of Object.entries(FURNITURE)) {
-          if (def.notForSale || !!def.luxury !== (this.decoTab === 'luxury')) continue;
+          if (def.notForSale || def.seasonal || !!def.luxury !== (this.decoTab === 'luxury')) continue;
           const have = h.owned?.[id] ?? 0;
           const row = el('button', 'shop-row', `<span>${iconImg(furnitureIcon(id))}${esc(def.name)}${have ? ` <small>${have} waiting at home</small>` : ''}</span><span class="gold">${def.price}</span>`);
           row.disabled = gold < def.price;
