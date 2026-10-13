@@ -804,7 +804,7 @@ export class GameClient {
       const d = useDistance(t, this.pos);
       if (d < INTERACT_RANGE && d < bestD) { best = { id: t.id, prompt }; bestD = d; }
     };
-    for (const p of this.layout.props) if (p.interact && !p.hidden) consider(p, p.prompt);
+    for (const p of this.layout.props) if (p.interact && !p.hidden) consider(p, p.requiresFlag && !this.world?.flags?.[p.requiresFlag] ? 'Closed — the Decorator opens once the King Slime (bottom of the Old Mine) is beaten' : p.prompt);
     for (const { data } of this.ents.values()) if (data.interact) consider(data, this.promptFor(data));
     return best;
   }

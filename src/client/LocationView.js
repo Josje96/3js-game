@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { CELL, SPRING_COST } from '../shared/config.js';
 import { hashSeed } from '../shared/rng.js';
 import { instanced, cloneModel } from './assets.js';
-import { CharacterView, makeGlow, SEASON_WEAR } from './views.js';
+import { CharacterView, makeGlow, makeLabel, SEASON_WEAR } from './views.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { makeGrass, makeWater, makeTrees, makeSpringBanks, pondEdge } from './nature.js';
 import { wallpaperTexture } from './wallpaper.js';
@@ -127,7 +127,7 @@ export class LocationView {
     this.lights = [];
     this.animated = [];   // things with update(dt)
     this.gates = {};       // dungeon id -> { closed, open, glow, chains } (town only)
-    this.flagged = [];     // things hidden until a world flag is set (the Decorator's stall)
+    this.flagged = [];     // keepers away until a world flag is set (the Decorator), with a 'closed' sign
     this.lampLights = [];
     this.merged = [];      // geometries made by still(), freed in dispose()
     this.theme = THEMES[layout.theme];
@@ -553,7 +553,13 @@ export class LocationView {
         this.animated.push({ update: () => tent.userData.update(this.uTime.value) });
       }
       if (p.light && !p.build) torchLights.push(p);
-      if (p.requiresFlag) this.flagged.push({ holder, flag: p.requiresFlag });
+      if (p.requiresFlag) { // a stall that opens later: there, but closed, with nobody behind it until then
+        const sign = makeLabel('Closed', '#ffd9a0');
+        sign.scale.multiplyScalar(0.6);
+        sign.position.set(p.x, 3.2, p.z);
+        holder.add(sign);
+        this.flagged.push({ keeper: obj, sign, flag: p.requiresFlag });
+      }
     }
     // real lights are expensive: only light a handful of torches
     for (const t of torchLights.slice(0, 6)) {
@@ -650,7 +656,7 @@ export class LocationView {
   setWorld(world) {
     this.world = world; // the day (seasons, holidays) is read from here every frame
     const flags = world?.flags ?? {};
-    for (const f of this.flagged) f.holder.visible = !!flags[f.flag];
+    for (const f of this.flagged) { f.keeper.visible = !!flags[f.flag]; f.sign.visible = !flags[f.flag]; }
     for (const [id, gate] of Object.entries(this.gates)) {
       const open = !!world?.dungeons?.[id]?.unlocked;
       gate.closed.visible = !open && !gate.chains.breaking;
