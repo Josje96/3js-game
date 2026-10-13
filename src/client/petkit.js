@@ -3,6 +3,7 @@
 // which merges each moving part's pieces into one vertex-coloured mesh. Lots of pieces, few draw calls.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { creatureLook } from './creaturelook.js';
 
 /** Soft lumps about `size` across, 0..1: a curly coat when used as a tube's bump. */
 export function curly(p, size = 0.04) {
@@ -23,7 +24,7 @@ export function scallops(along, around, rows, cols) {
 }
 
 /** Every baked piece shares this material: colour lives in the vertices. */
-export const SKIN = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, side: THREE.DoubleSide });
+export const SKIN = creatureLook(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, side: THREE.DoubleSide }), { grain: 0.3, scale: 90, cavity: 0.12, rim: 0xfff2e0, rimStrength: 0.1 }); // fine fur/skin grain, not smooth plastic
 
 const _a = new THREE.Color(), _b = new THREE.Color();
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -262,6 +263,7 @@ const GLINT = new THREE.MeshBasicMaterial({ color: 0xffffff });
  * 'bar' (frogs, goats) or 'none' (dark eyes); lid = colour of a thin rim of skin around it.
  */
 export function eye(parent, pos, dir, r, { iris = 0x2a1810, pupil = 'round', lid, lidWidth = 0.22, glint = true } = {}) {
+  r *= 0.86; // a touch smaller than a cartoon's: a little more real (the lid ring stays put)
   const g = new THREE.Group();
   g.position.copy(v3(pos));
   aim(g, dir, [0, 1, 0]);
@@ -275,12 +277,12 @@ export function eye(parent, pos, dir, r, { iris = 0x2a1810, pupil = 'round', lid
     g.add(p);
   }
   if (glint) {
-    const s = new THREE.Mesh(ball(r * 0.16, 6), GLINT);
+    const s = new THREE.Mesh(ball(r * 0.11, 6), GLINT);
     s.position.set(r * 0.32, r * 0.36, r * 0.86);
     g.add(s);
   }
   if (lid != null) {
-    const ring = new THREE.TorusGeometry(r * 0.96, r * lidWidth, 6, 18);
+    const ring = new THREE.TorusGeometry(r * 1.05, r * lidWidth * 1.15, 6, 18);
     const m = part(parent, ring, lid);
     m.position.copy(v3(pos)).addScaledVector(v3(dir).clone().normalize(), r * 0.18);
     aim(m, dir, [0, 1, 0]);

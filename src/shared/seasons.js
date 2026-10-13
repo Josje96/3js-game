@@ -23,7 +23,7 @@ export function dateLabel(day) {
 export const SEASONS = [
   { id: 'spring', name: 'Spring', icon: '🌸', boss: 'bloomcolossus', bossName: 'The Blossom Colossus', loot: ['blossomblade', 'petalaegis'] },
   { id: 'summer', name: 'Summer', icon: '☀️', boss: 'sunwyrm', bossName: 'The Sunscale Wyrm', loot: ['sunfirebow', 'sunplate'] },
-  { id: 'autumn', name: 'Autumn', icon: '🍂', boss: 'harvestking', bossName: 'The Harvest King', loot: ['harvestreaper', 'emberstaff'] },
+  { id: 'autumn', name: 'Autumn', icon: '🍂', boss: 'harvestking', bossName: 'The Pumpkin Horror', loot: ['harvestreaper', 'emberstaff'] },
   { id: 'winter', name: 'Winter', icon: '❄️', boss: 'frosttitan', bossName: 'The Frost Titan', loot: ['frostfang', 'glacierplate'] },
 ];
 

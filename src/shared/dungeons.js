@@ -167,7 +167,7 @@ export const ENEMIES = {
   // the seasonal bosses: one day in town at the start of each season (shared/seasons.js), scaled to the family
   bloomcolossus: { hp: 2600, damage: 10, speed: 2.2, gold: [3000, 3000], ai: 'chase', body: 'treant', scale: 2.6, r: 1.4, summon: 'shroom' },
   sunwyrm:       { hp: 2400, damage: 11, speed: 2.8, gold: [3000, 3000], ai: 'shooter', body: 'sunserpent', scale: 2.6, r: 1.3, summon: 'firebat' },
-  harvestking:   { hp: 2600, damage: 11, speed: 2.8, gold: [3000, 3000], ai: 'chase', body: 'pumpkinking', scale: 2.6, crown: true, summon: 'skeleton' },
+  harvestking:   { hp: 2600, damage: 11, speed: 2.8, gold: [3000, 3000], ai: 'chase', body: 'pumpkinking', scale: 2.6, summon: 'skeleton' },
   frosttitan:    { hp: 3000, damage: 12, speed: 2.4, gold: [3000, 3000], ai: 'chase', body: 'icetitan', scale: 2.6, r: 1.4, summon: 'iceslime' },
 };
 export const SLIME_STATS = ENEMIES; // older name
