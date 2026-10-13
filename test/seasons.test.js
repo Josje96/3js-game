@@ -6,13 +6,16 @@ import { SEASONS, SEASON_DAYS, SEASON_ARENA, seasonOf, dayOfSeason, isBossDay } 
 import { ENEMIES } from '../src/shared/dungeons.js';
 import { ITEMS, SHOP_STOCK, DROP_TIERS } from '../src/shared/items.js';
 
-test('calendar: 365-day years, "Year 2 · Day 86"', async () => {
-  const { calendar, dateLabel, YEAR_DAYS } = await import('../src/shared/seasons.js');
-  assert.equal(YEAR_DAYS, 365);
+test('calendar: 120-day years of four 30-day seasons, "Year 2 · Day 86"', async () => {
+  const { calendar, dateLabel, YEAR_DAYS, CALENDAR_NAME } = await import('../src/shared/seasons.js');
+  assert.equal(YEAR_DAYS, 120);
+  assert.equal(YEAR_DAYS, SEASON_DAYS * SEASONS.length, 'the seasons add up to a year');
+  assert.ok(CALENDAR_NAME);
   assert.deepEqual(calendar(1), { year: 1, day: 1 });
-  assert.deepEqual(calendar(365), { year: 1, day: 365 });
-  assert.deepEqual(calendar(366), { year: 2, day: 1 });
-  assert.equal(dateLabel(365 + 86), 'Year 2 · Day 86');
+  assert.deepEqual(calendar(120), { year: 1, day: 120 });
+  assert.deepEqual(calendar(121), { year: 2, day: 1 });
+  assert.equal(dateLabel(120 + 86), 'Year 2 · Day 86');
+  for (const y of [1, 2, 7]) assert.equal(seasonOf((y - 1) * YEAR_DAYS + 1).id, 'spring', `year ${y} starts in spring`);
 });
 
 const bossIn =(loc) => [...loc.entities.values()].find((e) => e.seasonal);

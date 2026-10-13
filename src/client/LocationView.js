@@ -255,6 +255,7 @@ export class LocationView {
    * camera is cut down (so you can see into the room), its top sits low too.
    */
   buildWallTops() {
+    const TOP_LIFT = 0.05;
     const L = this.layout, tops = [];
     for (let cz = 0; cz < L.h; cz++) {
       for (let cx = 0; cx < L.w; cx++) {
@@ -264,9 +265,11 @@ export class LocationView {
         if (near) tops.push({ x: cx * CELL + CELL / 2, z: cz * CELL + CELL / 2, y: L.isSolidCell(cx, cz - 1) ? 4 : 0.88 });
       }
     }
-    const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 0.2, CELL), new THREE.MeshStandardMaterial({ color: 0x4a4652, roughness: 0.9 }), tops.length);
+    // a hair above the wall models' own top face (exactly at 4) and a hair wider than a cell, so
+    // the two never flicker against each other and neighbouring tops leave no seams
+    const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL + 0.06, 0.2, CELL + 0.06), new THREE.MeshStandardMaterial({ color: 0x4a4652, roughness: 0.9 }), tops.length);
     const m = new THREE.Matrix4();
-    tops.forEach((t, i) => inst.setMatrixAt(i, m.makeTranslation(t.x, t.y - 0.1, t.z)));
+    tops.forEach((t, i) => inst.setMatrixAt(i, m.makeTranslation(t.x, t.y - 0.1 + TOP_LIFT, t.z)));
     inst.receiveShadow = true;
     this.group.add(inst);
     this.merged.push(inst.geometry);
