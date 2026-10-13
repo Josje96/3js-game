@@ -40,27 +40,27 @@ export const PET_MAX_LEVEL = 100;
  */
 export const PET_SPECIES = {
   maple:    { name: 'Maltipoo',  price: 0,   atk: 2, forms: ['Maple', 'Brave Maple', 'Mighty Maple'], fixedName: 'Maple' },
-  mouse:    { name: 'Mouse',     price: 72,  atk: 1, forms: ['Mouse', 'Squeakster', 'Mouse King'] },
-  hamster:  { name: 'Hamster',   price: 60,  atk: 1, forms: ['Hamster', 'Hamster Hero', 'Hamster Lord'] },
-  snail:    { name: 'Snail',     price: 36,  atk: 1, forms: ['Snail', 'Speedy Snail', 'Turbo Snail'] },
-  chick:    { name: 'Chick',     price: 48,  atk: 1, forms: ['Chick', 'Hen', 'Phoenix'] },
-  frog:     { name: 'Frog',      price: 96,  atk: 2, forms: ['Frog', 'Bullfrog', 'Frog Prince'] },
-  bunny:    { name: 'Bunny',     price: 84,  atk: 2, forms: ['Bunny', 'Jackrabbit', 'Moon Rabbit'] },
-  duck:     { name: 'Duckling',  price: 72,  atk: 2, forms: ['Duckling', 'Duck', 'Swan Knight'] },
-  piglet:   { name: 'Piglet',    price: 72,  atk: 2, forms: ['Piglet', 'Pig', 'Boar Chief'] },
-  bee:      { name: 'Bee',       price: 84,  atk: 2, forms: ['Bee', 'Bumblebee', 'Queen Bee'] },
-  hedgehog: { name: 'Hedgehog',  price: 108, atk: 2, forms: ['Hoglet', 'Hedgehog', 'Spike Lord'] },
-  turtle:   { name: 'Turtle',    price: 144, atk: 2, forms: ['Turtle', 'Shellguard', 'Elder Tortoise'] },
-  penguin:  { name: 'Penguin',   price: 120, atk: 2, forms: ['Penguin Chick', 'Penguin', 'Emperor Penguin'] },
-  owl:      { name: 'Owl',       price: 144, atk: 3, forms: ['Owlet', 'Owl', 'Wise Owl'] },
-  axolotl:  { name: 'Axolotl',   price: 156, atk: 3, forms: ['Axolotl', 'Axo Diver', 'Axolotl Sage'] },
-  fox:      { name: 'Fox',       price: 168, atk: 3, forms: ['Fox Kit', 'Fox', 'Nine-Tail Fox'] },
-  cat:      { name: 'Cat',       price: 180, atk: 3, forms: ['Kitten', 'Cat', 'Royal Cat'] },
-  panda:    { name: 'Panda',     price: 192, atk: 3, forms: ['Panda Cub', 'Panda', 'Master Panda'] },
-  dragon:   { name: 'Dragon',    price: 360, atk: 4, forms: ['Baby Dragon', 'Dragon', 'Elder Dragon'] },
-  unicorn:  { name: 'Unicorn',   price: 360, atk: 4, forms: ['Pony', 'Unicorn', 'Alicorn'] },
-  snake:    { name: 'Snake',     price: 132, atk: 3, forms: ['Snakelet', 'Python', 'Royal Cobra'] },
-  fairy:    { name: 'Fairy',     price: 240, atk: 3, forms: ['Pixie', 'Fairy', 'Fairy Queen'] },
+  mouse:    { name: 'Mouse',     price: 144,  atk: 1, forms: ['Mouse', 'Squeakster', 'Mouse King'] },
+  hamster:  { name: 'Hamster',   price: 120,  atk: 1, forms: ['Hamster', 'Hamster Hero', 'Hamster Lord'] },
+  snail:    { name: 'Snail',     price: 72,  atk: 1, forms: ['Snail', 'Speedy Snail', 'Turbo Snail'] },
+  chick:    { name: 'Chick',     price: 96,  atk: 1, forms: ['Chick', 'Hen', 'Phoenix'] },
+  frog:     { name: 'Frog',      price: 192,  atk: 2, forms: ['Frog', 'Bullfrog', 'Frog Prince'] },
+  bunny:    { name: 'Bunny',     price: 168,  atk: 2, forms: ['Bunny', 'Jackrabbit', 'Moon Rabbit'] },
+  duck:     { name: 'Duckling',  price: 144,  atk: 2, forms: ['Duckling', 'Duck', 'Swan Knight'] },
+  piglet:   { name: 'Piglet',    price: 144,  atk: 2, forms: ['Piglet', 'Pig', 'Boar Chief'] },
+  bee:      { name: 'Bee',       price: 168,  atk: 2, forms: ['Bee', 'Bumblebee', 'Queen Bee'] },
+  hedgehog: { name: 'Hedgehog',  price: 216, atk: 2, forms: ['Hoglet', 'Hedgehog', 'Spike Lord'] },
+  turtle:   { name: 'Turtle',    price: 288, atk: 2, forms: ['Turtle', 'Shellguard', 'Elder Tortoise'] },
+  penguin:  { name: 'Penguin',   price: 240, atk: 2, forms: ['Penguin Chick', 'Penguin', 'Emperor Penguin'] },
+  owl:      { name: 'Owl',       price: 288, atk: 3, forms: ['Owlet', 'Owl', 'Wise Owl'] },
+  axolotl:  { name: 'Axolotl',   price: 312, atk: 3, forms: ['Axolotl', 'Axo Diver', 'Axolotl Sage'] },
+  fox:      { name: 'Fox',       price: 336, atk: 3, forms: ['Fox Kit', 'Fox', 'Nine-Tail Fox'] },
+  cat:      { name: 'Cat',       price: 360, atk: 3, forms: ['Kitten', 'Cat', 'Royal Cat'] },
+  panda:    { name: 'Panda',     price: 384, atk: 3, forms: ['Panda Cub', 'Panda', 'Master Panda'] },
+  dragon:   { name: 'Dragon',    price: 720, atk: 4, forms: ['Baby Dragon', 'Dragon', 'Elder Dragon'] },
+  unicorn:  { name: 'Unicorn',   price: 720, atk: 4, forms: ['Pony', 'Unicorn', 'Alicorn'] },
+  snake:    { name: 'Snake',     price: 264, atk: 3, forms: ['Snakelet', 'Python', 'Royal Cobra'] },
+  fairy:    { name: 'Fairy',     price: 480, atk: 3, forms: ['Pixie', 'Fairy', 'Fairy Queen'] },
 };
 
 /**
@@ -70,8 +70,8 @@ export const PET_SPECIES = {
  */
 export const MINI_PREFIX = 'mini_';
 const bossList = [
-  ...Object.values(DUNGEONS).flatMap((d, di) => d.biomes.map((b, i) => ({ variant: b.boss.variant, name: b.boss.name, flag: b.boss.flag, price: 400 + di * 400 + i * 60 }))),
-  ...SEASONS.map((s) => ({ variant: s.boss, name: s.bossName, flag: `beat_${s.boss}`, price: 2500 })),
+  ...Object.values(DUNGEONS).flatMap((d, di) => d.biomes.map((b, i) => ({ variant: b.boss.variant, name: b.boss.name, flag: b.boss.flag, price: 800 + di * 800 + i * 120 }))),
+  ...SEASONS.map((s) => ({ variant: s.boss, name: s.bossName, flag: `beat_${s.boss}`, price: 5000 })),
 ];
 for (const b of bossList) {
   const name = b.name.replace(/^The /, '');
