@@ -16,6 +16,11 @@ export const interactions = {
     if (use.toggle) { e.on = !e.on; e._dirty = true; }
     this.sendToLocation(loc.key, { t: 'fx', kind: 'decor', id: e.id, use: def.use, on: !!e.on, x: e.x, z: e.z });
     if (use.say) this.toast(p, use.say[Math.floor(Math.random() * use.say.length)]);
+    if (use.heal && p.hp < p.maxHp) {
+      p.hp = Math.min(p.maxHp, p.hp + use.heal);
+      this.toast(p, `🍰 Delicious! (+${use.heal} ❤)`);
+      this.sendSelf(p);
+    }
     if (def.use === 'clock') {
       const left = Math.max(0, Math.ceil((DAY_SECONDS - this.dayClock) / 60));
       this.toast(p, `🕰 Tick, tock… about ${left} minute${left === 1 ? '' : 's'} until night falls.`);

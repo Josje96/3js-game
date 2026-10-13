@@ -42,6 +42,14 @@ export const FURNITURE = {
   toybox:     { name: 'Toy box', build: 'toybox', price: 110, radius: 0.7, use: 'toybox' },
   ruggreen:   { name: 'Green rug', build: 'rug', color: 0x3ac06a, price: 120, radius: 0 },
   rugpurple:  { name: 'Purple rug', build: 'rug', color: 0x8a5ac0, price: 120, radius: 0 },
+  // more for every home (E does something on most of them: see USES)
+  teddy:      { name: 'Giant teddy bear', build: 'teddy', price: 180, radius: 0.6, use: 'teddy' },
+  easel:      { name: 'Painting easel', build: 'easel', price: 220, radius: 0.5, use: 'easel' },
+  beanbag:    { name: 'Squishy beanbag', build: 'beanbag', price: 160, radius: 0.6, seat: { face: 0 } },
+  lantern:    { name: 'Hanging lantern', build: 'lantern', price: 120, radius: 0.3, light: true, lightY: 2.2, use: 'light' },
+  cauldron:   { name: 'Bubbling cauldron', build: 'cauldron', price: 340, radius: 0.7, use: 'cauldron' },
+  bookstack:  { name: 'Stack of books', build: 'bookstack', price: 70, radius: 0.4 },
+  palm:       { name: 'Potted palm', build: 'palm', price: 200, radius: 0.5 },
   // the luxury collection: for families who've been saving up
   armchair:   { name: 'Velvet armchair', build: 'armchair', color: 0x9a2a3a, price: 1900, radius: 0.7, seat: { face: 0 }, luxury: true },
   vase:       { name: 'Porcelain vase', build: 'vase', price: 1800, radius: 0.4, luxury: true },
@@ -68,6 +76,9 @@ export const FURNITURE = {
   bathtub:    { name: 'Golden bathtub', build: 'bathtub', price: 5200, radius: 1.1, luxury: true, use: 'bathtub' },
   chandelier: { name: 'Crystal chandelier', build: 'chandelier', price: 6000, radius: 0, light: true, lightY: 2.6, luxury: true, use: 'light' },
   organ:      { name: 'Pipe organ', build: 'organ', price: 9000, radius: 1.3, luxury: true, use: 'organ' },
+  gramophone: { name: 'Gramophone', build: 'gramophone', price: 3000, radius: 0.5, luxury: true, use: 'gramophone' },
+  cakestand:  { name: 'Grand cake stand', build: 'cakestand', price: 2600, radius: 0.5, luxury: true, use: 'cake' },
+  dollhouse:  { name: 'Royal dollhouse', build: 'dollhouse', price: 3600, radius: 0.9, luxury: true, use: 'dollhouse' },
   hoard:      { name: 'Dragon’s hoard', build: 'hoard', price: 12000, radius: 1.1, luxury: true, use: 'hoard' },
 };
 
@@ -137,6 +148,12 @@ export const USES = {
   crystalball:  { verb: 'Gaze into the crystal ball', say: ['🔮 I see… a great treasure, deep in the mine.', '🔮 Beware the one with the crown…', '🔮 A friend will share their gold with you soon.', '🔮 The stars say: eat more pie.', '🔮 Someone in this family snores. Loudly.'] },
   telescope:    { verb: 'Look through the telescope', say: ['🔭 A shooting star! Make a wish.', '🔭 You can see the Old Mine from up here.', '🔭 A dragon? No… just a very big bird.', '🔭 The moon has a face. It winks at you.'] },
   clock:        { verb: 'Check the clock' },
+  teddy:        { verb: 'Hug the teddy', say: ['🧸 A big soft hug. Everything feels better.', '🧸 The teddy hugs you back. Probably.', '🧸 Squeeeeze!'] },
+  easel:        { verb: 'Paint a picture', say: ['🎨 You paint a lovely sunset.', '🎨 A portrait of the family pet. It’s… abstract.', '🎨 A dragon! Mostly teeth.', '🎨 A bowl of fruit. Very still life.'] },
+  cauldron:     { verb: 'Stir the cauldron', say: ['🧪 It smells of strawberries and socks.', '🧪 Bloop. Bloop. Something winks at you from the bottom.', '🧪 The potion turns purple. Then pink. Then purple again.'] },
+  gramophone:   { verb: 'Play a record' },
+  cake:         { verb: 'Have a slice of cake', heal: 10 },
+  dollhouse:    { verb: 'Peek into the dollhouse', say: ['🏠 Tiny people having a tiny feast.', '🏠 A tiny family, all asleep in tiny beds.', '🏠 Someone tiny has left a tiny window open.'] },
   bathtub:      { verb: ['Fill the bath', 'Empty the bath'], toggle: true },
   fire:         { verb: ['Light the fire', 'Put out the fire'], toggle: true, startOn: true },
   light:        { verb: ['Light it', 'Put it out'], toggle: true, startOn: true },

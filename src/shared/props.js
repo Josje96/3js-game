@@ -34,8 +34,9 @@ export const PROPS = {
   fountain:   { build: 'fountain', radius: 1.9 },
   // the fort's long feast table (14 long, benches either side): sit down with E and eat — it heals.
   // `seats` = where you sit [dx, dz, facing]
-  feast:      { build: 'feast', radius: 6.5, offsetZ: 2, interact: 'feast', prompt: 'Sit down to the feast (eat and heal)',
-                blocks: [-6, -4, -2, 0, 2, 4, 6].map((dx) => [dx, 0, 0.85]),
+  feast:      { build: 'feast', radius: 6.5, offsetZ: 2, interact: 'feast', prompt: 'Sit down to the feast (stay sitting to eat and heal)',
+                // the table and both benches are solid end to end (you sit down onto a seat with E)
+                blocks: [-6.5, -5, -3.5, -2, -0.5, 1, 2.5, 4, 5.5, 6.5].flatMap((dx) => [[dx, 0, 1.0], [dx, -1.75, 0.4], [dx, 1.75, 0.4]]),
                 seats: [-4.5, -1.5, 1.5, 4.5].flatMap((dx) => [[dx, -1.75, 0], [dx, 1.75, Math.PI]]) },
   // the town square's dressing: all solid, nobody walks through them
   planter:    { build: 'planter', radius: 1.0 },

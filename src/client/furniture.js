@@ -975,6 +975,181 @@ export const FURNITURE_BUILDERS = {
     };
     return g;
   },
+  teddy() { // a giant teddy bear sitting with its legs out, a bow round its neck
+    const g = new THREE.Group(), fur = mat(0xb07a4a, { roughness: 1 }), light = mat(0xe8c8a0, { roughness: 1 }), dark = mat(0x2a1a10);
+    const ball = (r, m, x, y, z, sx = 1, sy = 1, sz = 1) => { const b = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), m); b.position.set(x, y, z); b.scale.set(sx, sy, sz); b.castShadow = true; g.add(b); return b; };
+    ball(0.5, fur, 0, 0.55, -0.05, 1, 1.05, 0.9);           // body
+    ball(0.28, light, 0, 0.5, 0.33, 1, 1.1, 0.5);           // tummy
+    ball(0.38, fur, 0, 1.25, 0.05);                         // head
+    ball(0.17, light, 0, 1.18, 0.37, 1.1, 0.85, 0.8);       // muzzle
+    ball(0.05, dark, 0, 1.24, 0.5);                         // nose
+    for (const s of [-1, 1]) {
+      ball(0.12, fur, s * 0.3, 1.55, 0.02); ball(0.07, light, s * 0.3, 1.55, 0.08, 1, 1, 0.5); // ears
+      ball(0.045, dark, s * 0.13, 1.35, 0.36);               // eyes
+      ball(0.16, fur, s * 0.5, 0.65, 0.15, 0.8, 1.4, 0.8);   // arms
+      ball(0.18, fur, s * 0.25, 0.18, 0.38, 0.9, 0.8, 1.4);  // legs
+      ball(0.1, light, s * 0.25, 0.18, 0.62, 1, 1, 0.4);     // paw pads
+      ball(0.09, mat(0xe8433a), s * 0.12, 0.98, 0.3, 1.3, 0.8, 0.6); // bow
+    }
+    return g;
+  },
+  easel() { // a wooden easel with a half-finished painting and a palette
+    const g = new THREE.Group(), wood = mat(0x9a6a3c);
+    for (const s of [-1, 1]) box(g, 0.08, 2.0, 0.08, wood, s * 0.45, 1.0, 0).rotation.z = s * -0.12;
+    box(g, 0.08, 1.9, 0.08, wood, 0, 0.95, -0.4).rotation.x = -0.25;
+    box(g, 1.1, 0.06, 0.12, wood, 0, 0.7, 0.05);
+    box(g, 1.0, 0.8, 0.05, mat(0xfff6e8), 0, 1.15, 0.07);
+    for (const [c, x, y, w, h] of [[0x7fc4ff, 0, 1.38, 0.9, 0.3], [0x7cc85a, 0, 0.9, 0.9, 0.28], [0xffd23f, 0.25, 1.32, 0.16, 0.16], [0xff7a5a, -0.2, 1.05, 0.3, 0.2]]) box(g, w, h, 0.01, mat(c), x, y, 0.1).castShadow = false;
+    const palette = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.03, 16), mat(0xc9a06a));
+    palette.position.set(0.45, 0.72, 0.15);
+    g.add(palette);
+    return g;
+  },
+  beanbag() { // a squishy beanbag
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.62, 18, 12), mat(0xff7aa8, { roughness: 1 }));
+    b.scale.set(1, 0.6, 1);
+    b.position.y = 0.35;
+    b.castShadow = true;
+    g.add(b);
+    const dent = new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 10), mat(0xff8fb8, { roughness: 1 }));
+    dent.scale.set(1, 0.35, 1);
+    dent.position.set(0, 0.62, -0.05);
+    g.add(dent);
+    return g;
+  },
+  lantern() { // a lantern hanging from a crook
+    const g = new THREE.Group(), iron = mat(0x2e2a28, { metalness: 0.5, roughness: 0.5 });
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 2.6, 8), iron);
+    pole.position.y = 1.3;
+    g.add(pole);
+    box(g, 0.5, 0.05, 0.05, iron, 0.25, 2.55, 0);
+    box(g, 0.28, 0.36, 0.28, iron, 0.5, 2.2, 0);
+    const glow = box(g, 0.2, 0.28, 0.2, new THREE.MeshStandardMaterial({ color: 0xfff2b0, emissive: 0xffc860, emissiveIntensity: 1.2 }), 0.5, 2.2, 0);
+    glow.userData.flicker = true;
+    return g;
+  },
+  cauldron() { // a black cauldron on little legs, bubbling green
+    const g = new THREE.Group(), iron = mat(0x1e1e22, { metalness: 0.4 });
+    const pot = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 12, 0, Math.PI * 2, Math.PI * 0.3, Math.PI * 0.7), iron);
+    pot.position.y = 0.65;
+    pot.material.side = THREE.DoubleSide;
+    pot.castShadow = true;
+    g.add(pot);
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; box(g, 0.08, 0.3, 0.08, iron, Math.cos(a) * 0.4, 0.1, Math.sin(a) * 0.4); }
+    const brew = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), new THREE.MeshBasicMaterial({ color: 0x5aff7a }));
+    brew.rotation.x = -Math.PI / 2;
+    brew.position.y = 1.0;
+    g.add(brew);
+    const bubbles = [];
+    for (let i = 0; i < 4; i++) {
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0x9aff9a, transparent: true }));
+      g.add(b);
+      bubbles.push(b);
+    }
+    g.userData.update = (t) => bubbles.forEach((b, i) => {
+      const u = (t * 0.7 + i * 0.27) % 1;
+      b.position.set(Math.cos(i * 2.1) * 0.25, 1.0 + u * 0.3, Math.sin(i * 2.1) * 0.25);
+      b.material.opacity = 1 - u;
+    });
+    return g;
+  },
+  bookstack() { // a wobbly stack of books with a candle on top
+    const g = new THREE.Group(), colors = [0xc0393b, 0x3b6fc0, 0x3ac06a, 0x8a5ac0, 0xe0a050, 0x6b4a2c];
+    let y = 0;
+    colors.forEach((c, i) => {
+      const h = 0.12 + (i % 3) * 0.03;
+      const b = box(g, 0.55 - (i % 2) * 0.08, h, 0.4, mat(c), 0, y + h / 2, 0);
+      b.rotation.y = (i % 3 - 1) * 0.2;
+      y += h;
+    });
+    box(g, 0.08, 0.2, 0.08, mat(0xfff6dc), 0, y + 0.1, 0);
+    const flame = box(g, 0.05, 0.08, 0.05, new THREE.MeshBasicMaterial({ color: 0xffc860 }), 0, y + 0.25, 0);
+    flame.userData.flicker = true;
+    return g;
+  },
+  palm() { // a tall potted palm
+    const g = new THREE.Group();
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.28, 0.6, 14), mat(0xe0d6c0));
+    pot.position.y = 0.3;
+    g.add(pot);
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 1.6, 8), mat(0x8a5a34));
+    trunk.position.y = 1.4;
+    g.add(trunk);
+    const leaf = mat(0x3fa84a, { side: THREE.DoubleSide });
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      const l = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 1.1), leaf);
+      l.position.set(Math.cos(a) * 0.45, 2.15, Math.sin(a) * 0.45);
+      l.rotation.set(Math.PI / 2 - 0.6, 0, 0);
+      l.rotation.order = 'YXZ';
+      l.rotation.y = -a + Math.PI / 2;
+      g.add(l);
+    }
+    return g;
+  },
+  gramophone() { // a wooden box with a spinning record and a golden horn
+    const g = new THREE.Group(), gold = mat(0xe0b84a, { metalness: 0.75, roughness: 0.25 });
+    box(g, 0.7, 0.35, 0.7, mat(0x6b3a22), 0, 0.85, 0);
+    box(g, 0.8, 0.7, 0.8, mat(0x8a5a34), 0, 0.35, 0);
+    const record = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.02, 24), mat(0x111111, { roughness: 0.3 }));
+    record.position.set(0, 1.04, 0);
+    g.add(record);
+    const label = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.025, 16), mat(0xd8302a));
+    label.position.set(0, 1.045, 0);
+    g.add(label);
+    const arm = box(g, 0.03, 0.03, 0.4, gold, 0.18, 1.08, -0.1);
+    arm.rotation.y = 0.5;
+    const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.05, 0.9, 20, 1, true), gold);
+    horn.material.side = THREE.DoubleSide;
+    horn.position.set(-0.1, 1.6, -0.15);
+    horn.rotation.set(-0.7, 0, 0.3);
+    g.add(horn);
+    g.userData.update = (t) => { record.rotation.y = t * 3; label.rotation.y = t * 3; };
+    return g;
+  },
+  cakestand() { // a three-tier cake on a golden stand, strawberries on top
+    const g = new THREE.Group(), gold = mat(0xe0b84a, { metalness: 0.75, roughness: 0.25 });
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.12, 0.8, 10), gold);
+    stem.position.y = 0.4;
+    g.add(stem);
+    const tiers = [[0.5, 0xfff6f0, 0xff9ab8], [0.38, 0xffe0ea, 0xffffff], [0.26, 0xfff6f0, 0xff9ab8]];
+    let y = 0.85;
+    for (const [r, cake, icing] of tiers) {
+      const plate = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.06, r + 0.06, 0.03, 20), gold);
+      plate.position.y = y;
+      g.add(plate);
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.26, 20), mat(cake, { roughness: 0.9 }));
+      c.position.y = y + 0.15;
+      c.castShadow = true;
+      g.add(c);
+      const drip = new THREE.Mesh(new THREE.TorusGeometry(r, 0.04, 6, 24), mat(icing));
+      drip.rotation.x = Math.PI / 2;
+      drip.position.y = y + 0.28;
+      g.add(drip);
+      y += 0.3;
+    }
+    for (let i = 0; i < 3; i++) {
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(0xd8302a));
+      s.position.set(Math.cos(i * 2.1) * 0.1, y + 0.03, Math.sin(i * 2.1) * 0.1);
+      g.add(s);
+    }
+    return g;
+  },
+  dollhouse() { // a little royal dollhouse on a table: pink walls, blue roof, lit windows
+    const g = new THREE.Group();
+    box(g, 1.4, 0.6, 1.0, mat(0x8a5a34), 0, 0.3, 0);
+    box(g, 1.2, 0.9, 0.8, mat(0xffd6e4), 0, 1.05, 0);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.95, 0.6, 4), mat(0x4f7fc0));
+    roof.position.set(0, 1.8, 0);
+    roof.rotation.y = Math.PI / 4;
+    roof.scale.set(1, 1, 0.75);
+    g.add(roof);
+    const win = new THREE.MeshStandardMaterial({ color: 0xfff2b0, emissive: 0xffc860, emissiveIntensity: 0.8 });
+    for (const [x, y] of [[-0.35, 1.25], [0.35, 1.25], [-0.35, 0.85], [0.35, 0.85]]) box(g, 0.2, 0.2, 0.02, win, x, y, 0.41).castShadow = false;
+    box(g, 0.2, 0.3, 0.02, mat(0x6b4a2c), 0, 0.75, 0.41);
+    return g;
+  },
   petbed() {
     const g = new THREE.Group();
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.18, 10, 24), mat(0xc96a8a, { roughness: 1 }));

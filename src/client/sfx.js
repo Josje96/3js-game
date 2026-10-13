@@ -87,6 +87,10 @@ export class Sfx {
       if (m != null) this.tone({ type, from: n(m + oct), at: i * step, dur, vol });
     });
     switch (use) {
+      case 'gramophone': tune([62, 66, 69, 74, 73, 71, 69, 66, 67, 69], { step: 0.26, dur: 0.5, vol: 0.08, type: 'square' }); break;
+      case 'teddy': this.heal(); break;
+      case 'cake': this.coin(); break;
+      case 'cauldron': for (let i = 0; i < 5; i++) this.tone({ type: 'sine', from: 200 + i * 40, to: 500, at: i * 0.13, dur: 0.1, vol: 0.06 }); break;
       case 'piano': tune([67, 72, 76, 79, 76, 72, 74, 77, 81, 79], { step: 0.2, dur: 0.6 }); break;
       case 'organ': [[48, 55, 60, 64], [53, 57, 60, 65], [55, 59, 62, 67], [48, 55, 60, 64]].forEach((ch, i) => ch.forEach((m) => this.tone({ type: 'sawtooth', from: n(m), at: i * 0.6, dur: 0.75, vol: 0.035 }))); break;
       case 'harp': this.arpeggio([60, 64, 67, 72, 76, 79, 84].map(n), { step: 0.09, dur: 1.0, vol: 0.09 }); break;

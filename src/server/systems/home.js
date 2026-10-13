@@ -9,17 +9,15 @@ import { MAX_ROOMS } from '../../shared/fort.js';
 
 /** Props you can use with E (see shared/props.js `interact`). */
 export const interactions = {
-  /** The feast table: sit at the nearest seat and tuck in — you're healed right up. */
+  /** The feast table: sit down at the nearest seat. You eat while you stay sitting (see tick). */
   feast(p, table) {
     const seats = (table.seats ?? []).map(([dx, dz, face]) => ({ x: table.x + dx, z: table.z + dz, rot: face }));
     if (!seats.length) return;
     const seat = seats.reduce((a, b) => ((a.x - p.x) ** 2 + (a.z - p.z) ** 2 <= (b.x - p.x) ** 2 + (b.z - p.z) ** 2 ? a : b));
     this.send(p, { t: 'fx', kind: 'sit', id: p.id, x: seat.x, z: seat.z, rot: seat.rot, r: 0.6 });
-    const healed = p.maxHp - p.hp;
-    p.hp = p.maxHp;
-    this.sendToLocation(p.loc, { t: 'fx', kind: 'feast', x: seat.x, z: seat.z });
-    this.toast(p, healed > 0 ? `🍗 What a feast! You're full of beans again (+${healed} ❤).` : '🍗 What a feast! (You were already full of beans.)');
-    this.sendSelf(p);
+    Object.assign(p, { x: seat.x, z: seat.z });
+    p.feasting = { since: this.time, next: this.time + FEAST_EVERY };
+    this.toast(p, p.hp < p.maxHp ? '🍗 Tuck in! Stay sitting to eat — every bite heals.' : '🍗 You sit down to the feast. (You’re already full of beans.)');
   },
 
   /** Your own bed: lie down (or get up again). Someone else's: it's theirs. */
@@ -69,6 +67,23 @@ export function onJoin(p) {
   const house = this.locations.get('house');
   if (house && house.layout.opts.rooms !== this.fortRooms()) this.rebuildFort();
   else if (house) this.placeBed(house, p.id);
+}
+
+/** Feasting: while you stay sitting at the feast table, every FEAST_EVERY seconds you eat and heal. */
+const FEAST_EVERY = 1, FEAST_HEAL = 0.15;
+export function tick() {
+  for (const p of this.players.values()) {
+    const f = p.feasting;
+    if (!f) continue;
+    // you get up by walking off (the client then stops sending 'sit'); give it a moment to sit down first
+    if (p.loc !== 'house' || (this.time - f.since > 0.6 && p.anim !== 'sit')) { p.feasting = null; continue; }
+    if (this.time < f.next || p.hp >= p.maxHp) continue;
+    f.next = this.time + FEAST_EVERY;
+    p.hp = Math.min(p.maxHp, p.hp + Math.max(1, Math.ceil(p.maxHp * FEAST_HEAL)));
+    this.sendToLocation(p.loc, { t: 'fx', kind: 'feast', x: p.x, z: p.z });
+    if (p.hp >= p.maxHp) this.toast(p, '🍗 You’re stuffed! Full of beans again.');
+    this.sendSelf(p);
+  }
 }
 
 export function onLeave() {
