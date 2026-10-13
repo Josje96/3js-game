@@ -1,5 +1,5 @@
 // combat — part of the GameServer (see systems/index.js). Methods run with `this` = the GameServer.
-import { ATTACK_RANGE, SHOT_SPEED, SHOT_RANGE, ROLL_IFRAMES, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, SPELL_DAMAGE, DEATH_GOLD_PENALTY } from '../../shared/config.js';
+import { ATTACK_RANGE, SHOT_SPEED, SHOT_RANGE, ROLL_IFRAMES, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, SPELL_DAMAGE, DEATH_GOLD_PENALTY, LUCK_CRIT, LUCK_GOLD, LUCK_GEAR } from '../../shared/config.js';
 import { ENEMIES, biomeFor, makeEnemy, oresFor } from '../../shared/dungeons.js';
 import { ITEMS, weaponCooldown, weaponImpact, rollGearDrop, rollBlueprint, isGear, PERK_CRIT, PERK_HEAL, PERK_FREEZE, PERK_GIANT } from '../../shared/items.js';
 import { XP, attackDamage } from '../../shared/progression.js';
@@ -87,6 +87,11 @@ export const methods = {
       this.sendToLocation(loc.key, { t: 'fx', kind: 'crit', x: e.x, z: e.z });
     }
     if (perk === 'giant' && e.boss) dmg = Math.round(dmg * PERK_GIANT);
+    const lucky = p?.luckUntil > this.time; // the healing spring's luck
+    if (lucky && perk !== 'keen' && Math.random() < LUCK_CRIT) {
+      dmg *= 2;
+      this.sendToLocation(loc.key, { t: 'fx', kind: 'crit', x: e.x, z: e.z, lucky: true });
+    }
     e.hp -= dmg;
     e._stun = perk === 'frost' ? PERK_FREEZE : 0.25;
     if (perk === 'vampiric' && p.hp > 0 && p.hp < p.maxHp) {
@@ -106,9 +111,9 @@ export const methods = {
     }
     if (e.seasonal) return this.seasonBossDefeated(loc, e, p); // the season's boss in town: its own loot
     const [lo, hi] = ENEMIES[e.variant].gold;
-    this.dropItem(loc, e, 'gold', Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (e.goldMul ?? 1)));
+    this.dropItem(loc, e, 'gold', Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (e.goldMul ?? 1) * (lucky ? LUCK_GOLD : 1)));
     if (Math.random() < 0.3) this.dropItem(loc, e, 'slimegoo', 1);
-    if (e.boss || Math.random() < 0.035) this.dropGear(loc, e, e.boss ? 4 : 0);
+    if (e.boss || Math.random() < 0.035 * (lucky ? LUCK_GEAR : 1)) this.dropGear(loc, e, e.boss ? 4 : 0);
     if (e.boss) this.dropBlueprint(loc, e, 4);
     const essence = this.essenceFrom(e, loc.layout.depth ?? 1); // for the Enchanter: rare
     if (essence) this.dropItem(loc, e, 'essence', essence);

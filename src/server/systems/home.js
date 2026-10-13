@@ -1,6 +1,6 @@
 // home — the Family Fort: a bed for every family member (the day ends when everyone online is in
 // bed), the wardrobe, mirror and family chest, and the healing spring in town.
-import { INTERACT_RANGE, SPRING_COST, CLASSES, CELL, cleanLook } from '../../shared/config.js';
+import { INTERACT_RANGE, SPRING_COST, LUCK_SECONDS, FEAST_COST, CLASSES, CELL, cleanLook } from '../../shared/config.js';
 import { FURNITURE, blanketFor } from '../../shared/furniture.js';
 import { ITEMS } from '../../shared/items.js';
 import { petMaxHp } from '../../shared/pets.js';
@@ -13,13 +13,14 @@ export const interactions = {
   feast(p, table) {
     const seats = (table.seats ?? []).map(([dx, dz, face]) => ({ x: table.x + dx, z: table.z + dz, rot: face, side: Math.sign(dz) }));
     if (!seats.length) return;
+    if (!this.spend(p, FEAST_COST, 'a seat at the feast')) return;
     const seat = seats.reduce((a, b) => ((a.x - p.x) ** 2 + (a.z - p.z) ** 2 <= (b.x - p.x) ** 2 + (b.z - p.z) ** 2 ? a : b));
     // getting up: step back off the bench, away from the table (forwards would be into it)
     const up = { x: seat.x, z: table.z + seat.side * 3.0 };
     this.send(p, { t: 'fx', kind: 'sit', id: p.id, x: seat.x, z: seat.z, rot: seat.rot, r: 0.6, up });
     Object.assign(p, { x: seat.x, z: seat.z });
     p.feasting = { since: this.time, next: this.time + FEAST_EVERY };
-    this.toast(p, p.hp < p.maxHp ? '🍗 Tuck in! Stay sitting to eat — every bite heals.' : '🍗 You sit down to the feast. (You’re already full of beans.)');
+    this.toast(p, `🍗 Tuck in! Stay sitting to eat — every bite heals. (-${FEAST_COST} gold)`);
   },
 
   /** Your own bed: lie down (or get up again). Someone else's: it's theirs. */
@@ -34,16 +35,17 @@ export const interactions = {
     }
     this.checkAllAsleep();
   },
+  /** The healing spring: a full heal and two minutes of luck (more gold, lucky hits, better drops). */
   spring(p) {
-    if (p.hp >= p.maxHp) return this.toast(p, 'You splash about. You already feel great!');
     if (!this.spend(p, SPRING_COST, 'the healing spring')) return;
+    p.luckUntil = this.time + LUCK_SECONDS;
     const healed = p.maxHp - p.hp;
     p.hp = p.maxHp;
     const pet = p.pets.find((x) => x.id === p.pet && !x.fainted);
     if (pet) { pet.hp = petMaxHp(pet.species, pet.level); this.syncPetEnt(p); } // a splash for the pet too
     this.sendSelf(p);
     this.sendToLocation(p.loc, { t: 'fx', kind: 'heal', id: p.id, x: p.x, z: p.z, amount: healed });
-    this.toast(p, `The spring sparkles... fully healed! (-${SPRING_COST} gold)`);
+    this.toast(p, `The spring sparkles… fully healed, and 🍀 lucky for ${LUCK_SECONDS / 60} minutes! (-${SPRING_COST} gold)`);
   },
   wardrobe(p) { this.send(p, { t: 'ui', kind: 'wardrobe' }); },
   mirror(p) { this.send(p, { t: 'ui', kind: 'mirror' }); },

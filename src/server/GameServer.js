@@ -152,6 +152,7 @@ export class GameServer {
     this.send(p, {
       t: 'self', hp: p.hp, maxHp: p.maxHp, level: p.level, xp: p.xp, xpNext: xpToNext(p.level), points: p.points, stats: p.stats, gold: p.gold,
       weapon: p.weapon, shield: p.shield, armor: p.armor, gear: p.gear, blueprints: p.blueprints, closet: p.closet, pets: p.pets, pet: p.pet, inventory: p.inventory, enchants: p.enchants ?? {}, bank: p.bank ?? null,
+      luck: Math.max(0, Math.round((p.luckUntil ?? 0) - this.time)),
     });
   }
 

@@ -435,7 +435,10 @@ export function makeTrees(cells, rand, uTime) {
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 });
   mat.onBeforeCompile = (shader) => {
     // only the leaves change with the season (green-ish vertex colours), not trunks or blossom
-    seasonFragment(shader, 'clamp((vColor.g - max(vColor.r, vColor.b)) * 6.0, 0.0, 1.0)', 'fract(vColor.b * 13.0 + vColor.r * 7.0)');
+    // blossom trees only flower in spring: the rest of the year their pink turns to leaves, which then follow the season
+    seasonFragment(shader, 'max(clamp((vColor.g - max(vColor.r, vColor.b)) * 6.0, 0.0, 1.0), bloom)', 'fract(vColor.b * 13.0 + vColor.r * 7.0)', `
+      float bloom = clamp((vColor.r - vColor.g) * 4.0, 0.0, 1.0) * step(0.55, vColor.b);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.32, 0.58, 0.24) * (0.8 + vColor.r * 0.4), bloom * (1.0 - uSeason.x));`);
     shader.uniforms.uTime = uTime;
     shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`.replace('#include <begin_vertex>', `
       #include <begin_vertex>
@@ -546,10 +549,11 @@ export function makeSpringBanks(cx, cz, edge, rand) {
 }
 
 /** Make a material follow the season (client/seasonfx.js): `leaf` = how much it changes, `grain` = autumn's orange/red mix. */
-function seasonFragment(shader, leaf, grain) {
+function seasonFragment(shader, leaf, grain, pre = '') {
   shader.uniforms.uSeason = SEASON_LOOK;
   shader.fragmentShader = `uniform vec4 uSeason;\n${SEASON_GLSL}\n${shader.fragmentShader}`.replace('#include <color_fragment>', `
     #include <color_fragment>
+    ${pre}
     diffuseColor.rgb = seasonal(diffuseColor.rgb, ${leaf}, ${grain});`);
 }
 function seasonalShader(mat, leaf, grain) {

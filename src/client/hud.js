@@ -102,7 +102,7 @@ export class Hud {
     this.danger.classList.toggle('on', frac > 0 && frac <= 0.3);
   }
 
-  setSelf(self) { this.self = self; this.renderStatus(); this.renderInv(); this.refreshModal?.(); }
+  setSelf(self) { this.self = self; this.luckEnd = self.luck ? performance.now() / 1000 + self.luck : 0; this.renderStatus(); this.renderInv(); this.refreshModal?.(); }
   setWorld(world) { this.world = world; this.renderStatus(); this.refreshModal?.(); }
   setLocation(title) { this.locTitle = title; this.renderStatus(); }
 
@@ -123,7 +123,12 @@ export class Hud {
       <div class="loc">${esc(this.locTitle)}</div>
       <div class="hpbar"><div style="width:${frac}%"></div><span>❤ ${hp}</span></div>${petRow}
       <div class="row"><span class="gold">🪙 ${s?.gold ?? 0}${s?.bank != null ? ` <small class="bank" title="In the bank (safe)">🏦 ${s.bank}</small>` : ''}</span><span title="Counted by ${CALENDAR_NAME}: 120 days a year, 30 a season">${dateLabel(w?.day ?? 1)}</span></div>
-      <div class="row day-clock${(w?.dayLeft ?? 999) <= 60 ? ' soon' : ''}"><span>${(w?.dayLeft ?? 999) <= 60 ? '🌙 Get home! Night in' : '🌅 Night in'} ${clock(w?.dayLeft ?? 0)}</span><span title="Day ${dayOfSeason(w?.day ?? 1)} of ${seasonOf(w?.day ?? 1).name}">${seasonOf(w?.day ?? 1).icon} ${seasonOf(w?.day ?? 1).name}</span></div>`;
+      <div class="row day-clock${(w?.dayLeft ?? 999) <= 60 ? ' soon' : ''}"><span>${(w?.dayLeft ?? 999) <= 60 ? '🌙 Get home! Night in' : '🌅 Night in'} ${clock(w?.dayLeft ?? 0)}</span><span title="Day ${dayOfSeason(w?.day ?? 1)} of ${seasonOf(w?.day ?? 1).name}">${seasonOf(w?.day ?? 1).icon} ${seasonOf(w?.day ?? 1).name}</span></div>${this.luckLeft() > 0 ? `<div class="row luck"><span title="From the healing spring: more gold, lucky hits, better drops">🍀 Lucky ${clock(this.luckLeft())}</span></div>` : ''}`;
+  }
+
+  /** Seconds of the healing spring's luck left. */
+  luckLeft() {
+    return Math.max(0, Math.ceil((this.luckEnd ?? 0) - performance.now() / 1000));
   }
 
   /** The level-up bar: a wide XP bar above the item bar with your level in the middle. */

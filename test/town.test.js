@@ -235,3 +235,31 @@ test('decor: press E on a decoration — the piano plays, the bath fills and emp
   use(lamp);
   assert.equal(lamp.on, false);
 });
+
+test('the healing spring: 50 gold, a full heal and two minutes of luck (more gold from monsters)', async () => {
+  const { SPRING_COST, LUCK_SECONDS, LUCK_GOLD } = await import('../src/shared/config.js');
+  const { server, p, c } = world('luck', 'a');
+  server.travel(p.a, 'town');
+  const spring = propOf(server, 'spring');
+  p.a.x = spring.x; p.a.z = spring.z + 1.5;
+  p.a.gold = 100; p.a.hp = 3;
+  c.a.say({ t: 'interact', id: spring.id });
+  assert.equal(SPRING_COST, 50);
+  assert.equal(p.a.gold, 50);
+  assert.equal(p.a.hp, p.a.maxHp);
+  assert.ok(p.a.luckUntil - server.time > LUCK_SECONDS - 1, 'two minutes of luck');
+  assert.ok(c.a.last('self').luck > 100, 'the HUD hears about it');
+  // lucky gold: a monster drops more
+  server.travel(p.a, 'mine/1', 'U');
+  const loc = server.locations.get('mine/1');
+  const kill = () => {
+    const e = loc.spawn({ type: 'slime', variant: 'green', x: p.a.x + 1, z: p.a.z, hp: 1, maxHp: 1, damage: 0, speed: 0, goldMul: 1 });
+    server.hitSlime(p.a, loc, e, 99);
+    return [...loc.entities.values()].filter((d) => d.type === 'drop' && d.item === 'gold').reduce((n, d) => { loc.remove(d.id); return n + d.qty; }, 0);
+  };
+  let lucky = 0, plain = 0;
+  for (let i = 0; i < 200; i++) lucky += kill();
+  p.a.luckUntil = 0;
+  for (let i = 0; i < 200; i++) plain += kill();
+  assert.ok(lucky > plain * (1 + (LUCK_GOLD - 1) / 2), `lucky gold ${lucky} vs ${plain}`);
+});

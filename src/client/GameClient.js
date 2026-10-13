@@ -392,7 +392,7 @@ export class GameClient {
         this.floatAt(msg.id === this.you ? this.pos : msg, `+${msg.level}!`, '#e0b0ff');
         break;
       }
-      case 'crit': this.floatAt(msg, 'Critical!', '#ffd23f'); break; // a Keen forged weapon
+      case 'crit': this.floatAt(msg, msg.lucky ? '🍀 Lucky!' : 'Critical!', msg.lucky ? '#9aff9a' : '#ffd23f'); break; // a Keen forged weapon, or luck
       case 'feast': this.sfx.play('coin'); this.floatAt(msg, '🍗 Yum!', '#ffe9b0'); break;
       case 'decor': { // someone used a decoration: its show, and its sound
         this.ents.get(msg.id)?.view?.play?.(msg.use);

@@ -28,7 +28,10 @@ export const NIGHT_GOLD_PENALTY = 0.5;  // out of the fort at nightfall: faint a
 export const ELEVATOR_STEP = 5;      // elevator stops at floor 1 and every Nth floor you've reached
 export const DEATH_GOLD_PENALTY = 0.5;
 export const BANK_OPEN_FEE = 250;        // opening an account at the bank (gold in the bank is never lost)
-export const SPRING_COST = 6;        // gold for a full heal at the healing spring by the fort
+export const SPRING_COST = 50;       // gold for a full heal (and LUCK) at the healing spring by the fort
+export const LUCK_SECONDS = 120;     // the spring's luck: how long it lasts
+export const LUCK_GOLD = 1.25, LUCK_CRIT = 0.1, LUCK_GEAR = 2; // while lucky: more gold, a lucky crit now and then, gear drops twice as often
+export const FEAST_COST = 10;        // gold to sit down and eat at the fort's feast table
 export const AUTOSAVE_SECONDS = 30;
 
 export const SAVE_VERSION = 12;
