@@ -100,24 +100,24 @@ export const methods = {
     if (!at) return;
     const name = this.save.players[playerId]?.name ?? 'Someone';
     const existing = [...loc.entities.values()].find((e) => e.type === 'furniture' && e.item === 'bed' && e.owner === playerId);
-    if (existing) { existing.ownerName = name; existing._dirty = true; return; }
+    if (existing) { Object.assign(existing, { ownerName: name, x: at.x, z: at.z, rot: at.rot ?? 0 }); existing._dirty = true; return; }
     loc.spawn({
       type: 'furniture', item: 'bed', owner: playerId, ownerName: name, blanket: blanketFor(playerId),
-      x: at.x, z: at.z, rot: 0, r: FURNITURE.bed.radius, interact: 'sleep',
+      x: at.x, z: at.z, rot: at.rot ?? 0, r: FURNITURE.bed.radius, interact: 'sleep',
     });
   },
 
-  /** Where a player wakes up: just in front of their own bed. */
+  /** Where a player wakes up: at the foot of their own bed, on the open side (never in the wall behind the pillow). */
   bedSpot(p) {
     const slot = this.save.house.beds?.[p.id];
     const at = this.getLocation('house').layout.bedSlots?.[slot];
-    return at ? { x: at.x, z: at.z + 2.6 } : null;
+    return at ? { x: at.x, z: at.z + (at.rot ? -2.6 : 2.6) } : null;
   },
 
   wakeUp(p) {
     if (!p.sleeping) return;
     p.sleeping = false;
-    this.send(p, { t: 'fx', kind: 'wake', id: p.id });
+    this.send(p, { t: 'fx', kind: 'wake', id: p.id, up: this.bedSpot(p) });
   },
 
   /** Yes to food at the feast table: pay, sit down at the nearest seat and eat — half your health back. */

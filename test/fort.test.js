@@ -121,3 +121,21 @@ test('fort: the feast table asks to buy food (10 gold), then you sit and it heal
   c.mom.say({ t: 'eatFeast', table: ask.table });
   assert.equal(p.mom.hp, 3);
 });
+
+test('fort: every bed has its pillow against a wall, and you wake up on open floor, never inside a wall', async () => {
+  const { blocked } = await import('../src/shared/physics.js');
+  const { PLAYER_RADIUS, CELL } = await import('../src/shared/config.js');
+  for (const n of [1, 2, 4, 6]) {
+    const ids = Array.from({ length: n }, (_, i) => `p${i}`);
+    const { server, p } = world(`beds${n}`, ...ids);
+    const L = server.getLocation('house').layout;
+    for (const id of ids) {
+      const bed = [...server.getLocation('house').entities.values()].find((e) => e.item === 'bed' && e.owner === id);
+      assert.ok(bed, `${n}: ${id} has a bed`);
+      const pillow = bed.z + (bed.rot ? 1 : -1) * 1.9; // the pillow end, just past the bed
+      assert.ok(L.isSolidCell(Math.floor(bed.x / CELL), Math.floor(pillow / CELL)), `${n}: ${id}'s pillow is against a wall`);
+      const spot = server.bedSpot(p[id]);
+      assert.ok(!blocked(L, spot.x, spot.z, PLAYER_RADIUS, L.solids), `${n}: ${id} wakes up on open floor (${spot.x}, ${spot.z})`);
+    }
+  }
+});

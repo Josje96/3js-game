@@ -371,7 +371,10 @@ export class GameClient {
         if (msg.id === this.you) { this.sleeping = true; this.pos.x = msg.x; this.pos.z = msg.z; this.pos.rot = msg.rot ?? 0; } // head towards the headboard (the bed's -z)
         break;
       case 'wake':
-        if (msg.id === this.you && this.sleeping) { this.sleeping = false; this.pos.z += 2.6; }
+        if (msg.id === this.you && this.sleeping) { // out of bed, onto the floor at its foot
+          this.sleeping = false;
+          if (msg.up) { this.pos.x = msg.up.x; this.pos.z = msg.up.z; } else this.pos.z += 2.6;
+        }
         break;
       case 'sit': // onto a chair: sit facing out of it; walking gets you up in front of it
         if (msg.id === this.you) { this.sitting = { x: msg.x, z: msg.z, rot: msg.rot, r: msg.r, up: msg.up }; this.pos.x = msg.x; this.pos.z = msg.z; this.pos.rot = msg.rot; }

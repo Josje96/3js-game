@@ -1416,6 +1416,7 @@ export class FurnitureView {
       quilt.position.set(0, 0.86, 0.45);
       quilt.castShadow = quilt.receiveShadow = true;
       this.root.add(quilt);
+      this.ownerName = e.ownerName;
       this.label = makeLabel(`${e.ownerName}’s bed`, '#ffe9b0');
       this.label.scale.multiplyScalar(0.7);
       this.label.position.set(0, 2.4, -0.6);
@@ -1430,6 +1431,15 @@ export class FurnitureView {
   apply(e) {
     this.root.position.set(e.x, 0, e.z);
     this.root.rotation.y = e.rot ?? this.root.rotation.y;
+    if (this.label && e.ownerName && e.ownerName !== this.ownerName) { // renamed: a new sign
+      this.ownerName = e.ownerName;
+      const old = this.label;
+      this.label = makeLabel(`${e.ownerName}’s bed`, '#ffe9b0');
+      this.label.scale.copy(old.scale);
+      this.label.position.copy(old.position);
+      old.removeFromParent();
+      this.root.add(this.label);
+    }
     if (e.on != null) this.setOn(e.on);
   }
 

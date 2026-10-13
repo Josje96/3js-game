@@ -92,7 +92,9 @@ function parseAsciiMap(map) {
       if (leg.bedSlot) {
         const room = roomAt(cx, cz);
         if (room < 0 && rooms.length) throw new Error(`a bed slot at ${cx},${cz} is outside every room`);
-        const slot = { x: pos.x, z: pos.z - 0.6, room };
+        // the pillow end goes against the wall: a bed by a wall below it is turned round (pillow at +z)
+        const down = map.rows[cz + 1]?.[cx] === '#' && map.rows[cz - 1]?.[cx] !== '#';
+        const slot = { x: pos.x, z: pos.z + (down ? 0.6 : -0.6), rot: down ? Math.PI : 0, room };
         if (room >= 0) bedSlots[room] = slot; // bed slot = room number
         else bedSlots.push(slot);
       }
