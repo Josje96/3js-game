@@ -1,5 +1,5 @@
 // HTML overlay on top of the 3D canvas.
-import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_SHOP_STOCK, shopTier, sellValue, isGear } from '../shared/items.js';
+import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_SHOP_STOCK, shopTier, sellValue, isGear, PERKS } from '../shared/items.js';
 import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
 import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle, BANK_OPEN_FEE } from '../shared/config.js';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
@@ -322,24 +322,35 @@ export class Hud {
   }
 
   /** The town shop: a tab per section, Fashion, and Sell. Better gear unlocks every 20 levels. */
-  openShop({ onBuy, onSell, onBuyStyle }) {
-    this.shopTab ??= 'weapons';
+  /**
+   * A shop counter. `vendor` 'shop' = the Shopkeeper (food & potions, fashion, selling); 'smith' =
+   * the Blacksmith (weapons, shields, armor, and forging from blueprints).
+   */
+  openShop({ vendor = 'shop', onBuy, onSell, onBuyStyle, onForge }) {
+    const smith = vendor === 'smith';
+    this.shopTabs ??= { shop: 'food', smith: 'weapons' };
     this.openModal((box) => {
       const gold = this.self?.gold ?? 0, level = this.self?.level ?? 1, tier = shopTier(level);
-      box.append(el('h2', null, `Pebble Town Shop <span class="gold">🪙 ${gold}</span>`));
+      const tab = this.shopTabs[vendor];
+      box.append(el('h2', null, `${smith ? '⚒ The Blacksmith' : 'Pebble Town Shop'} <span class="gold">🪙 ${gold}</span>`));
+      if (smith) box.append(el('p', 'muted', '“Buy what’s on the rack, or bring me a blueprint and ore — forged steel is tougher, and each piece has a trick of its own.”'));
       const tabs = el('div', 'tabs');
-      for (const [id, label] of [...SHOP_SECTIONS.map((sec) => [sec.id, `${sec.icon} ${sec.name}`]), ['fashion', '👑 Fashion'], ['sell', '💰 Sell']]) {
-        const t = el('button', this.shopTab === id ? 'selected' : '', label);
-        t.addEventListener('click', () => { this.shopTab = id; this.refreshModal?.(); });
+      const list = smith
+        ? [...SHOP_SECTIONS.filter((sec) => sec.id !== 'food').map((sec) => [sec.id, `${sec.icon} ${sec.name}`]), ['forge', '🔥 Forge']]
+        : [['food', '🍎 Food & potions'], ['fashion', '👑 Fashion'], ['sell', '💰 Sell']];
+      for (const [id, label] of list) {
+        const t = el('button', tab === id ? 'selected' : '', label);
+        t.addEventListener('click', () => { this.shopTabs[vendor] = id; this.refreshModal?.(); });
         tabs.append(t);
       }
       box.append(tabs);
       const body = el('div', 'shop-body');
-      body.dataset.scroll = `shop-${this.shopTab}`;
-      if (this.shopTab === 'fashion') body.append(this.fashionShop(gold, onBuyStyle));
-      else if (this.shopTab === 'sell') body.append(this.sellList(onSell));
+      body.dataset.scroll = `shop-${tab}`;
+      if (tab === 'fashion') body.append(this.fashionShop(gold, onBuyStyle));
+      else if (tab === 'sell') body.append(this.sellList(onSell));
+      else if (tab === 'forge') body.append(this.forgeList(onForge));
       else {
-        const sec = SHOP_SECTIONS.find((x) => x.id === this.shopTab);
+        const sec = SHOP_SECTIONS.find((x) => x.id === tab);
         const items = SHOP_STOCK.filter((id) => sec.kinds.includes(ITEMS[id].kind)).sort((x, y) => ITEMS[x].tier - ITEMS[y].tier || ITEMS[x].price - ITEMS[y].price);
         let shownTier = -1;
         for (const id of items) {
@@ -612,34 +623,33 @@ export class Hud {
     });
   }
 
-  openForge({ onForge }) {
-    this.openModal((box) => {
-      const s = this.self, gold = this.self?.gold ?? 0;
-      box.append(el('h2', null, `The Forge <span class="gold">🪙 ${gold}</span>`),
-        el('p', 'muted', 'Find blueprints in dungeon chests and from bosses, then bring ore here.'));
-      const list = el('div', 'forge-list');
-      for (const [id, r] of Object.entries(FORGE_RECIPES)) {
-        const it = ITEMS[id];
-        const known = s?.blueprints?.includes(id);
-        if (!known) {
-          list.append(el('div', 'forge-row unknown', `<b>??? blueprint</b><span class="muted">found from floor ${r.depth} down</span>`));
-          continue;
-        }
-        const have = (item) => s.inventory?.[item] ?? 0;
-        const needs = Object.entries(r.needs).map(([item, n]) =>
-          `<span class="${have(item) >= n ? 'ok' : 'short'}">${esc(ITEMS[item].name)} ${have(item)}/${n}</span>`).join(' · ');
-        const stat = it.kind === 'weapon' ? `⚔ ${it.damage}${it.ranged ? ' ranged' : ''}` : `🛡 ${Math.round(it.block * 100)}%`;
-        const row = el('div', 'forge-row', `<b>${iconImg(itemIcon(id))}${esc(it.name)} <small class="muted">${stat}</small></b><span class="needs">${needs} · <span class="gold">🪙 ${r.gold}</span></span>`);
-        const owned = s.gear?.includes(id);
-        const ready = !owned && gold >= r.gold && Object.entries(r.needs).every(([item, n]) => have(item) >= n);
-        const b = el('button', ready ? 'primary' : '', owned ? 'Made ✓' : 'Forge');
-        b.disabled = !ready;
-        b.addEventListener('click', () => this.askToBuy(`forge ${it.name}`, r.gold, () => onForge(id)));
-        row.append(b);
-        list.append(row);
+  /** The Blacksmith's forge tab: blueprint gear you can make from ore (forged weapons have a perk). */
+  forgeList(onForge) {
+    const s = this.self ?? {}, gold = s.gold ?? 0;
+    const list = el('div', 'forge-list');
+    list.append(el('p', 'muted', 'Find blueprints in dungeon chests and from bosses, then bring ore here.'));
+    for (const [id, r] of Object.entries(FORGE_RECIPES)) {
+      const it = ITEMS[id];
+      const known = s.blueprints?.includes(id);
+      if (!known) {
+        list.append(el('div', 'forge-row unknown', `<b>??? blueprint</b><span class="muted">found from floor ${r.depth} down</span>`));
+        continue;
       }
-      box.append(list, closeButton(this));
-    });
+      const have = (item) => s.inventory?.[item] ?? 0;
+      const needs = Object.entries(r.needs).map(([item, n]) =>
+        `<span class="${have(item) >= n ? 'ok' : 'short'}">${esc(ITEMS[item].name)} ${have(item)}/${n}</span>`).join(' · ');
+      const perk = PERKS[it.perk];
+      const stat = it.kind === 'weapon' ? `⚔ ${it.damage}${it.ranged ? ' ranged' : ''}${perk ? ` · ${perk.icon} ${perk.name}: ${perk.text}` : ''}` : `🛡 ${Math.round(it.block * 100)}%`;
+      const row = el('div', 'forge-row', `<b>${iconImg(itemIcon(id))}${esc(it.name)} <small class="muted">${stat}</small></b><span class="needs">${needs} · <span class="gold">🪙 ${r.gold}</span></span>`);
+      const owned = s.gear?.includes(id);
+      const ready = !owned && gold >= r.gold && Object.entries(r.needs).every(([item, n]) => have(item) >= n);
+      const b = el('button', ready ? 'primary' : '', owned ? 'Made ✓' : 'Forge');
+      b.disabled = !ready;
+      b.addEventListener('click', () => this.askToBuy(`forge ${it.name}`, r.gold, () => onForge(id)));
+      row.append(b);
+      list.append(row);
+    }
+    return list;
   }
 
   /** Your pets (level, evolution, pick who follows you, rename) and, at the Pet Keeper, adopting. */

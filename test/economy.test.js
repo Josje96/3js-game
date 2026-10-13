@@ -6,6 +6,12 @@ import { world } from './helpers.js';
 import { migrate } from '../src/server/saves.js';
 import { ITEMS, SHOP_STOCK, SHOP_SECTIONS, shopTier, sellValue, inShopFor } from '../src/shared/items.js';
 
+/** Stand at the Blacksmith's forge (where weapons, shields and armor are sold). */
+function atForge(server, p) {
+  const forge = server.getLocation('town').layout.props.find((q) => q.interact === 'forge');
+  p.x = forge.x; p.z = forge.z + 3;
+}
+
 test('economy: everyone has their own gold', () => {
   const { server, p, c } = world('gold', 'mom', 'kid');
   for (const x of Object.values(p)) server.travel(x, 'town');
@@ -48,6 +54,9 @@ test('economy: a tougher shop tier opens every 20 levels', () => {
   const { server, p, c } = world('tiers');
   server.travel(p.a, 'town');
   p.a.gold = 1e6;
+  c.a.say({ t: 'buy', item: 'axe' });
+  assert.ok(!p.a.gear.includes('axe'), 'weapons only from the Blacksmith, at the forge');
+  atForge(server, p.a);
   c.a.say({ t: 'buy', item: 'steelblade' });
   assert.ok(!p.a.gear.includes('steelblade'), 'level 1 cannot buy level 20 gear');
   p.a.level = 20;
@@ -59,6 +68,7 @@ test('economy: a tougher shop tier opens every 20 levels', () => {
 test('economy: armor softens hits; gear you are not using can be sold', () => {
   const { server, p, c } = world('armor');
   server.travel(p.a, 'town');
+  atForge(server, p.a);
   p.a.gold = 10000;
   c.a.say({ t: 'buy', item: 'plate' });
   assert.equal(p.a.armor, 'plate');
@@ -85,4 +95,25 @@ test('economy: pet treats come from the Pet Keeper, not the general store', () =
   p.a.gold = 100;
   c.a.say({ t: 'buy', item: 'petfood' });
   assert.equal(p.a.inventory.petfood, 1);
+});
+
+test('economy: forged weapons have perks — keen crits, vampiric heals, frost freezes, giant-slayer hits bosses harder', async () => {
+  const { PERKS, PERK_GIANT } = await import('../src/shared/items.js');
+  const { FORGE_RECIPES } = await import('../src/shared/items.js');
+  for (const id of Object.keys(FORGE_RECIPES)) if (ITEMS[id].kind === 'weapon') assert.ok(PERKS[ITEMS[id].perk], `${id} has a perk`);
+  const { server, p } = world('perks');
+  server.travel(p.a, 'mine/1', 'U');
+  const loc = server.locations.get('mine/1');
+  const slime = () => loc.spawn({ type: 'slime', variant: 'green', x: p.a.x + 1, z: p.a.z, hp: 1e6, maxHp: 1e6, damage: 0, speed: 0 });
+  p.a.weapon = 'obsidianedge'; p.a.hp = 1; // vampiric
+  server.hitSlime(p.a, loc, slime(), 100);
+  assert.ok(p.a.hp > 1, 'healed by the hit');
+  p.a.weapon = 'nightstaff'; // frost
+  const e = slime();
+  server.hitSlime(p.a, loc, e, 10);
+  assert.ok(e._stun > 0.5, 'frozen for a moment');
+  p.a.weapon = 'starcleaver'; // giant-slayer
+  const boss = slime(); boss.boss = true; boss.name = 'Test';
+  server.hitSlime(p.a, loc, boss, 100);
+  assert.equal(1e6 - boss.hp, Math.round(100 * PERK_GIANT));
 });

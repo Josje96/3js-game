@@ -390,6 +390,7 @@ export class GameClient {
         this.floatAt(msg.id === this.you ? this.pos : msg, `+${msg.level}!`, '#e0b0ff');
         break;
       }
+      case 'crit': this.floatAt(msg, 'Critical!', '#ffd23f'); break; // a Keen forged weapon
       case 'nova':
         this.sfx.play('nova');
         this.addEffect(new NovaBlast(msg.x, msg.z, SPELL_RADIUS));
@@ -461,8 +462,10 @@ export class GameClient {
   }
 
   openUi(msg) {
-    if (msg.kind === 'shop') {
+    if (msg.kind === 'shop' || msg.kind === 'smith') {
       this.hud.openShop({
+        vendor: msg.kind,
+        onForge: (recipe) => this.conn.send({ t: 'forge', recipe }),
         onBuy: (item) => this.conn.send({ t: 'buy', item }),
         onSell: (item, qty) => this.conn.send({ t: 'sell', item, qty }),
         onBuyStyle: (slot, id) => this.conn.send({ t: 'buyStyle', slot, id }),
@@ -471,8 +474,6 @@ export class GameClient {
       this.hud.openBank({ family: msg.family, onAction: (action, amount, to) => this.conn.send({ t: 'bank', action, amount, to }) });
     } else if (msg.kind === 'enchanter') {
       this.hud.openEnchanter({ onEnchant: (item) => this.conn.send({ t: 'enchant', item }) });
-    } else if (msg.kind === 'forge') {
-      this.hud.openForge({ onForge: (recipe) => this.conn.send({ t: 'forge', recipe }) });
     } else if (msg.kind === 'pets') {
       this.openPets(true);
     } else if (msg.kind === 'mirror') {

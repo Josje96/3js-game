@@ -1,11 +1,13 @@
-// shop — the town shop (sections, a new tier every 20 levels, selling loot and gear), the
-// fashion shop, the Pet Keeper's treats and the forge. Gold is each player's own (see wallet.js).
-import { STYLE_SLOTS, ownsStyle } from '../../shared/config.js';
+// shop — the Shopkeeper (food, potions, fashion, buying your loot and spare gear), the Blacksmith
+// (weapons, shields and armor — a new tier every 20 levels — and forging, see FORGE_RECIPES)
+// and the Pet Keeper's treats. Gold is each player's own (see wallet.js).
+import { STYLE_SLOTS, ownsStyle, INTERACT_RANGE } from '../../shared/config.js';
+import { dist2 } from '../../shared/physics.js';
 import { ITEMS, SHOP_STOCK, PET_SHOP_STOCK, FORGE_RECIPES, inShopFor, shopTier, sellValue, isGear } from '../../shared/items.js';
 
 export const interactions = {
   shop(p) { this.send(p, { t: 'ui', kind: 'shop' }); },
-  forge(p) { this.send(p, { t: 'ui', kind: 'forge' }); },
+  forge(p) { this.send(p, { t: 'ui', kind: 'smith' }); }, // the Blacksmith: weapons, shields, armor and forging
 };
 
 export const methods = {
@@ -19,6 +21,7 @@ export const methods = {
       return this.toast(p, `The shopkeeper says: come back at level ${def.tier * 20} for ${def.name}!`);
     }
     const gear = isGear(item);
+    if (gear && !this.atForge(p)) return this.toast(p, 'Weapons and armor are sold by the Blacksmith, at the forge.');
     if (gear && p.gear.includes(item)) return this.toast(p, 'You already have that one. Press C to equip it.');
     if (!this.spend(p, def.price, def.name)) return;
     if (gear) {
@@ -82,6 +85,12 @@ export const methods = {
     if (!p.inventory[item]) delete p.inventory[item];
     this.earn(p, def.sell * n);
     this.toast(p, `Sold ${n} ${def.name} for ${def.sell * n} gold`);
+  },
+
+  /** Standing at the Blacksmith's forge? */
+  atForge(p) {
+    const forge = this.getLocation('town').layout.props.find((q) => q.interact === 'forge');
+    return p.loc === 'town' && !!forge && dist2(p, forge) <= (INTERACT_RANGE + forge.radius + 2) ** 2;
   },
 
   /** For the HUD: the shop tier this player can buy from. */

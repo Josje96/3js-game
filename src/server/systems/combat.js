@@ -1,7 +1,7 @@
 // combat — part of the GameServer (see systems/index.js). Methods run with `this` = the GameServer.
 import { ATTACK_RANGE, SHOT_SPEED, SHOT_RANGE, ROLL_IFRAMES, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, SPELL_DAMAGE, DEATH_GOLD_PENALTY } from '../../shared/config.js';
 import { ENEMIES, biomeFor, makeEnemy, oresFor } from '../../shared/dungeons.js';
-import { ITEMS, weaponCooldown, weaponImpact, rollGearDrop, rollBlueprint, isGear } from '../../shared/items.js';
+import { ITEMS, weaponCooldown, weaponImpact, rollGearDrop, rollBlueprint, isGear, PERK_CRIT, PERK_HEAL, PERK_FREEZE, PERK_GIANT } from '../../shared/items.js';
 import { XP, attackDamage } from '../../shared/progression.js';
 import { dist2 } from '../../shared/physics.js';
 
@@ -81,8 +81,18 @@ export const methods = {
   },
 
   hitSlime(p, loc, e, dmg, from = p) {
+    const perk = ITEMS[p?.weapon]?.perk; // forged weapons' perks (shared/items.js PERKS)
+    if (perk === 'keen' && Math.random() < PERK_CRIT) {
+      dmg *= 2;
+      this.sendToLocation(loc.key, { t: 'fx', kind: 'crit', x: e.x, z: e.z });
+    }
+    if (perk === 'giant' && e.boss) dmg = Math.round(dmg * PERK_GIANT);
     e.hp -= dmg;
-    e._stun = 0.25;
+    e._stun = perk === 'frost' ? PERK_FREEZE : 0.25;
+    if (perk === 'vampiric' && p.hp > 0 && p.hp < p.maxHp) {
+      p.hp = Math.min(p.maxHp, p.hp + Math.max(1, Math.round(dmg * PERK_HEAL)));
+      this.sendSelf(p);
+    }
     const d = Math.sqrt(dist2(e, from)) || 1;
     const push = e.boss ? 4 : 14;
     e._kx = ((e.x - from.x) / d) * push;

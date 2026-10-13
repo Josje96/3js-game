@@ -44,21 +44,21 @@ export const ITEMS = {
   starbook:    { name: 'Book of Stars',   kind: 'weapon', damage: 39, price: 82000, tier: 4, model: 'items/spellbook_open', swing: 'cast', ranged: 'magic', tint: 0xfff0a0 },
 
   // --- forged at the anvil in town from a blueprint (never sold). `tint` recolours the model ---
-  copperblade:  { name: 'Copper Blade',     kind: 'weapon', damage: 5,  forged: true, model: 'items/sword_1handed', swing: 'slash', tint: 0xe08a4a },
-  silverbow:    { name: 'Silver Bow',       kind: 'weapon', damage: 6,  forged: true, model: 'items/bow_withString', swing: 'cast', ranged: 'arrow', tint: 0xd8e4f0 },
-  slimewand:    { name: 'Slime Wand',       kind: 'weapon', damage: 6,  forged: true, model: 'items/wand', swing: 'cast', ranged: 'magic', tint: 0x7cff6a },
+  copperblade:  { name: 'Copper Blade',     kind: 'weapon', damage: 5,  forged: true, perk: 'keen', model: 'items/sword_1handed', swing: 'slash', tint: 0xe08a4a },
+  silverbow:    { name: 'Silver Bow',       kind: 'weapon', damage: 6,  forged: true, perk: 'frost', model: 'items/bow_withString', swing: 'cast', ranged: 'arrow', tint: 0xd8e4f0 },
+  slimewand:    { name: 'Slime Wand',       kind: 'weapon', damage: 6,  forged: true, perk: 'vampiric', model: 'items/wand', swing: 'cast', ranged: 'magic', tint: 0x7cff6a },
   silvershield: { name: 'Silver Shield',    kind: 'shield', block: 0.4, forged: true, model: 'items/shield_square_color', tint: 0xdde8ff },
-  goldenaxe:    { name: 'Golden Greataxe',  kind: 'weapon', damage: 9,  forged: true, model: 'items/axe_2handed', swing: 'chop', tint: 0xffd23f },
-  crystalstaff: { name: 'Crystal Staff',    kind: 'weapon', damage: 10, forged: true, model: 'items/staff', swing: 'cast', ranged: 'magic', tint: 0x7fe8ff },
-  dragonsword:  { name: 'Dragon Sword',     kind: 'weapon', damage: 13, forged: true, model: 'items/sword_2handed_color', swing: 'chop', tint: 0xff5a4a },
+  goldenaxe:    { name: 'Golden Greataxe',  kind: 'weapon', damage: 9,  forged: true, perk: 'giant', model: 'items/axe_2handed', swing: 'chop', tint: 0xffd23f },
+  crystalstaff: { name: 'Crystal Staff',    kind: 'weapon', damage: 10, forged: true, perk: 'frost', model: 'items/staff', swing: 'cast', ranged: 'magic', tint: 0x7fe8ff },
+  dragonsword:  { name: 'Dragon Sword',     kind: 'weapon', damage: 13, forged: true, perk: 'giant', model: 'items/sword_2handed_color', swing: 'chop', tint: 0xff5a4a },
   // the deep ores forge into gear a tier's worth better than the last shop tier you can buy —
   // mining your way down is the cheaper path, gathering the ore is the work
-  mythrilbrand: { name: 'Mythril Brand',    kind: 'weapon', damage: 16, forged: true, model: 'items/sword_1handed', swing: 'slash', tint: 0x7fd8ff },
+  mythrilbrand: { name: 'Mythril Brand',    kind: 'weapon', damage: 16, forged: true, perk: 'keen', model: 'items/sword_1handed', swing: 'slash', tint: 0x7fd8ff },
   mythrilbulwark: { name: 'Mythril Bulwark', kind: 'shield', block: 0.52, forged: true, model: 'items/shield_square_color', tint: 0x7fd8ff },
-  obsidianedge: { name: 'Obsidian Edge',    kind: 'weapon', damage: 34, forged: true, model: 'items/sword_2handed', swing: 'chop', tint: 0x5a4a9a },
-  nightstaff:   { name: 'Night Staff',      kind: 'weapon', damage: 33, forged: true, model: 'items/staff', swing: 'cast', ranged: 'magic', tint: 0x9a6ad0 },
-  starpiercer:  { name: 'Star Piercer',     kind: 'weapon', damage: 32, forged: true, model: 'items/dagger', swing: 'stab', tint: 0xfff0a0 },
-  starcleaver:  { name: 'Star Cleaver',     kind: 'weapon', damage: 58, forged: true, model: 'items/axe_2handed', swing: 'chop', tint: 0xfff0a0 },
+  obsidianedge: { name: 'Obsidian Edge',    kind: 'weapon', damage: 34, forged: true, perk: 'vampiric', model: 'items/sword_2handed', swing: 'chop', tint: 0x5a4a9a },
+  nightstaff:   { name: 'Night Staff',      kind: 'weapon', damage: 33, forged: true, perk: 'frost', model: 'items/staff', swing: 'cast', ranged: 'magic', tint: 0x9a6ad0 },
+  starpiercer:  { name: 'Star Piercer',     kind: 'weapon', damage: 32, forged: true, perk: 'keen', model: 'items/dagger', swing: 'stab', tint: 0xfff0a0 },
+  starcleaver:  { name: 'Star Cleaver',     kind: 'weapon', damage: 58, forged: true, perk: 'giant', model: 'items/axe_2handed', swing: 'chop', tint: 0xfff0a0 },
   // --- epic: only dropped by the seasonal bosses in town (never sold in a shop; worth a fortune) ---
   blossomblade: { name: 'Blossom Blade',    kind: 'weapon', damage: 44, epic: true, sell: 30000, model: 'items/sword_2handed_color', swing: 'slash', tint: 0xffa8cf },
   petalaegis:   { name: 'Petal Aegis',      kind: 'shield', block: 0.64, epic: true, sell: 28000, model: 'items/shield_badge_color', tint: 0xffc8e0 },
@@ -135,6 +135,15 @@ export function shopTier(level) {
 }
 
 /** The town shop's sections, in order. Each lists the item kinds it sells. */
+/** Forged weapons' perks (the Blacksmith's handiwork), applied in server/systems/combat.js. */
+export const PERKS = {
+  keen: { name: 'Keen', icon: '✨', text: '1 in 5 hits is a critical: double damage' },
+  vampiric: { name: 'Vampiric', icon: '🩸', text: 'each hit heals you a little' },
+  frost: { name: 'Frostbite', icon: '❄', text: 'hits freeze enemies for a moment' },
+  giant: { name: 'Giant-slayer', icon: '🗡', text: '+35% damage against bosses' },
+};
+export const PERK_CRIT = 0.2, PERK_HEAL = 0.08, PERK_FREEZE = 0.9, PERK_GIANT = 1.35;
+
 export const SHOP_SECTIONS = [
   { id: 'weapons', name: 'Weapons', icon: '⚔', kinds: ['weapon'] },
   { id: 'shields', name: 'Shields', icon: '🛡', kinds: ['shield'] },
