@@ -396,19 +396,19 @@ export function skinSplit(geo, image) {
  * the front of the body, y = 0 at the middle of the chest; 'hips' things hang from the waist.
  */
 const CLOTHES_BUILDERS = {
-  tie() {
+  tie(tieColor = 0xc0303a) {
     const g = new THREE.Group();
     g.add(mesh(new THREE.ConeGeometry(0.2, 0.42, 3), mat(0xf4f4f4), 0, 0.12, 0.0, 1, 1, 0.12)).children.at(-1).rotation.z = Math.PI; // shirt front
-    g.add(mesh(new THREE.BoxGeometry(0.08, 0.07, 0.05), mat(0xc0303a), 0, 0.27, 0.03));
-    const tie = mesh(new THREE.ConeGeometry(0.06, 0.42, 4), mat(0xc0303a, { roughness: 0.4 }), 0, 0.04, 0.03);
+    g.add(mesh(new THREE.BoxGeometry(0.08, 0.07, 0.05), mat(tieColor), 0, 0.27, 0.03));
+    const tie = mesh(new THREE.ConeGeometry(0.06, 0.42, 4), mat(tieColor, { roughness: 0.4 }), 0, 0.04, 0.03);
     tie.rotation.set(Math.PI, Math.PI / 4, 0);
     g.add(tie);
     return { front: g };
   },
-  bowtie() {
+  bowtie(tieColor = 0x111111) {
     const g = new THREE.Group();
     g.add(mesh(new THREE.ConeGeometry(0.2, 0.42, 3), mat(0xffffff), 0, 0.12, 0.0, 1, 1, 0.12)).children.at(-1).rotation.z = Math.PI;
-    for (const s of [-1, 1]) g.add(mesh(new THREE.ConeGeometry(0.06, 0.12, 4), mat(0x111111), s * 0.06, 0.26, 0.04)).children.at(-1).rotation.z = s * Math.PI / 2;
+    for (const s of [-1, 1]) g.add(mesh(new THREE.ConeGeometry(0.06, 0.12, 4), mat(tieColor), s * 0.06, 0.26, 0.04)).children.at(-1).rotation.z = s * Math.PI / 2;
     for (const y of [0.1, -0.02]) g.add(mesh(new THREE.SphereGeometry(0.018, 6, 4), mat(0x111111), 0, y, 0.04));
     return { front: g };
   },
@@ -433,6 +433,30 @@ const CLOTHES_BUILDERS = {
     front.add(mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(0xffffff, { roughness: 0.2 }), 0, 0.22, 0.03)); // a pearl
     skirt.userData.cone = { topY: 0.05, hemY: -1.05, rTop: 0.42, rBot: 0.95 }; // flared by the view so feet stay inside
     return { front, hips: skirt };
+  },
+  sash() { // a pirate captain: a gold sash across the chest, brass buttons and a lace jabot
+    const g = new THREE.Group();
+    const sash = mesh(new THREE.BoxGeometry(0.12, 0.7, 0.04), mat(0xe0b84a, { metalness: 0.4, roughness: 0.4 }), 0, 0.02, 0.02);
+    sash.rotation.z = 0.7;
+    g.add(sash);
+    for (const y of [0.15, 0.0, -0.15]) for (const x of [-0.12, 0.12]) g.add(mesh(new THREE.SphereGeometry(0.025, 6, 4), mat(0xd9a93a, { metalness: 0.7 }), x, y, 0.03));
+    g.add(mesh(new THREE.SphereGeometry(0.08, 8, 6), mat(0xffffff), 0, 0.24, 0.03, 1, 0.8, 0.5));
+    return { front: g };
+  },
+  apron() { // chef whites: a big white apron, double row of buttons, a red neckerchief
+    const g = new THREE.Group();
+    g.add(mesh(new THREE.BoxGeometry(0.42, 0.5, 0.03), mat(0xffffff, { roughness: 0.9 }), 0, -0.12, 0.03));
+    for (const y of [0.22, 0.12]) for (const x of [-0.08, 0.08]) g.add(mesh(new THREE.SphereGeometry(0.02, 6, 4), mat(0xdddddd), x, y, 0.03));
+    g.add(mesh(new THREE.TorusGeometry(0.1, 0.03, 6, 12), mat(0xd8302a), 0, 0.27, 0.0, 1, 0.5, 1));
+    return { front: g };
+  },
+  bib() { // farmer overalls: a denim bib with two straps and a patch pocket
+    const g = new THREE.Group(), denim = mat(0x3b5f9a, { roughness: 0.9 });
+    g.add(mesh(new THREE.BoxGeometry(0.34, 0.28, 0.035), denim, 0, -0.08, 0.03));
+    for (const s of [-1, 1]) g.add(mesh(new THREE.BoxGeometry(0.06, 0.3, 0.03), denim, s * 0.13, 0.18, 0.03));
+    g.add(mesh(new THREE.BoxGeometry(0.12, 0.1, 0.02), mat(0x2f4f80), 0, -0.06, 0.05));
+    for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.025, 6, 4), mat(0xd9a93a, { metalness: 0.7 }), s * 0.13, 0.05, 0.05));
+    return { front: g };
   },
   robe() {
     const front = new THREE.Group();
@@ -480,10 +504,22 @@ export function buildArmor(color, tier = 0) {
   return { chest, left: pad(), right: pad() };
 }
 
-export function buildClothes(extra, color) {
-  const built = CLOTHES_BUILDERS[extra]?.() ?? {};
-  if (color != null && extra === 'gown') built.hips?.children[0]?.material.color.set(color);
+/** A fancy outfit's extras: `color` = its jacket colour (skirts follow it), `tie` = the tie colour. */
+export function buildClothes(extra, color, tie) {
+  const built = CLOTHES_BUILDERS[extra]?.(tie) ?? {};
+  if (color != null && (extra === 'gown' || extra === 'robe')) built.hips?.children[0]?.material.color.set(color);
   return built;
+}
+
+/** Eyebrows in the hair colour, drawn over the face's own (face frame: head 1 wide, y 0 at the eyes). */
+export function buildBrows(color) {
+  const g = new THREE.Group(), m = mat(color, { roughness: 0.8 });
+  for (const s of [-1, 1]) {
+    const brow = mesh(new THREE.CapsuleGeometry(0.028, 0.12, 4, 8), m, s * 0.17, 0.135, 0.035);
+    brow.rotation.z = Math.PI / 2 + s * 0.12;
+    g.add(brow);
+  }
+  return g;
 }
 
 export function buildHair(style, color) {

@@ -1,10 +1,10 @@
 // 3D views for things that move or change: characters, slimes, rocks, drops...
 import * as THREE from 'three';
-import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES } from '../shared/config.js';
+import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COLORS } from '../shared/config.js';
 import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape } from './cosmetics.js';
+import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -280,8 +280,8 @@ export class CharacterView {
 
   /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories, clothes and dye. */
   setLook(look) {
-    const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none' } = look ?? {};
-    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${hairColor}/${face}/${skin}`;
+    const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red' } = look ?? {};
+    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${hairColor}/${face}/${skin}/${tie}`;
     if (key === this.lookKey) return;
     this.lookKey = key;
     for (const m of this.borrowed) m.removeFromParent();
@@ -318,9 +318,10 @@ export class CharacterView {
     if (hair !== 'none') {
       this.attach(this.anchors.hair ? 'hair' : 'hat', buildHair(hair, hc));
       this.attach('scalp', buildScalp(tone));
+      this.attach('face', buildBrows(hc)); // eyebrows to match the hair
     }
     if (face !== 'none') this.attach('face', buildFace(face, hc));
-    this.setClothes(CLOTHES[clothes]);
+    this.setClothes(CLOTHES[clothes], TIE_COLORS[tie]?.color);
     // dye: give cape meshes their own copy of the (shared) material, painted a flat colour
     // (multiplying over a red cape's texture would just give muddy red)
     const tint = DYES[dye]?.color;
@@ -337,7 +338,7 @@ export class CharacterView {
   }
 
   /** Fancy clothes: body and sleeves become a flat cloth colour (hands stay skin), legs too, plus extras. */
-  setClothes(def) {
+  setClothes(def, tieColor) {
     this.clothed = !!def;
     this.showArmor();
     this.model.traverse((o) => {
@@ -353,7 +354,7 @@ export class CharacterView {
       o.material = [o.userData.baseMat, cloth];
     });
     if (!def) return;
-    const extra = buildClothes(def.extra, def.jacket);
+    const extra = buildClothes(def.extra, def.jacket, tieColor);
     if (extra.front) this.attach('front', extra.front);
     if (extra.hips) this.attach('hips', extra.hips);
     if (extra.hips?.userData.cone && extra.hips.parent) this.skirt = extra.hips;

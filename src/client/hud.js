@@ -1,7 +1,7 @@
 // HTML overlay on top of the 3D canvas.
 import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_SHOP_STOCK, shopTier, sellValue, isGear, PERKS } from '../shared/items.js';
 import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
-import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle, BANK_OPEN_FEE } from '../shared/config.js';
+import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle, BANK_OPEN_FEE, TIE_COLORS } from '../shared/config.js';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
@@ -478,6 +478,9 @@ export class Hud {
       });
       row('Outfit', Object.keys(CLASSES).map((c) => [c, c.replace('_', ' ')]), (v) => v === cur.cls, (v) => { cur.cls = v; });
       row('Fancy clothes', [['none', 'Outfit’s own'], ...styles('clothes', CLOTHES)], (v) => v === (cur.look.clothes ?? 'none'), (v) => { cur.look.clothes = v; });
+      if (['tie', 'bowtie'].includes(CLOTHES[cur.look.clothes]?.extra)) {
+        row(CLOTHES[cur.look.clothes].extra === 'tie' ? 'Tie colour' : 'Bow tie colour', Object.entries(TIE_COLORS).map(([k, v]) => [k, v.name]), (v) => v === (cur.look.tie ?? 'red'), (v) => { cur.look.tie = v; });
+      }
       row('Hat', [['own', 'Outfit’s own'], ['none', 'None'], ...styles('hat', HATS)], (v) => v === cur.look.hat, (v) => { cur.look.hat = v; });
       row('Cape', [['own', 'Outfit’s own'], ['none', 'None'], ...styles('cape', CAPES)], (v) => v === cur.look.cape, (v) => { cur.look.cape = v; });
       row('Cape colour', [['none', 'Natural'], ...styles('dye', DYES)], (v) => v === cur.look.dye, (v) => { cur.look.dye = v; });

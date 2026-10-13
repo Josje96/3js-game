@@ -130,6 +130,23 @@ export const CLOTHES = {
   gown:   { name: 'Ball gown', price: 360, jacket: 0xd8649f, legs: 0xd8649f, extra: 'gown' },
   royal:  { name: 'Royal robe', price: 600, jacket: 0x6a35b8, legs: 0x3d2470, extra: 'robe' },
   sunday: { name: 'Sunday best', price: 180, jacket: 0x5b86c9, legs: 0xe9e2cf, extra: 'vest' },
+  pirate: { name: 'Pirate captain', price: 420, jacket: 0x8a1a1a, legs: 0x2a2a2a, extra: 'sash' },
+  princess: { name: 'Princess gown', price: 480, jacket: 0x9fd8ff, legs: 0x9fd8ff, extra: 'gown' },
+  wizard: { name: 'Wizard robe', price: 520, jacket: 0x2a2a7a, legs: 0x22225a, extra: 'robe' },
+  chef:   { name: 'Chef whites', price: 200, jacket: 0xf4f4f4, legs: 0x3a3a3a, extra: 'apron' },
+  overalls: { name: 'Farmer overalls', price: 160, jacket: 0xd8402a, legs: 0x3b5f9a, extra: 'bib' },
+  sundress: { name: 'Summer dress', price: 300, jacket: 0xffd23f, legs: 0xffd23f, extra: 'gown' },
+};
+/** The colour of the tie (suit) or bow tie (tuxedo). All free: pick one in the wardrobe. */
+export const TIE_COLORS = {
+  red:    { name: 'Red', color: 0xc0303a },
+  navy:   { name: 'Navy', color: 0x24306a },
+  green:  { name: 'Green', color: 0x2f8a4a },
+  gold:   { name: 'Gold', color: 0xe0b84a },
+  purple: { name: 'Purple', color: 0x7a3ab8 },
+  pink:   { name: 'Pink', color: 0xff7aa8 },
+  sky:    { name: 'Sky blue', color: 0x6ab8ff },
+  black:  { name: 'Black', color: 0x16161c },
 };
 /** Multiplied over the head's texture, so only darker or tinted tones work. */
 export const SKINS = {
@@ -140,7 +157,7 @@ export const SKINS = {
   blue:  { name: 'Frosty blue', color: 0xa8c8ff },
 };
 
-export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS };
+export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS, tie: TIE_COLORS };
 
 /** Is this style free, or already in the closet (a list like ['hat:crown', 'dye:sky'])? */
 export function ownsStyle(closet, slot, id) {
@@ -150,7 +167,7 @@ export function ownsStyle(closet, slot, id) {
 
 /** Sanitise a look from the network or a profile; with a closet, also drops things not owned. */
 export function cleanLook(look, closet = null) {
-  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', clothes: 'none', hair: 'none', hairColor: 'brown', face: 'none', skin: 'none' };
+  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', clothes: 'none', hair: 'none', hairColor: 'brown', face: 'none', skin: 'none', tie: 'red' };
   const out = {};
   for (const slot of Object.keys(fallback)) {
     const v = look?.[slot];
