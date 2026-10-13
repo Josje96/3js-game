@@ -61,14 +61,14 @@ export function fortMap(n) {
     rooms[slot] = { x, z, w: ROOM_W, h: ROOM_DEPTH, door: { x: x + 1, z: doorZ, out } };
   }
 
-  // the common room: wardrobe and mirror against the top wall, chest and table in the bottom
-  // corners — all in columns without a doorway, and clear of the passage to the front door
-  const mid = passage, last = BOTTOM_DOORS - 1;
-  set(1, HALL.z, 'W');
-  set(W - 2, HALL.z, 'M');
-  set(mid, HALL.z + 1, 'p');
-  set(1, last, 'C');
-  set(W - 2, last, 'T');
+  // the common room: a dressing corner (wardrobe, mirror, family chest side by side against the top
+  // wall, between the top bedrooms' doorways) and the long feast table across the middle
+  const last = BOTTOM_DOORS - 1;
+  set(passage - 2, HALL.z, 'W');
+  set(passage - 1, HALL.z, 'M');
+  set(passage, HALL.z, 'C');
+  set(passage, HALL.z + 1, 'L'); // the feast table (it's long: see props.js), between rows 6 and 7
+  set(passage + 1, last, 'p');
   set(passage, H - 1, 'D');
 
   return {

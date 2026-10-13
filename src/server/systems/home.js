@@ -9,6 +9,19 @@ import { MAX_ROOMS } from '../../shared/fort.js';
 
 /** Props you can use with E (see shared/props.js `interact`). */
 export const interactions = {
+  /** The feast table: sit at the nearest seat and tuck in — you're healed right up. */
+  feast(p, table) {
+    const seats = (table.seats ?? []).map(([dx, dz, face]) => ({ x: table.x + dx, z: table.z + dz, rot: face }));
+    if (!seats.length) return;
+    const seat = seats.reduce((a, b) => ((a.x - p.x) ** 2 + (a.z - p.z) ** 2 <= (b.x - p.x) ** 2 + (b.z - p.z) ** 2 ? a : b));
+    this.send(p, { t: 'fx', kind: 'sit', id: p.id, x: seat.x, z: seat.z, rot: seat.rot, r: 0.6 });
+    const healed = p.maxHp - p.hp;
+    p.hp = p.maxHp;
+    this.sendToLocation(p.loc, { t: 'fx', kind: 'feast', x: seat.x, z: seat.z });
+    this.toast(p, healed > 0 ? `🍗 What a feast! You're full of beans again (+${healed} ❤).` : '🍗 What a feast! (You were already full of beans.)');
+    this.sendSelf(p);
+  },
+
   /** Your own bed: lie down (or get up again). Someone else's: it's theirs. */
   sleep(p, bed) {
     if (bed.owner !== p.id) return this.toast(p, `That’s ${bed.ownerName}’s bed! Yours has your name on it.`);

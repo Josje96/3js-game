@@ -391,6 +391,7 @@ export class GameClient {
         break;
       }
       case 'crit': this.floatAt(msg, 'Critical!', '#ffd23f'); break; // a Keen forged weapon
+      case 'feast': this.sfx.play('coin'); this.floatAt(msg, '🍗 Yum!', '#ffe9b0'); break;
       case 'nova':
         this.sfx.play('nova');
         this.addEffect(new NovaBlast(msg.x, msg.z, SPELL_RADIUS));

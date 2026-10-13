@@ -32,6 +32,11 @@ export const PROPS = {
   signpost:   { model: 'props/signpost', radius: 0.25 },
   // town: stalls under canopies around the market square, plus things to look at
   fountain:   { build: 'fountain', radius: 1.9 },
+  // the fort's long feast table (14 long, benches either side): sit down with E and eat — it heals.
+  // `seats` = where you sit [dx, dz, facing]
+  feast:      { build: 'feast', radius: 6.5, offsetZ: 2, interact: 'feast', prompt: 'Sit down to the feast (eat and heal)',
+                blocks: [-6, -4, -2, 0, 2, 4, 6].map((dx) => [dx, 0, 0.85]),
+                seats: [-4.5, -1.5, 1.5, 4.5].flatMap((dx) => [[dx, -1.75, 0], [dx, 1.75, Math.PI]]) },
   // the town square's dressing: all solid, nobody walks through them
   planter:    { build: 'planter', radius: 1.0 },
   cart:       { build: 'cart', radius: 1.0, blocks: [[-0.8, 0, 1.0], [0.8, 0, 1.0]] },

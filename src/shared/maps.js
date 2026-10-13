@@ -74,6 +74,7 @@ export const LEGEND = {
   'o': { base: '=', prop: 'planter' },
   'r': { base: '=', prop: 'cart' },
   'N': { base: '=', prop: 'noticeboard' },
+  'L': { base: '.', prop: 'feast' },
   'T': { base: '.', prop: 'table' },
   'b': { base: '.', prop: 'barrel' },
   'W': { base: '.', prop: 'wardrobe' },

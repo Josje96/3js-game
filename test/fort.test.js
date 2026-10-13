@@ -87,3 +87,15 @@ test('fort: chairs, stools and sofas can be sat on', () => {
   const fx = c.mom.all('fx').find((m) => m.kind === 'sit');
   assert.ok(fx && fx.x === chair.x && fx.z === chair.z, 'sat down on it');
 });
+
+test('fort: sit down to the feast table and eat — it heals you', () => {
+  const { server, p, c } = world('feast', 'mom');
+  server.travel(p.mom, 'house');
+  const table = server.getLocation('house').layout.props.find((q) => q.interact === 'feast');
+  assert.ok(table, 'the common room has a feast table');
+  p.mom.x = table.x + 1; p.mom.z = table.z + 2.6;
+  p.mom.hp = 3;
+  c.mom.say({ t: 'interact', id: table.id });
+  assert.equal(p.mom.hp, p.mom.maxHp, 'full again');
+  assert.ok(c.mom.all('fx').some((m) => m.kind === 'sit'), 'sat down at a seat');
+});

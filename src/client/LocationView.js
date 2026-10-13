@@ -9,7 +9,7 @@ import { makeGrass, makeWater, makeTrees, makeSpringBanks, pondEdge } from './na
 import { wallpaperTexture } from './wallpaper.js';
 import { PetView } from './pets.js';
 import { DECORATIONS } from './decorations.js';
-import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard } from './town.js';
+import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard, makeFeastTable } from './town.js';
 import { Villagers } from './villagers.js';
 import { TOWNSFOLK } from '../shared/townsfolk.js';
 import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
@@ -508,7 +508,7 @@ export class LocationView {
         obj.position.set(p.x, 0, p.z);
         if (obj.userData.light) this.lampLights.push(obj.userData.light);
       } else {
-        const builders = { wardrobe: makeWardrobe, springSign: makeSpringSign, mirror: makeMirror, fountain: makeFountain, bench: makeBench, planter: makePlanter, cart: makeCart, noticeboard: makeNoticeBoard };
+        const builders = { wardrobe: makeWardrobe, springSign: makeSpringSign, mirror: makeMirror, fountain: makeFountain, bench: makeBench, planter: makePlanter, cart: makeCart, noticeboard: makeNoticeBoard, feast: makeFeastTable };
         obj = builders[p.build]?.() ?? (p.model ? cloneModel(p.model) : new THREE.Group());
         if (['wardrobe', 'springSign', 'bench', 'planter', 'cart', 'noticeboard'].includes(p.build)) this.still(obj);
         obj.position.set(p.x, p.y ?? 0, p.z);

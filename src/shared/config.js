@@ -32,7 +32,7 @@ export const SPRING_COST = 6;        // gold for a full heal at the healing spri
 export const AUTOSAVE_SECONDS = 30;
 
 export const SAVE_VERSION = 12;
-export const PROTOCOL_VERSION = 21;
+export const PROTOCOL_VERSION = 22;
 export const PEER_PREFIX = 'famdungeon-v1-'; // PeerJS ids are global; namespace ours
 
 export const CLASSES = {

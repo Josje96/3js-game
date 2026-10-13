@@ -438,3 +438,50 @@ export function makeNoticeBoard() {
   }
   return g;
 }
+
+/** The fort's feast table: a long oak table with benches either side, laid with a roast, pies,
+ * fruit, bread, goblets and candles. 14 long along x. */
+export function makeFeastTable() {
+  const g = new THREE.Group();
+  const oak = std(0x8a5a34), dark = std(0x5a3a22), cloth = std(0xf4ecd8, { roughness: 0.95 }), runner = std(0xb8322e);
+  mesh(g, new THREE.BoxGeometry(14, 0.16, 1.8), oak, 0, 1.05, 0);
+  mesh(g, new THREE.BoxGeometry(14.1, 0.02, 1.4), cloth, 0, 1.14, 0);
+  mesh(g, new THREE.BoxGeometry(14.2, 0.025, 0.45), runner, 0, 1.16, 0);
+  for (const x of [-6.6, -2.2, 2.2, 6.6]) for (const z of [-0.7, 0.7]) mesh(g, new THREE.BoxGeometry(0.18, 1.0, 0.18), dark, x, 0.5, z);
+  for (const s of [-1, 1]) { // benches
+    mesh(g, new THREE.BoxGeometry(13, 0.14, 0.55), oak, 0, 0.55, s * 1.75);
+    for (const x of [-6, -2, 2, 6]) mesh(g, new THREE.BoxGeometry(0.14, 0.5, 0.45), dark, x, 0.27, s * 1.75);
+  }
+  const plate = std(0xffffff, { roughness: 0.4 }), gold = std(0xd9a93a, { metalness: 0.7, roughness: 0.3 });
+  for (const x of [-4.5, -1.5, 1.5, 4.5]) for (const s of [-1, 1]) { // a place for everyone: plate and goblet
+    mesh(g, new THREE.CylinderGeometry(0.28, 0.24, 0.04, 16), plate, x, 1.18, s * 0.5);
+    mesh(g, new THREE.CylinderGeometry(0.07, 0.05, 0.22, 10), gold, x + 0.42, 1.27, s * 0.48);
+  }
+  // the roast in the middle
+  mesh(g, new THREE.CylinderGeometry(0.6, 0.55, 0.06, 20), gold, 0, 1.2, 0);
+  const roast = mesh(g, new THREE.SphereGeometry(0.42, 14, 10), std(0xb8662a, { roughness: 0.6 }), 0, 1.45, 0);
+  roast.scale.set(1.3, 0.75, 0.9);
+  for (const s of [-1, 1]) {
+    mesh(g, new THREE.CylinderGeometry(0.07, 0.09, 0.4, 8), std(0xb8662a), s * 0.45, 1.55, 0.15).rotation.z = s * 1.0;
+    mesh(g, new THREE.SphereGeometry(0.06, 8, 6), std(0xfff6dc), s * 0.62, 1.67, 0.15);
+  }
+  // pies, a fruit bowl, bread
+  for (const x of [-3, 3]) {
+    mesh(g, new THREE.CylinderGeometry(0.34, 0.3, 0.16, 16), std(0xe0a050), x, 1.25, 0);
+    mesh(g, new THREE.CylinderGeometry(0.3, 0.3, 0.02, 16), std(0x8a2a3a), x, 1.34, 0);
+  }
+  mesh(g, new THREE.SphereGeometry(0.32, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), gold, -5.5, 1.5, 0).rotation.x = Math.PI;
+  for (const [dx, dz, c] of [[0, 0, 0xd8302a], [0.15, 0.1, 0xffd23f], [-0.12, 0.12, 0x7cc85a], [0.05, -0.15, 0xff8a2a]]) mesh(g, new THREE.SphereGeometry(0.11, 8, 6), std(c), -5.5 + dx, 1.52, dz);
+  for (const x of [5.4, 5.8]) mesh(g, new THREE.CapsuleGeometry(0.12, 0.3, 4, 8), std(0xd9a066), x, 1.28, 0.05).rotation.z = Math.PI / 2;
+  // candles, flickering
+  const flames = [];
+  for (const x of [-2.2, 2.2]) {
+    mesh(g, new THREE.CylinderGeometry(0.12, 0.14, 0.1, 10), gold, x, 1.21, 0);
+    mesh(g, new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8), std(0xfff6dc), x, 1.45, 0);
+    const f = mesh(g, new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffc860 }), x, 1.72, 0);
+    f.castShadow = false;
+    flames.push(f);
+  }
+  g.userData.update = (t) => flames.forEach((f, i) => f.scale.set(1, 1.2 + Math.sin(t * 11 + i * 2) * 0.3, 1));
+  return g;
+}
