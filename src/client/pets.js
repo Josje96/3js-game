@@ -438,6 +438,43 @@ function unicorn(stage) {
   return done(Q, [0, Q.headPos.y + hr * 0.95, Q.headPos.z]);
 }
 
+function giraffe(stage) {
+  const TAN = 0xf2d9a8, PATCH = 0xb8692a, DARK = 0x6a3a1a;
+  // a reticulated coat: brown patches with pale cream lines between them
+  const patches = (p) => {
+    const u = p.x * 34 + Math.sin(p.y * 21) * 0.6, v = p.y * 30 + p.z * 26 + Math.sin(p.x * 17) * 0.6;
+    const cell = Math.min(Math.abs(Math.sin(u)), Math.abs(Math.sin(v)));
+    return mix(TAN, shade(PATCH, Math.sin(Math.floor(u) * 7.3 + Math.floor(v) * 3.1) * 0.12), smooth(0.12, 0.3, cell));
+  };
+  const Q = quadruped({
+    r: 0.13, len: 0.3, chest: 1.1, chestW: 0.85, waist: 0.85, rump: 0.9, rumpY: -0.25, legLen: 0.5, legT: 0.03, foot: 'hoof', hoof: 0x3a2618,
+    neck: [0.55, 1.25, 0.42], crest: 0.1, head: { r: 0.085, w: 0.75, h: 0.85, muzzle: [0.16, 0.05], drop: 0.35, tip: 0.85, jaw: 0.35 },
+    coat: (where, d, v, p) => (where === 'leg' ? mix(patches(p), TAN, smooth(0.5, 0.9, 1 - v)) : patches(p)),
+  });
+  const { head, hr } = Q;
+  for (const sx of SIDES) {
+    // ossicones: two little horns with dark furry tufts
+    part(head, tube([[sx * 0.25 * hr, 0.7 * hr, -0.2 * hr, 0.11 * hr], [sx * 0.3 * hr, 1.35 * hr, -0.32 * hr, 0.08 * hr]], { seg: 8, steps: 1, color: TAN }));
+    part(head, ball(0.13 * hr, 8), DARK, sx * 0.3 * hr, 1.4 * hr, -0.33 * hr);
+    ear(head, sx, [0.55 * hr, 0.55 * hr, -0.35 * hr], [1, 0.4, -0.3], [0.3, 0.4, 1], { len: 0.7 * hr, width: 0.32 * hr, widest: 0.45, round: 0.85, base: 0.3, cup: 0.4, color: TAN, inner: 0xe8c8a0 });
+    eye(head, [sx * 0.62 * hr, 0.18 * hr, 0.1 * hr], [sx, 0.15, 0.55], 0.16 * hr, { iris: 0x2a1810, pupil: 'none', lid: 0xc8a070 });
+    part(head, ball(0.012, 6), 0x3a2618, sx * Q.mr * 0.5, Q.nose[1] + 0.006, Q.nose[2] - 0.01, 0.8, 1.2, 0.5); // nostrils
+  }
+  // a short dark mane down the back of the neck
+  for (let i = 0; i < 10; i++) {
+    const { p } = Q.neck.userData.at(0.15 + i * 0.075, 0);
+    placed(Q.g, leaf(0.05, 0.02, { widest: 0.5, round: 0.8 }), shade(PATCH, -0.2), p, [0, 0.5, -1], [0, 1, 0]);
+  }
+  const tail = new THREE.Group();
+  tail.position.copy(Q.tailRoot);
+  Q.g.add(tail);
+  Q.parts.tail = tail;
+  part(tail, tube([[0, 0, 0, 0.012], [0, -0.12, -0.04, 0.01], [0, -0.26, -0.05, 0.008]], { seg: 6, color: TAN }));
+  part(tail, ball(0.03, 8), DARK, 0, -0.29, -0.05, 0.9, 1.5, 0.9); // the tuft
+  if (stage >= 2) for (let i = 0; i < 6; i++) part(Q.g, ball(0.012, 6), 0xfff6c0, Math.sin(i * 2.1) * 0.12, Q.by + 0.15 + (i % 3) * 0.05, Math.cos(i * 2.1) * 0.15); // a few stars about the Sky Giraffe
+  return done(Q, [0, Q.headPos.y + hr * 1.45, Q.headPos.z]);
+}
+
 function dragon() {
   const GREEN = 0x4fb860, DEEP = 0x2f7a3a, BELLY = 0xf2e09a, HORN = 0xfff3c0;
   const scales = (c, p) => shade(c, Math.sin(p.x * 140 + p.y * 30) * Math.sin(p.z * 140 + p.y * 50) * 0.08);
@@ -1151,11 +1188,11 @@ const MODELS = {
   mouse: ['mouse', mouse], hamster: ['round', hamster], hedgehog: ['hog', hedgehog],
   chick: ['bird', chick], duck: ['bird', duck], penguin: ['bird', penguin], owl: ['bird', owl],
   frog: ['frog', frog], turtle: ['turtle', turtle], bee: ['bee', bee], snail: ['snail', snail],
-  snake: ['snake', snake], fairy: ['fairy', fairy],
+  snake: ['snake', snake], fairy: ['fairy', fairy], giraffe: ['quad', giraffe],
 };
 
 /** Some pets are bigger than the rest at every stage: a unicorn stands about chest-high to its rider. */
-const SPECIES_SIZE = { unicorn: 1.6 };
+const SPECIES_SIZE = { unicorn: 1.6, giraffe: 1.5 };
 /** How big a pet is drawn: its evolution stage times its species' size. */
 const petScale = (kind, level) => STAGE_SCALE[petStage(level)] * (SPECIES_SIZE[kind] ?? 1);
 

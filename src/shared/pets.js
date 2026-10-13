@@ -60,6 +60,7 @@ export const PET_SPECIES = {
   dragon:   { name: 'Dragon',    price: 720, atk: 4, forms: ['Baby Dragon', 'Dragon', 'Elder Dragon'] },
   unicorn:  { name: 'Unicorn',   price: 720, atk: 4, forms: ['Pony', 'Unicorn', 'Alicorn'] },
   snake:    { name: 'Snake',     price: 264, atk: 3, forms: ['Snakelet', 'Python', 'Royal Cobra'] },
+  giraffe:  { name: 'Giraffe',   price: 400, atk: 3, forms: ['Giraffe Calf', 'Giraffe', 'Sky Giraffe'] },
   fairy:    { name: 'Fairy',     price: 480, atk: 3, forms: ['Pixie', 'Fairy', 'Fairy Queen'] },
 };
 

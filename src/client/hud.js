@@ -38,7 +38,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 
 const PET_ICONS = {
   maple: '🐶', mouse: '🐭', hamster: '🐹', snail: '🐌', chick: '🐤', frog: '🐸', bunny: '🐰', duck: '🦆', piglet: '🐷', bee: '🐝',
-  hedgehog: '🦔', turtle: '🐢', penguin: '🐧', owl: '🦉', axolotl: '🦎', fox: '🦊', cat: '🐱', panda: '🐼', dragon: '🐲', unicorn: '🦄', snake: '🐍', fairy: '🧚',
+  hedgehog: '🦔', turtle: '🐢', penguin: '🐧', owl: '🦉', axolotl: '🦎', fox: '🦊', cat: '🐱', panda: '🐼', dragon: '🐲', unicorn: '🦄', snake: '🐍', fairy: '🧚', giraffe: '🦒',
 };
 
 export class Hud {
