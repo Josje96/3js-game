@@ -41,6 +41,7 @@ export const CLIENT_MESSAGES = {
   bank:            { action: 'str', amount: 'int?', to: 'str?' },
   buySeasonal:     { item: 'str' },
   eatFeast:        { table: 'str' },
+  sleepSeason:     { bed: 'str' },
   enchant:         { item: 'str' },
   roomStyle:       { kind: 'str', id: 'str', slot: 'int' },
   pickUpFurniture: { id: 'str' },

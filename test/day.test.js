@@ -71,3 +71,22 @@ test('day: if the last person awake leaves, the sleepers get their morning', () 
   server.dropConnection([...server.conns].find(([, x]) => x.playerId === 'kid')[0]);
   assert.equal(save.day, day + 1);
 });
+
+test('day: sleep until next season — when everyone in bed picks it, you wake on the first day of the next season', () => {
+  const { server, save, c, p } = world('season-sleep', 'mom', 'kid');
+  const beds = [...server.locations.get('house').entities.values()].filter((e) => e.item === 'bed');
+  const bedOf = (id) => beds.find((b) => b.owner === id);
+  const to = (id) => { p[id].x = bedOf(id).x; p[id].z = bedOf(id).z + 2.6 * (bedOf(id).rot ? -1 : 1); };
+  save.day = 5;
+  to('mom'); to('kid');
+  c.mom.say({ t: 'sleepSeason', bed: bedOf('kid').id });
+  assert.ok(!p.mom.sleeping, 'not in someone else\'s bed');
+  c.mom.say({ t: 'sleepSeason', bed: bedOf('mom').id });
+  c.kid.say({ t: 'interact', id: bedOf('kid').id }); // the kid only wants one night
+  assert.equal(save.day, 6, 'one night: not everyone chose the season');
+  to('mom'); to('kid');
+  c.mom.say({ t: 'sleepSeason', bed: bedOf('mom').id });
+  c.kid.say({ t: 'sleepSeason', bed: bedOf('kid').id });
+  assert.equal(save.day, 31, 'first day of summer');
+  assert.equal(c.mom.last('night').days, 25);
+});

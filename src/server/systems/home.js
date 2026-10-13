@@ -1,12 +1,15 @@
 // home — the Family Fort: a bed for every family member (the day ends when everyone online is in
 // bed), the wardrobe, mirror and family chest, and the healing spring in town.
 import { INTERACT_RANGE, SPRING_COST, LUCK_SECONDS, FEAST_COST, CLASSES, CELL, cleanLook } from '../../shared/config.js';
+import { daysToNextSeason, seasonOf, SEASONS } from '../../shared/seasons.js';
 import { useDistance } from '../../shared/props.js';
 import { FURNITURE, blanketFor } from '../../shared/furniture.js';
 import { ITEMS } from '../../shared/items.js';
 import { petMaxHp } from '../../shared/pets.js';
 import { dist2 } from '../../shared/physics.js';
 import { MAX_ROOMS } from '../../shared/fort.js';
+
+const nextSeasonName = (day) => SEASONS[(SEASONS.indexOf(seasonOf(day)) + 1) % SEASONS.length].name;
 
 /** Props you can use with E (see shared/props.js `interact`). */
 export const interactions = {
@@ -18,13 +21,7 @@ export const interactions = {
   sleep(p, bed) {
     if (bed.owner !== p.id) return this.toast(p, `That’s ${bed.ownerName}’s bed! Yours has your name on it.`);
     if (p.sleeping) return this.wakeUp(p);
-    p.sleeping = true;
-    this.send(p, { t: 'fx', kind: 'sleep', id: p.id, x: bed.x, z: bed.z, rot: bed.rot });
-    const asleep = [...this.players.values()].filter((x) => x.sleeping).length;
-    if (asleep < this.players.size) {
-      this.broadcast({ t: 'toast', text: `${p.name} is in bed (${asleep} of ${this.players.size} asleep). The day ends when everyone is in bed.` });
-    }
-    this.checkAllAsleep();
+    this.lieDown(p, bed, false);
   },
   /** The healing spring: a full heal and two minutes of luck (more gold, lucky hits, better drops). */
   spring(p) {
@@ -114,9 +111,30 @@ export const methods = {
     return at ? { x: at.x, z: at.z + (at.rot ? -2.6 : 2.6) } : null;
   },
 
+  /** Into your own bed: for the night, or (`season`) until the first day of the next season. */
+  lieDown(p, bed, season) {
+    p.sleeping = true;
+    p.sleepSeason = season;
+    this.send(p, { t: 'fx', kind: 'sleep', id: p.id, x: bed.x, z: bed.z, rot: bed.rot });
+    const asleep = [...this.players.values()].filter((x) => x.sleeping).length;
+    if (asleep < this.players.size) {
+      const until = season ? ` and wants to sleep until ${nextSeasonName(this.save.day)} (everyone in bed has to pick that)` : '';
+      this.broadcast({ t: 'toast', text: `${p.name} is in bed${until} (${asleep} of ${this.players.size} asleep). The day ends when everyone is in bed.` });
+    }
+    this.checkAllAsleep();
+  },
+
+  /** The "sleep until next season" button by your bed. */
+  on_sleepSeason(p, { bed: id }) {
+    const bed = this.locations.get(p.loc)?.entities.get(id);
+    if (p.sleeping || bed?.interact !== 'sleep' || bed.owner !== p.id || useDistance(bed, p) > INTERACT_RANGE) return;
+    this.lieDown(p, bed, true);
+  },
+
   wakeUp(p) {
     if (!p.sleeping) return;
     p.sleeping = false;
+    p.sleepSeason = false;
     this.send(p, { t: 'fx', kind: 'wake', id: p.id, up: this.bedSpot(p) });
   },
 
@@ -141,7 +159,10 @@ export const methods = {
 
   /** Stardew-style: once everyone online is asleep, the night passes. */
   checkAllAsleep() {
-    if (this.players.size && [...this.players.values()].every((x) => x.sleeping)) this.endDay('sleep');
+    const all = [...this.players.values()];
+    if (!all.length || !all.every((x) => x.sleeping)) return;
+    // everyone chose "until next season": sleep through to its first day (and its boss); otherwise one night
+    this.endDay('sleep', all.every((x) => x.sleepSeason) ? daysToNextSeason(this.save.day) : 1);
   },
 
   /** The family chest's contents: shared by everyone, kept in the save. */

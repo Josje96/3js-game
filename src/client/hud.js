@@ -51,6 +51,8 @@ export class Hud {
     this.inv = el('div', 'hud-inv panel');
     this.xp = el('div', 'hud-xp');
     this.promptEl = el('div', 'hud-prompt');
+    this.seasonSleepEl = el('button', 'hud-season-sleep primary'); // by your own bed: sleep through to the next season
+    this.seasonSleepEl.addEventListener('click', () => this.onSeasonSleep?.());
     this.spell = el('div', 'hud-spell panel');
     this.toasts = el('div', 'hud-toasts');
     this.chatLog = el('div', 'hud-chat');
@@ -61,7 +63,7 @@ export class Hud {
     this.modal = el('div', 'modal-backdrop hidden');
     this.danger = el('div', 'hud-danger');
     this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · E interact · Q potion · G feed pet · R area spell · C character · P pets · Enter chat · M music · Esc menu');
-    root.append(this.danger, this.status, this.invite, this.xp, this.inv, this.promptEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
+    root.append(this.danger, this.status, this.invite, this.xp, this.inv, this.promptEl, this.seasonSleepEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
     this.self = null;
     this.world = null;
     this.locTitle = '';
@@ -72,10 +74,10 @@ export class Hud {
   // ---------------------------------------------------------------- status
 
   /** The night screen: a moonlit card with the new day's number, shown for a few seconds. */
-  nightScreen({ day, reason, fainted = [] }) {
+  nightScreen({ day, reason, fainted = [], days = 1 }) {
     this.nightEl?.remove();
     const lines = reason === 'sleep'
-      ? ['Everyone snuggled into bed…']
+      ? [days > 1 ? `Everyone snuggled into bed… and slept right through until ${seasonOf(day).icon} ${seasonOf(day).name}! (${days} days)` : 'Everyone snuggled into bed…']
       : ['Night fell!', ...fainted.map((f) => `${f.name} was out after dark and fainted${f.lost ? ` (dropped ${f.lost} gold)` : ''}.`)];
     const n = el('div', 'night-screen', `
       <div class="night-sky"></div>
@@ -208,6 +210,18 @@ export class Hud {
     if (this.spellText !== text) { this.spellText = text; this.spell.innerHTML = `<span>${text}</span>`; this.spell.title = 'Area spell (R): hits every enemy around you'; }
     this.spell.style.setProperty('--ready', ready ? 1 : Math.max(0, 1 - left / total).toFixed(3));
     this.spell.classList.toggle('ready', ready);
+  }
+
+  /** The "sleep until next season" button (null hides it). */
+  seasonSleep(day, onClick) {
+    this.onSeasonSleep = onClick;
+    const show = day != null;
+    if (show) {
+      const next = SEASONS[(SEASONS.indexOf(seasonOf(day)) + 1) % SEASONS.length], n = daysToNextSeason(day);
+      const text = `💤 Sleep until ${next.icon} ${next.name} (${n} day${n === 1 ? '' : 's'})`;
+      if (this.seasonSleepEl.textContent !== text) this.seasonSleepEl.textContent = text;
+    }
+    this.seasonSleepEl.style.display = show ? 'block' : 'none';
   }
 
   prompt(text) {

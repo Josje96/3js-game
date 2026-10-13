@@ -706,6 +706,9 @@ export class GameClient {
     }
     const near = this.building ? null : this.nearestInteractable();
     if (!this.building) this.hud.prompt(near && !this.hud.modalOpen ? near.prompt : null);
+    // by your own bed (and not in it yet): the "sleep until next season" button
+    const bed = near && !this.building && !this.sleeping && !this.hud.modalOpen ? this.ents.get(near.id)?.data : null;
+    this.hud.seasonSleep(bed?.item === 'bed' && bed.owner === this.you ? this.world?.day ?? 1 : null, () => this.conn.send({ t: 'sleepSeason', bed: bed.id }));
     if (input.consume('interact') && near) this.conn.send({ t: 'interact', id: near.id });
 
     // tell the host where we are

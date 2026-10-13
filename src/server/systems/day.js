@@ -25,7 +25,7 @@ export const methods = {
    * Ends today. 'nightfall': whoever is outside the fort faints (half their gold). 'sleep': everyone
    * went to bed. Then everybody wakes up healed next to their bed on the next day.
    */
-  endDay(reason) {
+  endDay(reason, days = 1) {
     const fainted = [];
     if (reason === 'nightfall') {
       for (const p of this.players.values()) {
@@ -35,14 +35,15 @@ export const methods = {
         fainted.push({ name: p.name, lost });
       }
     }
-    this.save.day++;
+    this.save.day += Math.max(1, days | 0); // more than one: slept until the next season
     this.dayClock = 0;
     this.warned = new Set();
     // the night screen goes up first, so nobody sees the world being rebuilt behind it
-    this.broadcast({ t: 'night', day: this.save.day, reason, fainted });
+    this.broadcast({ t: 'night', day: this.save.day, reason, fainted, days });
     for (const p of [...this.players.values()]) {
       p.hp = p.maxHp;
       p.sleeping = false;
+      p.sleepSeason = false;
       for (const pet of p.pets) if (!pet.fainted) pet.hp = petMaxHp(pet.species, pet.level); // fainted ones need the Pet Keeper
       this.travel(p, 'house', null, this.bedSpot(p));
       const f = fainted.find((x) => x.name === p.name);
