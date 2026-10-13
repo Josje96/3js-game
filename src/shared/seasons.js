@@ -42,6 +42,18 @@ export function daysToNextSeason(day) {
   return SEASON_DAYS - dayOfSeason(day) + 1;
 }
 
+/**
+ * Holidays, one day each: Halloween halfway through autumn (costumes, pumpkins, trick-or-treat at
+ * the cottages) and Christmas halfway through winter (Santa in the square, lights on the trees).
+ */
+export const HOLIDAY_DAY = 15;
+export function holidayOf(day) {
+  if (dayOfSeason(day) !== HOLIDAY_DAY) return null;
+  return { autumn: 'halloween', winter: 'christmas' }[seasonOf(day).id] ?? null;
+}
+/** Where Santa stands at Christmas: in the town square, east of the fountain. */
+export const SANTA_SPOT = { x: 84, z: 62 };
+
 /** The seasonal boss is in town on the first day of every season. */
 export function isBossDay(day) {
   return dayOfSeason(day) === 1;

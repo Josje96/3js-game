@@ -158,6 +158,76 @@ const BACK_BUILDERS = {
 };
 
 /**
+ * Halloween costumes and Santa's suit (views.js SEASON_WEAR / forceWear): a hat-frame piece
+ * (head 1 wide, y 0 on top) and the clothes it goes with ({ jacket, legs, extra } like CLOTHES).
+ */
+export const COSTUMES = {
+  witch:   { name: 'Witch',        clothes: { jacket: 0x3a2350, legs: 0x2a1a3a, extra: 'robe' } },
+  pumpkin: { name: 'Pumpkin head', clothes: { jacket: 0x2f6a2a, legs: 0x2a4a22 } },
+  ghost:   { name: 'Ghost',        clothes: { jacket: 0xf4f4f8, legs: 0xf4f4f8, extra: 'gown' } },
+  devil:   { name: 'Little devil', clothes: { jacket: 0xb8202a, legs: 0x8a1a20 } },
+  santa:   { name: 'Santa',        clothes: { jacket: 0xc8202a, legs: 0xc8202a, extra: 'coat' } },
+};
+export const HALLOWEEN_COSTUMES = ['witch', 'pumpkin', 'ghost', 'devil'];
+
+export function buildCostumeHat(kind) {
+  const g = new THREE.Group();
+  if (kind === 'witch') { // a tall crooked hat with a wide brim and a buckled band
+    const black = mat(0x1e1828, { roughness: 0.8 });
+    g.add(mesh(new THREE.CylinderGeometry(0.78, 0.78, 0.04, 28), black, 0, -0.12, 0));
+    const cone = mesh(new THREE.ConeGeometry(0.42, 1.0, 20, 4), black, 0, 0.36, 0);
+    const pos = cone.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) { const y = pos.getY(i) + 0.5; pos.setX(i, pos.getX(i) - y * y * 0.35); } // the tip flops over
+    cone.geometry.computeVertexNormals();
+    g.add(cone);
+    g.add(mesh(new THREE.CylinderGeometry(0.405, 0.42, 0.1, 20), mat(0x7a3fb8), 0, -0.05, 0));
+    g.add(mesh(new THREE.BoxGeometry(0.14, 0.12, 0.03), mat(0xffd23f, { metalness: 0.7, roughness: 0.3 }), 0, -0.05, 0.41));
+  } else if (kind === 'pumpkin') { // a carved jack-o'-lantern over the whole head, glowing inside
+    const orange = mat(0xf07a1a, { roughness: 0.55 });
+    for (let i = 0; i < 8; i++) { // ribs
+      const a = (i / 8) * Math.PI * 2;
+      g.add(mesh(new THREE.SphereGeometry(0.36, 14, 12), orange, Math.sin(a) * 0.3, -0.48, Math.cos(a) * 0.3, 0.75, 1.15, 0.75));
+    }
+    g.add(mesh(new THREE.SphereGeometry(0.6, 20, 14), orange, 0, -0.48, 0, 1.05, 0.92, 1.05));
+    g.add(mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.22, 8), mat(0x4a6a2a), 0.02, 0.1, 0)).children.at(-1).rotation.z = 0.3;
+    const glow = new THREE.MeshBasicMaterial({ color: 0xffd040 });
+    const face = (shape, x, y, s, rz = 0) => { const m = new THREE.Mesh(shape, glow); m.position.set(x, y, 0.6); m.scale.setScalar(s); m.rotation.z = rz; g.add(m); };
+    const tri = new THREE.CircleGeometry(1, 3);
+    face(tri, -0.2, -0.38, 0.11, Math.PI / 2);
+    face(tri, 0.2, -0.38, 0.11, Math.PI / 2);
+    face(tri, 0, -0.5, 0.06, -Math.PI / 2);
+    const grin = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.26, 16, 1, Math.PI * 1.15, Math.PI * 0.7), glow);
+    grin.position.set(0, -0.48, 0.6);
+    g.add(grin);
+  } else if (kind === 'ghost') { // a white sheet over the head with two dark eye holes
+    const sheet = mat(0xf6f6fa, { roughness: 0.9 });
+    g.add(mesh(new THREE.SphereGeometry(0.63, 22, 14, 0, Math.PI * 2, 0, Math.PI * 0.62), sheet, 0, -0.5, 0));
+    const lowered = mesh(new THREE.CylinderGeometry(0.6, 0.66, 0.5, 22, 1, true), sheet, 0, -0.95, 0);
+    lowered.material = sheet.clone();
+    lowered.material.side = THREE.DoubleSide;
+    g.add(lowered);
+    for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.07, 10, 8), mat(0x101018), s * 0.17, -0.45, 0.58, 1, 1.4, 0.4));
+  } else if (kind === 'devil') { // little red horns and a pointy tail is all a devil needs
+    const red = mat(0xd02a2a, { roughness: 0.4 });
+    for (const s of [-1, 1]) {
+      const horn = mesh(new THREE.ConeGeometry(0.09, 0.32, 10), red, s * 0.25, 0.05, 0.05);
+      horn.rotation.z = -s * 0.35;
+      g.add(horn);
+    }
+  } else if (kind === 'santa') { // a floppy red hat with a white fur brim and a pompom
+    const red = mat(0xc8202a, { roughness: 0.8 }), fur = mat(0xf8f8f4, { roughness: 1 });
+    const cone = mesh(new THREE.ConeGeometry(0.5, 0.95, 20, 4), red, 0, 0.3, -0.02);
+    const pos = cone.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) { const y = pos.getY(i) + 0.48; pos.setZ(i, pos.getZ(i) - y * y * 0.45); pos.setY(i, pos.getY(i) - y * y * 0.18); }
+    cone.geometry.computeVertexNormals();
+    g.add(cone);
+    g.add(mesh(new THREE.TorusGeometry(0.5, 0.1, 10, 28), fur, 0, -0.17, 0, 1, 1, 1.4)).children.at(-1).rotation.x = Math.PI / 2;
+    g.add(mesh(new THREE.IcosahedronGeometry(0.12, 1), fur, 0, 0.42, -0.62));
+  }
+  return g;
+}
+
+/**
  * Winter wear (views.js SEASON_WEAR): a knitted bobble hat (hat frame: head 1 wide, y 0 on top)
  * and a striped scarf (front frame, like the tie). `color` = the knit's main colour.
  */

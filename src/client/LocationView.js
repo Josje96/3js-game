@@ -9,7 +9,7 @@ import { makeGrass, makeWater, makeTrees, makeSpringBanks, pondEdge } from './na
 import { wallpaperTexture } from './wallpaper.js';
 import { PetView } from './pets.js';
 import { DECORATIONS } from './decorations.js';
-import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard, makeFeastTable, makeSeasonalStall } from './town.js';
+import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard, makeFeastTable, makeSeasonalStall, makeJackOLantern, makeTreeLights } from './town.js';
 import { Villagers } from './villagers.js';
 import { TOWNSFOLK } from '../shared/townsfolk.js';
 import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
@@ -17,7 +17,7 @@ import { roomIndexAt } from '../shared/locations.js';
 import { THEMES } from './themes.js';
 import { mergeStatic, dropTinyShadows } from './merge.js';
 import { buildTownFun } from './townfun.js';
-import { seasonOf } from '../shared/seasons.js';
+import { seasonOf, holidayOf } from '../shared/seasons.js';
 import { SeasonParticles, easeSeasonLook, SEASON_LOOK, WINTER, snowOnTops } from './seasonfx.js';
 
 /** Wooden signpost for the healing spring. */
@@ -408,7 +408,9 @@ export class LocationView {
       }
     }
     this.group.add(makeGrass(grass, this.rand, this.uTime, { skip: inPond }));
-    this.group.add(makeTrees(trees, this.rand, this.uTime));
+    const treeGroup = makeTrees(trees, this.rand, this.uTime);
+    this.group.add(treeGroup);
+    if (L.key === 'town') this.buildHolidays(treeGroup.userData.spots);
     if (L.key === 'town') { // the season shows outdoors: colours (shaders) and drifting petals/leaves/snow
       this.seasonFx = new SeasonParticles(this.group);
       easeSeasonLook(seasonOf(this.world?.day ?? 1).id, 0, true);
@@ -640,6 +642,7 @@ export class LocationView {
    * gates that are unchained. A gate whose chains are mid-way through breaking keeps them.
    */
   setWorld(world) {
+    this.world = world; // the day (seasons, holidays) is read from here every frame
     const flags = world?.flags ?? {};
     for (const f of this.flagged) f.holder.visible = !!flags[f.flag];
     for (const [id, gate] of Object.entries(this.gates)) {
@@ -697,6 +700,46 @@ export class LocationView {
     for (const gate of Object.values(this.gates)) if (gate.glow.visible) gate.glow.material.opacity = 0.55 + Math.sin(time * 3) * 0.2;
   }
 
+  /**
+   * Holiday looks (shared/seasons.js holidayOf), shown only on their day: jack-o'-lanterns all over
+   * town at Halloween (by every cottage door, round the square and along the paths), and lights
+   * twinkling on every tree at Christmas.
+   */
+  buildHolidays(treeSpots) {
+    const L = this.layout, pumpkins = new THREE.Group();
+    const put = (x, z, salt, size = 1) => {
+      const r = this.rand(Math.round(x * 3), Math.round(z * 3), salt);
+      const j = makeJackOLantern(size, r);
+      j.position.set(x, 0, z);
+      j.rotation.y = (r - 0.5) * 0.8; // facing out (+z), more or less
+      pumpkins.add(j);
+    };
+    for (let cz = 0; cz < L.h; cz++) for (let cx = 0; cx < L.w; cx++) {
+      const ch = L.cell(cx, cz);
+      if (ch === 'E' && L.cell(cx - 1, cz) !== 'E' && L.cell(cx, cz - 1) !== 'E') { // either side of each cottage door
+        put((cx + 1) * CELL - 2.4, (cz + 1) * CELL + 3.5, 'pa', 1.2);
+        put((cx + 1) * CELL + 0.1, (cz + 1) * CELL + 3.5, 'pb', 0.9);
+      } else if (ch === '.' && !L.isSolidCell(cx, cz) && this.rand(cx, cz, 'pumpkin') < 0.07) { // dotted about the grass
+        put(cx * CELL + 1 + this.rand(cx, cz, 'px') * 2, cz * CELL + 1 + this.rand(cx, cz, 'pz') * 2, 'pg', 1 + this.rand(cx, cz, 'ps') * 0.6);
+      }
+    }
+    const fountain = L.props.find((q) => q.build === 'fountain');
+    if (fountain) for (let i = 0; i < 10; i++) { // a ring of them round the fountain
+      const a = (i / 10) * Math.PI * 2 + 0.3;
+      put(fountain.x + Math.cos(a) * 2.6, fountain.z + Math.sin(a) * 2.6, `pf${i}`, 0.8);
+    }
+    this.halloweenFx = this.still(pumpkins);
+    this.group.add(pumpkins);
+    this.christmasFx = makeTreeLights(treeSpots);
+    this.group.add(this.christmasFx);
+    this.animated.push({ update: () => {
+      const h = holidayOf(this.world?.day ?? 1);
+      pumpkins.visible = h === 'halloween';
+      this.christmasFx.visible = h === 'christmas';
+      if (this.christmasFx.visible) this.christmasFx.userData.update(this.uTime.value);
+    } });
+  }
+
   /** Flowers: gone under the snow in winter. */
   springOnly(obj) {
     this.animated.push({ update: () => { obj.visible = WINTER.value < 0.5; } });
@@ -707,7 +750,8 @@ export class LocationView {
   setSeasonWear() {
     const town = this.layout.key === 'town';
     if (!town) WINTER.value = 0;
-    SEASON_WEAR.value = town && seasonOf(this.world?.day ?? 1).id === 'winter' ? 'winter' : null;
+    const day = this.world?.day ?? 1;
+    SEASON_WEAR.value = !town ? null : holidayOf(day) === 'halloween' ? 'halloween' : seasonOf(day).id === 'winter' ? 'winter' : null;
   }
 
   /** Bake a thing that never moves into a few meshes (fewer draw calls; see merge.js). */

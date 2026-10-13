@@ -107,6 +107,10 @@ export const ITEMS = {
   pumpkinpie:  { name: 'Pumpkin Pie',     kind: 'consumable', heal: 35, price: 90,  seasonal: 'autumn', model: 'dungeon/plate_food_A', tint: 0xff8a2a },
   gingerbread: { name: 'Gingerbread Hero', kind: 'consumable', heal: 14, price: 40, seasonal: 'winter', model: 'dungeon/plate_food_B', tint: 0xc0703a },
   snowcone:    { name: 'Snow Cone',       kind: 'consumable', heal: 35, price: 90,  seasonal: 'winter', model: 'dungeon/bottle_C_green', tint: 0xbfeaff },
+  // holiday goodies: only from trick-or-treating (Halloween) and Santa (Christmas), see systems/holidays.js
+  candycorn:   { name: 'Candy Corn',      kind: 'consumable', heal: 8,  price: 20, holiday: 'halloween', model: 'dungeon/bottle_B_brown', tint: 0xffa020 },
+  toffeeapple: { name: 'Toffee Apple',    kind: 'consumable', heal: 20, price: 50, holiday: 'halloween', model: 'dungeon/plate_food_B', tint: 0xc0302a },
+  candycane:   { name: 'Candy Cane',      kind: 'consumable', heal: 25, price: 60, holiday: 'christmas', model: 'dungeon/bottle_A_green', tint: 0xff5050 },
   petfood:     { name: 'Pet Treat',       kind: 'consumable', petHeal: 12, price: 24,  model: 'dungeon/bottle_B_brown' },
   bigtreat:    { name: 'Deluxe Treat',    kind: 'consumable', petHeal: 45, price: 90,  model: 'dungeon/plate_small' },
 

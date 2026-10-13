@@ -551,3 +551,104 @@ export function makeSeasonalStall() {
   g.userData.setSeason('spring');
   return g;
 }
+
+/** A carved jack-o'-lantern with a candle glowing inside (Halloween all over town). */
+export function makeJackOLantern(size = 1, r = 0.5) {
+  const g = new THREE.Group();
+  const orange = std(r > 0.5 ? 0xf07a1a : 0xe86a10, { roughness: 0.55 });
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    mesh(g, new THREE.SphereGeometry(0.22, 12, 10), orange, Math.sin(a) * 0.17, 0.3, Math.cos(a) * 0.17).scale.set(0.75, 1.0, 0.75);
+  }
+  mesh(g, new THREE.CylinderGeometry(0.03, 0.05, 0.16, 6), std(0x4a6a2a), 0.02, 0.6, 0).rotation.z = 0.3;
+  const glow = new THREE.MeshBasicMaterial({ color: 0xffc040 });
+  const tri = new THREE.CircleGeometry(0.075, 3);
+  for (const s of [-1, 1]) { const e = new THREE.Mesh(tri, glow); e.position.set(s * 0.1, 0.36, 0.355); e.rotation.z = Math.PI / 2; g.add(e); }
+  const grin = new THREE.Mesh(new THREE.RingGeometry(0.08, 0.15, 12, 1, Math.PI * 1.15, Math.PI * 0.7), glow);
+  grin.position.set(0, 0.32, 0.355);
+  g.add(grin);
+  g.scale.setScalar(size * (0.85 + r * 0.4));
+  return g;
+}
+
+/**
+ * Santa's corner at Christmas: a decorated fir tree (baubles, a star, twinkling lights) with a heap
+ * of wrapped presents under it, and his sack. `userData.update(t)` twinkles the lights.
+ */
+export function makeChristmasCorner() {
+  const g = new THREE.Group(), tree = new THREE.Group();
+  tree.position.set(2.6, 0, -1.2);
+  g.add(tree);
+  mesh(tree, new THREE.CylinderGeometry(0.16, 0.2, 0.6, 8), std(0x6b4a2c), 0, 0.3, 0);
+  const fir = std(0x1f6a3a, { roughness: 0.85, flatShading: true });
+  for (const [y, rr, h] of [[0.5, 1.35, 1.3], [1.3, 1.05, 1.15], [2.0, 0.72, 1.0], [2.6, 0.4, 0.8]]) mesh(tree, new THREE.ConeGeometry(rr, h, 9), fir, 0, y + h / 2, 0);
+  const star = mesh(tree, new THREE.OctahedronGeometry(0.22, 0), std(0xffe27a, { emissive: 0xffc020, emissiveIntensity: 0.9, metalness: 0.4 }), 0, 3.55, 0);
+  star.scale.set(1, 1.3, 0.5);
+  const lights = [];
+  const COLORS = [0xff4a4a, 0xffd23f, 0x4ad0ff, 0x6aff7a, 0xff8ae0];
+  for (let i = 0; i < 34; i++) {
+    const u = i / 34, a = u * Math.PI * 2 * 4.2, y = 0.6 + u * 2.7, rr = 1.3 * (1 - u * 0.82) + 0.02;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 5), new THREE.MeshBasicMaterial({ color: COLORS[i % COLORS.length] }));
+    m.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr);
+    tree.add(m);
+    lights.push(m);
+  }
+  for (let i = 0; i < 12; i++) { // baubles
+    const u = (i + 0.5) / 12, a = i * 2.4, y = 0.7 + u * 2.3, rr = 1.2 * (1 - u * 0.8);
+    mesh(tree, new THREE.SphereGeometry(0.09, 10, 8), std([0xd8202a, 0xffd23f, 0x3a6ac0][i % 3], { metalness: 0.6, roughness: 0.25 }), Math.cos(a) * rr, y, Math.sin(a) * rr);
+  }
+  const WRAP = [[0xd8202a, 0xffd23f], [0x2f7a3a, 0xd8202a], [0x3a6ac0, 0xffffff], [0xf0e0b0, 0x2f7a3a], [0x8a3ab8, 0xffd23f]];
+  for (let i = 0; i < 7; i++) { // presents under the tree, with ribbons
+    const [paper, ribbon] = WRAP[i % WRAP.length], s = 0.32 + (i % 3) * 0.1;
+    const a = i * 0.9, box = new THREE.Group();
+    box.position.set(Math.cos(a) * 1.3 + 2.6, s / 2, Math.sin(a) * 0.9 - 0.2);
+    box.rotation.y = a;
+    g.add(box);
+    mesh(box, new THREE.BoxGeometry(s, s, s), std(paper), 0, 0, 0);
+    mesh(box, new THREE.BoxGeometry(s + 0.01, s + 0.01, 0.06), std(ribbon), 0, 0, 0);
+    mesh(box, new THREE.BoxGeometry(0.06, s + 0.01, s + 0.01), std(ribbon), 0, 0, 0);
+    for (const sx of [-1, 1]) mesh(box, new THREE.TorusGeometry(0.06, 0.02, 6, 10), std(ribbon), sx * 0.06, s / 2 + 0.04, 0).rotation.y = Math.PI / 2;
+  }
+  // Santa's sack, bulging with more presents
+  const sack = mesh(g, new THREE.SphereGeometry(0.5, 14, 12), std(0xa0302a, { roughness: 0.95 }), -1.1, 0.48, -0.3);
+  sack.scale.set(1, 1.1, 0.9);
+  mesh(g, new THREE.CylinderGeometry(0.12, 0.2, 0.25, 10), std(0xa0302a, { roughness: 0.95 }), -1.1, 1.05, -0.3);
+  mesh(g, new THREE.TorusGeometry(0.13, 0.03, 6, 12), std(0xffd23f), -1.1, 0.97, -0.3).rotation.x = Math.PI / 2;
+  g.userData.update = (t) => {
+    lights.forEach((m, i) => { m.visible = Math.sin(t * 3 + i * 1.7) > -0.4; });
+    star.rotation.y = t * 0.8;
+  };
+  return g;
+}
+
+/** Twinkling lights wound round a tree (Christmas: on every tree in town). `trees` = [{ x, z, s }]. */
+export function makeTreeLights(trees) {
+  const COLORS = [0xff4a4a, 0xffd23f, 0x4ad0ff, 0x6aff7a, 0xff8ae0].map((c) => new THREE.Color(c));
+  const PER = 26, n = trees.length * PER;
+  const lights = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), Math.max(1, n));
+  const m = new THREE.Matrix4();
+  let k = 0;
+  for (const t of trees) {
+    for (let i = 0; i < PER; i++, k++) {
+      // wound round the crown's surface: a cone for pines, a ball for the leafy trees (client/nature.js)
+      const u = i / PER, a = u * Math.PI * 2 * 4 + t.x;
+      const y = t.kind === 'pine' ? 1.3 + u * 4.2 : 2.3 + u * 3.3;
+      const rr = (t.kind === 'pine' ? 2.2 * (1 - (y - 0.8) / 5.6) + 0.3 : Math.sqrt(Math.max(0, 2.6 ** 2 - (y - 4) ** 2)) + 0.45) * t.s;
+      m.makeTranslation(t.x + Math.cos(a) * rr, y * t.s, t.z + Math.sin(a) * rr);
+      lights.setMatrixAt(k, m);
+      lights.setColorAt(k, COLORS[k % COLORS.length]);
+    }
+  }
+  lights.count = n;
+  lights.frustumCulled = false;
+  const dim = COLORS.map((c) => c.clone().multiplyScalar(0.35)); // blinked off: a dim glow, not a black dot
+  let last = -1;
+  lights.userData.update = (time) => { // a few at a time blink off and on
+    const step = Math.floor(time * 3);
+    if (step === last) return;
+    last = step;
+    for (let i = 0; i < n; i++) lights.setColorAt(i, Math.sin(step * 1.3 + i * 2.7) > -0.6 ? COLORS[i % COLORS.length] : dim[i % COLORS.length]);
+    lights.instanceColor.needsUpdate = true;
+  };
+  return lights;
+}

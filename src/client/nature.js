@@ -474,6 +474,7 @@ export function makeTrees(cells, rand, uTime) {
     inst.castShadow = inst.receiveShadow = true;
     group.add(inst);
   }
+  group.userData.spots = Object.entries(byKind).flatMap(([kind, list]) => list.map((t) => ({ ...t, kind }))); // for Christmas lights
   return group;
 }
 

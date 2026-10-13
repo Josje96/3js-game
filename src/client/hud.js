@@ -6,7 +6,7 @@ import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost } from '../shared/pets.js';
-import { seasonOf, dayOfSeason, daysToNextSeason, SEASONS, isBossDay, calendar, dateLabel, CALENDAR_NAME } from '../shared/seasons.js';
+import { seasonOf, holidayOf, dayOfSeason, daysToNextSeason, SEASONS, isBossDay, calendar, dateLabel, CALENDAR_NAME } from '../shared/seasons.js';
 import { ENCHANT_LOOKS, enchantCost, enchantedName, enchantDamage } from '../shared/enchant.js';
 import { seasonalPrice } from '../shared/seasonal.js';
 
@@ -21,6 +21,8 @@ function seasonLine(day) {
 
 /** "12 days until Summer" (small print under the calendar) */
 function nextSeasonLine(day) {
+  const h = holidayOf(day);
+  if (h) return h === 'halloween' ? '🎃 Happy Halloween!' : '🎄 Merry Christmas!';
   const n = daysToNextSeason(day);
   const next = SEASONS[(SEASONS.indexOf(seasonOf(day)) + 1) % SEASONS.length];
   return n === 1 ? `${next.icon} ${next.name} starts tomorrow!` : `${n} days until ${next.name}`;

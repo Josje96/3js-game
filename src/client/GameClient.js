@@ -394,6 +394,9 @@ export class GameClient {
       }
       case 'crit': this.floatAt(msg, msg.lucky ? '🍀 Lucky!' : 'Critical!', msg.lucky ? '#9aff9a' : '#ffd23f'); break; // a Keen forged weapon, or luck
       case 'feast': this.sfx.play('coin'); this.floatAt(msg, '🍗 Yum!', '#ffe9b0'); break;
+      case 'treat': this.sfx.play('coin'); this.floatAt(msg, '🍬 Treat!', '#ffb347'); break; // Halloween
+      case 'boo': this.sfx.play('coin'); this.floatAt(msg, '👻 BOO!', '#e8e8ff'); break;
+      case 'present': this.sfx.play('coin'); this.floatAt(msg, '🎁 Ho ho ho!', '#ff7a7a'); break; // Santa
       case 'decor': { // someone used a decoration: its show, and its sound
         this.ents.get(msg.id)?.view?.play?.(msg.use);
         this.sfx.decor(msg.use, msg.on);

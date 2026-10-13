@@ -4,7 +4,7 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COL
 import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
+import { buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -12,6 +12,7 @@ import { FurnitureView } from './furniture.js';
 import { dropTinyShadows } from './merge.js';
 import { enchantWeapon } from './enchant.js';
 import { glowTexture } from './effects.js';
+import { makeChristmasCorner } from './town.js';
 
 // sitting on a chair: how far the body drops and leans back, and how the legs and arms bend (radians)
 const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM = 0.5;
@@ -110,9 +111,11 @@ const LOW_HP = 0.3;              // flash red at or below this share of max heal
 const CAPE_PART = /_Cape$/;
 
 /**
- * What the season dresses everyone in (set by LocationView each frame): null, or 'winter' (in town
- * in winter: a bobble hat, a scarf and a warm coat over whatever you wear). Just a look: your own
- * outfit stays saved, and a CharacterView with `noSeasonWear` (trying clothes on) is left alone.
+ * What the season dresses everyone in (set by LocationView each frame): null, 'winter' (in town
+ * in winter: a bobble hat, a scarf and a warm coat over whatever you wear) or 'halloween' (a
+ * costume each: witch, pumpkin head, ghost or little devil). Just a look: your own outfit stays
+ * saved, and a CharacterView with `noSeasonWear` (trying clothes on) is left alone. `forceWear`
+ * dresses one character whatever the season ('santa').
  */
 export const SEASON_WEAR = { value: null };
 const COATS = [0xb8333a, 0x2f4f8a, 0x2f7a4a, 0x7a3f8a, 0xc9862e, 0x3f8a8a];
@@ -129,7 +132,9 @@ export class CharacterView {
     this.borrowed = [];   // meshes/accessories added by the current look
     this.anchors = this.computeAnchors();
     this.root.userData.noSnow = true; // characters don't get the town's snowy tops (seasonfx.js)
-    this.coatColor = COATS[[...String(name ?? '')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % COATS.length];
+    const hash = [...String(name ?? '')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+    this.coatColor = COATS[hash % COATS.length];
+    this.costume = HALLOWEEN_COSTUMES[(Math.imul(hash ^ (hash >>> 16), 0x45d9f3b) >>> 16) % HALLOWEEN_COSTUMES.length]; // the same costume every Halloween
     this.setLook(look);
     this.mixer = new THREE.AnimationMixer(this.model);
     const clips = characterClips();
@@ -291,9 +296,10 @@ export class CharacterView {
   /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories, clothes and dye. */
   setLook(look) {
     this.look = look;
-    const wear = this.wear = this.noSeasonWear ? null : SEASON_WEAR.value;
+    const wear = this.wear = this.seasonWear();
     const fancy = look?.clothes && look.clothes !== 'none';
-    if (wear === 'winter') look = { ...look, hat: 'none' }; // the bobble hat goes on instead
+    const costume = wear === 'halloween' ? this.costume : wear === 'santa' ? 'santa' : null;
+    if (wear === 'winter' || costume) look = { ...look, hat: 'none' }; // the bobble hat (or costume) goes on instead
     const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red' } = look ?? {};
     const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${hairColor}/${face}/${skin}/${tie}/${wear}`;
     if (key === this.lookKey) return;
@@ -336,8 +342,9 @@ export class CharacterView {
     }
     if (face !== 'none') this.attach('face', buildFace(face, hc));
     // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
-    this.setClothes(CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'coat' } : undefined), TIE_COLORS[tie]?.color);
-    if (wear === 'winter') {
+    this.setClothes(COSTUMES[costume]?.clothes ?? CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'coat' } : undefined), TIE_COLORS[tie]?.color);
+    if (costume) this.attach('hat', buildCostumeHat(costume));
+    else if (wear === 'winter') {
       const ww = buildWinterWear(this.coatColor === COATS[1] ? COATS[0] : COATS[(COATS.indexOf(this.coatColor) + 1) % COATS.length]);
       this.attach('hat', ww.hat);
       this.attach('front', ww.scarf);
@@ -355,6 +362,11 @@ export class CharacterView {
     }
     this.flashMats = null; // materials changed: collect them again for the low-health flash
     dropTinyShadows(this.root);
+  }
+
+  /** What the season (or a holiday) has this character wearing right now: see SEASON_WEAR. */
+  seasonWear() {
+    return this.forceWear ?? (this.noSeasonWear ? null : SEASON_WEAR.value);
   }
 
   /** Fancy clothes: body and sleeves become a flat cloth colour (hands stay skin), legs too, plus extras. */
@@ -485,7 +497,7 @@ export class CharacterView {
 
   update(dt) {
     this.time += dt;
-    if ((this.noSeasonWear ? null : SEASON_WEAR.value) !== this.wear) this.setLook(this.look); // the season changed (or we went in/out)
+    if (this.seasonWear() !== this.wear) this.setLook(this.look); // the season changed (or we went in/out)
     for (const b of this.borrowed) b.children[0]?.userData.update?.(this.time); // flapping wings
     this.weaponFx?.update(this.time);
     if (this.target) {
@@ -1036,6 +1048,29 @@ export class ShotView {
   }
 }
 
+/** A visiting character (Santa at Christmas): stands, idles, and can be talked to with E. */
+export class NpcView {
+  constructor(e) {
+    this.root = new THREE.Group();
+    this.root.position.set(e.x, 0, e.z);
+    this.root.rotation.y = e.rot ?? 0;
+    this.ch = new CharacterView({ cls: e.cls ?? 'Barbarian', look: e.look, name: e.name, weapon: null });
+    this.ch.forceWear = e.wear ?? null;
+    this.ch.setLook(e.look);
+    this.root.add(this.ch.root);
+    this.decor = e.decor === 'christmas' ? makeChristmasCorner() : null;
+    if (this.decor) this.root.add(this.decor);
+    this.time = 0;
+  }
+  apply() {}
+  update(dt) {
+    this.time += dt;
+    this.ch.update(dt);
+    this.decor?.userData.update?.(this.time);
+  }
+  dispose() { this.root.removeFromParent(); }
+}
+
 export function makeEntityView(e) {
   switch (e.type) {
     case 'slime': return hasMobBody(e.variant) ? new MobView(e, makeLabel) : new SlimeView(e);
@@ -1048,6 +1083,7 @@ export function makeEntityView(e) {
     case 'ladder': return new LadderView(e);
     case 'furniture': return new FurnitureView(e, makeLabel);
     case 'dummy': return new DummyView(e);
+    case 'npc': return new NpcView(e);
     default: return null;
   }
 }
