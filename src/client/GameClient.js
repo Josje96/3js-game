@@ -553,7 +553,7 @@ export class GameClient {
     this.me?.update(dt);
     for (const fx of this.effects) fx.update(dt);
     this.effects = this.effects.filter((fx) => !fx.done || (fx.dispose(), false));
-    this.locView?.update(dt, this.time);
+    this.locView?.update(dt, this.time, this.pos);
     this.updateSky(dt);
     this.updateCamera(dt);
     if (!this.warming) this.renderer.render(this.scene, this.camera);

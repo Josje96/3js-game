@@ -3,6 +3,7 @@
 // (they're drawn once per page), but placement uses the layout's seeded `rand`.
 import * as THREE from 'three';
 import { CELL } from '../shared/config.js';
+import { SEASON_LOOK, SEASON_GLSL } from './seasonfx.js';
 
 const GRASS_TILE = CELL * 2;   // world units per repeat of the grass texture
 const WATER_Y = -0.2;          // water surface (the water blocks' tops sit at -0.3)
@@ -129,10 +130,9 @@ export function makeGrass(cells, rand, uTime, { skip = null } = {}) {
     const k = 0.86 + n * 0.22;
     return [k * (0.95 + n * 0.08), k, k * 0.92];
   };
-  const carpet = new THREE.Mesh(
-    cellQuads(cells, 0.02, GRASS_TILE, tint),
-    new THREE.MeshStandardMaterial({ map: grassTexture(), vertexColors: true, roughness: 1 }),
-  );
+  const carpetMat = new THREE.MeshStandardMaterial({ map: grassTexture(), vertexColors: true, roughness: 1 });
+  seasonalShader(carpetMat, '1.0', 'fract(vMapUv.x * 7.0 + vMapUv.y * 3.0)');
+  const carpet = new THREE.Mesh(cellQuads(cells, 0.02, GRASS_TILE, tint), carpetMat);
   carpet.receiveShadow = true;
   group.add(carpet);
 
@@ -150,6 +150,7 @@ export function makeGrass(cells, rand, uTime, { skip = null } = {}) {
   tuftGeo.computeVertexNormals();
   const tuftMat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 1 });
   tuftMat.onBeforeCompile = (shader) => {
+    seasonFragment(shader, '1.0', 'vColor.g');
     shader.uniforms.uTime = uTime;
     shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`.replace('#include <begin_vertex>', `
       #include <begin_vertex>
@@ -433,6 +434,8 @@ export function makeTrees(cells, rand, uTime) {
   }
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 });
   mat.onBeforeCompile = (shader) => {
+    // only the leaves change with the season (green-ish vertex colours), not trunks or blossom
+    seasonFragment(shader, 'clamp((vColor.g - max(vColor.r, vColor.b)) * 6.0, 0.0, 1.0)', 'fract(vColor.b * 13.0 + vColor.r * 7.0)');
     shader.uniforms.uTime = uTime;
     shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`.replace('#include <begin_vertex>', `
       #include <begin_vertex>
@@ -540,4 +543,20 @@ export function makeSpringBanks(cx, cz, edge, rand) {
     for (const g of sway) g.rotation.z = g.userData.lean + Math.sin(time * 1.4 + g.position.x * 0.7) * 0.05;
   };
   return group;
+}
+
+/** Make a material follow the season (client/seasonfx.js): `leaf` = how much it changes, `grain` = autumn's orange/red mix. */
+function seasonFragment(shader, leaf, grain) {
+  shader.uniforms.uSeason = SEASON_LOOK;
+  shader.fragmentShader = `uniform vec4 uSeason;\n${SEASON_GLSL}\n${shader.fragmentShader}`.replace('#include <color_fragment>', `
+    #include <color_fragment>
+    diffuseColor.rgb = seasonal(diffuseColor.rgb, ${leaf}, ${grain});`);
+}
+function seasonalShader(mat, leaf, grain) {
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uSeason = SEASON_LOOK;
+    shader.fragmentShader = `uniform vec4 uSeason;\n${SEASON_GLSL}\n${shader.fragmentShader}`.replace('#include <map_fragment>', `
+      #include <map_fragment>
+      diffuseColor.rgb = seasonal(diffuseColor.rgb, ${leaf}, ${grain});`);
+  };
 }

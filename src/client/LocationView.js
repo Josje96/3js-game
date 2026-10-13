@@ -18,6 +18,7 @@ import { THEMES } from './themes.js';
 import { mergeStatic, dropTinyShadows } from './merge.js';
 import { buildTownFun } from './townfun.js';
 import { seasonOf } from '../shared/seasons.js';
+import { SeasonParticles, easeSeasonLook } from './seasonfx.js';
 
 /** Wooden signpost for the healing spring. */
 function makeSpringSign() {
@@ -406,6 +407,10 @@ export class LocationView {
     }
     this.group.add(makeGrass(grass, this.rand, this.uTime, { skip: inPond }));
     this.group.add(makeTrees(trees, this.rand, this.uTime));
+    if (L.key === 'town') { // the season shows outdoors: colours (shaders) and drifting petals/leaves/snow
+      this.seasonFx = new SeasonParticles(this.group);
+      easeSeasonLook(seasonOf(this.world?.day ?? 1).id, 0, true);
+    }
     const disc = spring ? { x: pond0.x, z: pond0.z, y: 0.1, r: pondR, edge } : null;
     const pond = makeWater(water, this.rand, this.uTime, { healing: spring, disc });
     this.group.add(pond);
@@ -675,8 +680,14 @@ export class LocationView {
     } });
   }
 
-  update(dt, time) {
+  update(dt, time, focus = null) {
     this.uTime.value = time;
+    if (this.seasonFx) {
+      const season = seasonOf(this.world?.day ?? 1).id;
+      easeSeasonLook(season, dt);
+      this.seasonFx.setSeason(season);
+      if (focus) this.seasonFx.update(dt, time, focus);
+    }
     for (const a of this.animated) a.update(dt);
     for (const [i, l] of this.lights.entries()) l.intensity = 16 + Math.sin(time * 9 + i * 7) * 2 + Math.sin(time * 23 + i) * 1.5;
     for (const gate of Object.values(this.gates)) if (gate.glow.visible) gate.glow.material.opacity = 0.55 + Math.sin(time * 3) * 0.2;
