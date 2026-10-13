@@ -134,6 +134,9 @@ test('fort: every bed has its pillow against a wall, and you wake up on open flo
       assert.ok(bed, `${n}: ${id} has a bed`);
       const pillow = bed.z + (bed.rot ? 1 : -1) * 1.9; // the pillow end, just past the bed
       assert.ok(L.isSolidCell(Math.floor(bed.x / CELL), Math.floor(pillow / CELL)), `${n}: ${id}'s pillow is against a wall`);
+      const head = bed.z + (bed.rot ? 1 : -1) * 1.56; // the headboard and bedside table end here: not inside the wall
+      assert.ok(!blocked(L, bed.x, head, 0.02, []) && !blocked(L, bed.x + 1.8 * (bed.rot ? -1 : 1), head, 0.02, []), `${n}: ${id}'s bed doesn't poke into the wall`);
+      assert.ok(blocked(L, bed.x, head + (bed.rot ? 1 : -1) * 0.5, 0.02, []), `${n}: ${id}'s bed is right up against it`);
       const spot = server.bedSpot(p[id]);
       assert.ok(!blocked(L, spot.x, spot.z, PLAYER_RADIUS, L.solids), `${n}: ${id} wakes up on open floor (${spot.x}, ${spot.z})`);
     }

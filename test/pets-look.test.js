@@ -19,10 +19,10 @@ test('pets: every species builds at every stage, animates, and has sane geometry
         assert.ok(pos.every(Number.isFinite), `${species} Lv ${level}: a mesh has NaN positions`);
       });
       // bake() keeps the animal itself low; past level 50 the trinkets (sparkles, gems, wings, a moon) add a few dozen small ones
-      const limit = level > 50 ? 85 : 40;
+      const limit = pet.shape === 'mob' ? 400 : level > 50 ? 85 : 40; // a mini boss is the boss's model, unbaked
       assert.ok(meshes > 0 && meshes < limit, `${species} Lv ${level}: ${meshes} meshes (bake() keeps this low)`);
       assert.ok(triangles(pet.root) < 40000, `${species} Lv ${level}: too many triangles`);
-      if (pet.shape !== 'frog') assert.ok(pet.parts.head, `${species}: the animation needs a head`); // a frog hops whole
+      if (pet.shape !== 'frog' && pet.shape !== 'mob') assert.ok(pet.parts.head, `${species}: the animation needs a head`); // a frog hops whole; a mini boss moves like its boss
     }
   }
 });

@@ -2,6 +2,8 @@
 // Shared rules (host + clients). The client builds their looks in client/pets.js.
 
 import { xpToNext } from './progression.js';
+import { DUNGEONS } from './dungeons.js';
+import { SEASONS } from './seasons.js';
 
 /** Levels at which a pet evolves into its next form. */
 export const EVOLVE_AT = [10, 20];
@@ -60,6 +62,25 @@ export const PET_SPECIES = {
   snake:    { name: 'Snake',     price: 132, atk: 3, forms: ['Snakelet', 'Python', 'Royal Cobra'] },
   fairy:    { name: 'Fairy',     price: 240, atk: 3, forms: ['Pixie', 'Fairy', 'Fairy Queen'] },
 };
+
+/**
+ * Mini bosses: beat a boss and a little one of it joins the Pet Keeper's stall (for the whole family).
+ * `mini_<boss variant>`; `unlock` = the world flag that boss sets (seasonal bosses: `beat_<variant>`).
+ * Drawn with the boss's own model, pet-sized (client/pets.js).
+ */
+export const MINI_PREFIX = 'mini_';
+const bossList = [
+  ...Object.values(DUNGEONS).flatMap((d, di) => d.biomes.map((b, i) => ({ variant: b.boss.variant, name: b.boss.name, flag: b.boss.flag, price: 400 + di * 400 + i * 60 }))),
+  ...SEASONS.map((s) => ({ variant: s.boss, name: s.bossName, flag: `beat_${s.boss}`, price: 2500 })),
+];
+for (const b of bossList) {
+  const name = b.name.replace(/^The /, '');
+  PET_SPECIES[MINI_PREFIX + b.variant] = {
+    name: `Mini ${name}`, price: b.price, atk: 4, mini: b.variant, unlock: b.flag, unlockBy: b.name,
+    forms: [`Mini ${name}`, `Little ${name}`, `Young ${name}`],
+  };
+}
+export const isMiniPet = (species) => species?.startsWith(MINI_PREFIX);
 
 export function petStage(level) {
   return level >= EVOLVE_AT[1] ? 2 : level >= EVOLVE_AT[0] ? 1 : 0;

@@ -63,6 +63,7 @@ export const methods = {
   seasonBossDefeated(loc, e, by) {
     const s = seasonOf(this.save.day);
     this.save.flags[BEATEN] = this.save.day;
+    this.save.flags[`beat_${e.variant}`] = true; // its mini joins the Pet Keeper's stall
     for (const h of [...loc.entities.values()]) {
       if (h.type !== 'slime' || !h._home?.season) continue;
       loc.remove(h.id);

@@ -2,7 +2,7 @@
 // collision grid, portals, static props and (for dungeons) initial entities.
 // Runs identically on the host and every client.
 
-import { CELL } from './config.js';
+import { CELL, WALL_PAD } from './config.js';
 import { MAPS, LEGEND } from './maps.js';
 import { fortMap } from './fort.js';
 import { biomeFor, parseKey, depthOf } from './dungeons.js';
@@ -12,6 +12,8 @@ import { PROPS } from './props.js';
 const WALKABLE = new Set(['.', '=', '~']); // '~': you can wade into the pond
 /** How much further back a thin wall's face is than a whole-cell wall's: the wall moved from the cell's edge to its middle. */
 export const THIN_WALL_GAIN = CELL / 2;
+/** How far the bed model (dungeon/bed_decorated) reaches behind its middle, headboard and bedside table. */
+const BED_HEAD = 1.56;
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 export function isWalkableChar(ch) {
@@ -100,7 +102,8 @@ function parseAsciiMap(map) {
         if (room < 0 && rooms.length) throw new Error(`a bed slot at ${cx},${cz} is outside every room`);
         // the pillow end goes against the wall: a bed by a wall below it is turned round (pillow at +z)
         const down = map.rows[cz + 1]?.[cx] === '#' && map.rows[cz - 1]?.[cx] !== '#';
-        const back = map.thinWalls ? 0.6 + THIN_WALL_GAIN : 0.6; // with thin walls the wall is further back
+        // the bed's headboard (and its bedside table) reach BED_HEAD behind its middle: end them just short of the wall
+        const back = map.thinWalls ? CELL / 2 + THIN_WALL_GAIN - WALL_PAD - BED_HEAD - 0.08 : 0.6;
         const slot = { x: pos.x, z: pos.z + (down ? back : -back), rot: down ? Math.PI : 0, room };
         if (room >= 0) bedSlots[room] = slot; // bed slot = room number
         else bedSlots.push(slot);

@@ -126,7 +126,7 @@ export class Hud {
     if (pet) {
       const max = petMaxHp(pet.species, pet.level), pf = pet.fainted ? 0 : (pet.hp / max) * 100;
       petRow = `<div class="pethp${pet.fainted ? ' fainted' : ''}"><div style="width:${pf}%"></div>
-        <span>${PET_ICONS[pet.species] ?? '🐾'} ${esc(pet.name)} · Lv ${pet.level} · ${pet.fainted ? 'fainted' : `${pet.hp}/${max}`}</span></div>`;
+        <span>${PET_ICONS[pet.species] ?? (PET_SPECIES[pet.species]?.mini ? '👑' : '🐾')} ${esc(pet.name)} · Lv ${pet.level} · ${pet.fainted ? 'fainted' : `${pet.hp}/${max}`}</span></div>`;
     }
     this.status.innerHTML = `
       <div class="loc">${esc(this.locTitle)}</div>
@@ -803,7 +803,10 @@ export class Hud {
         box.append(treats);
         box.append(el('h3', null, 'Adopt a friend'));
         const grid = el('div', 'pet-grid');
+        const flags = this.world?.flags ?? {};
+        const locked = Object.values(PET_SPECIES).filter((d) => d.unlock && !flags[d.unlock]);
         for (const [species, def] of Object.entries(PET_SPECIES)) {
+          if (def.unlock && !flags[def.unlock]) continue; // a mini boss you haven't earned yet (listed below)
           const owned = mine.some((x) => x.species === species);
           const card = el('div', `pet-card${owned ? ' owned' : ''}`, `<div class="pet-icon">${iconImg(petIcon(species), 'icon big') || ICONS[species] || '🐾'}</div><b>${esc(def.fixedName ?? def.name)}</b><small class="muted">${esc(def.fixedName ? 'Apricot Maltipoo' : `→ ${def.forms[2]}`)}</small>`);
           const b = el('button', owned ? '' : 'primary', owned ? 'Yours ♥' : def.price ? `Adopt · ${def.price}g` : 'Adopt · free!');
@@ -813,6 +816,13 @@ export class Hud {
           grid.append(card);
         }
         box.append(grid);
+        if (locked.length) { // still to earn: beat the boss and its mini joins the stall
+          box.append(el('h3', null, `👑 Mini bosses <small class="muted">beat a boss and a little one joins the stall</small>`));
+          const more = el('div', 'pet-grid');
+          for (const def of locked.slice(0, 8)) more.append(el('div', 'pet-card locked', `<div class="pet-icon">🔒</div><b>${esc(def.name)}</b><small class="muted">Beat ${esc(def.unlockBy)}</small>`));
+          if (locked.length > 8) more.append(el('div', 'pet-card locked', `<div class="pet-icon">👑</div><b>+${locked.length - 8} more</b><small class="muted">every boss has one</small>`));
+          box.append(more);
+        }
       }
       box.append(closeButton(this));
     });

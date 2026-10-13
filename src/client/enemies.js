@@ -714,15 +714,123 @@ function addCrown(group, height) {
   group.add(crown);
 }
 
+/**
+ * An enemy's model (also the mini-boss pets, client/pets.js): its body, details, tint, crown and
+ * finish. Returns { group, parts, height, kind, meshes } — `meshes` have their own materials.
+ */
+export function buildMobModel(variant, boss = false) {
+  const def = ENEMIES[variant] ?? {};
+  const kind = def.body ?? 'goblin'; // no body of its own = one of the old slimes: a goblin now
+  const built = BODIES[kind](!!def.fire, variant);
+  DETAILS[kind]?.(built);
+  if (def.tint != null) tintBody(built.group, def.tint);
+  if (def.crown || (kind === 'goblin' && boss)) addCrown(built.group, built.height);
+  const meshes = [], look = LOOKS[kind] ?? { rim: 0xff6a4a, grain: 0.5 };
+  built.group.traverse((o) => {
+    if (!o.isMesh || !o.material.isMeshStandardMaterial) return;
+    o.material = o.material.clone();
+    o.userData.baseEmissive = o.material.emissive.getHex();
+    if (!o.userData.baseEmissive || kind === 'ghost') creatureLook(o.material, look); // glowing bits (eyes, fire) stay as they are
+    meshes.push(o);
+  });
+  return { ...built, kind, meshes };
+}
+
+/** How each kind of body moves: `b` is the body group (its y already at its resting height), `P` its parts. */
+export function animateMob(kind, P, b, t, moving, anim) {
+  switch (kind) {
+    case 'bat':
+      b.position.y += Math.sin(t * 3) * 0.2;
+      for (const [i, w] of P.wings.entries()) w.rotation.z = (i ? -1 : 1) * Math.sin(t * 22) * 0.7;
+      break;
+    case 'yeti':
+    case 'golem':
+      b.position.y += moving ? Math.abs(Math.sin(t * 6)) * 0.12 : 0;
+      b.rotation.z = moving ? Math.sin(t * 6) * 0.06 : 0;
+      for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 6 + i * Math.PI) * 0.6 : Math.sin(t * 1.5) * 0.08;
+      break;
+    case 'shroom':
+      b.position.y += moving ? Math.abs(Math.sin(t * 8)) * 0.15 : 0;
+      P.cap.rotation.z = Math.sin(t * 4) * 0.08;
+      for (const [i, f] of P.feet.entries()) f.position.z = 0.05 + (moving ? Math.sin(t * 8 + i * Math.PI) * 0.15 : 0);
+      break;
+    case 'spider': {
+      const crouch = anim === 'crouch', leap = anim === 'leap';
+      b.position.y += crouch ? -0.2 : leap ? 0.5 : 0;
+      b.rotation.x = crouch ? 0.15 : leap ? -0.25 : 0;
+      for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 16 + i * 1.3) * 0.35 : 0;
+      break;
+    }
+    case 'imp':
+      b.position.y += Math.sin(t * 2.5) * 0.25;
+      for (const [i, w] of P.wings.entries()) w.rotation.y = (i ? -1 : 1) * Math.sin(t * 14) * 0.5;
+      P.flame.scale.setScalar(1 + Math.sin(t * 20) * 0.2);
+      break;
+    case 'goblin': // a scurrying, hunched run; a twitchy, menacing sway when it stops
+      b.position.y += moving ? Math.abs(Math.sin(t * 10)) * 0.08 : 0;
+      b.rotation.x = moving ? 0.12 : 0;
+      for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 10 + i * Math.PI) * 0.8 : -0.3 + Math.sin(t * 2 + i) * 0.12;
+      for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 10 + i * Math.PI + Math.PI) * 0.7 : 0;
+      P.head.rotation.y = moving ? 0 : Math.sin(t * 1.3) * 0.4;
+      break;
+    case 'skeleton':
+      b.position.y += moving ? Math.abs(Math.sin(t * 8)) * 0.06 : 0;
+      for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 8 + i * Math.PI) * 0.7 : -0.2 + Math.sin(t * 2) * 0.05;
+      for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 8 + i * Math.PI + Math.PI) * 0.6 : 0;
+      P.head.rotation.z = Math.sin(t * 3) * 0.06; // rattle
+      break;
+    case 'ghost':
+      b.position.y += Math.sin(t * 2) * 0.25 - 0.6;
+      for (const [i, tl] of P.tails.entries()) tl.position.y = -0.45 + Math.sin(t * 6 + i) * 0.06;
+      for (const [i, a] of P.arms.entries()) a.rotation.z = (i ? -1 : 1) * Math.sin(t * 3) * 0.3;
+      break;
+    case 'crab':
+      b.rotation.z = moving ? Math.sin(t * 14) * 0.05 : 0;
+      for (const [i, c] of P.claws.entries()) c.rotation.x = Math.sin(t * (moving ? 10 : 3) + i * 1.5) * 0.25;
+      for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 18 + i) * 0.4 : 0;
+      break;
+    case 'treant':
+      b.position.y += moving ? Math.abs(Math.sin(t * 4)) * 0.1 : 0;
+      b.rotation.z = Math.sin(t * (moving ? 4 : 1.2)) * 0.05;
+      for (const [i, a] of P.arms.entries()) a.rotation.z = (i ? -1 : 1) * (Math.sin(t * (moving ? 4 : 1.5) + i) * 0.25);
+      P.crown.rotation.y = Math.sin(t * 0.8) * 0.1;
+      break;
+    case 'sunserpent':
+      P.segs.forEach((s, i) => { const a = t * 2 - i * 0.6; s.position.set(Math.sin(a) * 0.35 * (1 - i / 12), 0.35 + i * 0.2, -i * 0.12 + Math.cos(a) * 0.15); });
+      P.head.position.y = 2.0 + Math.sin(t * 2) * 0.12;
+      P.halo.rotation.z = t * 0.8;
+      break;
+    case 'pumpkinking': // lurching steps, swaying head, roaring fire, writhing vines, circling crows
+      b.position.y += moving ? Math.abs(Math.sin(t * 4)) * 0.14 : Math.sin(t * 1.3) * 0.05;
+      for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 4 + i * Math.PI) * 0.45 : -0.15 + Math.sin(t * 1.6 + i) * 0.12;
+      for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 4 + i * Math.PI + Math.PI) * 0.4 : 0;
+      P.head.rotation.z = Math.sin(t * 1.7) * 0.08;
+      P.head.rotation.y = Math.sin(t * 0.6) * 0.25;
+      P.flames.forEach((f, i) => { f.scale.set(1, 0.75 + Math.abs(Math.sin(t * 8 + i * 1.3)) * 0.7, 1); });
+      P.tentacles.forEach((chain, k) => chain.forEach((seg, i) => { seg.rotation.x = Math.sin(t * 2 + k + i * 0.6) * 0.35; seg.rotation.z = Math.cos(t * 1.6 + k * 2 + i * 0.5) * 0.3; }));
+      P.embers.rotation.y = t * 0.6;
+      P.embers.children.forEach((e, i) => { e.position.y = 0.8 + ((t * 0.5 + i * 0.37) % 3.5); });
+      P.crows.rotation.y = t * 0.9;
+      break;
+    case 'icetitan':
+      b.position.y += moving ? Math.abs(Math.sin(t * 4)) * 0.12 : 0;
+      for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 4 + i * Math.PI) * 0.55 : Math.sin(t * 1.2 + i) * 0.1;
+      P.crown.rotation.y = t * 0.3;
+      break;
+    case 'dragon':
+      b.position.y += Math.sin(t * 1.5) * 0.1;
+      for (const [i, w] of P.wings.entries()) w.rotation.z = (i ? -1 : 1) * (0.2 + Math.sin(t * 3) * 0.35);
+      P.head.rotation.x = Math.sin(t * 1.2) * 0.15;
+      break;
+  }
+}
+
 export class MobView {
   constructor(e, makeLabel) {
     const def = ENEMIES[e.variant] ?? {};
-    this.kind = def.body ?? 'goblin'; // no body of its own = one of the old slimes: a goblin now
+    const built = buildMobModel(e.variant, e.boss);
+    this.kind = built.kind;
     this.fly = !!def.fly;
-    const built = BODIES[this.kind](!!def.fire, e.variant);
-    DETAILS[this.kind]?.(built);
-    if (def.tint != null) tintBody(built.group, def.tint);
-    if (def.crown || (this.kind === 'goblin' && e.boss)) addCrown(built.group, built.height);
     this.root = new THREE.Group();
     this.body = built.group;
     this.parts = built.parts;
@@ -730,16 +838,7 @@ export class MobView {
     this.body.scale.setScalar(s);
     this.baseY = this.fly ? 1.4 : 0;
     this.root.add(this.body);
-    // own materials so the hit flash only lights up this one
-    this.meshes = [];
-    const look = LOOKS[this.kind] ?? { rim: 0xff6a4a, grain: 0.5 };
-    this.body.traverse((o) => {
-      if (!o.isMesh || !o.material.isMeshStandardMaterial) return;
-      o.material = o.material.clone();
-      o.userData.baseEmissive = o.material.emissive.getHex();
-      if (!o.userData.baseEmissive || this.kind === 'ghost') creatureLook(o.material, look); // glowing bits (eyes, fire) stay as they are
-      this.meshes.push(o);
-    });
+    this.meshes = built.meshes; // own materials, so the hit flash only lights up this one
     this.flashing = false;
     this.hpBar = makeHpBar(e.boss ? 3 : 1.2);
     this.hpBar.group.position.y = this.baseY + built.height * s * (this.fly ? 0.5 : 1) + 0.3;
@@ -780,91 +879,7 @@ export class MobView {
     this.t += dt;
     const t = this.t, P = this.parts, b = this.body;
     b.position.y = this.baseY;
-    switch (this.kind) {
-      case 'bat':
-        b.position.y += Math.sin(t * 3) * 0.2;
-        for (const [i, w] of P.wings.entries()) w.rotation.z = (i ? -1 : 1) * Math.sin(t * 22) * 0.7;
-        break;
-      case 'yeti':
-      case 'golem':
-        b.position.y += moving ? Math.abs(Math.sin(t * 6)) * 0.12 : 0;
-        b.rotation.z = moving ? Math.sin(t * 6) * 0.06 : 0;
-        for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 6 + i * Math.PI) * 0.6 : Math.sin(t * 1.5) * 0.08;
-        break;
-      case 'shroom':
-        b.position.y += moving ? Math.abs(Math.sin(t * 8)) * 0.15 : 0;
-        P.cap.rotation.z = Math.sin(t * 4) * 0.08;
-        for (const [i, f] of P.feet.entries()) f.position.z = 0.05 + (moving ? Math.sin(t * 8 + i * Math.PI) * 0.15 : 0);
-        break;
-      case 'spider': {
-        const crouch = this.anim === 'crouch', leap = this.anim === 'leap';
-        b.position.y += crouch ? -0.2 : leap ? 0.5 : 0;
-        b.rotation.x = crouch ? 0.15 : leap ? -0.25 : 0;
-        for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 16 + i * 1.3) * 0.35 : 0;
-        break;
-      }
-      case 'imp':
-        b.position.y += Math.sin(t * 2.5) * 0.25;
-        for (const [i, w] of P.wings.entries()) w.rotation.y = (i ? -1 : 1) * Math.sin(t * 14) * 0.5;
-        P.flame.scale.setScalar(1 + Math.sin(t * 20) * 0.2);
-        break;
-      case 'goblin': // a scurrying, hunched run; a twitchy, menacing sway when it stops
-        b.position.y += moving ? Math.abs(Math.sin(t * 10)) * 0.08 : 0;
-        b.rotation.x = moving ? 0.12 : 0;
-        for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 10 + i * Math.PI) * 0.8 : -0.3 + Math.sin(t * 2 + i) * 0.12;
-        for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 10 + i * Math.PI + Math.PI) * 0.7 : 0;
-        P.head.rotation.y = moving ? 0 : Math.sin(t * 1.3) * 0.4;
-        break;
-      case 'skeleton':
-        b.position.y += moving ? Math.abs(Math.sin(t * 8)) * 0.06 : 0;
-        for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 8 + i * Math.PI) * 0.7 : -0.2 + Math.sin(t * 2) * 0.05;
-        for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 8 + i * Math.PI + Math.PI) * 0.6 : 0;
-        P.head.rotation.z = Math.sin(t * 3) * 0.06; // rattle
-        break;
-      case 'ghost':
-        b.position.y += Math.sin(t * 2) * 0.25 - 0.6;
-        for (const [i, tl] of P.tails.entries()) tl.position.y = -0.45 + Math.sin(t * 6 + i) * 0.06;
-        for (const [i, a] of P.arms.entries()) a.rotation.z = (i ? -1 : 1) * Math.sin(t * 3) * 0.3;
-        break;
-      case 'crab':
-        b.rotation.z = moving ? Math.sin(t * 14) * 0.05 : 0;
-        for (const [i, c] of P.claws.entries()) c.rotation.x = Math.sin(t * (moving ? 10 : 3) + i * 1.5) * 0.25;
-        for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 18 + i) * 0.4 : 0;
-        break;
-      case 'treant':
-        b.position.y += moving ? Math.abs(Math.sin(t * 4)) * 0.1 : 0;
-        b.rotation.z = Math.sin(t * (moving ? 4 : 1.2)) * 0.05;
-        for (const [i, a] of P.arms.entries()) a.rotation.z = (i ? -1 : 1) * (Math.sin(t * (moving ? 4 : 1.5) + i) * 0.25);
-        P.crown.rotation.y = Math.sin(t * 0.8) * 0.1;
-        break;
-      case 'sunserpent':
-        P.segs.forEach((s, i) => { const a = t * 2 - i * 0.6; s.position.set(Math.sin(a) * 0.35 * (1 - i / 12), 0.35 + i * 0.2, -i * 0.12 + Math.cos(a) * 0.15); });
-        P.head.position.y = 2.0 + Math.sin(t * 2) * 0.12;
-        P.halo.rotation.z = t * 0.8;
-        break;
-      case 'pumpkinking': // lurching steps, swaying head, roaring fire, writhing vines, circling crows
-        b.position.y += moving ? Math.abs(Math.sin(t * 4)) * 0.14 : Math.sin(t * 1.3) * 0.05;
-        for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 4 + i * Math.PI) * 0.45 : -0.15 + Math.sin(t * 1.6 + i) * 0.12;
-        for (const [i, l] of P.legs.entries()) l.rotation.x = moving ? Math.sin(t * 4 + i * Math.PI + Math.PI) * 0.4 : 0;
-        P.head.rotation.z = Math.sin(t * 1.7) * 0.08;
-        P.head.rotation.y = Math.sin(t * 0.6) * 0.25;
-        P.flames.forEach((f, i) => { f.scale.set(1, 0.75 + Math.abs(Math.sin(t * 8 + i * 1.3)) * 0.7, 1); });
-        P.tentacles.forEach((chain, k) => chain.forEach((seg, i) => { seg.rotation.x = Math.sin(t * 2 + k + i * 0.6) * 0.35; seg.rotation.z = Math.cos(t * 1.6 + k * 2 + i * 0.5) * 0.3; }));
-        P.embers.rotation.y = t * 0.6;
-        P.embers.children.forEach((e, i) => { e.position.y = 0.8 + ((t * 0.5 + i * 0.37) % 3.5); });
-        P.crows.rotation.y = t * 0.9;
-        break;
-      case 'icetitan':
-        b.position.y += moving ? Math.abs(Math.sin(t * 4)) * 0.12 : 0;
-        for (const [i, a] of P.arms.entries()) a.rotation.x = moving ? Math.sin(t * 4 + i * Math.PI) * 0.55 : Math.sin(t * 1.2 + i) * 0.1;
-        P.crown.rotation.y = t * 0.3;
-        break;
-      case 'dragon':
-        b.position.y += Math.sin(t * 1.5) * 0.1;
-        for (const [i, w] of P.wings.entries()) w.rotation.z = (i ? -1 : 1) * (0.2 + Math.sin(t * 3) * 0.35);
-        P.head.rotation.x = Math.sin(t * 1.2) * 0.15;
-        break;
-    }
+    animateMob(this.kind, P, b, t, moving, this.anim);
     this.flash = Math.max(0, this.flash - dt);
     if ((this.flash > 0) !== this.flashing) {
       this.flashing = this.flash > 0;

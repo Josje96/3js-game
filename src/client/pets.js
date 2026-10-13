@@ -3,7 +3,8 @@
 // Every species is sculpted from client/petkit.js: smooth tubes for bodies and limbs, thin blades
 // for feathers, ears and fur, glossy eyes. bake() then merges each moving part into one mesh.
 import * as THREE from 'three';
-import { petStage, petTier } from '../shared/pets.js';
+import { petStage, petTier, isMiniPet, PET_SPECIES } from '../shared/pets.js';
+import { buildMobModel, animateMob } from './enemies.js';
 import { dropTinyShadows } from './merge.js';
 import { mix, smooth, rnd, shade, curly, scallops, tube, leaf, aim, part, placed, ball, bake, eye } from './petkit.js';
 
@@ -1174,10 +1175,12 @@ function decorate(built, level) {
   const [x, y, z] = built.headTop;
   const goldMat = () => std(0xffcf3f, { metalness: 0.8, roughness: 0.25, side: THREE.DoubleSide });
   const neck = built.neck ?? { at: [x, y - 0.24, z - 0.02], dir: [0, 1, 0], r: 0.15 };
-  const scarf = new THREE.Mesh(new THREE.TorusGeometry(neck.r, Math.max(0.018, neck.r * 0.28), 8, 20), tier >= 6 ? goldMat() : std(0xe8433a, { roughness: 0.9 }));
-  scarf.position.set(...neck.at);
-  aim(scarf, neck.dir, [0, 0, 1]); // the ring goes round the neck
-  built.body.add(scarf);
+  if (!built.noScarf) { // (a mini boss has no neck to tie one round)
+    const scarf = new THREE.Mesh(new THREE.TorusGeometry(neck.r, Math.max(0.018, neck.r * 0.28), 8, 20), tier >= 6 ? goldMat() : std(0xe8433a, { roughness: 0.9 }));
+    scarf.position.set(...neck.at);
+    aim(scarf, neck.dir, [0, 0, 1]); // the ring goes round the neck
+    built.body.add(scarf);
+  }
   const box = new THREE.Box3().setFromObject(built.body), mid = box.getCenter(new THREE.Vector3()), top = box.max.y;
   if (tier >= 16) { // diamond collar, sparkling round the scarf
     const collar = new THREE.Group();
@@ -1346,8 +1349,23 @@ function decorate(built, level) {
 
 const STAGE_SCALE = [1, 1.3, 1.6];
 
+/** A mini boss: the boss's own model, shrunk to pet size (it keeps its own walk, wings, fire...). */
+const MINI_HEIGHT = 0.95;
+function miniBoss(kind) {
+  const mob = buildMobModel(PET_SPECIES[kind].mini, true);
+  const s = MINI_HEIGHT / mob.height;
+  mob.group.scale.setScalar(s);
+  for (const m of mob.meshes) { // at pet size the skin grain would only be speckle: smooth, with the rim light
+    const u = m.material.userData.creatureUniforms;
+    if (u) { u.uGrain.value = 0; u.uCavity.value = 0.05; }
+  }
+  const body = new THREE.Group();
+  body.add(mob.group);
+  return { body, noScarf: true, parts: { ...mob.parts, mob }, headTop: [0, MINI_HEIGHT + 0.05, 0], neck: { at: [0, MINI_HEIGHT * 0.62, 0.05], dir: [0, 1, 0], r: 0.2 } };
+}
+
 export function buildPet(kind, level = 1) {
-  const [, build] = MODELS[kind] ?? MODELS.maple;
+  const [, build] = isMiniPet(kind) ? ['mob', miniBoss.bind(null, kind)] : MODELS[kind] ?? MODELS.maple;
   const built = build(petStage(level));
   decorate(built, level);
   return built;
@@ -1356,7 +1374,7 @@ export function buildPet(kind, level = 1) {
 export class PetView {
   constructor(kind, level = 1) {
     this.kind = kind;
-    this.shape = (MODELS[kind] ?? MODELS.maple)[0];
+    this.shape = isMiniPet(kind) ? 'mob' : (MODELS[kind] ?? MODELS.maple)[0];
     const built = buildPet(kind, level);
     this.root = new THREE.Group();
     this.root.add(built.body);
@@ -1451,6 +1469,13 @@ export class PetView {
           d.scale.setScalar(1 - u);
         });
         break;
+      case 'mob': { // a mini boss moves like the real one
+        const inner = P.mob.group;
+        inner.position.y = 0;
+        inner.rotation.set(0, 0, 0);
+        animateMob(P.mob.kind, P.mob.parts, inner, t, moving);
+        break;
+      }
       case 'snail':
         P.shell.rotation.z = Math.sin(t * 3) * 0.05;
         b.scale.z = 1 + (moving ? Math.sin(t * 8) * 0.06 : 0);

@@ -25,6 +25,7 @@ export function creatureLook(mat, { grain = 0.5, scale = 14, rim = null, rimStre
   if (!mat?.isMeshStandardMaterial || mat.userData.creatureLook) return mat;
   mat.userData.creatureLook = true;
   const uniforms = { uGrain: { value: grain }, uScale: { value: scale }, uRim: { value: new THREE.Color(rim ?? 0x000000) }, uRimK: { value: rim == null ? 0 : rimStrength }, uCavity: { value: cavity } };
+  mat.userData.creatureUniforms = uniforms; // tweakable afterwards (mini-boss pets turn the grain off)
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = `varying vec3 vClPos;\n${shader.vertexShader}`.replace('#include <begin_vertex>', `

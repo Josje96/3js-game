@@ -295,3 +295,4 @@ h1, h2, h3, .loc, .night-day, .xp-level, .title-logo { font-family: 'MedievalSha
 .sleep-days button { flex: 1 1 30%; }
 .hud-status .row.next-season { justify-content: flex-end; opacity: 0.7; margin-top: -2px; }
 .hud-status .row.next-season small { font-size: 11px; }
+.pet-card.locked { opacity: 0.55; filter: grayscale(0.6); }
