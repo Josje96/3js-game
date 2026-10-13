@@ -572,21 +572,63 @@ const CLOTHES_BUILDERS = {
     for (const y of [0.15, 0.03, -0.09]) g.add(mesh(new THREE.SphereGeometry(0.022, 6, 4), mat(0xffcf3f, { metalness: 0.6 }), 0, y, 0.03));
     return { front: g };
   },
-  gown() {
+  gown(_, color = 0xd8649f) { // a princess ball gown: a big poofy bell skirt, draped swags with roses, a petticoat ruffle, sparkles, puff sleeves
+    const base = new THREE.Color(color), light = base.clone().lerp(new THREE.Color(0xffffff), 0.2).getHex(), deep = base.clone().multiplyScalar(0.72).getHex();
+    const silk = mat(color, { roughness: 0.35, metalness: 0.05, side: THREE.DoubleSide }), lace = mat(0xfffaf4, { roughness: 0.8 }), trim = mat(light, { roughness: 0.4 });
     const skirt = new THREE.Group();
-    const cloth = mat(0xd8649f, { roughness: 0.5 });
-    const cone = mesh(new THREE.CylinderGeometry(0.42, 0.95, 1.1, 24, 1, true), cloth, 0, -0.5, 0);
-    cone.material.side = THREE.DoubleSide;
-    skirt.add(cone);
-    skirt.add(mesh(new THREE.TorusGeometry(0.42, 0.04, 6, 24), mat(0xffd6ea), 0, 0.04, 0)).children.at(-1).rotation.x = Math.PI / 2;
-    for (let i = 0; i < 8; i++) { // ruffle along the hem
-      const a = (i / 8) * Math.PI * 2;
-      skirt.add(mesh(new THREE.SphereGeometry(0.12, 8, 6), mat(0xffd6ea), Math.cos(a) * 0.93, -1.04, Math.sin(a) * 0.93, 1.3, 0.5, 1.3));
+    // the bell: a smooth lathe from the waist, puffing out and down to a wide hem
+    const TOP = 0.05, HEM = -1.08, R0 = 0.42, R1 = 1.22, pts = [];
+    const rAt = (y) => { const t = (y - TOP) / (HEM - TOP); return R0 + (R1 - R0) * Math.pow(Math.sin(t * Math.PI / 2), 0.62) + Math.sin(t * Math.PI) * 0.05; };
+    for (let i = 0; i <= 16; i++) { const y = TOP + (HEM - TOP) * (i / 16); pts.push(new THREE.Vector2(rAt(y), y)); }
+    const bell = mesh(new THREE.LatheGeometry(pts, 40), silk, 0, 0, 0);
+    skirt.add(bell);
+    // a short overskirt in a lighter shade, scalloped at its hem, over the top of the bell
+    const OVER = -0.32, over = [];
+    for (let i = 0; i <= 12; i++) { const y = TOP + (OVER - TOP) * (i / 12); over.push(new THREE.Vector2(rAt(y) + 0.035, y)); }
+    const overGeo = new THREE.LatheGeometry(over, 48), op = overGeo.attributes.position;
+    for (let i = 0; i < op.count; i++) { // scallops: the hem dips between the swags
+      const y = op.getY(i);
+      if (y < TOP + (OVER - TOP) * 0.6) { const a = Math.atan2(op.getZ(i), op.getX(i)); op.setY(i, y - Math.abs(Math.sin(a * 3)) * 0.16 * ((TOP - y) / (TOP - OVER))); }
     }
+    overGeo.computeVertexNormals();
+    skirt.add(mesh(overGeo, mat(light, { roughness: 0.4, side: THREE.DoubleSide }), 0, 0, 0));
+    // the petticoat: a white lace ruffle peeking out under the hem
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      skirt.add(mesh(new THREE.SphereGeometry(0.13, 8, 6), lace, Math.cos(a) * (R1 + 0.02), HEM + 0.02, Math.sin(a) * (R1 + 0.02), 1.3, 0.55, 0.7)).children.at(-1).rotation.y = -a;
+    }
+    // a rose (in the dress's deep shade) at each point of the overskirt's scallops
+    for (let i = 0; i < 6; i++) {
+      const ra = (i / 6) * Math.PI * 2, rr = rAt(OVER) + 0.06;
+      const rose = new THREE.Group();
+      rose.position.set(Math.cos(ra) * rr, OVER + 0.02, Math.sin(ra) * rr);
+      rose.add(mesh(new THREE.SphereGeometry(0.075, 8, 6), mat(deep, { roughness: 0.5 }), 0, 0, 0));
+      for (let k = 0; k < 5; k++) rose.add(mesh(new THREE.SphereGeometry(0.05, 6, 5), trim, Math.cos(k * 1.26) * 0.04, 0, Math.sin(k * 1.26) * 0.04));
+      rose.add(mesh(new THREE.SphereGeometry(0.04, 6, 5), mat(0xfff0f6), 0, 0.02, 0));
+      skirt.add(rose);
+    }
+    skirt.add(mesh(new THREE.TorusGeometry(R0 + 0.01, 0.045, 6, 28), trim, 0, TOP, 0)).children.at(-1).rotation.x = Math.PI / 2; // the waistband
+    const sparkle = mat(0xffffff, { emissive: 0xfff4d0, emissiveIntensity: 0.6, metalness: 0.6, roughness: 0.2 });
+    for (let i = 0; i < 26; i++) { // sparkles scattered over the skirt
+      const t = 0.5 + ((i * 0.37) % 0.45), a = i * 2.4, y = TOP + (HEM - TOP) * t, r = rAt(y) + 0.02; // over the bright skirt, below the overskirt
+      skirt.add(mesh(new THREE.OctahedronGeometry(0.03, 0), sparkle, Math.cos(a) * r, y, Math.sin(a) * r));
+    }
+    skirt.userData.cone = { topY: TOP, hemY: HEM, rTop: R0, rBot: R1 }; // flared by the view so feet stay inside
+    // the bodice: a lace sweetheart neckline, a pearl necklace and a bow
     const front = new THREE.Group();
-    front.add(mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(0xffffff, { roughness: 0.2 }), 0, 0.22, 0.03)); // a pearl
-    skirt.userData.cone = { topY: 0.05, hemY: -1.05, rTop: 0.42, rBot: 0.95 }; // flared by the view so feet stay inside
-    return { front, hips: skirt };
+    for (const s of [-1, 1]) front.add(mesh(new THREE.TorusGeometry(0.11, 0.025, 6, 12, Math.PI), lace, s * 0.1, 0.24, 0.0)).children.at(-1).rotation.z = Math.PI;
+    for (let i = 0; i < 9; i++) { const a = Math.PI * (1.15 + i * 0.0875); front.add(mesh(new THREE.SphereGeometry(0.022, 6, 5), mat(0xfffaf0, { roughness: 0.15, metalness: 0.2 }), Math.cos(a) * 0.2, 0.42 + Math.sin(a) * 0.12, 0.02)); }
+    for (const s of [-1, 1]) front.add(mesh(new THREE.ConeGeometry(0.06, 0.12, 4), trim, s * 0.06, -0.16, 0.04)).children.at(-1).rotation.z = s * Math.PI / 2;
+    front.add(mesh(new THREE.SphereGeometry(0.03, 6, 5), trim, 0, -0.16, 0.05));
+    // puff sleeves on the shoulders
+    const puff = () => {
+      const g = new THREE.Group();
+      g.add(mesh(new THREE.SphereGeometry(0.5, 14, 10), silk, 0, -0.05, 0, 1.05, 0.85, 1.05));
+      for (let k = 0; k < 6; k++) g.add(mesh(new THREE.BoxGeometry(0.03, 0.75, 0.06), trim, Math.cos(k * 1.05) * 0.5, -0.05, Math.sin(k * 1.05) * 0.5)).children.at(-1).rotation.y = -k * 1.05; // gathers
+      g.add(mesh(new THREE.TorusGeometry(0.42, 0.05, 6, 18), lace, 0, -0.38, 0)).children.at(-1).rotation.x = Math.PI / 2;
+      return g;
+    };
+    return { front, hips: skirt, shoulderl: puff(), shoulderr: puff() };
   },
   sash() { // a pirate captain: a gold sash across the chest, brass buttons and a lace jabot
     const g = new THREE.Group();
@@ -672,8 +714,8 @@ export function buildArmor(color, tier = 0) {
 
 /** A fancy outfit's extras: `color` = its jacket colour (skirts follow it), `tie` = the tie colour. */
 export function buildClothes(extra, color, tie) {
-  const built = CLOTHES_BUILDERS[extra]?.(tie) ?? {};
-  if (color != null && (extra === 'gown' || extra === 'robe' || extra === 'coat')) built.hips?.children[0]?.material.color.set(color);
+  const built = CLOTHES_BUILDERS[extra]?.(tie, color) ?? {};
+  if (color != null && (extra === 'robe' || extra === 'coat')) built.hips?.children[0]?.material.color.set(color); // (a gown is built in its colour)
   return built;
 }
 

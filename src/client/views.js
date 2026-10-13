@@ -394,6 +394,8 @@ export class CharacterView {
     const extra = buildClothes(def.extra, def.jacket, tieColor);
     if (extra.front) this.attach('front', extra.front);
     if (extra.hips) this.attach('hips', extra.hips);
+    if (extra.shoulderl) this.attach('shoulderl', extra.shoulderl); // a gown's puff sleeves
+    if (extra.shoulderr) this.attach('shoulderr', extra.shoulderr);
     if (extra.hips?.userData.cone && extra.hips.parent) this.skirt = extra.hips;
   }
 
