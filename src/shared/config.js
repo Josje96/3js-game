@@ -136,6 +136,15 @@ export const CLOTHES = {
   chef:   { name: 'Chef whites', price: 200, jacket: 0xf4f4f4, legs: 0x3a3a3a, extra: 'apron' },
   overalls: { name: 'Farmer overalls', price: 160, jacket: 0xd8402a, legs: 0x3b5f9a, extra: 'bib' },
   sundress: { name: 'Summer dress', price: 300, jacket: 0xffd23f, legs: 0xffd23f, extra: 'gown' },
+  // seasonal outfits: only from the Seasonal Trader, in their season (shared/seasonal.js)
+  blossomgown:  { name: 'Blossom gown', price: 1400, jacket: 0xffb3cc, legs: 0xffd6e4, extra: 'gown', seasonal: 'spring' },
+  gardener:     { name: 'Gardener’s overalls', price: 1000, jacket: 0xfff6dc, legs: 0x3fa84a, extra: 'bib', seasonal: 'spring' },
+  beachdress:   { name: 'Beach dress', price: 1200, jacket: 0x4fd8c0, legs: 0x4fd8c0, extra: 'gown', seasonal: 'summer' },
+  safari:       { name: 'Safari explorer', price: 1000, jacket: 0xd8c08a, legs: 0x8a7a5a, extra: 'vest', seasonal: 'summer' },
+  harvestcloak: { name: 'Harvest cloak', price: 1400, jacket: 0xd8782a, legs: 0x6b3a1a, extra: 'robe', seasonal: 'autumn' },
+  pumpkinsuit:  { name: 'Pumpkin patch suit', price: 1000, jacket: 0xff8a2a, legs: 0x3a5a2a, extra: 'tie', seasonal: 'autumn' },
+  snowqueen:    { name: 'Snow queen gown', price: 1600, jacket: 0xdff6ff, legs: 0xbfe0ff, extra: 'gown', seasonal: 'winter' },
+  wintercoat:   { name: 'Festive red coat', price: 1200, jacket: 0xd8302a, legs: 0x2a2a2a, extra: 'robe', seasonal: 'winter' },
 };
 /** The colour of the tie (suit) or bow tie (tuxedo). All free: pick one in the wardrobe. */
 export const TIE_COLORS = {

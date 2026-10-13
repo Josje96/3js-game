@@ -116,11 +116,18 @@ test('seasonal trader: only this season’s things, a different set every 6 days
   c.mom.say({ t: 'interact', id: stall.id });
   assert.equal(c.mom.last('ui').kind, 'seasonal');
   const today = seasonalSet(save.day).items;
-  const decor = today.find((i) => i.kind === 'furniture'), treat = today.find((i) => i.kind === 'item');
+  for (const d of [1, 7, 13, 19, 25, 31, 70, 100]) assert.ok(seasonalSet(d).items.some((i) => i.kind === 'clothes'), `day ${d}: a fancy outfit on the stall`);
+  const decor = today.find((i) => i.kind === 'furniture'), treat = today.find((i) => i.kind === 'item'), outfit = today.find((i) => i.kind === 'clothes');
   c.mom.say({ t: 'buySeasonal', item: decor.id });
   assert.equal(save.house.owned[decor.id], 1, 'the decoration waits at home');
+  const gold = p.mom.gold;
   c.mom.say({ t: 'buySeasonal', item: treat.id });
   assert.equal(p.mom.inventory[treat.id], 1);
+  assert.equal(gold - p.mom.gold, ITEMS[treat.id].price * 2, 'rare: twice the price');
+  c.mom.say({ t: 'buySeasonal', item: outfit.id });
+  assert.ok(p.mom.closet.includes(`clothes:${outfit.id}`), 'the outfit is in the wardrobe');
+  c.mom.say({ t: 'buyStyle', slot: 'clothes', id: 'snowqueen' });
+  assert.ok(!p.mom.closet.includes('clothes:snowqueen'), 'the fashion shop doesn’t sell seasonal outfits');
   c.mom.say({ t: 'buySeasonal', item: 'snowman' }); // winter's, and it's spring
   assert.equal(save.house.owned.snowman, undefined, 'not in season');
   save.flags.mineCleared = true;

@@ -2,7 +2,8 @@
 // only buy in their season, a different set every few days (shared/seasonal.js).
 import { ITEMS } from '../../shared/items.js';
 import { FURNITURE } from '../../shared/furniture.js';
-import { seasonalSet } from '../../shared/seasonal.js';
+import { CLOTHES } from '../../shared/config.js';
+import { seasonalSet, seasonalPrice } from '../../shared/seasonal.js';
 
 export const interactions = {
   seasonal(p) {
@@ -17,9 +18,16 @@ export const methods = {
     if (p.loc !== 'town') return;
     const on = seasonalSet(this.save.day).items.find((i) => i.id === item);
     if (!on) return this.toast(p, '“Sorry, that’s not on the stall today. Come back next season!”');
-    const def = on.kind === 'item' ? ITEMS[item] : FURNITURE[item];
-    if (!def || !this.spend(p, def.price, def.name)) return;
-    if (on.kind === 'item') {
+    const def = on.kind === 'item' ? ITEMS[item] : on.kind === 'clothes' ? CLOTHES[item] : FURNITURE[item];
+    if (!def) return;
+    if (on.kind === 'clothes' && p.closet.includes(`clothes:${item}`)) return this.toast(p, 'You already have that outfit — it’s in your wardrobe.');
+    if (!this.spend(p, seasonalPrice(def), def.name)) return;
+    if (on.kind === 'clothes') {
+      p.closet.push(`clothes:${item}`);
+      this.toast(p, `Bought ${def.name}! Try it on at the wardrobe at home.`);
+      this.writeRecord(p);
+      this.sendSelf(p);
+    } else if (on.kind === 'item') {
       p.inventory[item] = (p.inventory[item] ?? 0) + 1;
       this.toast(p, `Bought ${def.name}!`);
       this.sendSelf(p);

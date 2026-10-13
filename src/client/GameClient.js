@@ -475,6 +475,7 @@ export class GameClient {
       this.hud.tryOn = (slot, id) => { // a sneak peek in the shop: wear it for a moment, close up
         this.me?.setLook({ ...cleanLook(this.profile.look), [slot]: id });
         this.closeUp = true;
+        this.pos.rot = 0; // turn round to face the camera
       };
       this.hud.untryOn = () => { this.me?.setLook(cleanLook(this.profile.look, this.self?.closet)); this.closeUp = false; };
       this.hud.openShop({
@@ -485,6 +486,8 @@ export class GameClient {
         onBuyStyle: (slot, id) => this.conn.send({ t: 'buyStyle', slot, id }),
       });
     } else if (msg.kind === 'seasonal') {
+      this.hud.tryOn = (slot, id) => { this.me?.setLook({ ...cleanLook(this.profile.look), [slot]: id }); this.closeUp = true; this.pos.rot = 0; }; // face the camera
+      this.hud.untryOn = () => { this.me?.setLook(cleanLook(this.profile.look, this.self?.closet)); this.closeUp = false; };
       this.hud.openSeasonal({ ...msg, onBuy: (item) => this.conn.send({ t: 'buySeasonal', item }) });
     } else if (msg.kind === 'bank') {
       this.hud.openBank({ family: msg.family, onAction: (action, amount, to) => this.conn.send({ t: 'bank', action, amount, to }) });

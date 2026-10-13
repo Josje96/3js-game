@@ -8,6 +8,7 @@ import { wallpaperSwatch } from './wallpaper.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost } from '../shared/pets.js';
 import { seasonOf, dayOfSeason, isBossDay, calendar, dateLabel, CALENDAR_NAME } from '../shared/seasons.js';
 import { ENCHANT_LOOKS, enchantCost, enchantedName, enchantDamage } from '../shared/enchant.js';
+import { seasonalPrice } from '../shared/seasonal.js';
 
 /** The night screen's season line: which season it is, and whether its boss has come to town. */
 function seasonLine(day) {
@@ -432,7 +433,7 @@ export class Hud {
       wrap.append(el('h3', null, title));
       const grid = el('div', 'fashion-grid');
       for (const [id, def] of Object.entries(STYLE_SLOTS[slot])) {
-        if (!def.price) continue;
+        if (!def.price || def.seasonal) continue; // seasonal outfits: the Seasonal Trader
         const owned = ownsStyle(this.self?.closet, slot, id);
         const swatch = def.color != null ? `<i class="swatch" style="background:#${def.color.toString(16).padStart(6, '0')}"></i>` : '';
         const b = el('button', 'shop-row', `<span>${swatch}${esc(def.name)}</span><span class="gold">${owned ? '✓' : def.price}</span>`);
@@ -491,7 +492,7 @@ export class Hud {
         box.append(wrap);
       };
       const closet = this.self?.closet;
-      const styles = (slot, table) => Object.entries(table).map(([k, v]) => {
+      const styles = (slot, table) => Object.entries(table).filter(([k, v]) => !v.seasonal || ownsStyle(closet, slot, k)).map(([k, v]) => {
         const locked = !ownsStyle(closet, slot, k);
         return [k, locked ? `🔒 ${v.name} · ${v.price}g` : v.name, locked];
       });
@@ -622,12 +623,13 @@ export class Hud {
         el('p', 'muted', `${names[season]} specials — only while the season lasts! Stall ${set + 1} of 5: new things in <b>${daysLeft} day${daysLeft === 1 ? '' : 's'}</b>. Decorations go home to the fort (press B there).`));
       const body = el('div', 'shop-body');
       for (const { id, kind } of items) {
-        const def = kind === 'item' ? ITEMS[id] : FURNITURE[id];
-        const icon = kind === 'item' ? itemIcon(id) : furnitureIcon(id);
-        const sub = kind === 'item' ? `❤ +${def.heal}` : 'for the fort';
-        const row = el('button', 'shop-row', `<span>${iconImg(icon)}${esc(def.name)} <small>${sub}</small></span><span class="gold">${def.price}</span>`);
-        row.disabled = gold < def.price;
-        row.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuy(id), { img: iconImg(icon) }));
+        const def = kind === 'item' ? ITEMS[id] : kind === 'clothes' ? CLOTHES[id] : FURNITURE[id];
+        const price = seasonalPrice(def), owned = kind === 'clothes' && (this.self?.closet ?? []).includes(`clothes:${id}`);
+        const icon = kind === 'item' ? iconImg(itemIcon(id)) : kind === 'furniture' ? iconImg(furnitureIcon(id)) : '👗 ';
+        const sub = kind === 'item' ? `❤ +${def.heal}` : kind === 'clothes' ? 'fancy outfit · try it on!' : 'for the fort';
+        const row = el('button', 'shop-row', `<span>${icon}${esc(def.name)} <small>${sub}</small></span><span class="gold">${owned ? '✓' : price}</span>`);
+        row.disabled = owned || gold < price;
+        row.addEventListener('click', () => this.askToBuy(def.name, price, () => onBuy(id), kind === 'clothes' ? { tryOn: { slot: 'clothes', id } } : { img: icon }));
         body.append(row);
       }
       box.append(body, closeButton(this));

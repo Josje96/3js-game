@@ -8,17 +8,21 @@ const SET_DAYS = SEASON_DAYS / SETS_PER_SEASON; // 6
 /** Which three of the six decorations each set shows: five different sets. */
 const SET_PICKS = [[0, 1, 2], [3, 4, 5], [0, 2, 4], [1, 3, 5], [0, 4, 5]];
 
-/** Each season's pool: two treats and six decorations. */
+/** Each season's pool: two treats, two fancy outfits (one is always on the stall) and six decorations. */
 export const SEASONAL_STOCK = {
-  spring: { food: ['blossomtea', 'honeycake'], decor: ['blossomtree', 'bunnyplush', 'eggbasket', 'birdhouse', 'tulips', 'maypolemini'] },
-  summer: { food: ['lemonade', 'icecream'], decor: ['parasol', 'beachball', 'sandcastle', 'sunflowers', 'shellbowl', 'surfboard'] },
-  autumn: { food: ['cider', 'pumpkinpie'], decor: ['jackolantern', 'scarecrow', 'leafpile', 'applebasket', 'cornstalks', 'acornbowl'] },
-  winter: { food: ['gingerbread', 'snowcone'], decor: ['snowman', 'xmastree', 'giftpile', 'snowglobe', 'icesculpture', 'stocking'] },
+  spring: { food: ['blossomtea', 'honeycake'], outfits: ['blossomgown', 'gardener'], decor: ['blossomtree', 'bunnyplush', 'eggbasket', 'birdhouse', 'tulips', 'maypolemini'] },
+  summer: { food: ['lemonade', 'icecream'], outfits: ['beachdress', 'safari'], decor: ['parasol', 'beachball', 'sandcastle', 'sunflowers', 'shellbowl', 'surfboard'] },
+  autumn: { food: ['cider', 'pumpkinpie'], outfits: ['harvestcloak', 'pumpkinsuit'], decor: ['jackolantern', 'scarecrow', 'leafpile', 'applebasket', 'cornstalks', 'acornbowl'] },
+  winter: { food: ['gingerbread', 'snowcone'], outfits: ['snowqueen', 'wintercoat'], decor: ['snowman', 'xmastree', 'giftpile', 'snowglobe', 'icesculpture', 'stocking'] },
 };
 
+/** The trader's prices: these are rare, so twice what the item's own price says. */
+export const SEASONAL_MARKUP = 2;
+export const seasonalPrice = (def) => Math.round((def?.price ?? 0) * SEASONAL_MARKUP);
+
 /**
- * What's on the stall on `day`: the season, which of the 5 sets (each a treat and three
- * decorations, different every time), and how many days until it changes.
+ * What's on the stall on `day`: the season, which of the 5 sets (each a treat, a fancy outfit and
+ * three decorations, different every time), and how many days until it changes.
  */
 export function seasonalSet(day) {
   const season = seasonOf(day), d = dayOfSeason(day), set = Math.floor((d - 1) / SET_DAYS);
@@ -27,7 +31,11 @@ export function seasonalSet(day) {
   return {
     season: season.id,
     set,
-    items: [{ id: pool.food[set % pool.food.length], kind: 'item' }, ...decor.map((id) => ({ id, kind: 'furniture' }))],
+    items: [
+      { id: pool.food[set % pool.food.length], kind: 'item' },
+      { id: pool.outfits[(set + 1) % pool.outfits.length], kind: 'clothes' },
+      ...decor.map((id) => ({ id, kind: 'furniture' })),
+    ],
     daysLeft: SET_DAYS - ((d - 1) % SET_DAYS),
   };
 }

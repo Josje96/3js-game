@@ -37,7 +37,7 @@ export const methods = {
   /** Buy a hat / back item / dye / fancy clothes for this player's closet. */
   on_buyStyle(p, { slot, id }) {
     const def = STYLE_SLOTS[slot]?.[id];
-    if (!def?.price || ownsStyle(p.closet, slot, id) || p.loc !== 'town') return;
+    if (!def?.price || def.seasonal || ownsStyle(p.closet, slot, id) || p.loc !== 'town') return;
     if (!this.spend(p, def.price, def.name)) return;
     p.closet.push(`${slot}:${id}`);
     this.toast(p, `Bought ${def.name}! Try it on at the wardrobe at home.`);
