@@ -3,7 +3,7 @@
 // (they're drawn once per page), but placement uses the layout's seeded `rand`.
 import * as THREE from 'three';
 import { CELL } from '../shared/config.js';
-import { SEASON_LOOK, SEASON_GLSL } from './seasonfx.js';
+import { SEASON_LOOK, SEASON_GLSL, WINTER } from './seasonfx.js';
 
 const GRASS_TILE = CELL * 2;   // world units per repeat of the grass texture
 const WATER_Y = -0.2;          // water surface (the water blocks' tops sit at -0.3)
@@ -258,18 +258,27 @@ export function makeWater(cells, rand, uTime, { healing = false, disc = null, li
   });
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = uTime;
-    shader.vertexShader = `uniform float uTime;\n${WAVES}\n${shader.vertexShader}`
+    shader.uniforms.uWinter = WINTER; // winter: the water freezes over (no waves, pale cracked ice)
+    shader.vertexShader = `uniform float uTime;\nuniform float uWinter;\n${WAVES}\n${shader.vertexShader}`
       .replace('#include <beginnormal_vertex>', `
-        vec3 wv = waterWave(position.xz);
+        vec3 wv = waterWave(position.xz) * (1.0 - uWinter);
         vec3 objectNormal = normalize(vec3(-wv.y, 1.0, -wv.z));`)
       .replace('#include <begin_vertex>', `
         vec3 transformed = vec3(position);
         transformed.y += wv.x;`);
-    shader.fragmentShader = `uniform float uTime;\n${shader.fragmentShader}`.replace('#include <map_fragment>', `
-      float r1 = texture2D(map, vMapUv + vec2(uTime * 0.035, uTime * 0.02)).r;
-      float r2 = texture2D(map, vMapUv * 1.37 + vec2(-uTime * 0.025, uTime * 0.04)).r;
+    shader.fragmentShader = `uniform float uTime;\nuniform float uWinter;\n${shader.fragmentShader}`.replace('#include <map_fragment>', `
+      float flow = uTime * (1.0 - uWinter);
+      float r1 = texture2D(map, vMapUv + vec2(flow * 0.035, flow * 0.02)).r;
+      float r2 = texture2D(map, vMapUv * 1.37 + vec2(-flow * 0.025, flow * 0.04)).r;
       float shine = smoothstep(0.55, 1.2, r1 + r2);
-      diffuseColor.rgb = mix(diffuseColor.rgb * (0.9 + 0.15 * r1), vec3(0.85, 0.96, 1.0), shine * 0.75);`);
+      diffuseColor.rgb = mix(diffuseColor.rgb * (0.9 + 0.15 * r1), vec3(0.85, 0.96, 1.0), shine * 0.75);
+      // ice: frosty blue-white, cloudy patches, thin dark cracks and a dusting of snow
+      float i1 = texture2D(map, vMapUv * 0.45).r, i2 = texture2D(map, vMapUv * 1.9 + 0.37).r;
+      float crack = 1.0 - (1.0 - smoothstep(0.0, 0.035, abs(i1 - 0.5))) * 0.45;
+      vec3 ice = mix(vec3(0.62, 0.8, 0.92), vec3(0.9, 0.96, 1.0), smoothstep(0.3, 0.8, i2)) * crack;
+      ice = mix(ice, vec3(0.97, 0.98, 1.0), smoothstep(0.62, 0.85, i1 * 0.6 + i2 * 0.5) * 0.8);
+      diffuseColor.rgb = mix(diffuseColor.rgb, ice, uWinter);
+      diffuseColor.a = mix(diffuseColor.a, 0.97, uWinter);`);
   };
   const surface = new THREE.Mesh(geo, mat);
   surface.receiveShadow = true;
@@ -321,6 +330,7 @@ export function makeWater(cells, rand, uTime, { healing = false, disc = null, li
       s.material.opacity = Math.sin(u * Math.PI) * (disc ? 0.55 : 0.9);
       s.scale.setScalar((disc ? 0.6 : 1) * (0.35 + 0.3 * Math.sin(u * Math.PI)));
     }
+    for (const p of pads) p.visible = WINTER.value < 0.5; // no lily pads on the ice
     for (const p of pads) { // always on top: just over the highest wave (WAVE_MAX), bobbing a touch with the swell
       p.position.y = level + WAVE_MAX + 0.02 + (waveHeight(p.position.x, p.position.z, time) + WAVE_MAX) * 0.15;
       p.rotation.y += Math.sin(time * 0.3 + p.userData.phase) * 0.0015;

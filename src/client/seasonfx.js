@@ -8,6 +8,47 @@ import { glowTexture } from './effects.js';
 export const SEASON_LOOK = { value: new THREE.Vector4(1, 0, 0, 0) };
 const ORDER = ['spring', 'summer', 'autumn', 'winter'];
 
+/** How wintry it is right here (0..1): the town's share of winter; 0 indoors and in the dungeons. Freezes water, snows on roofs. */
+export const WINTER = { value: 0 };
+
+/**
+ * Snow settles on top of things in winter: any surface facing up, above head height (roofs,
+ * tower tops, canopies, wall tops), turns snowy as WINTER rises. Patches the materials of a
+ * finished scene once (things that already have their own shader, or see-through, are left alone).
+ */
+export function snowOnTops(root, skip = () => false) {
+  const done = new Set();
+  const visit = (o) => {
+    if (skip(o)) return;
+    if (o.isMesh && !o.isSkinnedMesh) for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m || done.has(m) || m.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile || m.transparent || !(m.isMeshStandardMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial || m.isMeshToonMaterial)) continue;
+      done.add(m);
+      m.onBeforeCompile = (shader) => {
+        shader.uniforms.uWinter = WINTER;
+        shader.vertexShader = `varying vec3 vSnowN;\nvarying float vSnowY;\n${shader.vertexShader}`.replace('#include <project_vertex>', `
+          #include <project_vertex>
+          vec4 snowP = vec4(transformed, 1.0);
+          vec3 snowN = objectNormal;
+          #ifdef USE_INSTANCING
+            snowP = instanceMatrix * snowP;
+            snowN = mat3(instanceMatrix) * snowN;
+          #endif
+          snowP = modelMatrix * snowP;
+          vSnowY = snowP.y;
+          vSnowN = normalize(mat3(modelMatrix) * snowN);`);
+        shader.fragmentShader = `uniform float uWinter;\nvarying vec3 vSnowN;\nvarying float vSnowY;\n${shader.fragmentShader}`.replace('#include <map_fragment>', `
+          #include <map_fragment>
+          float snowy = uWinter * smoothstep(0.35, 0.7, normalize(vSnowN).y) * smoothstep(1.3, 1.9, vSnowY);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.97, 1.0), snowy * 0.92);`);
+      };
+      m.customProgramCacheKey = () => 'snowtop';
+      m.needsUpdate = true;
+    }
+    for (const c of o.children) visit(c);
+  };
+  visit(root);
+}
+
 /** Ease the shared look towards `season` (call every frame; snaps when entering a place). */
 export function easeSeasonLook(season, dt, snap = false) {
   const target = ORDER.map((s) => (s === season ? 1 : 0));

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { CELL, SPRING_COST } from '../shared/config.js';
 import { hashSeed } from '../shared/rng.js';
 import { instanced, cloneModel } from './assets.js';
-import { CharacterView, makeGlow } from './views.js';
+import { CharacterView, makeGlow, SEASON_WEAR } from './views.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { makeGrass, makeWater, makeTrees, makeSpringBanks, pondEdge } from './nature.js';
 import { wallpaperTexture } from './wallpaper.js';
@@ -18,7 +18,7 @@ import { THEMES } from './themes.js';
 import { mergeStatic, dropTinyShadows } from './merge.js';
 import { buildTownFun } from './townfun.js';
 import { seasonOf } from '../shared/seasons.js';
-import { SeasonParticles, easeSeasonLook } from './seasonfx.js';
+import { SeasonParticles, easeSeasonLook, SEASON_LOOK, WINTER, snowOnTops } from './seasonfx.js';
 
 /** Wooden signpost for the healing spring. */
 function makeSpringSign() {
@@ -134,9 +134,11 @@ export class LocationView {
     this.rand = r;
     this.uTime = { value: 0 }; // shared by the grass and water shaders
 
+    this.setSeasonWear();
     if (layout.theme === 'outdoor') this.buildOutdoor();
     else this.buildIndoor();
     this.buildProps();
+    if (layout.key === 'town') snowOnTops(this.group, (o) => o.userData.noSnow);
     dropTinyShadows(this.group);
     this.setWorld(world);
   }
@@ -427,10 +429,10 @@ export class LocationView {
         const a = (i / 10) * Math.PI * 2 + 0.3;
         return { x: pond0.x + Math.cos(a) * (pondR + 2), z: pond0.z + Math.sin(a) * (pondR + 2), r: 0.9, n: 9 };
       }).filter((s) => !L.isSolidCell(Math.floor(s.x / CELL), Math.floor(s.z / CELL)));
-      this.group.add(makeFlowers(ringSpots, this.rand));
+      this.group.add(this.springOnly(makeFlowers(ringSpots, this.rand)));
     }
     const beds = (L.decor ?? []).filter((d) => d.kind === 'flowers');
-    if (beds.length) this.group.add(makeFlowers(beds, this.rand));
+    if (beds.length) this.group.add(this.springOnly(makeFlowers(beds, this.rand)));
     if (fences.length) this.group.add(this.still(makeFence(fences, (cx, cz) => L.cell(cx, cz) === '+')));
     if (L.key === 'town') this.buildTownLife();
 
@@ -685,12 +687,27 @@ export class LocationView {
     if (this.seasonFx) {
       const season = seasonOf(this.world?.day ?? 1).id;
       easeSeasonLook(season, dt);
+      WINTER.value = SEASON_LOOK.value.w;
+      this.setSeasonWear();
       this.seasonFx.setSeason(season);
       if (focus) this.seasonFx.update(dt, time, focus);
     }
     for (const a of this.animated) a.update(dt);
     for (const [i, l] of this.lights.entries()) l.intensity = 16 + Math.sin(time * 9 + i * 7) * 2 + Math.sin(time * 23 + i) * 1.5;
     for (const gate of Object.values(this.gates)) if (gate.glow.visible) gate.glow.material.opacity = 0.55 + Math.sin(time * 3) * 0.2;
+  }
+
+  /** Flowers: gone under the snow in winter. */
+  springOnly(obj) {
+    this.animated.push({ update: () => { obj.visible = WINTER.value < 0.5; } });
+    return obj;
+  }
+
+  /** What everyone wears out here this time of year (views.js SEASON_WEAR): winter coats in town. */
+  setSeasonWear() {
+    const town = this.layout.key === 'town';
+    if (!town) WINTER.value = 0;
+    SEASON_WEAR.value = town && seasonOf(this.world?.day ?? 1).id === 'winter' ? 'winter' : null;
   }
 
   /** Bake a thing that never moves into a few meshes (fewer draw calls; see merge.js). */

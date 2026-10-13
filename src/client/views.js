@@ -4,7 +4,7 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COL
 import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
+import { buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -109,6 +109,14 @@ const FACE_EYE_HEIGHT = 0.38;
 const LOW_HP = 0.3;              // flash red at or below this share of max health // eyes, as a fraction of the head's height from the bottom
 const CAPE_PART = /_Cape$/;
 
+/**
+ * What the season dresses everyone in (set by LocationView each frame): null, or 'winter' (in town
+ * in winter: a bobble hat, a scarf and a warm coat over whatever you wear). Just a look: your own
+ * outfit stays saved, and a CharacterView with `noSeasonWear` (trying clothes on) is left alone.
+ */
+export const SEASON_WEAR = { value: null };
+const COATS = [0xb8333a, 0x2f4f8a, 0x2f7a4a, 0x7a3f8a, 0xc9862e, 0x3f8a8a];
+
 export class CharacterView {
   constructor({ cls, look, name, weapon, ench = 0, shield = null, armor = null, isLocal = false }) {
     this.root = new THREE.Group();
@@ -120,6 +128,8 @@ export class CharacterView {
     this.time = 0;
     this.borrowed = [];   // meshes/accessories added by the current look
     this.anchors = this.computeAnchors();
+    this.root.userData.noSnow = true; // characters don't get the town's snowy tops (seasonfx.js)
+    this.coatColor = COATS[[...String(name ?? '')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % COATS.length];
     this.setLook(look);
     this.mixer = new THREE.AnimationMixer(this.model);
     const clips = characterClips();
@@ -280,8 +290,12 @@ export class CharacterView {
 
   /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories, clothes and dye. */
   setLook(look) {
+    this.look = look;
+    const wear = this.wear = this.noSeasonWear ? null : SEASON_WEAR.value;
+    const fancy = look?.clothes && look.clothes !== 'none';
+    if (wear === 'winter') look = { ...look, hat: 'none' }; // the bobble hat goes on instead
     const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red' } = look ?? {};
-    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${hairColor}/${face}/${skin}/${tie}`;
+    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${hairColor}/${face}/${skin}/${tie}/${wear}`;
     if (key === this.lookKey) return;
     this.lookKey = key;
     for (const m of this.borrowed) m.removeFromParent();
@@ -321,7 +335,13 @@ export class CharacterView {
       this.attach('face', buildBrows(hc)); // eyebrows to match the hair
     }
     if (face !== 'none') this.attach('face', buildFace(face, hc));
-    this.setClothes(CLOTHES[clothes], TIE_COLORS[tie]?.color);
+    // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
+    this.setClothes(CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'coat' } : undefined), TIE_COLORS[tie]?.color);
+    if (wear === 'winter') {
+      const ww = buildWinterWear(this.coatColor === COATS[1] ? COATS[0] : COATS[(COATS.indexOf(this.coatColor) + 1) % COATS.length]);
+      this.attach('hat', ww.hat);
+      this.attach('front', ww.scarf);
+    }
     // dye: give cape meshes their own copy of the (shared) material, painted a flat colour
     // (multiplying over a red cape's texture would just give muddy red)
     const tint = DYES[dye]?.color;
@@ -465,6 +485,7 @@ export class CharacterView {
 
   update(dt) {
     this.time += dt;
+    if ((this.noSeasonWear ? null : SEASON_WEAR.value) !== this.wear) this.setLook(this.look); // the season changed (or we went in/out)
     for (const b of this.borrowed) b.children[0]?.userData.update?.(this.time); // flapping wings
     this.weaponFx?.update(this.time);
     if (this.target) {

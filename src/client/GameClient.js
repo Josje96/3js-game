@@ -473,11 +473,12 @@ export class GameClient {
   openUi(msg) {
     if (msg.kind === 'shop' || msg.kind === 'smith') {
       this.hud.tryOn = (slot, id) => { // a sneak peek in the shop: wear it for a moment, close up
+        if (this.me) this.me.noSeasonWear = true; // see the real thing, not a winter coat over it
         this.me?.setLook({ ...cleanLook(this.profile.look), [slot]: id });
         this.closeUp = true;
         this.pos.rot = 0; // turn round to face the camera
       };
-      this.hud.untryOn = () => { this.me?.setLook(cleanLook(this.profile.look, this.self?.closet)); this.closeUp = false; };
+      this.hud.untryOn = () => { if (this.me) this.me.noSeasonWear = false; this.me?.setLook(cleanLook(this.profile.look, this.self?.closet)); this.closeUp = false; };
       this.hud.openShop({
         vendor: msg.kind,
         onForge: (recipe) => this.conn.send({ t: 'forge', recipe }),
@@ -490,8 +491,8 @@ export class GameClient {
     } else if (msg.kind === 'feast') {
       this.hud.openFeast({ ...msg, onYes: () => this.conn.send({ t: 'eatFeast', table: msg.table }) });
     } else if (msg.kind === 'seasonal') {
-      this.hud.tryOn = (slot, id) => { this.me?.setLook({ ...cleanLook(this.profile.look), [slot]: id }); this.closeUp = true; this.pos.rot = 0; }; // face the camera
-      this.hud.untryOn = () => { this.me?.setLook(cleanLook(this.profile.look, this.self?.closet)); this.closeUp = false; };
+      this.hud.tryOn = (slot, id) => { if (this.me) this.me.noSeasonWear = true; this.me?.setLook({ ...cleanLook(this.profile.look), [slot]: id }); this.closeUp = true; this.pos.rot = 0; }; // face the camera
+      this.hud.untryOn = () => { if (this.me) this.me.noSeasonWear = false; this.me?.setLook(cleanLook(this.profile.look, this.self?.closet)); this.closeUp = false; };
       this.hud.openSeasonal({ ...msg, onBuy: (item) => this.conn.send({ t: 'buySeasonal', item }) });
     } else if (msg.kind === 'bank') {
       this.hud.openBank({ family: msg.family, onAction: (action, amount, to) => this.conn.send({ t: 'bank', action, amount, to }) });

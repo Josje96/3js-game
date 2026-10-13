@@ -157,6 +157,34 @@ const BACK_BUILDERS = {
   },
 };
 
+/**
+ * Winter wear (views.js SEASON_WEAR): a knitted bobble hat (hat frame: head 1 wide, y 0 on top)
+ * and a striped scarf (front frame, like the tie). `color` = the knit's main colour.
+ */
+export function buildWinterWear(color) {
+  const knit = mat(color, { roughness: 1 }), cream = mat(0xf4efe4, { roughness: 1 });
+  const hat = new THREE.Group();
+  hat.add(mesh(new THREE.SphereGeometry(0.62, 24, 12, 0, Math.PI * 2, 0, 1.25), knit, 0, -0.5, 0));
+  // a turned-up ribbed brim hugging the bottom edge, and a stripe higher up
+  hat.add(mesh(new THREE.TorusGeometry(0.58, 0.07, 8, 28), cream, 0, -0.29, 0, 1, 1, 1.7)).children.at(-1).rotation.x = Math.PI / 2;
+  hat.add(mesh(new THREE.TorusGeometry(0.43, 0.03, 6, 24), cream, 0, -0.05, 0)).children.at(-1).rotation.x = Math.PI / 2;
+  hat.add(mesh(new THREE.IcosahedronGeometry(0.13, 1), cream, 0, 0.15, 0)); // the bobble
+  const scarf = new THREE.Group();
+  const wrap = mesh(new THREE.TorusGeometry(0.36, 0.1, 8, 24), knit, 0, 0.33, -0.42);
+  wrap.rotation.x = Math.PI / 2 + 0.18;
+  scarf.add(wrap);
+  for (const [x, y, len, rz] of [[0.13, 0.1, 0.42, 0.12], [0.0, 0.14, 0.3, -0.08]]) { // two ends hanging down the front
+    const end = new THREE.Group();
+    end.add(mesh(new THREE.BoxGeometry(0.15, len, 0.05), knit, 0, -len / 2, 0));
+    for (const k of [0.3, 0.6]) end.add(mesh(new THREE.BoxGeometry(0.155, 0.04, 0.055), cream, 0, -len * k, 0));
+    for (let i = 0; i < 4; i++) end.add(mesh(new THREE.BoxGeometry(0.02, 0.06, 0.02), cream, -0.055 + i * 0.037, -len - 0.03, 0)); // fringe
+    end.position.set(x, y + 0.14, 0.05 + (x ? 0.02 : 0));
+    end.rotation.z = rz;
+    scarf.add(end);
+  }
+  return { hat, scarf };
+}
+
 export function buildHat(id) { return HAT_BUILDERS[id]?.() ?? null; }
 export function buildBack(id) { return BACK_BUILDERS[id]?.() ?? null; }
 
@@ -458,6 +486,18 @@ const CLOTHES_BUILDERS = {
     for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.025, 6, 4), mat(0xd9a93a, { metalness: 0.7 }), s * 0.13, 0.05, 0.05));
     return { front: g };
   },
+  coat() { // winter coat (views.js SEASON_WEAR): fur down the front, toggle buttons, a short flared hem
+    const front = new THREE.Group(), fur = mat(0xf6f2ea, { roughness: 1 }), toggle = mat(0x6b4a2c, { roughness: 0.6 });
+    for (let i = 0; i < 6; i++) front.add(mesh(new THREE.SphereGeometry(0.06, 8, 6), fur, 0, 0.22 - i * 0.09, 0.01, 1, 1, 0.6));
+    for (const y of [0.13, 0.0, -0.13]) front.add(mesh(new THREE.CapsuleGeometry(0.018, 0.07, 3, 6), toggle, 0.09, y, 0.035)).children.at(-1).rotation.z = Math.PI / 2;
+    const hips = new THREE.Group();
+    const hem = mesh(new THREE.CylinderGeometry(0.47, 0.6, 0.38, 20, 1, true), mat(0x8a3a3a, { roughness: 0.9 }), 0, -0.14, 0);
+    hem.material.side = THREE.DoubleSide;
+    hips.add(hem, mesh(new THREE.TorusGeometry(0.6, 0.06, 6, 24), fur, 0, -0.33, 0));
+    hips.children.at(-1).rotation.x = Math.PI / 2;
+    hips.userData.cone = { topY: 0.05, hemY: -0.33, rTop: 0.47, rBot: 0.6 };
+    return { front, hips };
+  },
   robe() {
     const front = new THREE.Group();
     const gold = mat(0xffcf3f, { metalness: 0.7, roughness: 0.3 });
@@ -507,7 +547,7 @@ export function buildArmor(color, tier = 0) {
 /** A fancy outfit's extras: `color` = its jacket colour (skirts follow it), `tie` = the tie colour. */
 export function buildClothes(extra, color, tie) {
   const built = CLOTHES_BUILDERS[extra]?.(tie) ?? {};
-  if (color != null && (extra === 'gown' || extra === 'robe')) built.hips?.children[0]?.material.color.set(color);
+  if (color != null && (extra === 'gown' || extra === 'robe' || extra === 'coat')) built.hips?.children[0]?.material.color.set(color);
   return built;
 }
 

@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { cloneModel } from './assets.js';
 import { glowTexture } from './effects.js';
+import { WINTER } from './seasonfx.js';
 
 const std = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, ...extra });
 function mesh(parent, geo, m, x = 0, y = 0, z = 0) {
@@ -126,10 +127,23 @@ export function makeFountain() {
   const water = std(0x6fc8ff, { transparent: true, opacity: 0.75, roughness: 0.1, emissive: 0x1a4a6a, emissiveIntensity: 0.3 });
   mesh(g, new THREE.CylinderGeometry(2.1, 2.3, 0.7, 24, 1, true), stone, 0, 0.35, 0).material.side = THREE.DoubleSide;
   mesh(g, new THREE.TorusGeometry(2.15, 0.18, 6, 32), stone, 0, 0.7, 0).rotation.x = Math.PI / 2;
-  mesh(g, new THREE.CircleGeometry(2.05, 32), water, 0, 0.5, 0).rotation.x = -Math.PI / 2;
+  const pools = [mesh(g, new THREE.CircleGeometry(2.05, 32), water, 0, 0.5, 0)];
+  pools[0].rotation.x = -Math.PI / 2;
   mesh(g, new THREE.CylinderGeometry(0.3, 0.45, 2.2, 10), stone, 0, 1.1, 0);
   mesh(g, new THREE.CylinderGeometry(0.9, 0.4, 0.35, 16), stone, 0, 2.2, 0);
-  mesh(g, new THREE.CircleGeometry(0.85, 16), water, 0, 2.38, 0).rotation.x = -Math.PI / 2;
+  pools.push(mesh(g, new THREE.CircleGeometry(0.85, 16), water, 0, 2.38, 0));
+  pools[1].rotation.x = -Math.PI / 2;
+  // winter: frozen solid — ice in both bowls and icicles hanging off the top bowl
+  const iceMat = std(0xd6eefc, { roughness: 0.15, metalness: 0.1, emissive: 0x335577, emissiveIntensity: 0.15 });
+  const frozen = new THREE.Group();
+  for (const [r, y] of [[2.05, 0.52], [0.85, 2.4]]) frozen.add(mesh(g, new THREE.CircleGeometry(r, 32), iceMat, 0, y, 0)).children.at(-1).rotation.x = -Math.PI / 2;
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2, len = 0.25 + ((i * 37) % 10) / 20;
+    const ic = mesh(frozen, new THREE.ConeGeometry(0.06, len, 6), iceMat, Math.cos(a) * 0.88, 2.2 - len / 2, Math.sin(a) * 0.88);
+    ic.rotation.x = Math.PI;
+    ic.castShadow = false;
+  }
+  g.add(frozen);
   const jets = [];
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
@@ -138,6 +152,10 @@ export function makeFountain() {
     jets.push({ drop, a, phase: i / 8 });
   }
   g.userData.update = (t) => {
+    const ice = WINTER.value > 0.5;
+    frozen.visible = ice;
+    for (const p of pools) p.visible = !ice;
+    for (const j of jets) j.drop.visible = !ice;
     for (const j of jets) { // drops arc from the bowl down into the basin
       const u = (t * 0.8 + j.phase) % 1;
       const r = 0.85 + u * 0.9;
