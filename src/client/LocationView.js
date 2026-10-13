@@ -17,6 +17,7 @@ import { roomIndexAt } from '../shared/locations.js';
 import { THEMES } from './themes.js';
 import { mergeStatic, dropTinyShadows } from './merge.js';
 import { buildTownFun } from './townfun.js';
+import { makeWasteland } from './wasteland.js';
 import { seasonOf, holidayOf } from '../shared/seasons.js';
 import { SeasonParticles, easeSeasonLook, SEASON_LOOK, WINTER, snowOnTops } from './seasonfx.js';
 
@@ -437,6 +438,11 @@ export class LocationView {
     if (beds.length) this.group.add(this.springOnly(makeFlowers(beds, this.rand)));
     if (fences.length) this.group.add(this.still(makeFence(fences, (cx, cz) => L.cell(cx, cz) === '+')));
     if (L.key === 'town') this.buildTownLife();
+    if (L.key === 'town') { // outside the walls: the old battlefield, out to the fog
+      const waste = makeWasteland(L.w * CELL, L.h * CELL, this.rand);
+      this.group.add(this.still(waste.still), waste.moving);
+      this.animated.push({ update: () => waste.moving.userData.update(this.uTime.value) });
+    }
 
     // faces for the portals
     for (const portal of Object.values(L.portals)) {
