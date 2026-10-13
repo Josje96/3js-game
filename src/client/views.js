@@ -4,7 +4,7 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COL
 import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
+import { bareBody, browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -131,6 +131,7 @@ export class CharacterView {
     this.time = 0;
     this.borrowed = [];   // meshes/accessories added by the current look
     this.anchors = this.computeAnchors();
+    this.model.traverse((o) => { if (o.isMesh && HAT_PART.test(o.name)) this.ownHatParts = true; }); // the outfit comes with a hat
     this.root.userData.noSnow = true; // characters don't get the town's snowy tops (seasonfx.js)
     const hash = [...String(name ?? '')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
     this.coatColor = COATS[hash % COATS.length];
@@ -341,7 +342,10 @@ export class CharacterView {
       // (the scalp and hair anchors are measured once, in the rest pose: computeAnchors)
     }
     if (hair !== 'none') {
-      this.attach(this.anchors.hair ? 'hair' : 'hat', buildHair(hair, hc));
+      // under a hat the hair tucks in (no crown poking through it); a closed helmet hides it all
+      const ownHat = hat === 'own' && this.ownHatParts, hatOn = (hat !== 'none' && hat !== 'own') || ownHat;
+      const helmet = hat === 'helmet' || (ownHat && this.cls === 'Knight');
+      if (!helmet) this.attach(this.anchors.hair ? 'hair' : 'hat', buildHair(hair, hc, hatOn));
       this.attach('scalp', buildScalp(tone));
     }
     this.attach(this.anchors.brows ? 'brows' : 'face', buildBrows(hc, brows)); // your eyebrows, in your hair colour, where the outfit's own were (they're cut out)
@@ -383,11 +387,17 @@ export class CharacterView {
       o.userData.baseGeo ??= o.geometry;
       o.userData.baseMat ??= o.material;
       if (Array.isArray(o.material)) o.material[1].dispose();
+      else if (o.userData.baseMat && o.material !== o.userData.baseMat) o.material.dispose(); // a whole-cloth body
       const image = o.userData.baseMat.map?.image;
       const color = /_Leg/.test(o.name) ? def?.legs : def?.jacket;
       if (!def || color == null || !image) { o.geometry = o.userData.baseGeo; o.material = o.userData.baseMat; return; }
       const cloth = new THREE.MeshStandardMaterial({ color, roughness: 0.65 });
-      o.geometry = skinSplit(o.userData.baseGeo, image);
+      if (/_Body$/.test(o.name)) { // the body is all cloth (no bare chest, no beige tunic showing), without its buckles and pouches
+        o.geometry = bareBody(o.userData.baseGeo, image);
+        o.material = cloth;
+        return;
+      }
+      o.geometry = skinSplit(o.userData.baseGeo, image); // arms and legs: hands stay skin
       o.material = [o.userData.baseMat, cloth];
     });
     if (!def) return;

@@ -426,14 +426,9 @@ const FACE_HI_PER_OUTFIT = {
   RogueHooded: 0.555, // (the head mesh is named without the underscore)
 };
 
-// The outfit's own eyebrows are two little raised shapes (islands in the head mesh) sitting just
-// above the two eyes (the dark islands). browsOf finds them, so they can be cut out and the brows
-// you pick in the mirror (buildBrows) drawn exactly where they were, instead of floating over them.
-const browCache = new WeakMap();
-export function browsOf(geo, image) {
-  if (browCache.has(geo)) return browCache.get(geo);
-  const pos = geo.attributes.position, idx = geo.index.array, cols = triangleColours(geo, image);
-  // islands: union-find over vertices, joining vertices that sit at the same point
+/** The separate pieces (islands) of a mesh: union-find over its vertices, joining ones at the same point. */
+function islandsOf(geo, cols) {
+  const pos = geo.attributes.position, idx = geo.index.array;
   const parent = new Int32Array(pos.count).map((_, i) => i);
   const find = (a) => { while (parent[a] !== a) a = parent[a] = parent[parent[a]]; return a; };
   const join = (a, b) => { a = find(a); b = find(b); if (a !== b) parent[a] = b; };
@@ -451,7 +446,16 @@ export function browsOf(geo, image) {
     isl.tris.push(t / 3);
     islands.set(r, isl);
   }
-  const list = [...islands.values()].map((i) => ({ ...i, x: i.x / i.tris.length, y: i.y / i.tris.length, z: i.z / i.tris.length, n: i.tris.length }));
+  return [...islands.values()].map((i) => ({ ...i, x: i.x / i.tris.length, y: i.y / i.tris.length, z: i.z / i.tris.length, n: i.tris.length }));
+}
+
+// The outfit's own eyebrows are two little raised shapes (islands in the head mesh) sitting just
+// above the two eyes (the dark islands). browsOf finds them, so they can be cut out and the brows
+// you pick in the mirror (buildBrows) drawn exactly where they were, instead of floating over them.
+const browCache = new WeakMap();
+export function browsOf(geo, image) {
+  if (browCache.has(geo)) return browCache.get(geo);
+  const list = islandsOf(geo, triangleColours(geo, image));
   geo.computeBoundingBox();
   const H = geo.boundingBox.max.y - geo.boundingBox.min.y;
   // the eyes: a mirrored pair of small, dark islands on the front of the face
@@ -531,6 +535,21 @@ export function buildScalp(tone) {
  * and everything else (drawn in a flat cloth colour). Returns geometry with two groups.
  */
 const splitCache = new WeakMap();
+/**
+ * Just the body itself, without the outfit's extras stuck on it (belt buckles, strap buckles,
+ * pouches, a fur collar): under fancy clothes they'd show as odd cloth-coloured squares and lumps.
+ */
+const bareCache = new WeakMap();
+export function bareBody(geo, image) {
+  if (!bareCache.has(geo)) {
+    const islands = islandsOf(geo, triangleColours(geo, image));
+    const main = islands.reduce((a, b) => (b.n > a.n ? b : a));
+    const keep = new Set(main.tris);
+    bareCache.set(geo, filterTriangles(geo, image, (t) => keep.has(t)));
+  }
+  return bareCache.get(geo);
+}
+
 export function skinSplit(geo, image) {
   if (!splitCache.has(geo)) {
     const cols = triangleColours(geo, image), idx = geo.index.array, skin = [], cloth = [];
@@ -549,27 +568,42 @@ export function skinSplit(geo, image) {
  * Little extras for fancy clothes. 'front' things are built for a chest 1 unit wide with z = 0 at
  * the front of the body, y = 0 at the middle of the chest; 'hips' things hang from the waist.
  */
+/**
+ * A piece of cloth lying ON the chest (the 'front' frame: body 1 wide, the chest's front at z ~0.06):
+ * a strip of a cylinder wrapped round the torso like the armor's breastplate, so its edges follow the
+ * body instead of sticking out like a flat board. `w` wide (along the surface), `h` tall, centred at
+ * height `y` and `x` across; `lift` = how far out from the chest.
+ */
+function chestPanel(w, h, y, m, lift = 0.005, x = 0) {
+  const R = 0.5 + lift, half = w / 2 / R, at = x / R;
+  const geo = new THREE.CylinderGeometry(R, R * 0.94, h, 10, 1, true, at - half, half * 2);
+  const out = mesh(geo, m, 0, y, -0.44);
+  out.material = m.clone();
+  out.material.side = THREE.DoubleSide;
+  return out;
+}
+
 const CLOTHES_BUILDERS = {
   tie(tieColor = 0xc0303a) {
     const g = new THREE.Group();
-    g.add(mesh(new THREE.ConeGeometry(0.2, 0.42, 3), mat(0xf4f4f4), 0, 0.12, 0.0, 1, 1, 0.12)).children.at(-1).rotation.z = Math.PI; // shirt front
-    g.add(mesh(new THREE.BoxGeometry(0.08, 0.07, 0.05), mat(tieColor), 0, 0.27, 0.03));
-    const tie = mesh(new THREE.ConeGeometry(0.06, 0.42, 4), mat(tieColor, { roughness: 0.4 }), 0, 0.04, 0.03);
+    g.add(chestPanel(0.24, 0.42, 0.12, mat(0xf4f4f4), 0.004)); // the shirt front, lying on the chest
+    g.add(mesh(new THREE.BoxGeometry(0.08, 0.07, 0.04), mat(tieColor), 0, 0.27, 0.075)); // the knot
+    const tie = mesh(new THREE.ConeGeometry(0.06, 0.42, 4), mat(tieColor, { roughness: 0.4 }), 0, 0.04, 0.07, 1, 1, 0.35);
     tie.rotation.set(Math.PI, Math.PI / 4, 0);
     g.add(tie);
     return { front: g };
   },
   bowtie(tieColor = 0x111111) {
     const g = new THREE.Group();
-    g.add(mesh(new THREE.ConeGeometry(0.2, 0.42, 3), mat(0xffffff), 0, 0.12, 0.0, 1, 1, 0.12)).children.at(-1).rotation.z = Math.PI;
-    for (const s of [-1, 1]) g.add(mesh(new THREE.ConeGeometry(0.06, 0.12, 4), mat(tieColor), s * 0.06, 0.26, 0.04)).children.at(-1).rotation.z = s * Math.PI / 2;
-    for (const y of [0.1, -0.02]) g.add(mesh(new THREE.SphereGeometry(0.018, 6, 4), mat(0x111111), 0, y, 0.04));
+    g.add(chestPanel(0.24, 0.42, 0.12, mat(0xffffff), 0.004));
+    for (const s of [-1, 1]) g.add(mesh(new THREE.ConeGeometry(0.06, 0.12, 4), mat(tieColor), s * 0.06, 0.26, 0.08, 1, 1, 0.5)).children.at(-1).rotation.z = s * Math.PI / 2;
+    for (const y of [0.1, -0.02]) g.add(mesh(new THREE.SphereGeometry(0.018, 6, 4), mat(0x111111), 0, y, 0.07));
     return { front: g };
   },
-  vest() {
-    const g = new THREE.Group();
-    g.add(mesh(new THREE.BoxGeometry(0.5, 0.5, 0.04), mat(0x8a5a34), 0, 0.02, 0.0));
-    for (const y of [0.15, 0.03, -0.09]) g.add(mesh(new THREE.SphereGeometry(0.022, 6, 4), mat(0xffcf3f, { metalness: 0.6 }), 0, y, 0.03));
+  vest() { // a waistcoat: two panels wrapped round the chest, open in a V at the top, brass buttons
+    const g = new THREE.Group(), cloth = mat(0x8a5a34, { roughness: 0.8 });
+    for (const s of [-1, 1]) g.add(chestPanel(0.26, 0.5, 0.0, cloth, 0.006, s * 0.13));
+    for (const y of [0.12, 0.0, -0.12]) g.add(mesh(new THREE.SphereGeometry(0.022, 6, 4), mat(0xffcf3f, { metalness: 0.6 }), 0.035, y, 0.07));
     return { front: g };
   },
   gown(_, color = 0xd8649f) { // a princess ball gown: a big poofy bell skirt, draped swags with roses, a petticoat ruffle, sparkles, puff sleeves
@@ -630,28 +664,28 @@ const CLOTHES_BUILDERS = {
     };
     return { front, hips: skirt, shoulderl: puff(), shoulderr: puff() };
   },
-  sash() { // a pirate captain: a gold sash across the chest, brass buttons and a lace jabot
+  sash() { // a pirate captain: a gold sash round the body from shoulder to hip, brass buttons and a lace jabot
     const g = new THREE.Group();
-    const sash = mesh(new THREE.BoxGeometry(0.12, 0.7, 0.04), mat(0xe0b84a, { metalness: 0.4, roughness: 0.4 }), 0, 0.02, 0.02);
-    sash.rotation.z = 0.7;
+    const sash = mesh(new THREE.TorusGeometry(0.5, 0.045, 6, 28), mat(0xe0b84a, { metalness: 0.4, roughness: 0.4 }), 0, 0.02, -0.44, 1, 1, 1.15);
+    sash.rotation.set(Math.PI / 2, 0.75, 0);
     g.add(sash);
-    for (const y of [0.15, 0.0, -0.15]) for (const x of [-0.12, 0.12]) g.add(mesh(new THREE.SphereGeometry(0.025, 6, 4), mat(0xd9a93a, { metalness: 0.7 }), x, y, 0.03));
-    g.add(mesh(new THREE.SphereGeometry(0.08, 8, 6), mat(0xffffff), 0, 0.24, 0.03, 1, 0.8, 0.5));
+    for (const y of [0.15, 0.0, -0.15]) for (const x of [-0.12, 0.12]) g.add(mesh(new THREE.SphereGeometry(0.025, 6, 4), mat(0xd9a93a, { metalness: 0.7 }), x, y, 0.06));
+    g.add(mesh(new THREE.SphereGeometry(0.08, 8, 6), mat(0xffffff), 0, 0.24, 0.06, 1, 0.8, 0.5));
     return { front: g };
   },
   apron() { // chef whites: a big white apron, double row of buttons, a red neckerchief
     const g = new THREE.Group();
-    g.add(mesh(new THREE.BoxGeometry(0.42, 0.5, 0.03), mat(0xffffff, { roughness: 0.9 }), 0, -0.12, 0.03));
-    for (const y of [0.22, 0.12]) for (const x of [-0.08, 0.08]) g.add(mesh(new THREE.SphereGeometry(0.02, 6, 4), mat(0xdddddd), x, y, 0.03));
-    g.add(mesh(new THREE.TorusGeometry(0.1, 0.03, 6, 12), mat(0xd8302a), 0, 0.27, 0.0, 1, 0.5, 1));
+    g.add(chestPanel(0.46, 0.5, -0.12, mat(0xffffff, { roughness: 0.9 }), 0.01));
+    for (const y of [0.22, 0.12]) for (const x of [-0.08, 0.08]) g.add(mesh(new THREE.SphereGeometry(0.02, 6, 4), mat(0xdddddd), x, y, 0.07));
+    g.add(mesh(new THREE.TorusGeometry(0.1, 0.03, 6, 12), mat(0xd8302a), 0, 0.27, 0.04, 1, 0.5, 1));
     return { front: g };
   },
   bib() { // farmer overalls: a denim bib with two straps and a patch pocket
     const g = new THREE.Group(), denim = mat(0x3b5f9a, { roughness: 0.9 });
-    g.add(mesh(new THREE.BoxGeometry(0.34, 0.28, 0.035), denim, 0, -0.08, 0.03));
-    for (const s of [-1, 1]) g.add(mesh(new THREE.BoxGeometry(0.06, 0.3, 0.03), denim, s * 0.13, 0.18, 0.03));
-    g.add(mesh(new THREE.BoxGeometry(0.12, 0.1, 0.02), mat(0x2f4f80), 0, -0.06, 0.05));
-    for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.025, 6, 4), mat(0xd9a93a, { metalness: 0.7 }), s * 0.13, 0.05, 0.05));
+    g.add(chestPanel(0.34, 0.28, -0.08, denim, 0.008));
+    for (const s of [-1, 1]) g.add(chestPanel(0.06, 0.3, 0.18, denim, 0.008, s * 0.13));
+    g.add(chestPanel(0.12, 0.1, -0.06, mat(0x2f4f80), 0.02));
+    for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.025, 6, 4), mat(0xd9a93a, { metalness: 0.7 }), s * 0.13, 0.05, 0.075));
     return { front: g };
   },
   coat() { // winter coat (views.js SEASON_WEAR): fur down the front, toggle buttons, a short flared hem
@@ -750,9 +784,29 @@ export function buildBrows(color, style = 'soft') {
   return g;
 }
 
-export function buildHair(style, color) {
+/**
+ * A hairstyle. `underHat`: tucked under a hat — the crown of it (top, spikes, bun, mohawk, top curls)
+ * is left off so nothing pokes through the hat; the sides, fringe and anything hanging down stay.
+ */
+export function buildHair(style, color, underHat = false) {
   const b = HAIR_BUILDERS[style];
-  return b ? b(mat(color, { roughness: 0.8 })) : null;
+  const g = b ? b(mat(color, { roughness: 0.8 })) : null;
+  if (!g || !underHat) return g;
+  const BRIM = Math.PI * 0.38; // how far down from the top of the head a hat covers
+  const cut = [];
+  g.traverse((o) => {
+    if (!o.isMesh) return;
+    const p = o.geometry.parameters;
+    if (o.geometry.type === 'SphereGeometry' && p.radius > HEAD_R * 0.9 && Math.abs(o.position.y - HEAD_Y) < 0.01) { // the shell round the head
+      const t0 = p.thetaStart, t1 = p.thetaStart + p.thetaLength;
+      if (t1 <= BRIM + 0.02) { cut.push(o); return; } // the cap: all under the hat
+      if (t0 < BRIM) o.geometry = new THREE.SphereGeometry(p.radius, p.widthSegments, p.heightSegments, p.phiStart, p.phiLength, BRIM, t1 - BRIM);
+      return;
+    }
+    if (o.position.y > HEAD_Y + Math.cos(BRIM) * HEAD_R) cut.push(o); // spikes, buns, top curls: under the hat
+  });
+  for (const o of cut) o.removeFromParent();
+  return g;
 }
 
 // Face things sit on the front of the head: built for a head 1 unit wide, y = 0 at eye
