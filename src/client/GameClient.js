@@ -744,6 +744,7 @@ export class GameClient {
       this.conn.send({ t: 'attack', rot: this.pos.rot });
     }
     if (input.consume('feed')) this.conn.send({ t: 'feedPet' });
+    if (input.consume('cheat')) this.conn.send({ t: 'cheat', code: '1234' });
     if (input.consume('bar')) this.hud.setBarMode(!this.hud.barMode);
     if (input.consume('barLeft')) this.hud.moveBar(-1);
     if (input.consume('barRight')) this.hud.moveBar(1);

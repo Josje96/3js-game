@@ -29,10 +29,16 @@ export class Input {
     this.padPrev = [];
     this.enabled = true; // false while typing in a dialog
     this.barMode = false; // choosing in the item bar (see BAR_KEYS)
+    this.typed = ''; // the last few digits typed (cheat codes: GameClient)
     this.wheel = 0;
     addEventListener('keydown', (e) => {
       if (isTyping(e)) return;
       if (e.code === 'Space' || e.code === 'Tab' || e.code.startsWith('Arrow')) e.preventDefault();
+      const digit = /^(Digit|Numpad)([0-9])$/.exec(e.code);
+      if (digit && !e.repeat) {
+        this.typed = (this.typed + digit[2]).slice(-8);
+        if (this.typed.endsWith('1234')) { this.pressed.add('cheat'); this.typed = ''; }
+      }
       if (this.barMode && BAR_KEYS[e.code]) { this.pressed.add(BAR_KEYS[e.code]); return; } // (not walking with the arrows)
       if (!e.repeat && KEY_ACTIONS[e.code]) this.pressed.add(KEY_ACTIONS[e.code]);
       this.keys.add(e.code);

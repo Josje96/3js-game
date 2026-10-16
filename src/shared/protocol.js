@@ -30,6 +30,7 @@ export const CLIENT_MESSAGES = {
   forge:     { recipe: 'str' },
   stash:     { item: 'str', qty: 'int', dir: 'str' },
   characters:      {},
+  cheat:           { code: 'str' },
   switchCharacter: { id: 'str' },
   buyPet:    { species: 'str', name: 'str?' },
   pickPet:   { id: 'str?' },

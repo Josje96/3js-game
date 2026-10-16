@@ -136,3 +136,16 @@ test('co-op: everyone fighting near a kill gets their own loot, which only they 
   loc.tickDrop(momsPile, 0.05, [p.kid]);
   assert.ok(loc.entities.has(momsPile.id) && p.kid.gold === kidGold, 'not the kid’s to take');
 });
+
+test('cheat code 1234: 1000 gold (typed in the game or in chat, where nobody sees it)', () => {
+  const { c, p } = world('cheat', 'kid', 'mom');
+  const gold = p.kid.gold;
+  c.kid.say({ t: 'cheat', code: '1234' });
+  assert.equal(p.kid.gold, gold + 1000);
+  c.kid.say({ t: 'cheat', code: '9999' });
+  assert.equal(p.kid.gold, gold + 1000, 'only the real code');
+  c.mom.clear();
+  c.kid.say({ t: 'chat', text: '1234' });
+  assert.equal(p.kid.gold, gold + 2000);
+  assert.equal(c.mom.all('chat').length, 0, 'not shown in chat');
+});

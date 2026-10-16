@@ -19,4 +19,15 @@ export const methods = {
     p.gold += Math.floor(amount);
     this.sendSelf(p);
   },
+
+  /** Cheat codes (type them in the game, or in chat): 1234 = 1000 gold. */
+  on_cheat(p, { code }) {
+    if (CHEATS[code] == null) return;
+    this.earn(p, CHEATS[code]);
+    this.writeRecord(p);
+    this.toast(p, `💰 Cheat code! +${CHEATS[code]} gold`, true);
+    this.persist();
+  },
 };
+
+const CHEATS = { 1234: 1000 }; // code -> gold
