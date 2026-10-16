@@ -1583,11 +1583,17 @@ export function buildFace(id, hairColor, cheek) {
  * backwards (more the lower it goes), like a cape trailing behind you. Shared per geometry.
  */
 const CAPE_SWEEP_FROM = 0.9, CAPE_SWEEP = 0.5;
+const CAPE_HALF_WIDTH = 0.485, CAPE_NARROW = 0.7, CAPE_SIDES_BACK = 0.12;
 const capeCache = new WeakMap();
 export function sweptCape(geo) {
   if (!capeCache.has(geo)) {
     const out = geo.clone(), pos = out.attributes.position;
     for (let i = 0; i < pos.count; i++) {
+      // narrower, between the shoulder blades, so the arms swing past its edges instead of through it
+      // (its sides, which wrapped round the body, come back with it so they stay off the back)
+      const x = pos.getX(i), k = Math.min(1, Math.abs(x) / CAPE_HALF_WIDTH);
+      pos.setX(i, x * CAPE_NARROW);
+      pos.setZ(i, pos.getZ(i) - CAPE_SIDES_BACK * k * k);
       const y = pos.getY(i);
       if (y >= CAPE_SWEEP_FROM) continue;
       const u = (CAPE_SWEEP_FROM - y) / CAPE_SWEEP_FROM; // 0 at the sweep line, 1 at the floor

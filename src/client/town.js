@@ -165,12 +165,12 @@ export function makeFountain() {
   return g;
 }
 
-/** A park bench. */
+/** A park bench (seat at chair height, so people sitting on it sit on it, not sunk into the planks). */
 export function makeBench() {
   const g = new THREE.Group(), wood = std(0x9a6a3c), iron = std(0x3a3a3a, { metalness: 0.5 });
-  for (let i = 0; i < 3; i++) mesh(g, new THREE.BoxGeometry(2, 0.08, 0.22), wood, 0, 0.55, -0.25 + i * 0.25);
-  for (let i = 0; i < 2; i++) mesh(g, new THREE.BoxGeometry(2, 0.22, 0.07), wood, 0, 0.85 + i * 0.28, -0.42).rotation.x = -0.15;
-  for (const s of [-1, 1]) for (const z of [-0.3, 0.25]) mesh(g, new THREE.BoxGeometry(0.08, 0.55, 0.08), iron, s * 0.85, 0.27, z);
+  for (let i = 0; i < 3; i++) mesh(g, new THREE.BoxGeometry(2, 0.08, 0.22), wood, 0, 0.44, -0.25 + i * 0.25);
+  for (let i = 0; i < 2; i++) mesh(g, new THREE.BoxGeometry(2, 0.22, 0.07), wood, 0, 0.74 + i * 0.28, -0.42).rotation.x = -0.15;
+  for (const s of [-1, 1]) for (const z of [-0.3, 0.25]) mesh(g, new THREE.BoxGeometry(0.08, 0.44, 0.08), iron, s * 0.85, 0.22, z);
   return g;
 }
 

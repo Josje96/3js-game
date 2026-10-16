@@ -715,7 +715,9 @@ export class GameClient {
     // a jetpack: V takes off and lands (only while wearing one)
     const canFly = !!BACKS[this.profile.look?.back]?.flies;
     if (input.consume('fly')) {
-      if (canFly) { this.flying = !this.flying; if (this.flying) { this.sitting && this.standUp(); this.sleeping = false; } this.sfx.play('whoosh'); }
+      const blocked = this.flying && this.solids().some((o) => Math.hypot(o.x - this.pos.x, o.z - this.pos.z) < o.r + PLAYER_RADIUS);
+      if (blocked) this.hud.toast('Can’t land on that! Fly over open ground first.');
+      else if (canFly) { this.flying = !this.flying; if (this.flying) { this.sitting && this.standUp(); this.sleeping = false; } this.sfx.play('whoosh'); }
       else this.hud.toast('You need a jetpack on your back to fly (the shop’s Fashion tab).');
     }
     if (!canFly) this.flying = false;
@@ -740,7 +742,7 @@ export class GameClient {
       moving = false;
     } else if (moving) {
       const speed = PLAYER_SPEED * (this.flying ? FLY_SPEED : 1);
-      const next = moveCircle(this.layout, this.pos.x, this.pos.z, m.x * speed * dt, m.z * speed * dt, PLAYER_RADIUS, this.solids());
+      const next = moveCircle(this.layout, this.pos.x, this.pos.z, m.x * speed * dt, m.z * speed * dt, PLAYER_RADIUS, this.flying ? [] : this.solids()); // (flying: over monsters, people and things; only walls stop you)
       this.pos.x = next.x; this.pos.z = next.z;
       this.pos.rot = Math.atan2(m.x, m.z);
     }

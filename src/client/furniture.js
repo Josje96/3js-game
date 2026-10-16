@@ -1049,21 +1049,52 @@ export const FURNITURE_BUILDERS = {
     pot.castShadow = true;
     g.add(pot);
     for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; box(g, 0.08, 0.3, 0.08, iron, Math.cos(a) * 0.4, 0.1, Math.sin(a) * 0.4); }
-    const brew = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), new THREE.MeshBasicMaterial({ color: 0x5aff7a }));
+    // the brew: a heaving surface that slowly changes colour (green, purple, pink, blue...), big bubbles that
+    // swell up, rise and pop, and wisps of steam in the same colour
+    const BREWS = [0x5aff7a, 0xb46cff, 0xff6ac8, 0x5ac8ff];
+    const brewGeo = new THREE.CircleGeometry(0.5, 24, 0, Math.PI * 2);
+    const brew = new THREE.Mesh(brewGeo, new THREE.MeshBasicMaterial({ color: BREWS[0] }));
     brew.rotation.x = -Math.PI / 2;
     brew.position.y = 1.0;
     g.add(brew);
-    const bubbles = [];
-    for (let i = 0; i < 4; i++) {
-      const b = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0x9aff9a, transparent: true }));
+    const flat = brewGeo.attributes.position.array.slice();
+    const bubbles = [], steam = [];
+    for (let i = 0; i < 8; i++) {
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), new THREE.MeshBasicMaterial({ color: BREWS[0], transparent: true }));
       g.add(b);
       bubbles.push(b);
     }
-    g.userData.update = (t) => bubbles.forEach((b, i) => {
-      const u = (t * 0.7 + i * 0.27) % 1;
-      b.position.set(Math.cos(i * 2.1) * 0.25, 1.0 + u * 0.3, Math.sin(i * 2.1) * 0.25);
-      b.material.opacity = 1 - u;
-    });
+    for (let i = 0; i < 3; i++) {
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: BREWS[0], transparent: true, depthWrite: false }));
+      g.add(s);
+      steam.push(s);
+    }
+    const now = new THREE.Color(), next = new THREE.Color();
+    g.userData.update = (t) => {
+      const k = (t / 4) % BREWS.length, i0 = Math.floor(k), f = k - i0, blend = f < 0.7 ? 0 : (f - 0.7) / 0.3;
+      now.set(BREWS[i0]).lerp(next.set(BREWS[(i0 + 1) % BREWS.length]), blend * blend * (3 - 2 * blend));
+      brew.material.color.copy(now);
+      const pos = brewGeo.attributes.position; // the surface heaves
+      for (let v = 0; v < pos.count; v++) {
+        const x = flat[v * 3], y = flat[v * 3 + 1];
+        pos.setZ(v, Math.sin(x * 9 + t * 4) * Math.cos(y * 8 - t * 3) * 0.025);
+      }
+      pos.needsUpdate = true;
+      bubbles.forEach((b, i) => {
+        const u = (t * 0.6 + i * 0.137) % 1, r = 0.08 + (i % 3) * 0.12;
+        b.position.set(Math.cos(i * 2.4) * r, 1.0 + u * 0.18, Math.sin(i * 2.4) * r);
+        b.scale.setScalar(u < 0.85 ? 0.5 + u : (1 - u) * 8); // swells, then pops
+        b.material.color.copy(now).lerp(next.set(0xffffff), 0.35);
+        b.material.opacity = u < 0.85 ? 0.95 : (1 - u) * 6;
+      });
+      steam.forEach((s, i) => {
+        const u = (t * 0.25 + i / 3) % 1;
+        s.position.set(Math.sin(t + i * 2) * 0.12, 1.15 + u * 1.1, Math.cos(t * 0.8 + i) * 0.12);
+        s.scale.setScalar(0.6 + u * 1.4);
+        s.material.color.copy(now).lerp(next.set(0xffffff), 0.6);
+        s.material.opacity = 0.35 * (1 - u);
+      });
+    };
     return g;
   },
   bookstack() { // a wobbly stack of books with a candle on top

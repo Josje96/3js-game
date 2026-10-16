@@ -22,6 +22,10 @@ const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM 
 const SLEEP_FORWARD = 0.5;
 const SKIRT_GAP = 0.15, SKIRT_MAX_FLARE = 1.7; // skirts: room left round a leg (in body widths), and how far they may flare
 
+// how a crossbow sits in the hand slot (which holds things pointing out to the side): its +z ahead, its top up
+const CROSSBOW_GRIP = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0)));
+const BOOK_OUT = 0.16; // a spellbook, held this far out from the hand (away from the body)
+const AIM_E = new THREE.Euler(), AIM_P3 = new THREE.Quaternion();
 const AIM_A = new THREE.Vector3(), AIM_B = new THREE.Vector3(), AIM_C = new THREE.Vector3(), AIM_M = new THREE.Matrix4();
 const AIM_Q = new THREE.Quaternion(), AIM_P = new THREE.Quaternion(), AIM_P2 = new THREE.Quaternion();
 
@@ -215,6 +219,10 @@ export class CharacterView {
       this.weaponObj = tintModel(cloneModel(model), ITEMS[id].tint);
       if (ench > 0) this.weaponFx = enchantWeapon(this.weaponObj, ench);
       this.hand.add(this.weaponObj);
+      // the hand slot holds things pointing out to the side: a crossbow turns to point ahead (its +z, the
+      // bolt end, forwards; its top up), and a book is held a little out from the body, not in it
+      if (/crossbow/.test(model)) this.weaponObj.quaternion.copy(CROSSBOW_GRIP);
+      if (model === 'items/spellbook_open') this.weaponObj.position.z = BOOK_OUT;
       if (model === 'items/spellbook_open') this.bookFx = spellbookFx(this.weaponObj, this.root, ITEMS[id].tint); // runes and pages
       this.flashMats = null; // new materials: collect them again for the low-health flash
     }
@@ -363,8 +371,16 @@ export class CharacterView {
     const holder = new THREE.Group();
     a.local.decompose(holder.position, holder.quaternion, holder.scale);
     holder.add(obj);
+    holder.userData.slot = slot;
+    if (slot === 'hat' && this.inBed) holder.visible = false;
     a.bone.add(holder);
     this.borrowed.push(holder);
+  }
+
+  /** Hats come off in bed (they went through the headboard and pillow), and back on when you get up. */
+  showHats() {
+    this.model.traverse((o) => { if (o.isMesh && HAT_PART.test(o.name) && !/_Mask$/.test(o.name)) o.visible = (o.userData.hatShown ?? true) && !this.inBed; });
+    for (const h of this.borrowed) if (h.userData.slot === 'hat') h.visible = !this.inBed;
   }
 
   /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories, clothes and dye. */
@@ -385,7 +401,10 @@ export class CharacterView {
       if (!o.isMesh) return;
       // the outfit's own hat — but picking a hairstyle takes it off, so the style shows (a hat you pick
       // yourself still goes on over it, tucking it in). The hooded Rogue's mask isn't a hat: it stays.
-      if (HAT_PART.test(o.name)) o.visible = hat === 'own' && (hair === 'none' || /_Mask$/.test(o.name));
+      if (HAT_PART.test(o.name)) {
+        o.userData.hatShown = hat === 'own' && (hair === 'none' || /_Mask$/.test(o.name));
+        o.visible = o.userData.hatShown && (!this.inBed || /_Mask$/.test(o.name)); // (off in bed: showHats)
+      }
       else if (CAPE_PART.test(o.name)) {
         o.visible = cape === 'own';
         o.userData.unsweptGeo ??= o.geometry;
@@ -577,6 +596,7 @@ export class CharacterView {
     this.base = name;
     // asleep: lying on our back on the bed, head on the pillow at its -z end (no sleeping clip: tip the idle pose over)
     const asleep = name === 'sleep';
+    if (asleep !== !!this.inBed) { this.inBed = asleep; this.showHats(); }
     this.model.rotation.x = asleep ? -Math.PI / 2 : 0;
     this.model.position.set(0, asleep ? 1.05 : name === 'sit' ? SIT_DROP : 0, asleep ? SLEEP_FORWARD : name === 'sit' ? SIT_BACK : 0);
     if (this.label) this.label.visible = !asleep;
@@ -690,7 +710,11 @@ export class CharacterView {
    */
   shootPose(dt) {
     const t = (this.shootT += dt), impact = SWING_IMPACT.cast, end = impact + 0.4;
-    if (t > end || this.rollT != null || this.base === 'sleep') { this.shootT = null; return; }
+    if (t > end || this.rollT != null || this.base === 'sleep') {
+      this.shootT = null;
+      if (/crossbow/.test(ITEMS[this.weaponId]?.model)) this.weaponObj?.quaternion.copy(CROSSBOW_GRIP); // back in the resting grip
+      return;
+    }
     this.arms ??= ['upperarml', 'lowerarml', 'wristl', 'upperarmr', 'lowerarmr', 'wristr', 'chest'].map((n) => this.model.getObjectByName(n));
     const [ul, ll, wl, ur, lr, wr, chest] = this.arms;
     if (!ul || !ll || !wl || !ur || !lr || !wr) return;
@@ -707,6 +731,15 @@ export class CharacterView {
       this.setBone(wr, 0.08, 0.1 + kick * 0.8, 1, Math.PI * 0.25, w); // level, limbs out ahead
       this.setBone(ul, -0.35, -0.35 + kick * 0.4, 1, 0, w);
       this.setBone(ll, -1, 0.25 + kick * 0.5, 0.7, 0, w);
+      // and the crossbow itself aims dead ahead (tipping up as it kicks), whatever the wrist ended up doing
+      const wo = this.weaponObj;
+      if (wo) {
+        this.hand.updateWorldMatrix(true, false);
+        const aim = AIM_Q.setFromEuler(AIM_E.set(-kick * 0.35, 0, 0));
+        const want = this.root.getWorldQuaternion(AIM_P).multiply(aim);
+        const local = AIM_P2.copy(this.hand.getWorldQuaternion(AIM_P3)).invert().multiply(want);
+        wo.quaternion.copy(CROSSBOW_GRIP).slerp(local, w);
+      }
     } else {
       // bow (in the right hand): that arm straight out ahead, the left draws the string back to the cheek
       this.setBone(ur, -0.18, 0.12 + kick * 0.2, 1, 0, w);
