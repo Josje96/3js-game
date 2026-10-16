@@ -93,3 +93,18 @@ test('enchant: every level adds damage, even to a small weapon', async () => {
     for (let l = 1; l <= ENCHANT_MAX; l++) assert.ok(enchantDamage(id, l) > enchantDamage(id, l - 1), `${id} +${l}`);
   }
 });
+
+test('cheat code 5678: a free enchant on the weapon in hand, only at the Enchanter', () => {
+  const { c, p } = atTheEnchanter();
+  const gold = p.mom.gold, essence = p.mom.inventory.essence;
+  c.mom.say({ t: 'cheat', code: '5678' });
+  assert.equal(p.mom.enchants.steelblade, 1);
+  assert.equal(p.mom.gold, gold, 'free');
+  assert.equal(p.mom.inventory.essence, essence, 'no essence used');
+  for (let i = 0; i < 10; i++) c.mom.say({ t: 'cheat', code: '5678' });
+  assert.equal(p.mom.enchants.steelblade, ENCHANT_MAX, 'not past the top');
+  p.mom.x -= 30; // walked away
+  p.mom.weapon = p.mom.gear[0];
+  c.mom.say({ t: 'cheat', code: '5678' });
+  assert.ok(!p.mom.enchants[p.mom.gear[0]], 'only at his tent');
+});

@@ -13,6 +13,44 @@ const mesh = (geo, material, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1) => {
 };
 
 const HAT_BUILDERS = {
+  bandana() { // a red pirate bandana with white spots, knotted at the back with two tails
+    const g = new THREE.Group(), red = mat(0xc8202a, { roughness: 0.8 }), white = mat(0xffffff, { roughness: 0.8 });
+    const R = 0.57, sy = 1.02; // (over the outfit's own hair too: the hat frame's top is the top of the hair)
+    g.add(mesh(new THREE.SphereGeometry(R, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.45), red, 0, -0.48, 0, 1, sy, 1)); // snug over the top of the head
+    for (let i = 0; i < 22; i++) { // little white spots, lying flat on the cloth
+      const th = 0.2 + (i % 4) * 0.27, ph = i * 2.39;
+      const n = new THREE.Vector3(Math.sin(th) * Math.sin(ph), Math.cos(th) * sy, Math.sin(th) * Math.cos(ph));
+      const d = mesh(new THREE.CircleGeometry(0.022, 10), white, n.x * (R + 0.004), -0.48 + n.y * (R + 0.004), n.z * (R + 0.004));
+      d.lookAt(d.position.clone().add(n.normalize()));
+      g.add(d);
+    }
+    g.add(mesh(new THREE.SphereGeometry(0.08, 10, 8), red, 0, -0.3, -0.5)); // the knot
+    for (const s of [-1, 1]) {
+      const tail = mesh(new THREE.ConeGeometry(0.07, 0.32, 6), red, s * 0.07, -0.44, -0.54, 1, 1, 0.4);
+      tail.rotation.set(-0.3, 0, Math.PI + s * 0.35);
+      g.add(tail);
+    }
+    return g;
+  },
+  captain() { // a black captain's bicorne worn side to side: gold trim, a skull badge and a white feather
+    const g = new THREE.Group(), black = mat(0x1a1a1f, { roughness: 0.7 }), gold = mat(0xe0b84a, { metalness: 0.6, roughness: 0.3 });
+    g.add(mesh(new THREE.SphereGeometry(0.43, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), black, 0, -0.1, 0, 1, 0.6, 1)); // the crown
+    for (const z of [0.1, -0.1]) { // front and back brims, standing up into a half-moon
+      const brim = mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.06, 28, 1, false, Math.PI / 2, Math.PI), black, 0, -0.08, z, 1, 1, 0.62);
+      brim.rotation.x = Math.PI / 2;
+      brim.scale.set(1, 1, 0.62);
+      g.add(brim);
+      const trim = mesh(new THREE.TorusGeometry(0.62, 0.02, 4, 28, Math.PI), gold, 0, -0.08, z + Math.sign(z) * 0.035, 1, 0.62, 1);
+      g.add(trim);
+    }
+    const bone = mat(0xf3ead6);
+    g.add(mesh(new THREE.SphereGeometry(0.07, 10, 8), bone, 0, 0.12, 0.15));
+    for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.016, 6, 4), mat(0x111111), s * 0.025, 0.125, 0.21));
+    const feather = mesh(new THREE.SphereGeometry(0.1, 10, 8), mat(0xffffff, { roughness: 0.9 }), -0.38, 0.25, -0.02, 0.4, 1.6, 0.25);
+    feather.rotation.z = 0.5;
+    g.add(feather);
+    return g;
+  },
   party() {
     const g = new THREE.Group();
     const cone = mesh(new THREE.ConeGeometry(0.28, 0.75, 20), mat(0xff7ac0), 0, 0.3, 0);
@@ -162,6 +200,56 @@ const HAT_BUILDERS = {
 };
 
 const BACK_BUILDERS = {
+  parrot() { // a red and blue parrot perched on your left shoulder, bobbing and flapping now and then
+    const g = new THREE.Group(), bird = new THREE.Group();
+    const red = mat(0xe0302a, { roughness: 0.6 }), blue = mat(0x2f6fd8, { roughness: 0.6 }), yellow = mat(0xffcf3f, { roughness: 0.5 });
+    bird.add(mesh(new THREE.SphereGeometry(0.16, 12, 10), red, 0, 0.14, 0, 0.9, 1.25, 0.9));          // body
+    bird.add(mesh(new THREE.SphereGeometry(0.12, 12, 10), red, 0, 0.36, 0.04));                      // head
+    const beak = mesh(new THREE.ConeGeometry(0.05, 0.12, 8), mat(0x3a3a3a), 0, 0.33, 0.17);
+    beak.rotation.x = Math.PI / 2 + 0.6;
+    bird.add(beak);
+    for (const s of [-1, 1]) {
+      bird.add(mesh(new THREE.SphereGeometry(0.035, 8, 6), mat(0xffffff), s * 0.08, 0.39, 0.1));
+      bird.add(mesh(new THREE.SphereGeometry(0.018, 6, 4), mat(0x111111), s * 0.095, 0.39, 0.125));
+    }
+    const wings = [];
+    for (const s of [-1, 1]) { // wings: blue with a yellow edge
+      const w = new THREE.Group();
+      w.add(mesh(new THREE.SphereGeometry(0.12, 10, 8), blue, 0, -0.08, 0, 0.35, 1.2, 0.8));
+      w.add(mesh(new THREE.SphereGeometry(0.06, 8, 6), yellow, 0, 0.0, 0.03, 0.4, 0.8, 0.8));
+      w.position.set(s * 0.14, 0.2, -0.01);
+      w.userData.side = s;
+      bird.add(w);
+      wings.push(w);
+    }
+    const tail = mesh(new THREE.ConeGeometry(0.06, 0.4, 6), blue, 0, -0.12, -0.12);
+    tail.rotation.x = Math.PI - 0.5;
+    bird.add(tail);
+    for (const s of [-1, 1]) bird.add(mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.08, 5), mat(0x555555), s * 0.05, -0.04, 0.02)); // feet
+    bird.position.set(0.86, 0.1, 0.45); // on the edge of the left shoulder, out past the (big) head (back frame: z towards the front)
+    g.add(bird);
+    g.userData.update = (t) => {
+      bird.rotation.x = Math.max(0, Math.sin(t * 1.3)) * 0.25; // bobbing
+      const flap = Math.sin(t * 0.7) > 0.85 ? Math.sin(t * 30) * 0.7 : 0; // a flap every few seconds
+      for (const w of wings) w.rotation.z = w.userData.side * (0.1 + Math.abs(flap));
+    };
+    return g;
+  },
+  jollyroger() { // a little black pirate flag on a pole, waving: a white skull and crossbones
+    const g = new THREE.Group(), wood = mat(0x6b4a2c), white = mat(0xf4f0e6);
+    g.add(mesh(new THREE.CylinderGeometry(0.03, 0.035, 2.0, 8), wood, 0.25, 0.55, -0.32));
+    g.add(mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(0xffcf3f, { metalness: 0.6 }), 0.25, 1.57, -0.32));
+    const flag = new THREE.Group();
+    flag.add(mesh(new THREE.BoxGeometry(0.62, 0.42, 0.015), mat(0x151515, { roughness: 0.9 }), 0.31, 0, 0));
+    flag.add(mesh(new THREE.SphereGeometry(0.075, 10, 8), white, 0.31, 0.05, 0.012, 1, 1, 0.3));      // the skull
+    flag.add(mesh(new THREE.BoxGeometry(0.07, 0.04, 0.02), white, 0.31, -0.015, 0.012));
+    for (const s of [-1, 1]) flag.add(mesh(new THREE.SphereGeometry(0.018, 6, 4), mat(0x151515), 0.31 + s * 0.03, 0.06, 0.035));
+    for (const s of [-1, 1]) flag.add(mesh(new THREE.BoxGeometry(0.3, 0.035, 0.02), white, 0.31, -0.08, 0.01)).children.at(-1).rotation.z = s * 0.5; // crossbones
+    flag.position.set(0.27, 1.32, -0.32);
+    g.add(flag);
+    g.userData.update = (t) => { flag.rotation.y = Math.sin(t * 2.2) * 0.35; };
+    return g;
+  },
   backpack() {
     const g = new THREE.Group();
     const brown = mat(0x9a6a3c);
@@ -287,7 +375,10 @@ const BACK_BUILDERS = {
       g.add(flame);
       flames.push(flame);
     }
-    g.userData.update = (t) => flames.forEach((f, i) => f.scale.set(1, 0.8 + Math.abs(Math.sin(t * 13 + i * 1.7)) * 0.5, 1));
+    g.userData.update = (t, view) => flames.forEach((f, i) => { // roaring while flying
+      const k = view?.flying ? 2.6 : 1;
+      f.scale.set(view?.flying ? 1.5 : 1, (0.8 + Math.abs(Math.sin(t * 13 + i * 1.7)) * 0.5) * k, view?.flying ? 1.5 : 1);
+    });
     return g;
   },
   shell() { // a turtle shell: a green dome with darker plates and a light rim
@@ -1137,13 +1228,13 @@ const CLOTHES_BUILDERS = {
     const silk = mat(color, { roughness: 0.35, metalness: 0.05, side: THREE.DoubleSide }), lace = mat(0xfffaf4, { roughness: 0.8 }), trim = mat(light, { roughness: 0.4 });
     const skirt = new THREE.Group();
     // the bell: a smooth lathe from the waist, puffing out and down to a wide hem
-    const TOP = 0.12, HEM = -0.56, R0 = 0.46, R1 = 0.76, pts = []; // (hips frame: the body ~1 wide; the ground is ~0.58 down)
+    const TOP = 0.36, HEM = -0.56, R0 = 0.5, R1 = 0.78, pts = []; // from the hips (just under the waist ribbon) to the ground // (hips frame: the body ~1 wide; the ground is ~0.58 down)
     const rAt = (y) => { const t = (y - TOP) / (HEM - TOP); return R0 + (R1 - R0) * Math.pow(t, 0.8) + Math.sin(t * Math.PI) * 0.06; }; // a soft bell
     for (let i = 0; i <= 16; i++) { const y = TOP + (HEM - TOP) * (i / 16); pts.push(new THREE.Vector2(rAt(y), y)); }
     const bell = mesh(new THREE.LatheGeometry(pts, 40), silk, 0, 0, 0);
     skirt.add(bell);
     // a short overskirt in a lighter shade, scalloped at its hem, over the top of the bell
-    const OVER = -0.14, over = [];
+    const OVER = 0.0, over = [];
     for (let i = 0; i <= 12; i++) { const y = TOP + (OVER - TOP) * (i / 12); over.push(new THREE.Vector2(rAt(y) + 0.035, y)); }
     const overGeo = new THREE.LatheGeometry(over, 48), op = overGeo.attributes.position;
     for (let i = 0; i < op.count; i++) { // scallops: the hem dips between the swags
@@ -1432,6 +1523,29 @@ const FACE_BUILDERS = {
     const tuft = mesh(new THREE.ConeGeometry(0.07, 0.2, 10), m, 0, -0.35, -0.0, 1, 1, 0.75);
     tuft.rotation.x = Math.PI - 0.35;
     g.add(tuft);
+    return g;
+  },
+  scar(_, __, cheek) { // a pink scar down over one eye, with stitches
+    const g = new THREE.Group(), pink = mat(0xc8706a, { roughness: 0.7 });
+    const x = cheek?.x ?? 0.2;
+    const line = mesh(new THREE.CapsuleGeometry(0.012, 0.3, 3, 6), pink, x * 0.9, 0.02, 0.03);
+    line.rotation.z = 0.25;
+    g.add(line);
+    for (const k of [-0.1, 0, 0.1]) {
+      const st = mesh(new THREE.CapsuleGeometry(0.007, 0.06, 2, 4), pink, x * 0.9 + k * 0.25 + 0.01, 0.02 + k, 0.035);
+      st.rotation.z = Math.PI / 2 + 0.25;
+      g.add(st);
+    }
+    return g;
+  },
+  piratebeard(_, hair) { // a big beard in your hair colour, two braids with gold beads, and a curly mustache
+    const g = new THREE.Group(), m = mat(hair, { roughness: 0.9 }), gold = mat(0xffcf3f, { metalness: 0.6, roughness: 0.3 });
+    g.add(mesh(new THREE.SphereGeometry(0.3, 14, 10, 0, Math.PI * 2, Math.PI * 0.45, Math.PI * 0.55), m, 0, -0.2, -0.12, 1.15, 1.2, 0.85));
+    for (const s of [-1, 1]) {
+      g.add(mesh(new THREE.SphereGeometry(0.09, 10, 8), m, s * 0.09, -0.19, 0.03, 1.4, 0.5, 0.6)).children.at(-1).rotation.z = s * 0.4;
+      for (let i = 0; i < 3; i++) g.add(mesh(new THREE.SphereGeometry(0.05 - i * 0.006, 8, 6), m, s * 0.07, -0.5 - i * 0.07, 0.0, 1, 1.2, 1));
+      g.add(mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.04, 10), gold, s * 0.07, -0.72, 0.0));
+    }
     return g;
   },
   blush(_, __, cheek) {

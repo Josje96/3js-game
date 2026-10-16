@@ -4,6 +4,8 @@ export const CELL = 4;               // world units per map grid cell (KayKit du
 export const WALL_PAD = 0.5;         // walls stick 0.5 units into neighbouring cells
 export const PLAYER_RADIUS = 0.6;
 export const PLAYER_SPEED = 7;       // units / second
+export const FLY_HEIGHT = 2.2;       // a jetpack (V) lifts you this high...
+export const FLY_SPEED = 1.6;        // ...and you go this much faster
 export const PLAYER_BASE_HP = 20;
 export const ROLL_TIME = 0.42;       // dodge roll: how long it lasts (seconds)...
 export const ROLL_SPEED = 13;        // ...how fast you go (units / second)...
@@ -35,7 +37,7 @@ export const FEAST_COST = 10;        // gold for food at the fort's feast table 
 export const AUTOSAVE_SECONDS = 30;
 
 export const SAVE_VERSION = 13;
-export const PROTOCOL_VERSION = 42;
+export const PROTOCOL_VERSION = 43;
 export const PEER_PREFIX = 'famdungeon-v1-'; // PeerJS ids are global; namespace ours
 
 export const CLASSES = {
@@ -69,6 +71,8 @@ export const HATS = {
   cowboy:  { name: 'Cowboy hat', price: 150, build: 'cowboy' },
   pirate:  { name: 'Pirate hat', price: 200, build: 'pirate' },
   halo:    { name: 'Halo', price: 300, build: 'halo' },
+  bandana: { name: 'Pirate bandana', price: 80, build: 'bandana' },
+  captain: { name: 'Captain’s hat', price: 260, build: 'captain' },
 };
 export const CAPES = {
   knight: { name: 'Knight cape', from: 'Knight' },
@@ -86,7 +90,9 @@ export const BACKS = {
   shell:    { name: 'Turtle shell', price: 120, build: 'shell' },
   butterfly:{ name: 'Butterfly wings', price: 240, build: 'butterfly' },
   angel:    { name: 'Angel wings', price: 300, build: 'angel' },
-  jetpack:  { name: 'Jetpack', price: 360, build: 'jetpack' },
+  jetpack:  { name: 'Jetpack (it flies! V)', price: 5000, build: 'jetpack', flies: true },
+  parrot:   { name: 'Pirate parrot', price: 220, build: 'parrot' },
+  jollyroger: { name: 'Jolly Roger flag', price: 180, build: 'jollyroger' },
 };
 /** Cape colours (multiplied over the cape's texture). */
 export const DYES = {
@@ -149,6 +155,8 @@ export const FACES = {
   clown:      { name: 'Clown nose' },
   whiskers:   { name: 'Cat whiskers' },
   goatee:     { name: 'Goatee' },
+  scar:       { name: 'Pirate scar' },
+  piratebeard:{ name: 'Braided pirate beard' },
 };
 /**
  * Fancy clothes over the outfit (bought in the shop's Fashion tab). `jacket` recolours the body and
@@ -202,18 +210,18 @@ export const TIE_COLORS = {
   sky:    { name: 'Sky blue', color: 0x6ab8ff },
   black:  { name: 'Black', color: 0x16161c },
 };
-/** Multiplied over the head's texture, so only darker or tinted tones work. */
+/** Skin tones (the mirror): the colour of all the skin (face, scalp, hands, arms), as named. 'none' = the outfit's own (Pale). */
 export const SKINS = {
-  tan:   { name: 'Tan', color: 0xe8b48a },
-  brown: { name: 'Brown', color: 0xb07a52 },
-  deep:  { name: 'Deep brown', color: 0x7a4c30 },
-  green: { name: 'Goblin green', color: 0xa8e08a },
-  blue:  { name: 'Frosty blue', color: 0xa8c8ff },
-  golden: { name: 'Golden', color: 0xfff0cc },
-  olive:  { name: 'Olive', color: 0xdcd8a4 },
-  ebony:  { name: 'Ebony', color: 0x6e4834 },
-  rosy:   { name: 'Rosy pink', color: 0xffd0dc },
-  lilac:  { name: 'Fairy lilac', color: 0xd4c0ff },
+  tan:    { name: 'Tan', color: 0xd9a271 },
+  brown:  { name: 'Brown', color: 0xa86d47 },
+  deep:   { name: 'Deep brown', color: 0x6e4429 },
+  green:  { name: 'Goblin green', color: 0x8fcf6a },
+  blue:   { name: 'Frosty blue', color: 0x9fc4ff },
+  golden: { name: 'Golden', color: 0xf0c47e },
+  olive:  { name: 'Olive', color: 0xc1a56f },
+  ebony:  { name: 'Ebony', color: 0x4a2d1d },
+  rosy:   { name: 'Rosy pink', color: 0xffb7bd },
+  lilac:  { name: 'Fairy lilac', color: 0xc9aaf2 },
 };
 
 export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, bangs: BANGS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS, tie: TIE_COLORS, brows: BROWS };

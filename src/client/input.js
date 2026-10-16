@@ -16,11 +16,15 @@ const KEY_ACTIONS = {
   KeyM: 'music',
   KeyC: 'sheet', KeyI: 'sheet', KeyP: 'pets', KeyB: 'build', KeyX: 'pickup', F3: 'stats',
   ShiftLeft: 'roll', ShiftRight: 'roll', KeyK: 'roll',
+  KeyV: 'fly',
   Tab: 'bar',
 };
 // while choosing in the item bar the arrows, Enter and Esc work the bar (WASD still walk)
 const BAR_KEYS = { ArrowLeft: 'barLeft', ArrowUp: 'barLeft', ArrowRight: 'barRight', ArrowDown: 'barRight', Enter: 'barUse', NumpadEnter: 'barUse', Escape: 'bar', Tab: 'bar' };
 const PAD_ACTIONS = { 0: 'attack', 1: 'roll', 2: 'interact', 3: 'potion', 4: 'spell', 5: 'feed', 8: 'sheet', 9: 'menu' };
+
+/** Cheat codes typed as digits anywhere (also in shop windows): 1234 = 1000 gold, 5678 = a free enchant (only in the Enchanter's window). */
+const CHEAT_CODES = ['1234', '5678'];
 
 export class Input {
   constructor(canvas) {
@@ -37,7 +41,8 @@ export class Input {
       const digit = /^(Digit|Numpad)([0-9])$/.exec(e.code);
       if (digit && !e.repeat) {
         this.typed = (this.typed + digit[2]).slice(-8);
-        if (this.typed.endsWith('1234')) { this.pressed.add('cheat'); this.typed = ''; }
+        const code = CHEAT_CODES.find((c) => this.typed.endsWith(c));
+        if (code) { this.pressed.add(`cheat:${code}`); this.typed = ''; }
       }
       if (this.barMode && BAR_KEYS[e.code]) { this.pressed.add(BAR_KEYS[e.code]); return; } // (not walking with the arrows)
       if (!e.repeat && KEY_ACTIONS[e.code]) this.pressed.add(KEY_ACTIONS[e.code]);
@@ -84,7 +89,7 @@ export class Input {
   consume(action) {
     const had = this.pressed.has(action);
     this.pressed.delete(action);
-    return had && (this.enabled || action === 'menu' || action === 'sheet' || action === 'pets' || action === 'stats' || (this.barMode && action.startsWith('bar')));
+    return had && (this.enabled || action.startsWith('cheat:') || action === 'menu' || action === 'sheet' || action === 'pets' || action === 'stats' || (this.barMode && action.startsWith('bar')));
   }
 
   takeWheel() {

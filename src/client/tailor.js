@@ -125,7 +125,8 @@ function torso(cl, color, bottom = 0.38) {
  */
 function panel(cl, y0, y1, lo, hi, lift, color, rows = 12, cols = 6) {
   cl.grid(rows, cols, (i, j) => {
-    const y = y0 + (y1 - y0) * (i / rows), a = lo(y) + (hi(y) - lo(y)) * (j / cols);
+    const y = y0 + (y1 - y0) * (i / rows), a0 = Math.min(lo(y), hi(y)), a1 = Math.max(lo(y), hi(y)); // (always the same way round, or it faces inwards and vanishes)
+    const a = a0 + (a1 - a0) * (j / cols);
     return [surface(y, a, lift), color, torsoWeights(y)];
   });
 }
@@ -252,12 +253,12 @@ const STYLES = {
   },
   // a princess gown's bodice: fitted, a lace neckline, pearls, a ribbon at the waist and puff sleeves
   gown(cl, c) {
-    torso(cl, c, 0.5);
+    torso(cl, c, 0.62);
     const light = lighter(c, 0.25), lace = 0xfffaf4;
     band(cl, (a) => 1.2 - 0.05 * Math.max(0, Math.sin(a)), 0.04, 0.012, lace); // the neckline, dipping at the front
-    band(cl, () => 0.62, 0.06, 0.012, light);                                    // the waist ribbon
-    cl.blob(surface(0.62, FRONT, 0.03), [0.05, 0.04, 0.03], light, torsoWeights(0.62));
-    for (const s of [-1, 1]) cl.blob(surface(0.62, FRONT + s * 0.14, 0.03), [0.06, 0.035, 0.02], light, torsoWeights(0.62));
+    band(cl, () => 0.76, 0.06, 0.012, light);                                    // the waist ribbon, just over the skirt
+    cl.blob(surface(0.76, FRONT, 0.03), [0.05, 0.04, 0.03], light, torsoWeights(0.76));
+    for (const s of [-1, 1]) cl.blob(surface(0.76, FRONT + s * 0.14, 0.03), [0.06, 0.035, 0.02], light, torsoWeights(0.76));
     for (let i = 0; i < 9; i++) { // a pearl necklace
       const u = (i / 8 - 0.5) * 1.3, y = 1.13 + 0.06 * Math.abs(u) ** 1.5;
       cl.blob(surface(y, FRONT + u, 0.022), [0.018, 0.018, 0.018], 0xfffaf0, torsoWeights(y), 6);

@@ -1,7 +1,7 @@
 // One player's view of the game. Renders whatever location the server says
 // we're in, moves our own character locally, and sends intents to the host.
 import * as THREE from 'three';
-import { CELL, PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
+import { BACKS, FLY_HEIGHT, FLY_SPEED, CELL, PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
 import { buildLayout, roomIndexAt } from '../shared/locations.js';
 import { DUNGEONS } from '../shared/dungeons.js';
 import { FURNITURE, DECORATOR_FLAG, useVerb } from '../shared/furniture.js';
@@ -63,6 +63,7 @@ export class GameClient {
     this.setupRenderer();
     this.input = new Input(this.renderer.domElement);
     this.hud = new Hud(document.getElementById('hud'), { onModalChange: (open) => { this.input.enabled = !open; } });
+    this.hud.onSpin = (dir) => { this.pos.rot += dir * Math.PI / 4; }; // dressing up: turn round to see the back
 
     conn.onMessage((msg) => this.onMessage(msg));
     conn.onClose(() => this.hud.fatal('Disconnected', opts.isHost ? 'The game stopped.' : 'Lost connection to the host. Ask them to check their tab is still open.'));
@@ -529,7 +530,8 @@ export class GameClient {
     } else if (msg.kind === 'bank') {
       this.hud.openBank({ family: msg.family, onAction: (action, amount, to) => this.conn.send({ t: 'bank', action, amount, to }) });
     } else if (msg.kind === 'enchanter') {
-      this.hud.openEnchanter({ onEnchant: (item) => this.conn.send({ t: 'enchant', item }) });
+      this.enchanterOpen = true;
+      this.hud.openEnchanter({ onEnchant: (item) => this.conn.send({ t: 'enchant', item }), onClose: () => { this.enchanterOpen = false; } });
     } else if (msg.kind === 'pets') {
       this.openPets(true);
     } else if (msg.kind === 'mirror') {
@@ -702,6 +704,14 @@ export class GameClient {
       });
     }
 
+    // a jetpack: V takes off and lands (only while wearing one)
+    const canFly = !!BACKS[this.profile.look?.back]?.flies;
+    if (input.consume('fly')) {
+      if (canFly) { this.flying = !this.flying; if (this.flying) { this.sitting && this.standUp(); this.sleeping = false; } this.sfx.play('whoosh'); }
+      else this.hud.toast('You need a jetpack on your back to fly (the shop’s Fashion tab).');
+    }
+    if (!canFly) this.flying = false;
+
     // movement (client-side, so it feels instant)
     const m = input.move();
     let moving = m.x !== 0 || m.z !== 0;
@@ -721,15 +731,18 @@ export class GameClient {
       this.pos.x = next.x; this.pos.z = next.z;
       moving = false;
     } else if (moving) {
-      const next = moveCircle(this.layout, this.pos.x, this.pos.z, m.x * PLAYER_SPEED * dt, m.z * PLAYER_SPEED * dt, PLAYER_RADIUS, this.solids());
+      const speed = PLAYER_SPEED * (this.flying ? FLY_SPEED : 1);
+      const next = moveCircle(this.layout, this.pos.x, this.pos.z, m.x * speed * dt, m.z * speed * dt, PLAYER_RADIUS, this.solids());
       this.pos.x = next.x; this.pos.z = next.z;
       this.pos.rot = Math.atan2(m.x, m.z);
     }
     if (moving || this.rolling > 0) this.sleeping = false; // getting out of bed
     if ((moving || this.rolling > 0) && this.sitting) this.standUp();
-    this.anim = this.rolling > 0 ? 'roll' : moving ? 'run' : this.sleeping ? 'sleep' : this.sitting ? 'sit' : 'idle';
-    if (this.rolling <= 0) this.me.setBase(this.anim);
-    this.me.root.position.set(this.pos.x, 0, this.pos.z);
+    this.anim = this.rolling > 0 ? 'roll' : this.flying ? 'fly' : moving ? 'run' : this.sleeping ? 'sleep' : this.sitting ? 'sit' : 'idle';
+    if (this.rolling <= 0) this.me.setBase(this.anim === 'fly' ? 'idle' : this.anim); // (hovering)
+    this.flyY = (this.flyY ?? 0) + ((this.flying ? FLY_HEIGHT : 0) - (this.flyY ?? 0)) * Math.min(1, dt * 3);
+    this.me.flying = this.flying;
+    this.me.root.position.set(this.pos.x, this.flyY + (this.flying ? Math.sin(performance.now() / 400) * 0.08 : 0), this.pos.z);
     const r = this.me.root.rotation;
     r.y += (((this.pos.rot - r.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 18);
 
@@ -744,7 +757,8 @@ export class GameClient {
       this.conn.send({ t: 'attack', rot: this.pos.rot });
     }
     if (input.consume('feed')) this.conn.send({ t: 'feedPet' });
-    if (input.consume('cheat')) this.conn.send({ t: 'cheat', code: '1234' });
+    if (input.consume('cheat:1234')) this.conn.send({ t: 'cheat', code: '1234' });
+    if (input.consume('cheat:5678') && this.enchanterOpen) this.conn.send({ t: 'cheat', code: '5678' }); // only in the Enchanter's window
     if (input.consume('bar')) this.hud.setBarMode(!this.hud.barMode);
     if (input.consume('barLeft')) this.hud.moveBar(-1);
     if (input.consume('barRight')) this.hud.moveBar(1);

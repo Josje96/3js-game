@@ -63,7 +63,7 @@ export class Hud {
     this.floats = el('div', 'hud-floats');
     this.modal = el('div', 'modal-backdrop hidden');
     this.danger = el('div', 'hud-danger');
-    this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · E interact · Q potion · G feed pet · R area spell · Tab item bar · C character · P pets · Enter chat · M music · Esc menu');
+    this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · V fly (jetpack) · E interact · Q potion · G feed pet · R area spell · Tab item bar · C character · P pets · Enter chat · M music · Esc menu');
     root.append(this.danger, this.status, this.invite, this.xp, this.inv, this.barHint, this.promptEl, this.seasonSleepEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
     this.self = null;
     this.world = null;
@@ -375,6 +375,17 @@ export class Hud {
     });
   }
 
+  /** Turn buttons: spin your character round to see the back while dressing or trying things on (GameClient onSpin). */
+  spinButtons() {
+    const row = el('div', 'spin-row');
+    for (const [dir, label] of [[-1, '⟲ Turn'], [1, 'Turn ⟳']]) {
+      const b = el('button', '', label);
+      b.addEventListener('click', () => this.onSpin?.(dir));
+      row.append(b);
+    }
+    return row;
+  }
+
   askToSell(label, price, run) {
     this.pendingBuy = { label, price, run, sell: true };
     this.refreshModal?.();
@@ -392,6 +403,7 @@ export class Hud {
     yes.addEventListener('click', () => { this.endTryOn(); this.pendingBuy = null; q.run(); this.refreshModal?.(); });
     no.addEventListener('click', () => { this.endTryOn(); this.pendingBuy = null; this.refreshModal?.(); });
     bar.append(yes, no);
+    if (q.preview?.tryOn) bar.append(this.spinButtons());
     setTimeout(() => yes.focus(), 0);
     return bar;
   }
@@ -571,6 +583,7 @@ export class Hud {
       row('Face', opts(FACES, 'Nothing'), 'face');
       row('Skin', opts(SKINS, 'Pale'), 'skin', true);
       box.append(el('p', 'muted', 'Tip: a new hairstyle replaces your outfit’s own hair. Hats sit on top, so pick "None" for your hat in the wardrobe to show it off.'));
+      box.append(this.spinButtons());
       const done = el('button', 'primary close', 'Done (Esc)');
       done.addEventListener('click', () => this.closeModal());
       box.append(done);
@@ -607,6 +620,7 @@ export class Hud {
       row('Cape', [['own', 'Outfit’s own'], ['none', 'None'], ...styles('cape', CAPES)], (v) => v === cur.look.cape, (v) => { cur.look.cape = v; });
       row('Cape colour', [['none', 'Natural'], ...styles('dye', DYES)], (v) => v === cur.look.dye, (v) => { cur.look.dye = v; });
       row('On your back', [['none', 'Nothing'], ...styles('back', BACKS)], (v) => v === cur.look.back, (v) => { cur.look.back = v; });
+      box.append(this.spinButtons());
       const done = el('button', 'primary close', 'Done (Esc)');
       done.addEventListener('click', () => this.closeModal());
       box.append(done);
@@ -747,7 +761,7 @@ export class Hud {
   }
 
   /** The Enchanter: spend gold, ore and Arcane Essence to make one of your weapons stronger (and shinier). */
-  openEnchanter({ onEnchant }) {
+  openEnchanter({ onEnchant, onClose = null }) {
     this.openModal((box) => {
       const s = this.self, gold = s?.gold ?? 0, have = (item) => s?.inventory?.[item] ?? 0;
       box.append(el('h2', null, `The Enchanter <span class="gold">🪙 ${gold}</span>`),
@@ -775,7 +789,7 @@ export class Hud {
       }
       if (!weapons.length) list.append(el('p', 'muted', 'You don’t have any weapons to enchant.'));
       box.append(list, closeButton(this));
-    });
+    }, { onClose });
   }
 
   /** The Blacksmith's forge tab: blueprint gear you can make from ore (forged weapons have a perk). */

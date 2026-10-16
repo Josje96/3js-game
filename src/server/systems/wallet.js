@@ -20,8 +20,9 @@ export const methods = {
     this.sendSelf(p);
   },
 
-  /** Cheat codes (type them in the game, or in chat): 1234 = 1000 gold. */
+  /** Cheat codes (type them in the game, or in chat): 1234 = 1000 gold; 5678 = a free enchant at the Enchanter. */
   on_cheat(p, { code }) {
+    if (code === '5678') return this.freeEnchant(p); // (systems/enchant.js: only at the Enchanter)
     if (CHEATS[code] == null) return;
     this.earn(p, CHEATS[code]);
     this.writeRecord(p);

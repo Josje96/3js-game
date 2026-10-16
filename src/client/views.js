@@ -1,6 +1,6 @@
 // 3D views for things that move or change: characters, slimes, rocks, drops...
 import * as THREE from 'three';
-import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COLORS } from '../shared/config.js';
+import { FLY_HEIGHT, CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COLORS } from '../shared/config.js';
 import { ITEMS, SWING_COOLDOWN, SWING_IMPACT } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
@@ -47,7 +47,7 @@ function skullDome(geo) {
 }
 
 // hats that cover the top of the head: hair tucks in under them (the rest sit on top of it)
-const COVERING_HATS = new Set(['helmet', 'bear', 'wizard', 'tophat', 'viking', 'cowboy', 'pirate']);
+const COVERING_HATS = new Set(['helmet', 'bear', 'wizard', 'tophat', 'viking', 'cowboy', 'pirate', 'bandana', 'captain']);
 
 const ANIMS = {
   idle: 'Idle_A',
@@ -409,18 +409,18 @@ export class CharacterView {
       const geo = !image ? hm.userData.baseGeo : hair !== 'none' ? hairlessHead(hm.userData.baseGeo, image, outfit) : browlessHead(hm.userData.baseGeo, image);
       hm.userData.baseMat ??= hm.material;
       for (const m of [hm.material].flat()) if (m !== hm.userData.baseMat) m.dispose();
-      const textured = tone ? hm.userData.baseMat.clone() : hm.userData.baseMat;
-      if (tone) textured.color.multiply(new THREE.Color(tone));
+      const textured = hm.userData.baseMat; // (eyes, mouth, brows: as they are)
       if (image) {
         // the skin in one even colour (the texture shades it in patches), shared with the scalp
         hm.geometry = smoothSkin(geo, image);
         this.skinMat = hm.userData.baseMat.clone();
         this.skinMat.map = null;
-        this.skinMat.color.copy(skinColour(hm.userData.baseGeo, image)).multiply(new THREE.Color(tone ?? 0xffffff));
+        this.skinMat.color.set(tone ?? skinColour(hm.userData.baseGeo, image)); // the tone as named, or the outfit's own (Pale)
         hm.material = [this.skinMat, textured];
       } else {
         hm.geometry = geo;
         hm.material = textured;
+        this.skinMat = null;
       }
       // (the scalp and hair anchors are measured once, in the rest pose: computeAnchors)
     }
@@ -489,20 +489,25 @@ export class CharacterView {
       if (!o.isMesh || !/_(Body|ArmLeft|ArmRight|LegLeft|LegRight)$/.test(o.name)) return;
       o.userData.baseGeo ??= o.geometry;
       o.userData.baseMat ??= o.material;
-      if (Array.isArray(o.material)) o.material[1].dispose();
-      o.geometry = o.userData.baseGeo; // (the hands' skinMat belongs to the head: not disposed here)
+      if (Array.isArray(o.material) && o.material[1] !== o.userData.baseMat) o.material[1].dispose(); // (trousers' cloth; skinMat belongs to the head)
+      o.geometry = o.userData.baseGeo;
       o.material = o.userData.baseMat;
       o.visible = true;
-      if (!def) return;
-      if (/_Body$/.test(o.name)) { o.visible = !top; return; } // under the tailored top
-      if (/_Arm/.test(o.name)) { // the sleeves cover the rest; bare hands (no gauntlets or gloves with a suit)
-        if (top) { o.geometry = handOnly(o.userData.baseGeo, wristX); o.material = this.skinMat ?? o.userData.baseMat; }
+      const image = o.userData.baseMat.map?.image;
+      // the skin (hands, arms, a bare chest or legs) in the mirror's skin colour, like the face
+      const skin = (cloth) => { if (this.skinMat && image) { o.geometry = skinSplit(o.userData.baseGeo, image); o.material = [this.skinMat, cloth]; } };
+      if (/_Body$/.test(o.name) && def && top) { o.visible = false; return; } // under the tailored top
+      if (/_Arm/.test(o.name) && def && top) { // the sleeves cover the rest; bare hands (no gauntlets or gloves with a suit)
+        o.geometry = handOnly(o.userData.baseGeo, wristX);
+        o.material = this.skinMat ?? o.userData.baseMat;
         return;
       }
-      const image = o.userData.baseMat.map?.image;
-      if (def.legs == null || !image) return;
-      o.geometry = skinSplit(o.userData.baseGeo, image); // trousers (bare feet stay skin)
-      o.material = [o.userData.baseMat, new THREE.MeshStandardMaterial({ color: def.legs, roughness: 0.65 })];
+      if (/_Leg/.test(o.name) && def?.legs != null && image) { // trousers (bare feet stay skin)
+        o.geometry = skinSplit(o.userData.baseGeo, image);
+        o.material = [this.skinMat ?? o.userData.baseMat, new THREE.MeshStandardMaterial({ color: def.legs, roughness: 0.65 })];
+        return;
+      }
+      skin(o.userData.baseMat);
     });
     if (!def) return;
     if (top) {
@@ -626,13 +631,15 @@ export class CharacterView {
   update(dt) {
     this.time += dt;
     if (this.seasonWear() !== this.wear) this.setLook(this.look); // the season changed (or we went in/out)
-    for (const b of this.borrowed) b.children[0]?.userData.update?.(this.time); // flapping wings
+    for (const b of this.borrowed) b.children[0]?.userData.update?.(this.time, this); // flapping wings, a jetpack's flames
     this.weaponFx?.update(this.time);
     if (this.target) {
       const k = smooth(dt);
       this.root.position.x += (this.target.x - this.root.position.x) * k;
       this.root.position.z += (this.target.z - this.root.position.z) * k;
       this.root.rotation.y = lerpAngle(this.root.rotation.y, this.target.rot, k);
+      this.flying = this.target.anim === 'fly'; // up on a jetpack
+      this.root.position.y += ((this.flying ? FLY_HEIGHT + Math.sin(this.time * 2.5) * 0.08 : 0) - this.root.position.y) * Math.min(1, dt * 3);
       // one somersault per roll, even if the 'roll' state lingers a little over the network
       if (this.target.anim !== 'roll') this.rollSeen = false;
       else if (!this.rollSeen) { this.rollSeen = true; this.roll(ROLL_TIME); }
