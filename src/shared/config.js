@@ -163,7 +163,6 @@ export const BROWS = {
   angry:   { name: 'Fierce' },
   worried: { name: 'Worried' },
   bushy:   { name: 'Bushy' },
-  unibrow: { name: 'Unibrow' },
 };
 /** The colour of the tie (suit) or bow tie (tuxedo). All free: pick one in the wardrobe. */
 export const TIE_COLORS = {

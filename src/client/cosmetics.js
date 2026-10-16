@@ -351,14 +351,14 @@ const HAIR_BUILDERS = {
   },
   ponytail(m) {
     const g = new THREE.Group();
-    g.add(hairShell(m, 0.45));
+    g.add(hairShell(m, 0.56)); // down over the ears, like the others
     g.add(mesh(new THREE.SphereGeometry(0.1, 10, 8), mat(0xff6b8a), 0, -0.3, -0.5));
     for (let i = 0; i < 4; i++) g.add(mesh(new THREE.SphereGeometry(0.15 - i * 0.02, 12, 8), m, 0, -0.38 - i * 0.16, -0.6 - i * 0.04));
     return g;
   },
   pigtails(m) {
     const g = new THREE.Group();
-    g.add(hairShell(m, 0.45));
+    g.add(hairShell(m, 0.56)); // down over the ears, like the others
     for (const s of [-1, 1]) {
       g.add(mesh(new THREE.SphereGeometry(0.08, 8, 6), mat(0x7fd4ff), s * 0.52, -0.42, -0.08));
       for (let i = 0; i < 3; i++) g.add(mesh(new THREE.SphereGeometry(0.14 - i * 0.02, 12, 8), m, s * (0.6 + i * 0.05), -0.52 - i * 0.15, -0.1));
@@ -387,7 +387,7 @@ const HAIR_BUILDERS = {
   },
   bun(m) {
     const g = new THREE.Group();
-    g.add(hairShell(m, 0.45));
+    g.add(hairShell(m, 0.56)); // down over the ears, like the others
     g.add(mesh(new THREE.SphereGeometry(0.2, 14, 10), m, 0, 0.08, -0.12));
     return g;
   },
@@ -527,6 +527,39 @@ function browShape(geo, island, cols) {
     roll: side * Math.atan2(outer.y - inner.y, dx),
   };
 }
+/**
+ * Where a face's eyes and cheeks really are (head-mesh space), so glasses, an eyepatch and blush sit ON
+ * them: guessing from the head's box put them low or floating whenever the outfit's hair made it taller.
+ * `eyes` = { y, z, spread } (the eyes' height, front and half-distance apart); `cheeks` = { x, y, z, yaw }
+ * of the right cheek (the left mirrors it): where the skin is, and how far it turns to face sideways.
+ */
+const faceCache = new WeakMap();
+export function faceSpotsOf(geo, image) {
+  if (faceCache.has(geo)) return faceCache.get(geo);
+  const cols = triangleColours(geo, image), list = islandsOf(geo, cols);
+  const eyes = list.filter((i) => i.n < 150 && i.z > 0.3 && i.dark > i.n * 0.8 && Math.abs(i.x) > 0.1 && Math.abs(i.x) < 0.3);
+  if (eyes.length < 2) { faceCache.set(geo, null); return null; }
+  const eyeY = Math.min(...eyes.map((e) => e.y)), pair = eyes.filter((e) => Math.abs(e.y - eyeY) < 0.03);
+  const pos = geo.attributes.position, idx = geo.index.array, v = new THREE.Vector3();
+  // the front of the eyes, and of the skin at a point: the front-most vertex of those triangles near it
+  let eyeZ = -Infinity;
+  for (const e of pair) for (const t of e.tris) for (let k = 0; k < 3; k++) eyeZ = Math.max(eyeZ, v.fromBufferAttribute(pos, idx[t * 3 + k]).z);
+  const skinZ = (x, y, r = 0.06) => {
+    let z = -Infinity;
+    for (let t = 0; t < idx.length / 3; t++) {
+      if (!SKIN(cols[t])) continue;
+      for (let k = 0; k < 3; k++) { v.fromBufferAttribute(pos, idx[t * 3 + k]); if (Math.abs(v.x - x) < r && Math.abs(v.y - y) < r && v.z > z) z = v.z; }
+    }
+    return z;
+  };
+  const spread = Math.max(...pair.map((e) => Math.abs(e.x)));
+  const cx = spread * 1.3, cy = eyeY - 0.13, cz = skinZ(cx, cy);
+  const yaw = Math.atan2(skinZ(cx - 0.06, cy) - skinZ(cx + 0.06, cy), 0.12); // how much the cheek turns away
+  const out = { eyes: { y: eyeY, z: eyeZ, spread }, cheeks: Number.isFinite(cz) ? { x: cx, y: cy, z: cz, yaw: Number.isFinite(yaw) ? yaw : 0.4 } : null };
+  faceCache.set(geo, out);
+  return out;
+}
+
 export function browsOf(geo, image) {
   if (browCache.has(geo)) return browCache.get(geo);
   const cols = triangleColours(geo, image), list = islandsOf(geo, cols);
@@ -890,7 +923,7 @@ export function buildBrows(color, style = 'soft') {
       one.add(arc);
     } else if (style === 'bushy') {
       for (let i = 0; i < 5; i++) one.add(mesh(new THREE.SphereGeometry(0.038 + (i % 2) * 0.008, 8, 6), m, s * (i * 0.035 - 0.07), Math.sin(i * 0.9) * 0.012, 0.005, 1.2, 0.9, 0.8));
-    } else if (style === 'unibrow') bar(0.032, 0.2, 0, 0, -s * 0.04); // each half reaches the middle
+    }
     else bar(0.028, 0.12, 0.12); // soft
     g.add(one);
   }
@@ -975,20 +1008,33 @@ const FACE_BUILDERS = {
     for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.09, 10, 8), m, s * 0.08, -0.2, 0.02, 1.3, 0.5, 0.6));
     return g;
   },
-  blush() {
-    const g = new THREE.Group(), pink = new THREE.MeshBasicMaterial({ color: 0xff8aa8, transparent: true, opacity: 0.7 });
-    for (const s of [-1, 1]) g.add(mesh(new THREE.CircleGeometry(0.07, 16), pink, s * 0.26, -0.13, 0.0));
+  blush(_, __, cheek) {
+    const g = new THREE.Group(), pink = new THREE.MeshBasicMaterial({ color: 0xff8aa8, transparent: true, opacity: 0.7, depthWrite: false });
+    for (const s of [-1, 1]) g.add(onCheek(mesh(new THREE.CircleGeometry(0.075, 16), pink), s, cheek, 0, 0));
     return g;
   },
-  freckles() {
+  freckles(_, __, cheek) {
     const g = new THREE.Group(), dot = new THREE.MeshBasicMaterial({ color: 0x9a5a34 });
-    for (const s of [-1, 1]) for (const [dx, dy] of [[0.18, -0.1], [0.24, -0.14], [0.3, -0.09], [0.22, -0.18]]) g.add(mesh(new THREE.CircleGeometry(0.015, 8), dot, s * dx, dy, 0.0));
+    for (const s of [-1, 1]) for (const [dx, dy] of [[-0.06, 0.03], [0, -0.01], [0.06, 0.04], [-0.02, -0.05]]) g.add(onCheek(mesh(new THREE.CircleGeometry(0.015, 8), dot), s, cheek, dx, dy));
     return g;
   },
 };
 
-export function buildFace(id, hairColor) {
-  return FACE_BUILDERS[id]?.(null, hairColor) ?? null;
+/**
+ * Lay a flat thing on a cheek (face frame): `cheek` = { x, y, z, yaw } from faceSpotsOf, already in the
+ * face frame; (dx, dy) moves it across the cheek. Without a measured cheek: the old spot.
+ */
+function onCheek(m, s, cheek, dx, dy) {
+  const c = cheek ?? { x: 0.26, y: -0.13, z: 0, yaw: 0 };
+  const x = c.x + dx;
+  m.position.set(s * x, c.y + dy, c.z + 0.006 - Math.sin(c.yaw) * dx);
+  m.rotation.y = s * c.yaw;
+  return m;
+}
+
+/** A face extra (glasses, blush...). `cheek`: the cheek spot in the face frame (views.js, from faceSpotsOf). */
+export function buildFace(id, hairColor, cheek) {
+  return FACE_BUILDERS[id]?.(null, hairColor, cheek) ?? null;
 }
 
 /**

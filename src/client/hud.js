@@ -568,7 +568,7 @@ export class Hud {
       row('Hair colour', opts(HAIR_COLORS), 'hairColor', true);
       row('Eyebrows', opts(BROWS), 'brows');
       row('Face', opts(FACES, 'Nothing'), 'face');
-      row('Skin', opts(SKINS, 'Natural'), 'skin', true);
+      row('Skin', opts(SKINS, 'Pale'), 'skin', true);
       box.append(el('p', 'muted', 'Tip: a new hairstyle replaces your outfit’s own hair. Hats sit on top, so pick "None" for your hat in the wardrobe to show it off.'));
       const done = el('button', 'primary close', 'Done (Esc)');
       done.addEventListener('click', () => this.closeModal());

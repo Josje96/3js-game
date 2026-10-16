@@ -4,7 +4,7 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COL
 import { ITEMS, SWING_COOLDOWN, SWING_IMPACT } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { bareBody, browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, craniumOf, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
+import { bareBody, browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, craniumOf, faceSpotsOf, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -287,6 +287,14 @@ export class CharacterView {
       out.hat = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.max.y - 0.05, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
       // the face: front of the head, a bit below the middle (where the eyes are on these chibi heads)
       out.face = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * FACE_EYE_HEIGHT, b.max.z - 0.02), b.max.x - b.min.x);
+      // better: right on the outfit's own eyes (glasses over them, blush on the cheeks; cosmetics.js faceSpotsOf)
+      const spots = head.material.map?.image ? faceSpotsOf(head.geometry, head.material.map.image) : null;
+      if (spots) {
+        const W = b.max.x - b.min.x;
+        out.face = anchor('head', new THREE.Vector3(0, spots.eyes.y, spots.eyes.z).applyMatrix4(head.matrixWorld), W, head.getWorldQuaternion(new THREE.Quaternion()));
+        const c = spots.cheeks;
+        this.faceCheek = c && { x: c.x / W, y: (c.y - spots.eyes.y) / W, z: (c.z - spots.eyes.z) / W, yaw: c.yaw };
+      }
       // the eyebrows: each exactly where the outfit's own was, lying along the face the same way and
       // as long (cosmetics.js browsOf) — one shared spot for the pair floated off the sides of rounder faces
       const ownBrows = head.material.map?.image ? browsOf(head.geometry, head.material.map.image) : null;
@@ -414,7 +422,7 @@ export class CharacterView {
     const pair = buildBrows(hc, brows);
     if (this.anchors.brow0 && this.anchors.brow1) for (const one of [...pair.children]) { one.position.set(0, 0, 0); this.attach(one.userData.side < 0 ? 'brow0' : 'brow1', one); }
     else this.attach('face', pair);
-    if (face !== 'none') this.attach('face', buildFace(face, hc));
+    if (face !== 'none') this.attach('face', buildFace(face, hc, this.faceCheek));
     // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
     this.setClothes(COSTUMES[costume]?.clothes ?? CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'coat' } : undefined), TIE_COLORS[tie]?.color);
     if (costume) this.attach('hat', buildCostumeHat(costume));
