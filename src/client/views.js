@@ -1,7 +1,7 @@
 // 3D views for things that move or change: characters, slimes, rocks, drops...
 import * as THREE from 'three';
 import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COLORS } from '../shared/config.js';
-import { ITEMS, SWING_COOLDOWN } from '../shared/items.js';
+import { ITEMS, SWING_COOLDOWN, SWING_IMPACT } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
 import { bareBody, browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
@@ -11,6 +11,7 @@ import { ENEMIES } from '../shared/dungeons.js';
 import { FurnitureView } from './furniture.js';
 import { dropTinyShadows } from './merge.js';
 import { enchantWeapon } from './enchant.js';
+import { spellbookFx } from './spellbook.js';
 import { glowTexture } from './effects.js';
 import { makeChristmasCorner, makeEasterCorner } from './town.js';
 
@@ -19,6 +20,9 @@ const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM 
 // lying in bed: the body (feet first) sits this far towards the foot of the bed so the head lands on the pillow
 const SLEEP_FORWARD = 0.5;
 const SKIRT_GAP = 0.15, SKIRT_MAX_FLARE = 1.7; // skirts: room left round a leg (in body widths), and how far they may flare
+
+const AIM_A = new THREE.Vector3(), AIM_B = new THREE.Vector3(), AIM_C = new THREE.Vector3(), AIM_M = new THREE.Matrix4();
+const AIM_Q = new THREE.Quaternion(), AIM_P = new THREE.Quaternion(), AIM_P2 = new THREE.Quaternion();
 
 const ANIMS = {
   idle: 'Idle_A',
@@ -180,11 +184,14 @@ export class CharacterView {
     this.weaponObj?.removeFromParent();
     this.weaponObj = null;
     this.weaponFx = null;
+    this.bookFx?.dispose();
+    this.bookFx = null;
     const model = ITEMS[id]?.model;
     if (model && this.hand) {
       this.weaponObj = tintModel(cloneModel(model), ITEMS[id].tint);
       if (ench > 0) this.weaponFx = enchantWeapon(this.weaponObj, ench);
       this.hand.add(this.weaponObj);
+      if (model === 'items/spellbook_open') this.bookFx = spellbookFx(this.weaponObj, this.root, ITEMS[id].tint); // runes and pages
       this.flashMats = null; // new materials: collect them again for the low-health flash
     }
   }
@@ -243,12 +250,12 @@ export class CharacterView {
     this.model.updateMatrixWorld(true);
     const find = (re) => { let m = null; this.model.traverse((o) => { if (!m && o.isMesh && re.test(o.name)) m = o; }); return m; };
     const head = find(/_Head$/), body = find(/_Body$/);
-    const anchor = (boneName, pos, size) => {
+    const anchor = (boneName, pos, size, turn = new THREE.Quaternion()) => {
       const bone = this.model.getObjectByName(boneName);
       if (!bone) return null;
       const scale = size.isVector3 ? size : new THREE.Vector3(size, size, size);
       const local = bone.matrixWorld.clone().invert()
-        .multiply(new THREE.Matrix4().compose(pos, new THREE.Quaternion(), scale));
+        .multiply(new THREE.Matrix4().compose(pos, turn, scale));
       return { bone, local };
     };
     const out = {};
@@ -257,9 +264,15 @@ export class CharacterView {
       out.hat = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.max.y - 0.05, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
       // the face: front of the head, a bit below the middle (where the eyes are on these chibi heads)
       out.face = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * FACE_EYE_HEIGHT, b.max.z - 0.02), b.max.x - b.min.x);
-      // the eyebrows: exactly where the outfit's own were (cosmetics.js browsOf)
+      // the eyebrows: each exactly where the outfit's own was, lying along the face the same way and
+      // as long (cosmetics.js browsOf) — one shared spot for the pair floated off the sides of rounder faces
       const ownBrows = head.material.map?.image ? browsOf(head.geometry, head.material.map.image) : null;
-      if (ownBrows) out.brows = anchor('head', ownBrows.centre.clone().applyMatrix4(head.matrixWorld), b.max.x - b.min.x);
+      const W = b.max.x - b.min.x, headTurn = head.getWorldQuaternion(new THREE.Quaternion());
+      ownBrows?.each.forEach((brow, i) => {
+        const turn = headTurn.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, brow.yaw, brow.roll, 'YZX')));
+        const stretch = THREE.MathUtils.clamp(brow.len / (0.19 * W), 0.8, 1.5); // a buildBrows brow is ~0.19 heads long
+        out[`brow${i}`] = anchor('head', brow.pos.clone().applyMatrix4(head.matrixWorld), new THREE.Vector3(W * stretch, W, W), turn);
+      });
       // the skull under a new hairstyle (the head mesh is hollow where its own hair was)
       const size = b.getSize(new THREE.Vector3());
       const centre = b.getCenter(new THREE.Vector3()).add(new THREE.Vector3(0, size.y * 0.06, -size.z * 0.02));
@@ -348,7 +361,10 @@ export class CharacterView {
       if (!helmet) this.attach(this.anchors.hair ? 'hair' : 'hat', buildHair(hair, hc, hatOn));
       this.attach('scalp', buildScalp(tone));
     }
-    this.attach(this.anchors.brows ? 'brows' : 'face', buildBrows(hc, brows)); // your eyebrows, in your hair colour, where the outfit's own were (they're cut out)
+    // your eyebrows, in your hair colour, each where the outfit's own was (they're cut out)
+    const pair = buildBrows(hc, brows);
+    if (this.anchors.brow0 && this.anchors.brow1) for (const one of [...pair.children]) { one.position.set(0, 0, 0); this.attach(one.userData.side < 0 ? 'brow0' : 'brow1', one); }
+    else this.attach('face', pair);
     if (face !== 'none') this.attach('face', buildFace(face, hc));
     // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
     this.setClothes(COSTUMES[costume]?.clothes ?? CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'coat' } : undefined), TIE_COLORS[tie]?.color);
@@ -482,7 +498,13 @@ export class CharacterView {
   }
 
   play(name) {
-    if (name === 'attack') name = ITEMS[this.weaponId]?.swing ?? 'slash';
+    if (name === 'attack') {
+      const def = ITEMS[this.weaponId];
+      // bows and crossbows: no clip in the rig fits, so draw, aim and loose by hand (shootPose)
+      if (def?.ranged === 'arrow') { this.shootT = 0; return; }
+      if (def?.swing === 'cast') this.bookFx?.cast();
+      name = def?.swing ?? 'slash';
+    }
     if (!this.actions[name]) return;
     this.oneShot = this.actions[name];
     this.fadeTo(name, 0.08);
@@ -548,6 +570,8 @@ export class CharacterView {
     }
     this.mixer.update(dt);
     if (this.base === 'sit' && this.rollT == null) this.sitPose();
+    if (this.shootT != null) this.shootPose(dt);
+    this.bookFx?.update(dt, this.time);
     if (this.skirt) this.fitSkirt(dt);
   }
 
@@ -561,7 +585,63 @@ export class CharacterView {
     for (const b of [al, ar]) b?.rotateX(SIT_ARM);
   }
 
+  /**
+   * Shooting a bow or crossbow, over whatever the legs are doing: the arms come up to aim, the string
+   * is drawn back, and at the moment the arrow flies (SWING_IMPACT) it's loosed with a little kick.
+   * Each bone is set to point a way in the character's own space (+z ahead, +x its left) with a set
+   * twist round itself, blended over the animation by `w`: turning bones "the shortest way" from
+   * wherever the animation had them left the weapon twisted differently each time.
+   */
+  shootPose(dt) {
+    const t = (this.shootT += dt), impact = SWING_IMPACT.cast, end = impact + 0.4;
+    if (t > end || this.rollT != null || this.base === 'sleep') { this.shootT = null; return; }
+    this.arms ??= ['upperarml', 'lowerarml', 'wristl', 'upperarmr', 'lowerarmr', 'wristr', 'chest'].map((n) => this.model.getObjectByName(n));
+    const [ul, ll, wl, ur, lr, wr, chest] = this.arms;
+    if (!ul || !ll || !wl || !ur || !lr || !wr) return;
+    const ease = (u) => u * u * (3 - 2 * u);
+    const w = t < impact ? ease(Math.min(1, t / (impact * 0.6))) : 1 - ease(Math.max(0, (t - impact - 0.12) / 0.28)); // up, hold, down
+    const draw = ease(THREE.MathUtils.clamp((t - impact * 0.35) / (impact * 0.6), 0, 1)); // the string comes back
+    const kick = t > impact ? Math.exp(-(t - impact) * 14) : 0; // the jolt as it looses
+    const crossbow = /crossbow/.test(ITEMS[this.weaponId]?.model);
+    if (chest) chest.rotateY(-0.35 * w * (crossbow ? 0.4 : 1)); // turn side-on to the target
+    if (crossbow) {
+      // crossbow: raised to the shoulder in both hands, the left one under it; it kicks up as it fires
+      this.setBone(ur, 0.05, 0.12 + kick * 0.5, 1, 0, w);
+      this.setBone(lr, 0.08, 0.1 + kick * 0.8, 1, 0, w);
+      this.setBone(wr, 0.08, 0.1 + kick * 0.8, 1, Math.PI * 0.25, w); // level, limbs out ahead
+      this.setBone(ul, -0.35, -0.35 + kick * 0.4, 1, 0, w);
+      this.setBone(ll, -1, 0.25 + kick * 0.5, 0.7, 0, w);
+    } else {
+      // bow (in the right hand): that arm straight out ahead, the left draws the string back to the cheek
+      this.setBone(ur, -0.18, 0.12 + kick * 0.2, 1, 0, w);
+      this.setBone(lr, -0.12, 0.1 + kick * 0.2, 1, 0, w);
+      this.setBone(wr, -0.12, 0.1 + kick * 0.2, 1, Math.PI, w); // the bow upright, string towards the archer
+      const back = draw + kick * 0.5; // after loosing, the drawing hand flies on back a little
+      this.setBone(ul, 0.25 + back * 0.55, 0.12, 1 - back * 1.25, 0, w);
+      this.setBone(ll, -0.15 - back * 0.85, 0.1, 1 - back * 0.75, 0, w);
+    }
+  }
+
+  /**
+   * Point `bone` (its +y runs down the limb) along (x, y, z) in character space, twisted `roll` radians
+   * round itself from "front facing up", by `w` (0..1) over its animated pose.
+   */
+  setBone(bone, x, y, z, roll, w) {
+    if (w <= 0) return;
+    this.root.getWorldQuaternion(AIM_P);
+    const along = AIM_A.set(x, y, z).normalize().applyQuaternion(AIM_P);
+    const side = AIM_B.set(0, 1, 0).applyQuaternion(AIM_P); // "up" for the twist; forward if the limb points up or down
+    if (Math.abs(side.dot(along)) > 0.9) side.set(0, 0, 1).applyQuaternion(AIM_P);
+    side.addScaledVector(along, -side.dot(along)).normalize().applyAxisAngle(along, roll);
+    AIM_M.makeBasis(AIM_C.crossVectors(along, side), along, side);
+    const want = AIM_Q.setFromRotationMatrix(AIM_M);
+    bone.parent.updateWorldMatrix(true, false);
+    const local = AIM_P2.copy(bone.parent.getWorldQuaternion(AIM_P)).invert().multiply(want);
+    bone.quaternion.slerp(local, w);
+  }
+
   dispose() {
+    this.bookFx?.dispose();
     this.mixer.stopAllAction();
     this.root.removeFromParent();
   }

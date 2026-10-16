@@ -487,21 +487,60 @@ function islandsOf(geo, cols) {
 
 // The outfit's own eyebrows are two little raised shapes (islands in the head mesh) sitting just
 // above the two eyes (the dark islands). browsOf finds them, so they can be cut out and the brows
-// you pick in the mirror (buildBrows) drawn exactly where they were, instead of floating over them.
+// you pick in the mirror (buildBrows) drawn exactly where they were, each lying along the forehead.
 const browCache = new WeakMap();
+// One brow's shape: where it is, how long, and how it lies on the face — `yaw` follows the forehead
+// curving back towards the temples (measured on the skin under it: some outfits' own brows are flat
+// slabs that stick out), `roll` the brow's own slant (outer end up or down).
+function browShape(geo, island, cols) {
+  const pos = geo.attributes.position, idx = geo.index.array, v = new THREE.Vector3();
+  const box = new THREE.Box3();
+  let inner = null, outer = null; // the vertices nearest to / farthest from the middle of the face
+  for (const t of island.tris) for (let k = 0; k < 3; k++) {
+    v.fromBufferAttribute(pos, idx[t * 3 + k]);
+    box.expandByPoint(v);
+    if (!inner || Math.abs(v.x) < Math.abs(inner.x)) inner = v.clone();
+    if (!outer || Math.abs(v.x) > Math.abs(outer.x)) outer = v.clone();
+  }
+  const side = Math.sign(island.x), dx = Math.abs(outer.x - inner.x);
+  // how far forward the skin is at x, at the brow's height: the front-most skin vertex there (not hair or hood)
+  const skin = (x) => {
+    let z = -Infinity;
+    for (let t = 0; t < idx.length / 3; t++) {
+      if (!SKIN(cols[t])) continue;
+      for (let k = 0; k < 3; k++) {
+        v.fromBufferAttribute(pos, idx[t * 3 + k]);
+        if (Math.abs(v.x - x) < 0.05 && v.y > box.min.y - 0.03 && v.y < box.max.y && v.z > z) z = v.z;
+      }
+    }
+    return z;
+  };
+  const zIn = skin(inner.x), zOut = skin(outer.x), zMid = skin(island.x);
+  const onSkin = [zIn, zOut, zMid].every((z) => z > box.min.z - 0.15 && z < box.max.z + 0.05);
+  return {
+    side,
+    // half sunk into the skin, like the old one (no skin found, e.g. the Barbarian's: the slab's middle)
+    pos: new THREE.Vector3(island.x, island.y, onSkin ? Math.max(zMid, (zIn + zOut) / 2) + 0.01 : (island.z + box.max.z) / 2 - 0.02),
+    len: dx,
+    height: box.max.y - box.min.y,
+    yaw: side * (onSkin ? Math.atan2(zIn - zOut, dx) : 0.4), // the outer end curves back (0.4: these heads' usual curve)
+    roll: side * Math.atan2(outer.y - inner.y, dx),
+  };
+}
 export function browsOf(geo, image) {
   if (browCache.has(geo)) return browCache.get(geo);
-  const list = islandsOf(geo, triangleColours(geo, image));
+  const cols = triangleColours(geo, image), list = islandsOf(geo, cols);
   geo.computeBoundingBox();
   const H = geo.boundingBox.max.y - geo.boundingBox.min.y;
   // the eyes: a mirrored pair of small, dark islands on the front of the face
   const eyes = list.filter((i) => i.n < 150 && i.z > 0.3 && i.dark > i.n * 0.8 && Math.abs(i.x) > 0.1 && Math.abs(i.x) < 0.3);
-  const eyeY = eyes.length ? Math.max(...eyes.map((e) => e.y)) : null;
+  const eyeY = eyes.length ? Math.min(...eyes.map((e) => e.y)) : null; // the lowest pair (black brows look like eyes too: the Mage's)
   // the brows: small front islands a little above the eyes, out to the sides
   const brows = eyeY == null ? [] : list.filter((i) => i.n < 150 && i.z > 0.3 && Math.abs(i.x) > 0.12 && Math.abs(i.x) < 0.32 && i.y > eyeY + H * 0.05 && i.y < eyeY + H * 0.25);
+  const tris = new Set(brows.flatMap((b) => b.tris));
   const out = brows.length === 2 ? {
-    tris: new Set(brows.flatMap((b) => b.tris)),
-    centre: new THREE.Vector3(0, (brows[0].y + brows[1].y) / 2, (brows[0].z + brows[1].z) / 2),
+    tris,
+    each: brows.sort((a, b) => a.x - b.x).map((b) => browShape(geo, b, cols)),
   } : null;
   browCache.set(geo, out);
   return out;
@@ -789,34 +828,37 @@ export function buildClothes(extra, color, tie) {
   return built;
 }
 
-/** Eyebrows in the hair colour, drawn over the face's own (face frame: head 1 wide, y 0 at the eyes). */
+/**
+ * Eyebrows in the hair colour: a group of two, one per side (`userData.side` -1 / 1), each built round
+ * its own middle so it can sit exactly on the outfit's own brow (views.js), or as a pair on the face
+ * (face frame: head 1 wide, y 0 at the eyes).
+ */
 export function buildBrows(color, style = 'soft') {
   const g = new THREE.Group(), m = mat(color, { roughness: 0.8 });
-  // a straight brow: thickness r, length len, `tilt` > 0 lifts the outer ends, < 0 drops them (a scowl)
-  const bar = (r, len, tilt, y = 0) => {
-    for (const s of [-1, 1]) {
-      const brow = mesh(new THREE.CapsuleGeometry(r, len, 4, 8), m, s * 0.2, y, 0.03);
+  for (const s of [-1, 1]) { // s: the side; the brow's outer end is towards +s x
+    const one = new THREE.Group();
+    one.userData.side = s;
+    one.position.set(s * 0.2, 0, 0.03);
+    // a straight brow: thickness r, length len, `tilt` > 0 lifts the outer end, < 0 drops it (a scowl)
+    const bar = (r, len, tilt, y = 0, x = 0) => {
+      const brow = mesh(new THREE.CapsuleGeometry(r, len, 4, 8), m, x, y, 0);
       brow.rotation.z = Math.PI / 2 + s * tilt;
-      g.add(brow);
-    }
-  };
-  if (style === 'thick') bar(0.045, 0.13, 0.08);
-  else if (style === 'thin') bar(0.016, 0.13, 0.14);
-  else if (style === 'angry') bar(0.032, 0.13, -0.42, -0.01); // inner ends down: fierce
-  else if (style === 'worried') bar(0.026, 0.12, 0.5, 0.01); // inner ends up
-  else if (style === 'arched') {
-    for (const s of [-1, 1]) {
-      const arc = mesh(new THREE.TorusGeometry(0.09, 0.022, 6, 14, Math.PI * 0.75), m, s * 0.2, -0.04, 0.03);
+      one.add(brow);
+    };
+    if (style === 'thick') bar(0.045, 0.13, 0.08);
+    else if (style === 'thin') bar(0.016, 0.13, 0.14);
+    else if (style === 'angry') bar(0.032, 0.13, -0.42, -0.01); // inner end down: fierce
+    else if (style === 'worried') bar(0.026, 0.12, 0.5, 0.01); // inner end up
+    else if (style === 'arched') {
+      const arc = mesh(new THREE.TorusGeometry(0.09, 0.022, 6, 14, Math.PI * 0.75), m, 0, -0.04, 0);
       arc.rotation.z = Math.PI * 0.125;
-      g.add(arc);
-    }
-  } else if (style === 'bushy') {
-    for (const s of [-1, 1]) for (let i = 0; i < 5; i++) g.add(mesh(new THREE.SphereGeometry(0.038 + (i % 2) * 0.008, 8, 6), m, s * (0.13 + i * 0.035), Math.sin(i * 0.9) * 0.012, 0.035, 1.2, 0.9, 0.8));
-  } else if (style === 'unibrow') {
-    const brow = mesh(new THREE.CapsuleGeometry(0.032, 0.42, 4, 8), m, 0, 0, 0.035);
-    brow.rotation.z = Math.PI / 2;
-    g.add(brow);
-  } else bar(0.028, 0.12, 0.12); // soft
+      one.add(arc);
+    } else if (style === 'bushy') {
+      for (let i = 0; i < 5; i++) one.add(mesh(new THREE.SphereGeometry(0.038 + (i % 2) * 0.008, 8, 6), m, s * (i * 0.035 - 0.07), Math.sin(i * 0.9) * 0.012, 0.005, 1.2, 0.9, 0.8));
+    } else if (style === 'unibrow') bar(0.032, 0.2, 0, 0, -s * 0.04); // each half reaches the middle
+    else bar(0.028, 0.12, 0.12); // soft
+    g.add(one);
+  }
   return g;
 }
 
