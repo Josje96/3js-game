@@ -49,6 +49,7 @@ export class Hud {
     this.status = el('div', 'hud-status panel');
     this.invite = el('div', 'hud-invite panel');
     this.inv = el('div', 'hud-inv panel');
+    this.barHint = el('div', 'hud-bar-hint panel'); // choosing in the bar: what's picked, and the keys
     this.xp = el('div', 'hud-xp');
     this.promptEl = el('div', 'hud-prompt');
     this.seasonSleepEl = el('button', 'hud-season-sleep primary'); // by your own bed: sleep through to the next season
@@ -62,8 +63,8 @@ export class Hud {
     this.floats = el('div', 'hud-floats');
     this.modal = el('div', 'modal-backdrop hidden');
     this.danger = el('div', 'hud-danger');
-    this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · E interact · Q potion · G feed pet · R area spell · C character · P pets · Enter chat · M music · Esc menu');
-    root.append(this.danger, this.status, this.invite, this.xp, this.inv, this.promptEl, this.seasonSleepEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
+    this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · E interact · Q potion · G feed pet · R area spell · Tab item bar · C character · P pets · Enter chat · M music · Esc menu');
+    root.append(this.danger, this.status, this.invite, this.xp, this.inv, this.barHint, this.promptEl, this.seasonSleepEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
     this.self = null;
     this.world = null;
     this.locTitle = '';
@@ -161,21 +162,72 @@ export class Hud {
     const weapon = ITEMS[s.weapon], shield = ITEMS[s.shield], armor = ITEMS[s.armor];
     const inv = Object.entries(s.inventory ?? {}).filter(([id, n]) => n > 0 && ITEMS[id]);
     const slot = (cls, text, title = '') => `<span class="slot ${cls}" title="${esc(title)}">${text}</span>`;
-    const group = (key, label, ids) => (ids.length
-      ? `<span class="slot-group" title="${esc(`${key}: ${label}`)}"><kbd>${key}</kbd>${ids.map(([id, n]) => slot('use', `${iconImg(itemIcon(id))}×${n}`, `${ITEMS[id].name}: ${itemStat(ITEMS[id])}`)).join('')}</span>` : '');
     const heals = inv.filter(([id]) => ITEMS[id].heal), treats = inv.filter(([id]) => ITEMS[id].petHeal);
     const gifts = inv.filter(([id]) => ITEMS[id].kind === 'gift');
     const loot = inv.filter(([id]) => !ITEMS[id].heal && !ITEMS[id].petHeal && ITEMS[id].kind !== 'gift');
+    // everything you can pick in the bar (Tab / click, then ←/→ and Enter), in the order it's drawn
+    const picks = this.barPicks = [];
+    const pick = (kind, id, html) => { picks.push({ kind, id }); return html.replace('<span class="slot', `<span data-pick="${picks.length - 1}" class="slot`).replace('<button class="slot', `<button data-pick="${picks.length - 1}" class="slot`); };
+    const groupPicks = (key, label, ids, kind) => (ids.length
+      ? `<span class="slot-group" title="${esc(`${key}: ${label}`)}"><kbd>${key}</kbd>${ids.map(([id, n]) => pick(kind, id, slot('use', `${iconImg(itemIcon(id))}×${n}`, `${ITEMS[id].name}: ${itemStat(ITEMS[id])}`))).join('')}</span>` : '');
     this.inv.innerHTML = [
-      slot('weapon', `${iconImg(itemIcon(s.weapon))}${esc(weapon?.name ?? s.weapon)}${s.enchants?.[s.weapon] ? ` <b class="ench">+${s.enchants[s.weapon]}</b>` : ''} <b>${(weapon?.damage ?? 1) + enchantDamage(s.weapon, s.enchants?.[s.weapon])}</b>`, 'Your weapon (C to change)'),
-      shield ? slot('weapon', iconImg(itemIcon(s.shield)) || '🛡', `${shield.name}: ${itemStat(shield)}`) : '',
-      armor ? slot('weapon', iconImg(itemIcon(s.armor)) || '🥋', `${armor.name}: ${itemStat(armor)}`) : '',
-      group('Q', 'eat / drink', heals),
-      group('G', 'feed pet', treats),
-      loot.length ? slot('bag', `🎒 ${loot.reduce((a, [, n]) => a + n, 0)}`, loot.map(([id, n]) => `${ITEMS[id].name} ×${n}`).join('\n')) : '',
-      gifts.length ? `<button class="slot gift" data-gift title="Presents: open or give">🎁 ×${gifts.reduce((a, [, n]) => a + n, 0)}</button>` : '',
+      pick('weapon', s.weapon, slot('weapon', `${iconImg(itemIcon(s.weapon))}${esc(weapon?.name ?? s.weapon)}${s.enchants?.[s.weapon] ? ` <b class="ench">+${s.enchants[s.weapon]}</b>` : ''} <b>${(weapon?.damage ?? 1) + enchantDamage(s.weapon, s.enchants?.[s.weapon])}</b>`, 'Your weapon (C to change)')),
+      shield ? pick('gear', s.shield, slot('weapon', iconImg(itemIcon(s.shield)) || '🛡', `${shield.name}: ${itemStat(shield)}`)) : '',
+      armor ? pick('gear', s.armor, slot('weapon', iconImg(itemIcon(s.armor)) || '🥋', `${armor.name}: ${itemStat(armor)}`)) : '',
+      groupPicks('Q', 'eat / drink', heals, 'heal'),
+      groupPicks('G', 'feed pet', treats, 'treat'),
+      // choosing: the bag opens out into its things; otherwise it's one 🎒 slot
+      this.barMode
+        ? loot.map(([id, n]) => pick('loot', id, slot('bag', `${iconImg(itemIcon(id))}×${n}`, ITEMS[id].name))).join('')
+        : loot.length ? pick('bag', null, slot('bag', `🎒 ${loot.reduce((a, [, n]) => a + n, 0)}`, loot.map(([id, n]) => `${ITEMS[id].name} ×${n}`).join('\n'))) : '',
+      gifts.length ? pick('gift', gifts[0][0], `<button class="slot gift" title="Presents: open or give">🎁 ×${gifts.reduce((a, [, n]) => a + n, 0)}</button>`) : '',
     ].join('');
-    this.inv.querySelector('[data-gift]')?.addEventListener('click', () => this.onPresents?.());
+    if (this.barMode) {
+      this.barSel = Math.max(0, Math.min(this.barSel ?? 0, picks.length - 1));
+      const sel = picks[this.barSel];
+      this.inv.querySelector(`[data-pick="${this.barSel}"]`)?.classList.add('picked');
+      const name = sel?.kind === 'bag' ? 'Your bag' : ITEMS[sel?.id]?.name ?? '';
+      const what = { weapon: 'Enter: change weapon', gear: 'Enter: change gear', heal: 'Enter: eat / drink', treat: 'Enter: feed your pet', gift: 'Enter: open or give', loot: 'sell it at the shop', bag: '' }[sel?.kind] ?? '';
+      this.barHint.innerHTML = `<b>${esc(name)}</b> ${esc(what)} <span class="muted">· ←/→ choose · Esc done</span>`;
+    }
+    this.barHint.style.display = this.barMode ? 'block' : 'none';
+    this.inv.classList.toggle('choosing', !!this.barMode);
+    // the mouse: click a slot to pick it, click it again to use it
+    for (const e of this.inv.querySelectorAll('[data-pick]')) {
+      e.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const i = Number(e.dataset.pick);
+        if (picks[i]?.kind === 'gift') return this.onPresents?.(); // (presents always open on a click)
+        if (this.barMode && this.barSel === i) return this.useBar();
+        this.setBarMode(true);
+        this.barSel = i;
+        this.renderInv();
+      });
+    }
+  }
+
+  /** Choosing in the item bar (Tab / clicking it): ←/→ move, Enter uses (see GameClient onBarUse). */
+  setBarMode(on) {
+    if (!!this.barMode === on) return;
+    this.barMode = on;
+    this.onBarMode?.(on);
+    if (on && this.barSel == null) this.barSel = Math.max(0, (this.barPicks ?? []).findIndex((x) => x.kind === 'heal'));
+    this.renderInv();
+  }
+
+  moveBar(d) {
+    const n = this.barPicks?.length ?? 0;
+    if (!n) return;
+    this.barSel = ((this.barSel ?? 0) + d + n) % n;
+    this.renderInv();
+  }
+
+  useBar() {
+    const sel = this.barPicks?.[this.barSel ?? 0];
+    if (!sel) return;
+    if (sel.kind === 'loot') return this.toast(`${ITEMS[sel.id].name}: sell it at the shop (or the Blacksmith uses ore for forging).`);
+    if (sel.kind === 'bag') return this.setBarMode(true);
+    this.onBarUse?.(sel);
   }
 
   setInvite({ code, status, isHost }) {

@@ -191,6 +191,10 @@ summary { cursor: pointer; color: var(--accent); margin-bottom: 6px; }
 kbd { display: inline-block; min-width: 20px; padding: 1px 5px; border-radius: 5px; font: 700 12px/18px inherit; text-align: center; color: #2a1d10;
   background: linear-gradient(#fff3d4, #e2c88f); box-shadow: 0 2px 0 #8a6a3a, inset 0 -1px 0 rgba(0, 0, 0, 0.15); }
 .hud-inv .slot.bag { cursor: help; }
+.hud-inv [data-pick] { pointer-events: auto; cursor: pointer; }
+.hud-inv.choosing { outline: 2px solid var(--accent); }
+.hud-inv .slot.picked { outline: 2px solid var(--accent); background: rgba(255, 180, 70, 0.3); transform: translateY(-3px); }
+.hud-bar-hint { position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%); padding: 5px 12px; font-size: 0.9em; white-space: nowrap; display: none; }
 
 /* shop: one scrolling list per tab, tier headings, locked previews */
 .shop-body { max-height: min(56vh, 520px); overflow-y: auto; padding-right: 4px; }

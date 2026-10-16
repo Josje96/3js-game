@@ -124,6 +124,14 @@ export class GameClient {
           this.hud.closeModal();
         }
         this.hud.onPresents = () => this.hud.openPresents({ onOpen: (item) => this.conn.send({ t: 'openPresent', item }), onSend: (item, to) => this.conn.send({ t: 'sendPresent', item, to }) });
+        // the item bar (Tab / click): the arrows pick instead of walking, Enter uses the picked thing
+        this.hud.onBarMode = (on) => { this.input.barMode = on; };
+        this.hud.onBarUse = (sel) => {
+          if (sel.kind === 'heal') this.conn.send({ t: 'use', item: sel.id });
+          else if (sel.kind === 'treat') this.conn.send({ t: 'feedPet' });
+          else if (sel.kind === 'gift') this.hud.onPresents();
+          else if (sel.kind === 'weapon' || sel.kind === 'gear') { this.hud.setBarMode(false); this.input.pressed.add('sheet'); }
+        };
         break;
       }
       case 'world': {
@@ -729,6 +737,10 @@ export class GameClient {
       this.conn.send({ t: 'attack', rot: this.pos.rot });
     }
     if (input.consume('feed')) this.conn.send({ t: 'feedPet' });
+    if (input.consume('bar')) this.hud.setBarMode(!this.hud.barMode);
+    if (input.consume('barLeft')) this.hud.moveBar(-1);
+    if (input.consume('barRight')) this.hud.moveBar(1);
+    if (input.consume('barUse')) this.hud.useBar();
     this.spellCooldown -= dt;
     if (!this.building && input.consume('spell') && this.rolling <= 0 && this.self?.hp > 0) {
       if (this.spellCooldown > 0) this.hud.toast(`Area spell ready in ${Math.ceil(this.spellCooldown)}s`);

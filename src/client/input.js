@@ -5,6 +5,7 @@
 //   Interact: E / (X)    Potion: Q / (Y)    Menu: Esc / (Start)    Chat: Enter    Music: M
 //   Roll: Shift / K / (B)    Character sheet: C / I / (Back)    Pets: P    Area spell: R    Feed pet: G
 //   At home: B = build mode (place furniture; R rotates, E places, X picks up)
+//   Item bar: Tab (or click it) picks things in the bar at the bottom: ←/→ choose, Enter uses, Esc/Tab done
 
 const KEY_ACTIONS = {
   Space: 'attack', KeyJ: 'attack',
@@ -15,7 +16,10 @@ const KEY_ACTIONS = {
   KeyM: 'music',
   KeyC: 'sheet', KeyI: 'sheet', KeyP: 'pets', KeyB: 'build', KeyX: 'pickup', F3: 'stats',
   ShiftLeft: 'roll', ShiftRight: 'roll', KeyK: 'roll',
+  Tab: 'bar',
 };
+// while choosing in the item bar the arrows, Enter and Esc work the bar (WASD still walk)
+const BAR_KEYS = { ArrowLeft: 'barLeft', ArrowUp: 'barLeft', ArrowRight: 'barRight', ArrowDown: 'barRight', Enter: 'barUse', NumpadEnter: 'barUse', Escape: 'bar', Tab: 'bar' };
 const PAD_ACTIONS = { 0: 'attack', 1: 'roll', 2: 'interact', 3: 'potion', 4: 'spell', 5: 'feed', 8: 'sheet', 9: 'menu' };
 
 export class Input {
@@ -24,16 +28,18 @@ export class Input {
     this.pressed = new Set();
     this.padPrev = [];
     this.enabled = true; // false while typing in a dialog
+    this.barMode = false; // choosing in the item bar (see BAR_KEYS)
     this.wheel = 0;
     addEventListener('keydown', (e) => {
       if (isTyping(e)) return;
-      if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+      if (e.code === 'Space' || e.code === 'Tab' || e.code.startsWith('Arrow')) e.preventDefault();
+      if (this.barMode && BAR_KEYS[e.code]) { this.pressed.add(BAR_KEYS[e.code]); return; } // (not walking with the arrows)
       if (!e.repeat && KEY_ACTIONS[e.code]) this.pressed.add(KEY_ACTIONS[e.code]);
       this.keys.add(e.code);
     });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
-    canvas.addEventListener('mousedown', (e) => { if (e.button === 0) this.pressed.add('attack'); });
+    canvas.addEventListener('mousedown', (e) => { if (e.button === 0) this.pressed.add(this.barMode ? 'bar' : 'attack'); }); // (clicking the world ends choosing in the bar)
     canvas.addEventListener('wheel', (e) => { this.wheel += Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });
   }
 
@@ -72,7 +78,7 @@ export class Input {
   consume(action) {
     const had = this.pressed.has(action);
     this.pressed.delete(action);
-    return had && (this.enabled || action === 'menu' || action === 'sheet' || action === 'pets' || action === 'stats');
+    return had && (this.enabled || action === 'menu' || action === 'sheet' || action === 'pets' || action === 'stats' || (this.barMode && action.startsWith('bar')));
   }
 
   takeWheel() {
