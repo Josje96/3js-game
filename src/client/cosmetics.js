@@ -99,6 +99,66 @@ const HAT_BUILDERS = {
     }
     return g;
   },
+  cowboy() { // a wide brim curling up at the sides, a pinched crown and a dark band
+    const g = new THREE.Group(), felt = mat(0x9a6434, { roughness: 0.8 });
+    const brim = new THREE.LatheGeometry([[0.3, -0.06], [0.5, -0.07], [0.64, -0.04], [0.74, 0.04], [0.76, 0.07]].map(([x, y]) => new THREE.Vector2(x, y)), 32);
+    g.add(mesh(brim, mat(0x9a6434, { roughness: 0.8, side: THREE.DoubleSide }), 0, 0, 0, 1, 1, 0.85));
+    g.add(mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.4, 24), felt, 0, 0.13, 0, 1, 1, 0.9));
+    g.add(mesh(new THREE.SphereGeometry(0.3, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2), felt, 0, 0.33, 0, 1, 0.25, 0.9)); // the top, dented
+    g.add(mesh(new THREE.CylinderGeometry(0.365, 0.37, 0.08, 24), mat(0x3a2414), 0, -0.01, 0, 1, 1, 0.9));
+    g.rotation.x = -0.08;
+    return g;
+  },
+  pirate() { // a black tricorn: three brims turned up into a triangle, gold trim, a little skull at the front
+    const g = new THREE.Group(), black = mat(0x22202a, { roughness: 0.7, side: THREE.DoubleSide });
+    g.add(mesh(new THREE.SphereGeometry(0.42, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), black, 0, -0.08, 0, 1, 1.05, 1)); // the crown, showing above the brims
+    g.add(mesh(new THREE.CylinderGeometry(0.66, 0.56, 0.3, 3, 1, true), black, 0, 0.06, 0.03)); // three brims turned up (a point to the front)
+    const trim = mesh(new THREE.TorusGeometry(0.66, 0.025, 4, 3), mat(0xe0b84a, { metalness: 0.6, roughness: 0.3 }), 0, 0.21, 0.03);
+    trim.rotation.set(Math.PI / 2, 0, Math.PI / 2);
+    g.add(trim);
+    const bone = mat(0xf3ead6);
+    g.add(mesh(new THREE.SphereGeometry(0.075, 10, 8), bone, 0, 0.1, 0.5));
+    for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.018, 6, 4), mat(0x111111), s * 0.028, 0.105, 0.57));
+    return g;
+  },
+  beret() { // a soft red beret slouched to one side, with a little stalk on top
+    const g = new THREE.Group(), red = mat(0xc8324a, { roughness: 0.9 });
+    g.add(mesh(new THREE.SphereGeometry(0.46, 24, 12), red, 0.06, 0.06, 0, 1, 0.3, 1));
+    g.add(mesh(new THREE.TorusGeometry(0.37, 0.035, 6, 28), mat(0x8a1e30, { roughness: 0.9 }), 0, -0.02, 0)).children.at(-1).rotation.x = Math.PI / 2;
+    g.add(mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.08, 6), red, 0.06, 0.2, 0));
+    g.rotation.z = -0.22;
+    return g;
+  },
+  halo() { // a glowing gold ring floating above the head, bobbing gently
+    const g = new THREE.Group();
+    const ring = mesh(new THREE.TorusGeometry(0.3, 0.035, 10, 32), mat(0xffe27a, { emissive: 0xffc83a, emissiveIntensity: 0.9, metalness: 0.3, roughness: 0.3 }), 0, 0.3, 0);
+    ring.rotation.x = Math.PI / 2 - 0.15;
+    ring.castShadow = false;
+    g.add(ring);
+    g.userData.update = (t) => { ring.position.y = 0.3 + Math.sin(t * 2) * 0.04; };
+    return g;
+  },
+  unicorn() { // a pearly twisted horn with a gold spiral, and two little ears
+    const g = new THREE.Group(), pearl = mat(0xfff4fb, { roughness: 0.3, emissive: 0x332233 });
+    const horn = new THREE.Group();
+    horn.add(mesh(new THREE.ConeGeometry(0.12, 0.6, 16), pearl, 0, 0.3, 0));
+    for (let i = 0; i < 5; i++) { // the spiral: tilted rings, thinner as it rises
+      const y = 0.06 + i * 0.1, r = 0.12 * (1 - y / 0.6) + 0.01;
+      const ring = mesh(new THREE.TorusGeometry(r, 0.012, 4, 16), mat(0xffcf3f, { metalness: 0.7, roughness: 0.3 }), 0, y, 0);
+      ring.rotation.set(Math.PI / 2 + 0.35, 0, 0);
+      horn.add(ring);
+    }
+    horn.position.set(0, -0.04, 0.2);
+    horn.rotation.x = 0.35;
+    g.add(horn);
+    for (const s of [-1, 1]) {
+      const ear = mesh(new THREE.ConeGeometry(0.08, 0.2, 8), mat(0xffffff), s * 0.3, 0.0, 0.0, 1, 1, 0.5);
+      ear.rotation.z = -s * 0.45;
+      g.add(ear, mesh(new THREE.ConeGeometry(0.045, 0.13, 8), mat(0xffb3d9), s * 0.29, -0.01, 0.025, 1, 1, 0.4));
+      g.children.at(-1).rotation.z = -s * 0.45;
+    }
+    return g;
+  },
 };
 
 const BACK_BUILDERS = {
@@ -153,6 +213,119 @@ const BACK_BUILDERS = {
       g.userData.wings.push(pivot);
     }
     g.userData.update = (t) => { for (const w of g.userData.wings) w.rotation.y = w.userData.side * (0.3 + Math.sin(t * 4) * 0.25); };
+    return g;
+  },
+  angel() { // big white feathered wings: a scalloped wing with rows of feathers layered on it, gently beating
+    const g = new THREE.Group();
+    // one wing (pointing +x): up and out from the shoulder to the tip, then a scalloped trailing edge back in
+    const wing = (k) => {
+      const sh = new THREE.Shape();
+      sh.moveTo(0, 0.05 * k);
+      sh.bezierCurveTo(0.3 * k, 0.45 * k, 0.75 * k, 0.6 * k, 1.0 * k, 0.55 * k); // the leading edge
+      const tips = [[0.95, 0.25], [0.82, -0.02], [0.66, -0.24], [0.48, -0.4], [0.28, -0.42], [0.1, -0.25]];
+      let [px, py] = [1.0, 0.55];
+      for (const [x, y] of tips) { // each feather tip a rounded bump
+        sh.quadraticCurveTo(((px + x) / 2 + 0.06) * k, ((py + y) / 2 - 0.06) * k, x * k, y * k);
+        [px, py] = [x, y];
+      }
+      sh.lineTo(0, 0.05 * k);
+      return new THREE.ExtrudeGeometry(sh, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2, curveSegments: 8 });
+    };
+    const layers = [[1, 0xffffff, 0], [0.72, 0xf2f4ff, -0.05], [0.45, 0xe6eaff, -0.1]]; // flight feathers, then coverts on top
+    g.userData.wings = [];
+    for (const s of [-1, 1]) {
+      const pivot = new THREE.Group();
+      for (const [k, color, z] of layers) {
+        const m = mesh(wing(k), mat(color, { roughness: 0.75 }), 0, 0.12 + (1 - k) * 0.12, z);
+        m.scale.x = s;
+        pivot.add(m);
+      }
+      pivot.userData.side = s;
+      pivot.position.set(s * 0.12, 0.05, -0.08);
+      g.add(pivot);
+      g.userData.wings.push(pivot);
+    }
+    g.userData.update = (t) => { for (const w of g.userData.wings) w.rotation.y = w.userData.side * (0.25 + Math.sin(t * 2.5) * 0.15); };
+    return g;
+  },
+  butterfly() { // bright orange butterfly wings with black edges and white spots, fluttering
+    const g = new THREE.Group();
+    const orange = mat(0xff9a2a, { side: THREE.DoubleSide, roughness: 0.5 }), black = mat(0x1a1a1a, { side: THREE.DoubleSide }), dot = mat(0xffffff, { side: THREE.DoubleSide });
+    g.userData.wings = [];
+    for (const s of [-1, 1]) {
+      const pivot = new THREE.Group();
+      for (const [x, y, r, sx, sy, tilt] of [[0.42, 0.32, 0.4, 1.0, 0.75, 0.45], [0.3, -0.18, 0.27, 1.0, 0.85, -0.5]]) {
+        const edge = mesh(new THREE.CircleGeometry(r, 24), black, s * x, y, 0, sx, sy, 1);
+        edge.rotation.z = s * tilt;
+        const fill = mesh(new THREE.CircleGeometry(r * 0.8, 24), orange, s * x, y, -0.006, sx, sy, 1);
+        fill.rotation.z = s * tilt;
+        pivot.add(edge, fill);
+      }
+      for (const [x, y] of [[0.62, 0.48], [0.7, 0.3], [0.5, 0.56]]) pivot.add(mesh(new THREE.CircleGeometry(0.04, 10), dot, s * x, y, -0.01));
+      pivot.userData.side = s;
+      pivot.position.z = -0.08;
+      g.add(pivot);
+      g.userData.wings.push(pivot);
+    }
+    g.add(mesh(new THREE.CapsuleGeometry(0.05, 0.4, 4, 8), black, 0, 0.1, -0.06)); // the body between them
+    g.userData.update = (t) => { for (const w of g.userData.wings) w.rotation.y = w.userData.side * (0.5 + Math.sin(t * 7) * 0.45); };
+    return g;
+  },
+  jetpack() { // two silver tanks with red caps, flickering flames out of the nozzles
+    const g = new THREE.Group(), steel = mat(0xc8ccd4, { metalness: 0.7, roughness: 0.3 }), red = mat(0xd8302a, { metalness: 0.3, roughness: 0.4 });
+    g.add(mesh(new THREE.BoxGeometry(0.42, 0.5, 0.12), mat(0x4a4f5a, { metalness: 0.5 }), 0, 0, -0.06));
+    const flames = [];
+    for (const s of [-1, 1]) {
+      g.add(mesh(new THREE.CapsuleGeometry(0.15, 0.5, 6, 16), steel, s * 0.2, 0.0, -0.2));
+      g.add(mesh(new THREE.SphereGeometry(0.15, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), red, s * 0.2, 0.25, -0.2, 1, 1.1, 1));
+      g.add(mesh(new THREE.CylinderGeometry(0.08, 0.11, 0.12, 12), mat(0x333338, { metalness: 0.6 }), s * 0.2, -0.45, -0.2));
+      const flame = new THREE.Group();
+      flame.add(mesh(new THREE.ConeGeometry(0.09, 0.3, 10), new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.85 }), 0, -0.15, 0));
+      flame.add(mesh(new THREE.ConeGeometry(0.05, 0.18, 8), new THREE.MeshBasicMaterial({ color: 0xfff27a }), 0, -0.1, 0));
+      flame.children.forEach((c) => { c.rotation.x = Math.PI; c.castShadow = false; });
+      flame.position.set(s * 0.2, -0.51, -0.2);
+      g.add(flame);
+      flames.push(flame);
+    }
+    g.userData.update = (t) => flames.forEach((f, i) => f.scale.set(1, 0.8 + Math.abs(Math.sin(t * 13 + i * 1.7)) * 0.5, 1));
+    return g;
+  },
+  shell() { // a turtle shell: a green dome with darker plates and a light rim
+    const g = new THREE.Group();
+    const dome = mesh(new THREE.SphereGeometry(0.5, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x4f9a3a, { roughness: 0.6 }), 0, -0.05, -0.02, 0.95, 0.6, 1.15); // (scaled before it's turned: y = how far it bulges)
+    dome.rotation.x = -Math.PI / 2;
+    g.add(dome);
+    const rim = mesh(new THREE.TorusGeometry(0.47, 0.05, 8, 32), mat(0xd8c07a, { roughness: 0.7 }), 0, -0.05, -0.03, 1, 1.2, 1);
+    g.add(rim);
+    const plate = mat(0x2f6a28, { roughness: 0.6 });
+    const plates = [[0, 0.02, 0.18], [0, 0.32, 0.12], [0, -0.3, 0.12], [0.27, 0.16, 0.11], [-0.27, 0.16, 0.11], [0.27, -0.16, 0.11], [-0.27, -0.16, 0.11]];
+    for (const [x, y, r] of plates) {
+      const zOn = -0.02 - 0.3 * Math.sqrt(Math.max(0, 1 - (x / 0.475) ** 2 - (y / 0.575) ** 2)); // on the dome's surface
+      const m = mesh(new THREE.CylinderGeometry(r, r, 0.03, 6), plate, x, y - 0.05, zOn - 0.005);
+      m.rotation.x = Math.PI / 2;
+      m.lookAt(new THREE.Vector3(x * 2.2, (y - 0.05) * 2, zOn - 0.3)); // face outward
+      m.rotateX(Math.PI / 2);
+      g.add(m);
+    }
+    return g;
+  },
+  balloon() { // a red heart balloon on a string, floating above your head and swaying
+    const g = new THREE.Group();
+    const heart = new THREE.Shape();
+    heart.moveTo(0, -0.25);
+    heart.bezierCurveTo(-0.05, -0.15, -0.3, -0.05, -0.3, 0.1);
+    heart.bezierCurveTo(-0.3, 0.28, -0.08, 0.32, 0, 0.17);
+    heart.bezierCurveTo(0.08, 0.32, 0.3, 0.28, 0.3, 0.1);
+    heart.bezierCurveTo(0.3, -0.05, 0.05, -0.15, 0, -0.25);
+    const geo = new THREE.ExtrudeGeometry(heart, { depth: 0.12, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.06, bevelSegments: 4, curveSegments: 16 });
+    geo.center();
+    const sway = new THREE.Group();
+    sway.add(mesh(geo, mat(0xff3a5a, { roughness: 0.25, metalness: 0.1 }), 0, 1.9, 0));
+    sway.add(mesh(new THREE.ConeGeometry(0.04, 0.06, 8), mat(0xff3a5a), 0, 1.6, 0));
+    sway.add(mesh(new THREE.CylinderGeometry(0.006, 0.006, 1.6, 4), mat(0xffffff), 0, 0.8, 0));
+    sway.position.set(0.25, -0.2, -0.15);
+    g.add(sway);
+    g.userData.update = (t) => { sway.rotation.z = -0.15 + Math.sin(t * 1.3) * 0.08; sway.rotation.x = -0.12 + Math.sin(t * 0.9) * 0.05; };
     return g;
   },
 };
@@ -313,6 +486,7 @@ function hairShell(m, down = 0.42, open = 1.0, r = HEAD_R) {
   const cap = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 10, 0, Math.PI * 2, 0, capTo), m);
   const sides = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 12, Math.PI / 2 + open, Math.PI * 2 - open * 2, capTo - 0.02, Math.max(0.05, Math.PI * down - capTo)), m);
   for (const x of [cap, sides]) { x.position.y = HEAD_Y; x.castShadow = true; g.add(x); }
+  g.userData.shell = { down, open, r };
   return g;
 }
 
@@ -402,6 +576,8 @@ const HAIR_BUILDERS = {
 // so the swatch has to lean yellow-brown: green well below red, blue below green.
 
 export const SKIN = ([r, g, b]) => r >= 200 && g >= 140 && b >= 95 && g <= r - 20 && b <= g - 20;
+// Real skin (the peach swatches, 240+ red): SKIN also takes in the Knight's sandy blond hair (218,174,125).
+const PEACH = (c) => SKIN(c) && c[0] >= 235;
 const pixelCache = new WeakMap();   // texture image -> { data, w, h }
 const colourCache = new WeakMap();  // geometry -> [[r, g, b] per triangle]
 
@@ -585,10 +761,59 @@ const SKIN_TOP_PER_OUTFIT = { Knight: 0.45 }; // (his blond hair passes for skin
 
 /** The head's skin colour (the average of its skin triangles), and whether it's bald already (the Barbarian's). */
 function skullLook(geo, cols, skull) {
+  return { color: skinColourOf(geo, cols), own: skull.max.y > geo.boundingBox.max.y - 0.12 }; // its skin goes right up to the top
+}
+
+/** One even skin colour for a head: the average of its peach triangles (the texture shades them top to bottom). */
+function skinColourOf(geo, cols) {
   let r = 0, g = 0, b = 0, n = 0;
-  for (let t = 0; t < geo.index.count / 3; t++) if (SKIN(cols[t])) { r += cols[t][0]; g += cols[t][1]; b += cols[t][2]; n++; }
-  const color = n ? new THREE.Color().setRGB(r / n / 255, g / n / 255, b / n / 255, THREE.SRGBColorSpace) : new THREE.Color(0xf5b993);
-  return { color, own: skull.max.y > geo.boundingBox.max.y - 0.12 }; // its skin goes right up to the top
+  for (let t = 0; t < geo.index.count / 3; t++) if (PEACH(cols[t])) { r += cols[t][0]; g += cols[t][1]; b += cols[t][2]; n++; }
+  return n ? new THREE.Color().setRGB(r / n / 255, g / n / 255, b / n / 255, THREE.SRGBColorSpace) : new THREE.Color(0xf5b993);
+}
+
+/**
+ * The texture paints a head's skin in a dozen shades (darker down the face, a pinker nose), which next to
+ * the scalp and the new hair looked patchy. `smoothSkin` = the same head in two material groups: 0 = its
+ * skin (drawn in one flat colour: `skinColour`), 1 = everything else (eyes, own hair: the texture).
+ */
+const smoothCache = new WeakMap();
+export function smoothSkin(geo, image) {
+  if (!smoothCache.has(geo)) {
+    const cols = triangleColours(geo, image), idx = geo.index.array, skin = [], rest = [];
+    for (let t = 0; t < idx.length; t += 3) (PEACH(cols[t / 3]) ? skin : rest).push(idx[t], idx[t + 1], idx[t + 2]);
+    const out = new THREE.BufferGeometry();
+    for (const name of Object.keys(geo.attributes)) out.setAttribute(name, geo.attributes[name]);
+    out.setIndex([...skin, ...rest]);
+    out.addGroup(0, skin.length, 0);
+    out.addGroup(skin.length, rest.length, 1);
+    smoothCache.set(geo, out);
+  }
+  return smoothCache.get(geo);
+}
+export function skinColour(geo, image) { return skinColourOf(geo, triangleColours(geo, image)); }
+
+/**
+ * A smaller, cuter nose: the KayKit nose is its own little skin island in the middle of the face.
+ * Shrinks it towards where it meets the face — once per vertex buffer (every copy of the head shares it).
+ */
+const nosed = new WeakSet();
+export function cuteNose(geo, image) {
+  const pos = geo.attributes.position;
+  if (!image || nosed.has(pos)) return;
+  nosed.add(pos);
+  const cols = triangleColours(geo, image), idx = geo.index.array;
+  const nose = islandsOf(geo, cols).find((i) => i.n < 150 && Math.abs(i.x) < 0.05 && i.z > 0.38 && i.tris.every((t) => PEACH(cols[t])));
+  if (!nose) return;
+  const verts = new Set();
+  for (const t of nose.tris) for (let k = 0; k < 3; k++) verts.add(idx[t * 3 + k]);
+  let back = Infinity;
+  for (const i of verts) back = Math.min(back, pos.getZ(i));
+  for (const i of verts) {
+    pos.setXYZ(i, nose.x + (pos.getX(i) - nose.x) * 0.72, nose.y + (pos.getY(i) - nose.y) * 0.72, back + (pos.getZ(i) - back) * 0.6);
+  }
+  pos.needsUpdate = true;
+  geo.computeBoundingBox();
+  geo.computeBoundingSphere();
 }
 
 // Every outfit's head is the same head underneath, and the Barbarian's is bald: the top of HIS head is
@@ -628,7 +853,7 @@ export function hairlessHead(geo, image, outfit) {
       const rel = (y - bb.min.y) / height;
       if (brows?.tris.has(t)) return false; // the outfit's own brows: yours are drawn instead
       const face = z > FACE_Z && Math.abs(x) < FACE_X && rel > FACE_LO && rel < hi;
-      return (SKIN(col) && rel < (SKIN_TOP_PER_OUTFIT[outfit] ?? 1)) || face;
+      return (PEACH(col) && rel < (SKIN_TOP_PER_OUTFIT[outfit] ?? 1)) || face; // (not the Knight's sandy hair: see PEACH)
     });
     // the bounds of the skin that's left = the skull
     const pos = geo.attributes.position, idx = kept.index;
@@ -667,8 +892,54 @@ export function scalpOf(geo, image, outfit) {
  * The top of a carved head: the Barbarian's bald cranium (`cranium`, see craniumOf) in this head's own
  * skin colour (`color`, times the skin `tone`). Its anchor puts it exactly where that head is.
  */
-export function buildScalp(tone, color, cranium) {
-  const m = new THREE.Mesh(cranium, mat(new THREE.Color(color ?? 0xf5b993).multiply(new THREE.Color(tone ?? 0xffffff)), { roughness: 0.8 }));
+export function buildScalp(material, cranium) {
+  const m = new THREE.Mesh(cranium, material); // (the face's own skin material: no seam where they meet)
+  m.castShadow = true;
+  return m;
+}
+
+/**
+ * Hair that hugs the head: a hairstyle's round shell (hairShell) stood off the sides of these boxy heads
+ * and let their corners poke through. Instead, take the skull itself (`cranium`, head-mesh space, see
+ * craniumOf), push it out a little all round, and keep the part the shell covered: down to `down`, with the
+ * face left open `open` either side of the front. Measured round the skull's dome ({ centre, r }, the same
+ * ball the hairstyle's extras are placed round). Removes the round shells from `hair`; returns the new one
+ * (attach it to the 'scalp' anchor), or null when the style has none.
+ */
+export function fitHair(hair, cranium, dome, underHat = false) {
+  if (!hair || !cranium || !dome) return null;
+  const shells = [];
+  hair.traverse((o) => { if (o.userData.shell) shells.push(o); });
+  if (!shells.length) return null;
+  const { down, open, r: shellR } = shells[0].userData.shell;
+  const material = shells[0].children.find((c) => c.isMesh)?.material ?? hair.children.find((c) => c.isMesh)?.material;
+  for (const s of shells) s.removeFromParent();
+  if (!material) return null;
+  const c = dome.centre, lift = dome.r * (0.05 + (shellR / HEAD_R - 1) * 1.5);
+  const src = cranium.attributes.position, pos = src.clone(), v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(src, i).sub(c);
+    const d = v.length() || 1;
+    v.multiplyScalar(1 + lift / d).add(c);
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  const capTo = Math.PI * 0.3, from = underHat ? Math.PI * 0.38 : 0, to = Math.PI * down;
+  const idx = cranium.index.array, kept = [];
+  for (let t = 0; t < idx.length; t += 3) {
+    v.set(0, 0, 0);
+    for (let k = 0; k < 3; k++) v.x += src.getX(idx[t + k]) / 3, v.y += src.getY(idx[t + k]) / 3, v.z += src.getZ(idx[t + k]) / 3;
+    v.sub(c);
+    const theta = Math.acos(THREE.MathUtils.clamp(v.y / (v.length() || 1), -1, 1)), phi = Math.atan2(v.x, v.z);
+    if (theta < from || theta > to) continue;
+    if (theta > capTo && Math.abs(phi) < open) continue; // the face
+    kept.push(idx[t], idx[t + 1], idx[t + 2]);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', pos);
+  geo.setAttribute('normal', cranium.attributes.normal);
+  geo.setIndex(kept);
+  const m = new THREE.Mesh(geo, material.clone());
+  m.material.side = THREE.DoubleSide; // (seen from below, the inside shows: hair, not a hole)
   m.castShadow = true;
   return m;
 }
@@ -1006,6 +1277,64 @@ const FACE_BUILDERS = {
     const g = new THREE.Group(), m = mat(hair, { roughness: 0.9 });
     g.add(mesh(new THREE.SphereGeometry(0.3, 14, 10, 0, Math.PI * 2, Math.PI * 0.45, Math.PI * 0.55), m, 0, -0.2, -0.12, 1.1, 1.1, 0.8));
     for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.09, 10, 8), m, s * 0.08, -0.2, 0.02, 1.3, 0.5, 0.6));
+    return g;
+  },
+  hearts() { // heart-shaped red glasses
+    const g = new THREE.Group(), red = mat(0xff3a6a, { roughness: 0.3 }), lens = mat(0xffb3cc, { transparent: true, opacity: 0.45, roughness: 0.1 });
+    const heart = (r) => {
+      const h = new THREE.Shape();
+      h.moveTo(0, -r);
+      h.bezierCurveTo(-r * 0.2, -r * 0.6, -r * 1.2, -r * 0.2, -r * 1.2, r * 0.4);
+      h.bezierCurveTo(-r * 1.2, r * 1.1, -r * 0.3, r * 1.3, 0, r * 0.65);
+      h.bezierCurveTo(r * 0.3, r * 1.3, r * 1.2, r * 1.1, r * 1.2, r * 0.4);
+      h.bezierCurveTo(r * 1.2, -r * 0.2, r * 0.2, -r * 0.6, 0, -r);
+      return h;
+    };
+    const rim = heart(0.11), hole = heart(0.075);
+    rim.holes.push(hole);
+    const frame = new THREE.ExtrudeGeometry(rim, { depth: 0.025, bevelEnabled: false, curveSegments: 12 });
+    for (const s of [-1, 1]) {
+      g.add(mesh(frame, red, s * 0.17, -0.01, 0.015));
+      g.add(mesh(new THREE.ShapeGeometry(heart(0.08), 12), lens, s * 0.17, -0.01, 0.025));
+    }
+    g.add(mesh(new THREE.BoxGeometry(0.12, 0.02, 0.02), red, 0, 0.03, 0.025));
+    return g;
+  },
+  goggles() { // brass aviator goggles with green lenses and a leather strap round the head
+    const g = new THREE.Group(), brass = mat(0xc89a4a, { metalness: 0.7, roughness: 0.35 }), leather = mat(0x5a3a22, { roughness: 0.9 });
+    for (const s of [-1, 1]) {
+      g.add(mesh(new THREE.CylinderGeometry(0.12, 0.13, 0.07, 20), brass, s * 0.17, 0, 0.03)).children.at(-1).rotation.x = Math.PI / 2;
+      g.add(mesh(new THREE.CircleGeometry(0.095, 20), mat(0x6ad8b0, { roughness: 0.05, metalness: 0.4 }), s * 0.17, 0, 0.066));
+      g.add(mesh(new THREE.TorusGeometry(0.105, 0.015, 6, 20), brass, s * 0.17, 0, 0.066));
+    }
+    g.add(mesh(new THREE.BoxGeometry(0.1, 0.035, 0.03), leather, 0, 0.0, 0.03));
+    const strap = mesh(new THREE.TorusGeometry(0.5, 0.025, 4, 32), leather, 0, 0.0, -0.42, 0.97, 0.9, 1); // (snug round the head: x across, y (turned) front to back)
+    strap.rotation.x = Math.PI / 2;
+    g.add(strap);
+    return g;
+  },
+  clown() { // a round red clown nose
+    const g = new THREE.Group();
+    g.add(mesh(new THREE.SphereGeometry(0.068, 16, 12), mat(0xff2a2a, { roughness: 0.25 }), 0, -0.075, 0.02)); // right over the nose
+    return g;
+  },
+  whiskers(_, __, cheek) { // a pink cat nose and three whiskers on each cheek
+    const g = new THREE.Group(), line = mat(0x2a2222);
+    g.add(mesh(new THREE.SphereGeometry(0.04, 10, 8), mat(0xff8ab0, { roughness: 0.4 }), 0, -0.075, 0.0, 1.3, 0.8, 0.7)); // over the nose
+    for (const s of [-1, 1]) for (const tilt of [0.2, 0, -0.2]) {
+      const w = onCheek(mesh(new THREE.BoxGeometry(0.2, 0.012, 0.006), line), s, cheek, 0.02, 0.03 + tilt * 0.25);
+      w.rotation.z = s * tilt;
+      g.add(w);
+    }
+    return g;
+  },
+  goatee(_, hair) { // a little pointed chin beard, in your hair colour
+    const g = new THREE.Group(), m = mat(hair, { roughness: 0.9 });
+    // (the chin curves back under the mouth: the tuft hangs off the front of it, pointing down and a little out)
+    g.add(mesh(new THREE.SphereGeometry(0.07, 10, 8), m, 0, -0.26, -0.02, 1.1, 0.8, 0.8));
+    const tuft = mesh(new THREE.ConeGeometry(0.07, 0.2, 10), m, 0, -0.35, -0.0, 1, 1, 0.75);
+    tuft.rotation.x = Math.PI - 0.35;
+    g.add(tuft);
     return g;
   },
   blush(_, __, cheek) {

@@ -4,7 +4,7 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COL
 import { ITEMS, SWING_COOLDOWN, SWING_IMPACT } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { bareBody, browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, craniumOf, faceSpotsOf, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
+import { bareBody, browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, craniumOf, cuteNose, faceSpotsOf, fitHair, buildClothes, buildArmor, hairlessHead, scalpOf, skinColour, skinSplit, smoothSkin, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -46,7 +46,7 @@ function skullDome(geo) {
 }
 
 // hats that cover the top of the head: hair tucks in under them (the rest sit on top of it)
-const COVERING_HATS = new Set(['helmet', 'bear', 'wizard', 'tophat', 'viking']);
+const COVERING_HATS = new Set(['helmet', 'bear', 'wizard', 'tophat', 'viking', 'cowboy', 'pirate']);
 
 const ANIMS = {
   idle: 'Idle_A',
@@ -283,6 +283,7 @@ export class CharacterView {
     };
     const out = {};
     if (head) {
+      if (head.material.map?.image) cuteNose(head.geometry, head.material.map.image); // first: everything below measures the face
       const b = new THREE.Box3().setFromObject(head);
       out.hat = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.max.y - 0.05, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
       // the face: front of the head, a bit below the middle (where the eyes are on these chibi heads)
@@ -325,7 +326,7 @@ export class CharacterView {
         if (this.cranium) {
           // fit the hair to that skull: a hairstyle is built round a ball of radius HAIR_HEAD_R, HAIR_HEAD_DROP
           // below its anchor (cosmetics.js HEAD_R / HEAD_Y), so put that ball just outside the skull's dome
-          const { centre, r } = skullDome(this.cranium);
+          const { centre, r } = this.dome = skullDome(this.cranium);
           hairSize = (r * 1.06) / HAIR_HEAD_R; // (a little over: the skull is low-poly, its corners poke out)
           const at = centre.clone().add(new THREE.Vector3(0, HAIR_HEAD_DROP * hairSize, 0)).applyMatrix4(head.matrixWorld);
           hairX = at.x; hairY = at.y; hairZ = at.z;
@@ -351,6 +352,7 @@ export class CharacterView {
   barbarianHead() {
     let m = null;
     characterScene('Barbarian').traverse((o) => { if (!m && o.isMesh && /_Head$/.test(o.name) && o.material.map?.image) m = o; });
+    if (m) cuteNose(m.geometry, m.material.map.image); // (the scalp is cut from it)
     return m;
   }
 
@@ -403,11 +405,22 @@ export class CharacterView {
       hm.userData.baseGeo ??= hm.geometry;
       const image = (hm.userData.baseMat ?? hm.material).map?.image, outfit = hm.name.replace(/_Head$/, '');
       // a new hairstyle carves the outfit's hair away; either way its own brows go (yours are drawn instead)
-      hm.geometry = !image ? hm.userData.baseGeo : hair !== 'none' ? hairlessHead(hm.userData.baseGeo, image, outfit) : browlessHead(hm.userData.baseGeo, image);
+      const geo = !image ? hm.userData.baseGeo : hair !== 'none' ? hairlessHead(hm.userData.baseGeo, image, outfit) : browlessHead(hm.userData.baseGeo, image);
       hm.userData.baseMat ??= hm.material;
-      if (hm.material !== hm.userData.baseMat) hm.material.dispose();
-      hm.material = tone ? hm.userData.baseMat.clone() : hm.userData.baseMat;
-      if (tone) hm.material.color.multiply(new THREE.Color(tone));
+      for (const m of [hm.material].flat()) if (m !== hm.userData.baseMat) m.dispose();
+      const textured = tone ? hm.userData.baseMat.clone() : hm.userData.baseMat;
+      if (tone) textured.color.multiply(new THREE.Color(tone));
+      if (image) {
+        // the skin in one even colour (the texture shades it in patches), shared with the scalp
+        hm.geometry = smoothSkin(geo, image);
+        this.skinMat = hm.userData.baseMat.clone();
+        this.skinMat.map = null;
+        this.skinMat.color.copy(skinColour(hm.userData.baseGeo, image)).multiply(new THREE.Color(tone ?? 0xffffff));
+        hm.material = [this.skinMat, textured];
+      } else {
+        hm.geometry = geo;
+        hm.material = textured;
+      }
       // (the scalp and hair anchors are measured once, in the rest pose: computeAnchors)
     }
     if (hair !== 'none') {
@@ -415,8 +428,13 @@ export class CharacterView {
       // (winter's bobble hat and the holiday costumes put a hat on too)
       const hatOn = COVERING_HATS.has(hat) || wear === 'winter' || !!costume; // (a crown, ears or a party hat sit on the hair)
       const helmet = hat === 'helmet';
-      if (!helmet) this.attach(this.anchors.hair ? 'hair' : 'hat', buildHair(hair, hc, hatOn));
-      if (!this.scalpOwn && this.cranium) this.attach('scalp', buildScalp(tone, this.scalpColor, this.cranium));
+      if (!helmet) {
+        const style = buildHair(hair, hc, hatOn);
+        const hug = this.anchors.scalp && fitHair(style, this.cranium, this.dome, hatOn); // its round shell, remade round the skull
+        this.attach(this.anchors.hair ? 'hair' : 'hat', style);
+        if (hug) this.attach('scalp', hug);
+      }
+      if (!this.scalpOwn && this.cranium) this.attach('scalp', buildScalp(this.skinMat ?? new THREE.MeshStandardMaterial({ color: this.scalpColor, roughness: 0.8 }), this.cranium));
     }
     // your eyebrows, in your hair colour, each where the outfit's own was (they're cut out)
     const pair = buildBrows(hc, brows);

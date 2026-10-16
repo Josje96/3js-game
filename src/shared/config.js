@@ -35,7 +35,7 @@ export const FEAST_COST = 10;        // gold for food at the fort's feast table 
 export const AUTOSAVE_SECONDS = 30;
 
 export const SAVE_VERSION = 13;
-export const PROTOCOL_VERSION = 40;
+export const PROTOCOL_VERSION = 41;
 export const PEER_PREFIX = 'famdungeon-v1-'; // PeerJS ids are global; namespace ours
 
 export const CLASSES = {
@@ -64,6 +64,11 @@ export const HATS = {
   tophat:  { name: 'Top hat', price: 144, build: 'tophat' },
   viking:  { name: 'Viking helmet', price: 180, build: 'viking' },
   crown:   { name: 'Golden crown', price: 360, build: 'crown' },
+  beret:   { name: 'Beret', price: 60, build: 'beret' },
+  unicorn: { name: 'Unicorn horn', price: 120, build: 'unicorn' },
+  cowboy:  { name: 'Cowboy hat', price: 150, build: 'cowboy' },
+  pirate:  { name: 'Pirate hat', price: 200, build: 'pirate' },
+  halo:    { name: 'Halo', price: 300, build: 'halo' },
 };
 export const CAPES = {
   knight: { name: 'Knight cape', from: 'Knight' },
@@ -77,6 +82,11 @@ export const BACKS = {
   backpack: { name: 'Backpack', price: 72, build: 'backpack' },
   bat:      { name: 'Bat wings', price: 216, build: 'bat' },
   fairy:    { name: 'Fairy wings', price: 264, build: 'fairy' },
+  balloon:  { name: 'Heart balloon', price: 48, build: 'balloon' },
+  shell:    { name: 'Turtle shell', price: 120, build: 'shell' },
+  butterfly:{ name: 'Butterfly wings', price: 240, build: 'butterfly' },
+  angel:    { name: 'Angel wings', price: 300, build: 'angel' },
+  jetpack:  { name: 'Jetpack', price: 360, build: 'jetpack' },
 };
 /** Cape colours (multiplied over the cape's texture). */
 export const DYES = {
@@ -122,6 +132,11 @@ export const FACES = {
   beard:      { name: 'Beard' },
   blush:      { name: 'Rosy cheeks' },
   freckles:   { name: 'Freckles' },
+  hearts:     { name: 'Heart glasses' },
+  goggles:    { name: 'Goggles' },
+  clown:      { name: 'Clown nose' },
+  whiskers:   { name: 'Cat whiskers' },
+  goatee:     { name: 'Goatee' },
 };
 /**
  * Fancy clothes over the outfit (bought in the shop's Fashion tab). `jacket` recolours the body and
