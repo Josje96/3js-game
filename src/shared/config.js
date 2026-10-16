@@ -37,7 +37,7 @@ export const FEAST_COST = 10;        // gold for food at the fort's feast table 
 export const AUTOSAVE_SECONDS = 30;
 
 export const SAVE_VERSION = 13;
-export const PROTOCOL_VERSION = 43;
+export const PROTOCOL_VERSION = 44;
 export const PEER_PREFIX = 'famdungeon-v1-'; // PeerJS ids are global; namespace ours
 
 export const CLASSES = {
@@ -90,7 +90,7 @@ export const BACKS = {
   shell:    { name: 'Turtle shell', price: 120, build: 'shell' },
   butterfly:{ name: 'Butterfly wings', price: 240, build: 'butterfly' },
   angel:    { name: 'Angel wings', price: 300, build: 'angel' },
-  jetpack:  { name: 'Jetpack (it flies! V)', price: 5000, build: 'jetpack', flies: true },
+  jetpack:  { name: 'Jetpack (it flies! V)', price: 50000, build: 'jetpack', flies: true },
   parrot:   { name: 'Pirate parrot', price: 220, build: 'parrot' },
   jollyroger: { name: 'Jolly Roger flag', price: 180, build: 'jollyroger' },
 };

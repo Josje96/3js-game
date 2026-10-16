@@ -75,5 +75,5 @@ export function useDistance(t, who) {
   if (t.seats?.length) {
     return Math.min(...t.seats.map(([dx, dz]) => Math.hypot(t.x + dx - who.x, t.z + dz - who.z))) - 0.6;
   }
-  return Math.hypot(t.x - who.x, t.z - who.z) - (t.radius ?? t.r ?? 0);
+  return Math.hypot(t.x - who.x, t.z - who.z) - (t.radius ?? t.r ?? 0) - (t.reach ?? 0); // reach: small things next to big ones (a calendar by a bed) still win when you stand at them
 }

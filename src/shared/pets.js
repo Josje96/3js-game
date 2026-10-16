@@ -33,6 +33,8 @@ export const TIER_LOOKS = [
   'a legendary rainbow aura!', // 100
 ];
 export const PET_MAX_LEVEL = 100;
+/** The Pet Keeper trains a young pet straight up to this level, for a price (only below it). */
+export const TRAIN_TO = 10, TRAIN_COST = 10000;
 
 /**
  * Every species. `atk` = how hard it hits at level 1, `forms` = its name at each stage.

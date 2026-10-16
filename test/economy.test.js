@@ -149,3 +149,21 @@ test('cheat code 1234: 1000 gold (typed in the game or in chat, where nobody see
   assert.equal(p.kid.gold, gold + 2000);
   assert.equal(c.mom.all('chat').length, 0, 'not shown in chat');
 });
+
+test('smelting: 20 ore make a bar at the Blacksmith, worth more than the ore', async () => {
+  const { SMELT, SMELT_ORE, ITEMS } = await import('../src/shared/items.js');
+  for (const [ore, bar] of Object.entries(SMELT)) assert.ok(ITEMS[bar].sell > ITEMS[ore].sell * SMELT_ORE, `${bar} is worth more`);
+  const { server, c, p } = world('smelt', 'kid');
+  server.travel(p.kid, 'town');
+  p.kid.inventory.copper = 45;
+  c.kid.say({ t: 'smelt', ore: 'copper' });
+  assert.equal(p.kid.inventory.copperbar, 1);
+  assert.equal(p.kid.inventory.copper, 25);
+  c.kid.say({ t: 'smelt', ore: 'copper', all: true });
+  assert.equal(p.kid.inventory.copperbar, 2);
+  assert.equal(p.kid.inventory.copper, 5);
+  c.kid.say({ t: 'smelt', ore: 'copper' });
+  assert.equal(p.kid.inventory.copperbar, 2, 'not enough ore left');
+  c.kid.say({ t: 'smelt', ore: 'stone' });
+  assert.ok(!p.kid.inventory.stonebar, 'only ores');
+});

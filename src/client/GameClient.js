@@ -517,6 +517,7 @@ export class GameClient {
       this.hud.openShop({
         vendor: msg.kind,
         onForge: (recipe) => this.conn.send({ t: 'forge', recipe }),
+        onSmelt: (ore, all) => this.conn.send({ t: 'smelt', ore, all }),
         onBuy: (item) => this.conn.send({ t: 'buy', item }),
         onSell: (item, qty) => this.conn.send({ t: 'sell', item, qty }),
         onBuyStyle: (slot, id) => this.conn.send({ t: 'buyStyle', slot, id }),
@@ -532,6 +533,12 @@ export class GameClient {
     } else if (msg.kind === 'enchanter') {
       this.enchanterOpen = true;
       this.hud.openEnchanter({ onEnchant: (item) => this.conn.send({ t: 'enchant', item }), onClose: () => { this.enchanterOpen = false; } });
+    } else if (msg.kind === 'calendar') {
+      this.hud.openCalendar({ day: this.world?.day ?? 1, season: msg.season, days: msg.days, onAsk: () => this.conn.send({ t: 'seasonSkip', yes: true }) });
+    } else if (msg.kind === 'seasonVote') { // someone at a calendar wants to sleep until the next season
+      this.hud.openSeasonVote({ ...msg, onAnswer: (yes) => this.conn.send({ t: 'seasonSkip', yes }) });
+    } else if (msg.kind === 'seasonVoteOver') {
+      if (this.hud.seasonVoteOpen) this.hud.closeModal();
     } else if (msg.kind === 'pets') {
       this.openPets(true);
     } else if (msg.kind === 'mirror') {
@@ -577,6 +584,7 @@ export class GameClient {
       onPick: (id) => this.conn.send({ t: 'pickPet', id }),
       onRename: (id, name) => this.conn.send({ t: 'renamePet', id, name }),
       onRevive: (id) => this.conn.send({ t: 'revivePet', id }),
+      onTrain: (id) => this.conn.send({ t: 'trainPet', id }),
     });
   }
 
@@ -779,9 +787,6 @@ export class GameClient {
     }
     const near = this.building ? null : this.nearestInteractable();
     if (!this.building) this.hud.prompt(near && !this.hud.modalOpen ? near.prompt : null);
-    // by your own bed (and not in it yet): the "sleep until next season" button
-    const bed = near && !this.building && !this.sleeping && !this.hud.modalOpen ? this.ents.get(near.id)?.data : null;
-    this.hud.seasonSleep(bed?.item === 'bed' && bed.owner === this.you ? this.world?.day ?? 1 : null, () => this.conn.send({ t: 'sleepSeason', bed: bed.id }));
     if (input.consume('interact') && near) this.conn.send({ t: 'interact', id: near.id });
 
     // tell the host where we are

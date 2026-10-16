@@ -1,6 +1,6 @@
 // pets — part of the GameServer (see systems/index.js). Methods run with `this` = the GameServer.
 import { ITEMS, bestHeal } from '../../shared/items.js';
-import { PET_SPECIES, PET_MAX_LEVEL, TIER_LOOKS, petStage, petTier, petFormName, petXpToNext, petMaxHp, reviveCost, newPet, cleanPetName } from '../../shared/pets.js';
+import { PET_SPECIES, PET_MAX_LEVEL, TRAIN_TO, TRAIN_COST, TIER_LOOKS, petStage, petTier, petFormName, petXpToNext, petMaxHp, reviveCost, newPet, cleanPetName } from '../../shared/pets.js';
 
 export const interactions = {
   pets(p) { this.send(p, { t: 'ui', kind: 'pets' }); },
@@ -82,6 +82,22 @@ export const methods = {
     if (p.pet === pet.id) this.spawnPet(p, this.locations.get(p.loc));
     this.writeRecord(p);
     this.sendSelf(p);
+  },
+
+  /** Pay the Pet Keeper to train a young pet straight up to level TRAIN_TO (only pets below it). */
+  on_trainPet(p, { id }) {
+    const pet = p.pets.find((x) => x.id === id);
+    if (!pet || p.loc !== 'town') return;
+    if (pet.level >= TRAIN_TO) return this.toast(p, `${pet.name} is past the Pet Keeper’s lessons: only level ${TRAIN_TO} and under.`);
+    if (!this.spend(p, TRAIN_COST, `training ${pet.name}`)) return;
+    const stageBefore = petStage(pet.level), hpBefore = petMaxHp(pet.species, pet.level);
+    pet.level = TRAIN_TO;
+    pet.xp = 0;
+    if (!pet.fainted) pet.hp += petMaxHp(pet.species, pet.level) - hpBefore;
+    this.toast(p, petStage(pet.level) > stageBefore
+      ? `${pet.name} trained hard... and evolved into ${petFormName(pet.species, pet.level)}! Now level ${TRAIN_TO}.`
+      : `${pet.name} trained hard with the Pet Keeper: now level ${TRAIN_TO}!`, true);
+    this.petsChanged(p);
   },
 
   /** Choose which pet follows you (null = everyone naps at home). */

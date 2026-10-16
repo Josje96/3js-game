@@ -90,3 +90,20 @@ test('day: sleep until next season — when everyone in bed picks it, you wake o
   assert.equal(save.day, 31, 'first day of summer');
   assert.equal(c.mom.last('night').days, 25);
 });
+
+test('calendar: everyone has to say yes to sleep until the next season; one no stops it', async () => {
+  const { daysToNextSeason } = await import('../src/shared/seasons.js');
+  const { server, save, c, p } = world('cal', 'mom', 'kid');
+  for (const id of ['mom', 'kid']) server.travel(p[id], 'house');
+  const cals = [...server.locations.get('house').entities.values()].filter((e) => e.item === 'calendar');
+  assert.equal(cals.length, 2, 'a calendar by each bed');
+  const day = save.day;
+  c.mom.say({ t: 'seasonSkip', yes: true });
+  assert.equal(save.day, day, 'waiting for the kid');
+  assert.ok(c.kid.all('ui').some((m) => m.kind === 'seasonVote'), 'the kid is asked');
+  c.kid.say({ t: 'seasonSkip', yes: false });
+  assert.equal(save.day, day, 'a no stops it');
+  c.kid.say({ t: 'seasonSkip', yes: true }); // asks again (from the house)
+  c.mom.say({ t: 'seasonSkip', yes: true });
+  assert.equal(save.day, day + daysToNextSeason(day), 'slept until the next season');
+});

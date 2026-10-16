@@ -134,6 +134,13 @@ export const ITEMS = {
   opal:        { name: 'Rainbow Opal',    kind: 'loot', sell: 320, model: 'props/crystalcluster', tint: 0xf4f0ff, gem: true, glow: 0xffffff, rainbow: true },
   essence:     { name: 'Arcane Essence',  kind: 'loot', sell: 60, model: 'dungeon/bottle_B_green', tint: 0xb070ff }, // for enchanting: bosses drop it
   starstone:   { name: 'Starstone',       kind: 'loot', sell: 90, model: 'blocks/stone_with_gold', tint: 0xfff6c0 },
+  // bars, smelted at the Blacksmith from SMELT_ORE of an ore (worth more than the ore was)
+  copperbar:   { name: 'Copper Bar',      kind: 'loot', sell: 120,  model: 'blocks/metal', tint: 0xd9783a },
+  silverbar:   { name: 'Silver Bar',      kind: 'loot', sell: 240,  model: 'blocks/metal', tint: 0xe4ebf2 },
+  goldbar:     { name: 'Gold Bar',        kind: 'loot', sell: 540,  model: 'blocks/metal', tint: 0xffcf3f },
+  mythrilbar:  { name: 'Mythril Bar',     kind: 'loot', sell: 900,  model: 'blocks/metal', tint: 0x7fd8ff },
+  obsidianbar: { name: 'Obsidian Bar',    kind: 'loot', sell: 1650, model: 'blocks/metal', tint: 0x9a6ad0 },
+  starbar:     { name: 'Starstone Bar',   kind: 'loot', sell: 2700, model: 'blocks/metal', tint: 0xfff6c0 },
 
   // a blueprint teaches its recipe when picked up (see FORGE_RECIPES)
   blueprint:   { name: 'Blueprint',       kind: 'blueprint', model: 'items/spellbook_closed', tint: 0x6fa8ff },
@@ -143,6 +150,10 @@ export const ITEMS = {
 };
 
 /** A new, tougher shop tier every this many levels (level 20, 40, 60, 80). */
+/** Smelting at the Blacksmith: SMELT_ORE ore -> one bar of it (each bar sells for more than the ore did). */
+export const SMELT_ORE = 20;
+export const SMELT = { copper: 'copperbar', silver: 'silverbar', goldore: 'goldbar', mythril: 'mythrilbar', obsidian: 'obsidianbar', starstone: 'starbar' };
+
 export const SHOP_TIER_LEVELS = 20;
 export const MAX_SHOP_TIER = 4;
 

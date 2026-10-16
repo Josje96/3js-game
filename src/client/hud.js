@@ -1,11 +1,11 @@
 // HTML overlay on top of the 3D canvas.
-import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_SHOP_STOCK, shopTier, sellValue, isGear, PERKS } from '../shared/items.js';
+import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_SHOP_STOCK, shopTier, sellValue, isGear, PERKS, SMELT, SMELT_ORE } from '../shared/items.js';
 import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
 import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle, BANK_OPEN_FEE, TIE_COLORS, BROWS, BANGS } from '../shared/config.js';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
-import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost } from '../shared/pets.js';
+import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost, TRAIN_TO, TRAIN_COST } from '../shared/pets.js';
 import { seasonOf, holidayOf, dayOfSeason, daysToNextSeason, SEASONS, isBossDay, calendar, dateLabel, CALENDAR_NAME } from '../shared/seasons.js';
 import { ENCHANT_LOOKS, enchantCost, enchantedName, enchantDamage } from '../shared/enchant.js';
 import { seasonalPrice } from '../shared/seasonal.js';
@@ -267,6 +267,32 @@ export class Hud {
     this.spell.classList.toggle('ready', ready);
   }
 
+  /** A calendar by a bed: the date, and asking everyone to sleep until the next season. */
+  openCalendar({ day, season, days, onAsk }) {
+    this.openModal((box) => {
+      const now = seasonOf(day);
+      box.append(el('h2', null, `📅 ${esc(dateLabel(day))}`), el('p', 'muted', `It’s ${now.icon} ${now.name}. ${esc(season)} starts in ${days} day${days === 1 ? '' : 's'}.`));
+      const ask = el('button', 'primary', `💤 Sleep until ${esc(season)}`);
+      ask.addEventListener('click', () => { onAsk(); this.closeModal(); });
+      const no = el('button', '', 'Not now');
+      no.addEventListener('click', () => this.closeModal());
+      box.append(el('p', null, 'Everyone playing has to say yes. Then the whole family sleeps right through to the first morning of the new season.'), ask, no);
+    });
+  }
+
+  /** Someone asked to sleep until the next season: yes or no (one no is enough to stop it). */
+  openSeasonVote({ by, season, days, onAnswer }) {
+    this.openModal((box) => {
+      box.append(el('h2', null, `💤 Sleep until ${esc(season)}?`), el('p', null, `${esc(by)} wants everyone to sleep for ${days} day${days === 1 ? '' : 's'}, until the first morning of ${esc(season)}.`));
+      for (const [yes, label] of [[true, 'Yes, sleep!'], [false, 'No thanks']]) {
+        const b = el('button', yes ? 'primary' : '', label);
+        b.addEventListener('click', () => { onAnswer(yes); this.seasonVoteOpen = false; this.closeModal(); });
+        box.append(b);
+      }
+    }, { onClose: () => { this.seasonVoteOpen = false; } });
+    this.seasonVoteOpen = true;
+  }
+
   /** The "sleep until next season" button (null hides it). */
   seasonSleep(day, onClick) {
     this.onSeasonSleep = onClick;
@@ -458,7 +484,7 @@ export class Hud {
    * A shop counter. `vendor` 'shop' = the Shopkeeper (food & potions, fashion, selling); 'smith' =
    * the Blacksmith (weapons, shields, armor, and forging from blueprints).
    */
-  openShop({ vendor = 'shop', onBuy, onSell, onBuyStyle, onForge }) {
+  openShop({ vendor = 'shop', onBuy, onSell, onBuyStyle, onForge, onSmelt }) {
     const smith = vendor === 'smith';
     this.shopTabs ??= { shop: 'food', smith: 'weapons' };
     this.openModal((box) => {
@@ -468,7 +494,7 @@ export class Hud {
       if (smith) box.append(el('p', 'muted', '“Buy what’s on the rack, or bring me a blueprint and ore — forged steel is tougher, and each piece has a trick of its own.”'));
       const tabs = el('div', 'tabs');
       const list = smith
-        ? [...SHOP_SECTIONS.filter((sec) => sec.id !== 'food').map((sec) => [sec.id, `${sec.icon} ${sec.name}`]), ['forge', '🔥 Forge']]
+        ? [...SHOP_SECTIONS.filter((sec) => sec.id !== 'food').map((sec) => [sec.id, `${sec.icon} ${sec.name}`]), ['forge', '⚒ Forge'], ['smelt', '🔥 Smelt']]
         : [['food', '🍎 Food & potions'], ['fashion', '👑 Fashion'], ['sell', '💰 Sell']];
       for (const [id, label] of list) {
         const t = el('button', tab === id ? 'selected' : '', label);
@@ -481,6 +507,7 @@ export class Hud {
       if (tab === 'fashion') body.append(this.fashionShop(gold, onBuyStyle));
       else if (tab === 'sell') body.append(this.sellList(onSell));
       else if (tab === 'forge') body.append(this.forgeList(onForge));
+      else if (tab === 'smelt') body.append(this.smeltList(onSmelt));
       else {
         const sec = SHOP_SECTIONS.find((x) => x.id === tab);
         const items = SHOP_STOCK.filter((id) => sec.kinds.includes(ITEMS[id].kind)).sort((x, y) => ITEMS[x].tier - ITEMS[y].tier || ITEMS[x].price - ITEMS[y].price);
@@ -792,6 +819,28 @@ export class Hud {
     }, { onClose });
   }
 
+  /** The Blacksmith's smelting tab: SMELT_ORE ore make a bar, worth more than the ore. */
+  smeltList(onSmelt) {
+    const inv = this.self?.inventory ?? {};
+    const list = el('div', 'forge-list');
+    list.append(el('p', 'muted', `Melt down ${SMELT_ORE} ore into a bar: a bar sells for more than the ore did.`));
+    for (const [ore, bar] of Object.entries(SMELT)) {
+      const have = inv[ore] ?? 0, bars = Math.floor(have / SMELT_ORE);
+      const row = el('div', 'forge-row', `<b>${iconImg(itemIcon(bar))}${esc(ITEMS[bar].name)} <small class="muted">sells for <span class="gold">🪙 ${ITEMS[bar].sell}</span> (${SMELT_ORE} ore: ${ITEMS[ore].sell * SMELT_ORE})</small></b><span class="needs"><span class="${bars ? 'ok' : 'short'}">${esc(ITEMS[ore].name)} ${have}/${SMELT_ORE}</span></span>`);
+      const one = el('button', bars ? 'primary' : '', 'Smelt 1');
+      one.disabled = !bars;
+      one.addEventListener('click', () => onSmelt(ore, false));
+      row.append(one);
+      if (bars > 1) {
+        const all = el('button', '', `Smelt all (${bars})`);
+        all.addEventListener('click', () => onSmelt(ore, true));
+        row.append(all);
+      }
+      list.append(row);
+    }
+    return list;
+  }
+
   /** The Blacksmith's forge tab: blueprint gear you can make from ore (forged weapons have a perk). */
   forgeList(onForge) {
     const s = this.self ?? {}, gold = s.gold ?? 0;
@@ -822,7 +871,7 @@ export class Hud {
   }
 
   /** Your pets (level, evolution, pick who follows you, rename) and, at the Pet Keeper, adopting. */
-  openPets({ shop, onBuy, onBuyItem, onPick, onRename, onRevive }) {
+  openPets({ shop, onBuy, onBuyItem, onPick, onRename, onRevive, onTrain }) {
     const ICONS = PET_ICONS;
     this.openModal((box) => {
       const gold = this.self?.gold ?? 0, mine = this.self?.pets ?? [], current = this.self?.pet ?? null;
@@ -853,6 +902,12 @@ export class Hud {
             walk.disabled = pet.id === current;
             walk.addEventListener('click', () => onPick(pet.id));
             actions.append(walk);
+          }
+          if (shop && pet.level < TRAIN_TO) { // the Pet Keeper trains young pets
+            const train = el('button', '', `Train to Lv ${TRAIN_TO} · ${TRAIN_COST.toLocaleString()}g`);
+            train.disabled = gold < TRAIN_COST;
+            train.addEventListener('click', () => this.askToBuy(`training ${pet.name} to level ${TRAIN_TO}`, TRAIN_COST, () => onTrain(pet.id)));
+            actions.append(train);
           }
           if (!PET_SPECIES[pet.species].fixedName) {
             const rename = el('button', 'small', 'Rename');

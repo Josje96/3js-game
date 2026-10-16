@@ -1384,6 +1384,19 @@ export const FURNITURE_BUILDERS = {
     });
     return g;
   },
+  calendar() { // a wall calendar on a little wooden stand: a red top, a page of days, one circled
+    const g = new THREE.Group(), wood = mat(0x8a5a34);
+    for (const s of [-1, 1]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.3, 0.06), wood);
+      leg.position.set(s * 0.25, 0.65, -0.05);
+      leg.rotation.x = -0.1;
+      g.add(leg);
+    }
+    add(g, new THREE.BoxGeometry(0.66, 0.78, 0.04), mat(0xfaf6ec), 0, 1.22, 0.02);
+    add(g, new THREE.BoxGeometry(0.66, 0.16, 0.05), mat(0xd8402a), 0, 1.6, 0.025);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 5; c++) add(g, new THREE.BoxGeometry(0.08, 0.08, 0.01), mat(r === 1 && c === 3 ? 0xd8402a : 0xc8c0b0), -0.22 + c * 0.11, 1.4 - r * 0.15, 0.045);
+    return g;
+  },
   petbed() {
     const g = new THREE.Group();
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.18, 10, 24), mat(0xc96a8a, { roughness: 1 }));

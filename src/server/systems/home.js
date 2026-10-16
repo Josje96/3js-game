@@ -12,7 +12,10 @@ import { MAX_ROOMS } from '../../shared/fort.js';
 const nextSeasonName = (day) => SEASONS[(SEASONS.indexOf(seasonOf(day)) + 1) % SEASONS.length].name;
 
 /** Props you can use with E (see shared/props.js `interact`). */
+const CALENDAR_BESIDE_BED = 1.75; // how far to the side of a bed its calendar stands
+
 export const interactions = {
+  calendar(p) { this.send(p, { t: 'ui', kind: 'calendar', season: nextSeasonName(this.save.day), days: daysToNextSeason(this.save.day) }); },
   /** The feast table: asks whether you'd like to buy food (see on_eatFeast). */
   feast(p, table) {
     this.send(p, { t: 'ui', kind: 'feast', table: table.id, price: FEAST_COST, heal: Math.ceil(p.maxHp * FEAST_HEAL) });
@@ -103,6 +106,40 @@ export const methods = {
       type: 'furniture', item: 'bed', owner: playerId, ownerName: name, blanket: blanketFor(playerId),
       x: at.x, z: at.z, rot: at.rot ?? 0, r: FURNITURE.bed.radius, interact: 'sleep',
     });
+    this.placeCalendar(loc, playerId, at);
+  },
+
+  /** The calendar standing beside a bed (its side away from the room's middle): sleep until the next season. */
+  placeCalendar(loc, playerId, at) {
+    const spot = { x: at.x + CALENDAR_BESIDE_BED, z: at.z - (at.rot ? -0.6 : 0.6), rot: at.rot ?? 0 };
+    const existing = [...loc.entities.values()].find((e) => e.type === 'furniture' && e.item === 'calendar' && e.owner === playerId);
+    if (existing) { Object.assign(existing, spot); existing._dirty = true; return; }
+    loc.spawn({ type: 'furniture', item: 'calendar', owner: playerId, ...spot, r: FURNITURE.calendar.radius, interact: 'calendar', prompt: 'Look at the calendar', reach: 0.8 });
+  },
+
+  /**
+   * "Sleep until the next season" from a calendar: everyone online has to say yes (one no stops it).
+   * The one who asks has said yes; on the last yes the world sleeps through to the season's first day.
+   */
+  on_seasonSkip(p, { yes }) {
+    const vote = this.seasonVote;
+    if (!yes) {
+      if (!vote) return;
+      this.seasonVote = null;
+      this.broadcast({ t: 'ui', kind: 'seasonVoteOver' });
+      this.broadcast({ t: 'toast', text: `${p.name} said no: no sleeping until ${nextSeasonName(this.save.day)} for now.` });
+      return;
+    }
+    if (!vote) { // a new question: only from the house (by a calendar)
+      if (p.loc !== 'house') return;
+      this.seasonVote = { by: p.name, yes: new Set([p.id]) };
+      for (const q of this.players.values()) if (q !== p) this.send(q, { t: 'ui', kind: 'seasonVote', by: p.name, season: nextSeasonName(this.save.day), days: daysToNextSeason(this.save.day) });
+    } else vote.yes.add(p.id);
+    const v = this.seasonVote, waiting = [...this.players.values()].filter((q) => !v.yes.has(q.id));
+    if (waiting.length) return this.toast(p, `Waiting for ${waiting.map((q) => q.name).join(', ')} to say yes…`);
+    this.seasonVote = null;
+    this.broadcast({ t: 'ui', kind: 'seasonVoteOver' });
+    this.endDay('sleep', daysToNextSeason(this.save.day));
   },
 
   /** Where a player wakes up: at the foot of their own bed, on the open side (never in the wall behind the pillow). */

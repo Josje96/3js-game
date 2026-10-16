@@ -3,7 +3,7 @@
 // and the Pet Keeper's treats. Gold is each player's own (see wallet.js).
 import { STYLE_SLOTS, ownsStyle, INTERACT_RANGE } from '../../shared/config.js';
 import { dist2 } from '../../shared/physics.js';
-import { ITEMS, SHOP_STOCK, PET_SHOP_STOCK, FORGE_RECIPES, inShopFor, shopTier, sellValue, isGear } from '../../shared/items.js';
+import { ITEMS, SHOP_STOCK, PET_SHOP_STOCK, FORGE_RECIPES, inShopFor, shopTier, sellValue, isGear, SMELT, SMELT_ORE } from '../../shared/items.js';
 
 export const interactions = {
   shop(p) { this.send(p, { t: 'ui', kind: 'shop' }); },
@@ -60,6 +60,21 @@ export const methods = {
     }
     this.sendToLocation(p.loc, { t: 'fx', kind: 'forge', id: p.id, x: p.x, z: p.z });
     this.gainGear(p, recipe);
+  },
+
+  /** Smelt SMELT_ORE ore into a bar at the Blacksmith (`all`: as many bars as the ore makes). */
+  on_smelt(p, { ore, all }) {
+    const bar = SMELT[ore];
+    if (!bar || p.loc !== 'town') return;
+    const n = Math.min(all ? Infinity : 1, Math.floor((p.inventory[ore] ?? 0) / SMELT_ORE));
+    if (n < 1) return this.toast(p, `You need ${SMELT_ORE} ${ITEMS[ore].name} for a bar.`);
+    p.inventory[ore] -= n * SMELT_ORE;
+    if (!p.inventory[ore]) delete p.inventory[ore];
+    p.inventory[bar] = (p.inventory[bar] ?? 0) + n;
+    this.sendToLocation(p.loc, { t: 'fx', kind: 'forge', id: p.id, x: p.x, z: p.z });
+    this.toast(p, `🔥 Smelted ${n} ${ITEMS[bar].name}${n > 1 ? 's' : ''}!`);
+    this.writeRecord(p);
+    this.sendSelf(p);
   },
 
   /** Sell loot from your bag, or a weapon / shield / armor you aren't using. */

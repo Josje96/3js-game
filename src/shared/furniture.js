@@ -11,6 +11,7 @@ export const DECORATOR_FLAG = 'mineCleared';
 
 export const FURNITURE = {
   bed:        { name: 'Bed', model: 'dungeon/bed_decorated', radius: 1.3, interact: 'sleep', notForSale: true },
+  calendar:   { name: 'Calendar', build: 'calendar', radius: 0.35, interact: 'calendar', notForSale: true }, // beside every bed: sleep until the next season
   chair:      { name: 'Chair', model: 'dungeon/chair', price: 60, radius: 0.5, seat: { face: 0 } },
   stool:      { name: 'Stool', model: 'dungeon/stool', price: 40, radius: 0.45, seat: { face: 0 } },
   smalltable: { name: 'Small table', model: 'dungeon/table_small_decorated_A', price: 90, radius: 0.8 },
