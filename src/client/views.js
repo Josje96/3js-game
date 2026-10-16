@@ -45,6 +45,9 @@ function skullDome(geo) {
   return { centre: new THREE.Vector3(cx, top - r, cz), r };
 }
 
+// hats that cover the top of the head: hair tucks in under them (the rest sit on top of it)
+const COVERING_HATS = new Set(['helmet', 'bear', 'wizard', 'tophat', 'viking']);
+
 const ANIMS = {
   idle: 'Idle_A',
   run: 'Running_A',
@@ -156,7 +159,6 @@ export class CharacterView {
     this.time = 0;
     this.borrowed = [];   // meshes/accessories added by the current look
     this.anchors = this.computeAnchors();
-    this.model.traverse((o) => { if (o.isMesh && HAT_PART.test(o.name)) this.ownHatParts = true; }); // the outfit comes with a hat
     this.root.userData.noSnow = true; // characters don't get the town's snowy tops (seasonfx.js)
     const hash = [...String(name ?? '')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
     this.coatColor = COATS[hash % COATS.length];
@@ -370,7 +372,9 @@ export class CharacterView {
     this.skirt = null;
     this.model.traverse((o) => {
       if (!o.isMesh) return;
-      if (HAT_PART.test(o.name)) o.visible = hat === 'own';
+      // the outfit's own hat — but picking a hairstyle takes it off, so the style shows (a hat you pick
+      // yourself still goes on over it, tucking it in). The hooded Rogue's mask isn't a hat: it stays.
+      if (HAT_PART.test(o.name)) o.visible = hat === 'own' && (hair === 'none' || /_Mask$/.test(o.name));
       else if (CAPE_PART.test(o.name)) {
         o.visible = cape === 'own';
         o.userData.unsweptGeo ??= o.geometry;
@@ -379,7 +383,7 @@ export class CharacterView {
     });
     const h = HATS[hat], c = CAPES[cape], bk = BACKS[back];
     if (h?.from) for (const part of h.parts) this.borrow(h.from, part);
-    if (h?.build) this.attach('hat', buildHat(h.build));
+    if (h?.build) this.attach(hair !== 'none' && this.anchors.hair ? 'hair' : 'hat', buildHat(h.build)); // with a new hairstyle: on top of it
     if (c) this.borrow(c.from, 'Cape');
     if (bk?.from) for (const part of bk.parts) this.borrow(bk.from, part);
     if (bk?.build) this.attach('back', buildBack(bk.build));
@@ -400,8 +404,9 @@ export class CharacterView {
     }
     if (hair !== 'none') {
       // under a hat the hair tucks in (no crown poking through it); a closed helmet hides it all
-      const ownHat = hat === 'own' && this.ownHatParts, hatOn = (hat !== 'none' && hat !== 'own') || ownHat;
-      const helmet = hat === 'helmet' || (ownHat && this.cls === 'Knight');
+      // (winter's bobble hat and the holiday costumes put a hat on too)
+      const hatOn = COVERING_HATS.has(hat) || wear === 'winter' || !!costume; // (a crown, ears or a party hat sit on the hair)
+      const helmet = hat === 'helmet';
       if (!helmet) this.attach(this.anchors.hair ? 'hair' : 'hat', buildHair(hair, hc, hatOn));
       if (!this.scalpOwn && this.cranium) this.attach('scalp', buildScalp(tone, this.scalpColor, this.cranium));
     }
