@@ -548,7 +548,41 @@ export function browsOf(geo, image) {
 
 // Some heads paint a lighter "skin" band where their own hair meets the forehead (the Knight's,
 // under his helmet): above this height only the scalp ball and the new hair should show.
-const SKIN_TOP_PER_OUTFIT = { Knight: 0.6 };
+const SKIN_TOP_PER_OUTFIT = { Knight: 0.45 }; // (his blond hair passes for skin: below this it can't be hair)
+
+/** The head's skin colour (the average of its skin triangles), and whether it's bald already (the Barbarian's). */
+function skullLook(geo, cols, skull) {
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let t = 0; t < geo.index.count / 3; t++) if (SKIN(cols[t])) { r += cols[t][0]; g += cols[t][1]; b += cols[t][2]; n++; }
+  const color = n ? new THREE.Color().setRGB(r / n / 255, g / n / 255, b / n / 255, THREE.SRGBColorSpace) : new THREE.Color(0xf5b993);
+  return { color, own: skull.max.y > geo.boundingBox.max.y - 0.12 }; // its skin goes right up to the top
+}
+
+// Every outfit's head is the same head underneath, and the Barbarian's is bald: the top of HIS head is
+// the scalp for everyone else's carved one. It fits exactly, faceted like the rest (a round ball on top
+// looked like a separate ball — wider than the head, a mushroom from behind).
+const CRANIUM_FROM = 0.15; // from this far up the head (0 = chin, 1 = top): down the back of the neck, where some hair hung low
+const CRANIUM_IN = 0.99; // shrunk a touch towards the middle, so where a head has its own skin, that shows
+const craniumCache = new WeakMap();
+export function craniumOf(geo, image) {
+  if (!craniumCache.has(geo)) {
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox, from = bb.min.y + (bb.max.y - bb.min.y) * CRANIUM_FROM;
+    const mid = bb.getCenter(new THREE.Vector3());
+    const top = filterTriangles(geo, image, (t, col, [, y]) => SKIN(col) && y > from);
+    // its own copy of the positions, pulled in a little
+    const pos = geo.attributes.position.clone();
+    for (let i = 0; i < pos.count; i++) {
+      pos.setXYZ(i, mid.x + (pos.getX(i) - mid.x) * CRANIUM_IN, mid.y + (pos.getY(i) - mid.y) * CRANIUM_IN, mid.z + (pos.getZ(i) - mid.z) * CRANIUM_IN);
+    }
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', pos);
+    out.setAttribute('normal', geo.attributes.normal);
+    out.setIndex([...top.index.array]);
+    craniumCache.set(geo, out);
+  }
+  return craniumCache.get(geo);
+}
 
 const hairlessCache = new WeakMap();
 export function hairlessHead(geo, image, outfit) {
@@ -563,9 +597,7 @@ export function hairlessHead(geo, image, outfit) {
       const face = z > FACE_Z && Math.abs(x) < FACE_X && rel > FACE_LO && rel < hi;
       return (SKIN(col) && rel < (SKIN_TOP_PER_OUTFIT[outfit] ?? 1)) || face;
     });
-    // the bounds of the skin that's left = the skull. The scalp ball only has to plug the opening
-    // where the hair was (the top of the head), so it rides high and sits BACK, behind the eye
-    // domes — a full-ball-in-the-middle fill leans out over the eyes and covers them.
+    // the bounds of the skin that's left = the skull
     const pos = geo.attributes.position, idx = kept.index;
     const skull = new THREE.Box3();
     for (let i = 0; i < idx.count; i++) {
@@ -573,10 +605,10 @@ export function hairlessHead(geo, image, outfit) {
       skull.expandByPoint(v);
     }
     const c = skull.getCenter(new THREE.Vector3()), s = skull.getSize(new THREE.Vector3());
-    const scalp = { cx: c.x, cy: c.y + s.y * 0.2, cz: c.z - s.z * 0.12, sx: s.x * 0.88, sy: s.y * 0.78, sz: s.z * 0.74 };
-    // new hair sits ON the skull (centred on it, its top just over the scalp ball's top, as wide as
-    // the skull) rather than on the old head mesh, whose hair mass made it float or left the scalp poking out
-    scalp.hair = { x: c.x, y: scalp.cy + scalp.sy / 2 + 0.02, z: c.z, size: s.x };
+    const scalp = skullLook(geo, triangleColours(geo, image), skull);
+    // new hair sits ON the skull (centred on it, its top just over where the old scalp ball's top was,
+    // as wide as the skull) rather than on the old head mesh, whose hair mass made it float or left the scalp poking out
+    scalp.hair = { x: c.x, y: c.y + s.y * 0.59 + 0.02, z: c.z, size: s.x };
     hairlessCache.set(geo, { geo: kept, scalp });
   }
   return hairlessCache.get(geo).geo;
@@ -598,9 +630,12 @@ export function scalpOf(geo, image, outfit) {
   return hairlessCache.get(geo)?.scalp ?? null;
 }
 
-/** The skull under a new hairstyle: a ball the anchor stretches to the head's size. */
-export function buildScalp(tone) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), mat(new THREE.Color(0xf5b993).multiply(new THREE.Color(tone ?? 0xffffff)), { roughness: 0.8 }));
+/**
+ * The top of a carved head: the Barbarian's bald cranium (`cranium`, see craniumOf) in this head's own
+ * skin colour (`color`, times the skin `tone`). Its anchor puts it exactly where that head is.
+ */
+export function buildScalp(tone, color, cranium) {
+  const m = new THREE.Mesh(cranium, mat(new THREE.Color(color ?? 0xf5b993).multiply(new THREE.Color(tone ?? 0xffffff)), { roughness: 0.8 }));
   m.castShadow = true;
   return m;
 }

@@ -4,7 +4,7 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COL
 import { ITEMS, SWING_COOLDOWN, SWING_IMPACT } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { bareBody, browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
+import { bareBody, browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, craniumOf, buildClothes, buildArmor, hairlessHead, scalpOf, skinSplit, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -282,8 +282,21 @@ export class CharacterView {
       // put them wherever the head happened to be bobbing (floating hair, a scalp poking through)
       const img = head.material.map?.image, s = img ? scalpOf(head.geometry, img, head.name.replace(/_Head$/, '')) : null;
       if (s) {
-        out.scalp = anchor('head', new THREE.Vector3(s.cx, s.cy, s.cz), new THREE.Vector3(s.sx, s.sy, s.sz));
-        out.hair = anchor('head', new THREE.Vector3(s.hair.x, s.hair.y, s.hair.z), s.hair.size);
+        // the scalp: the Barbarian's bald head top, laid exactly over this head (same head underneath)
+        const barb = this.barbarianHead();
+        out.scalp = barb && anchor('head', head.getWorldPosition(new THREE.Vector3()), head.getWorldScale(new THREE.Vector3()), head.getWorldQuaternion(new THREE.Quaternion()));
+        this.cranium = barb && craniumOf(barb.geometry, barb.material.map.image);
+        this.scalpOwn = !!s.own; // already bald (the Barbarian): nothing to add
+        this.scalpColor = s.color;
+        // new hair sits on that skull: its top just over the skull's top (it's taller than the old ball was,
+        // so hair placed for the ball let the bald top show through)
+        let hairY = s.hair.y, hairSize = s.hair.size;
+        if (this.cranium) {
+          const cb = this.cranium.boundingBox ?? (this.cranium.computeBoundingBox(), this.cranium.boundingBox);
+          hairY = new THREE.Vector3(0, cb.max.y + 0.03, 0).applyMatrix4(head.matrixWorld).y;
+          hairSize = Math.max(hairSize, (cb.max.x - cb.min.x) * 0.98); // at least as wide as the skull (the hooded Rogue's head is narrower)
+        }
+        out.hair = anchor('head', new THREE.Vector3(s.hair.x, hairY, s.hair.z), hairSize);
       }
       this.headMesh = head;
     }
@@ -298,6 +311,13 @@ export class CharacterView {
       out.hips = anchor('hips', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + 0.08, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
     }
     return out;
+  }
+
+  /** The Barbarian's head mesh (bald: its top is everyone's scalp under a new hairstyle). */
+  barbarianHead() {
+    let m = null;
+    characterScene('Barbarian').traverse((o) => { if (!m && o.isMesh && /_Head$/.test(o.name) && o.material.map?.image) m = o; });
+    return m;
   }
 
   attach(slot, obj) {
@@ -359,7 +379,7 @@ export class CharacterView {
       const ownHat = hat === 'own' && this.ownHatParts, hatOn = (hat !== 'none' && hat !== 'own') || ownHat;
       const helmet = hat === 'helmet' || (ownHat && this.cls === 'Knight');
       if (!helmet) this.attach(this.anchors.hair ? 'hair' : 'hat', buildHair(hair, hc, hatOn));
-      this.attach('scalp', buildScalp(tone));
+      if (!this.scalpOwn && this.cranium) this.attach('scalp', buildScalp(tone, this.scalpColor, this.cranium));
     }
     // your eyebrows, in your hair colour, each where the outfit's own was (they're cut out)
     const pair = buildBrows(hc, brows);
