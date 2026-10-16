@@ -35,7 +35,7 @@ export const FEAST_COST = 10;        // gold for food at the fort's feast table 
 export const AUTOSAVE_SECONDS = 30;
 
 export const SAVE_VERSION = 13;
-export const PROTOCOL_VERSION = 41;
+export const PROTOCOL_VERSION = 42;
 export const PEER_PREFIX = 'famdungeon-v1-'; // PeerJS ids are global; namespace ours
 
 export const CLASSES = {
@@ -110,6 +110,18 @@ export const HAIRS = {
   curly:    { name: 'Curly' },
   mohawk:   { name: 'Mohawk' },
   bun:      { name: 'Bun' },
+  pixie:    { name: 'Pixie' },
+  wavy:     { name: 'Long & wavy' },
+  braid:    { name: 'Braid' },
+  spacebuns:{ name: 'Space buns' },
+  afro:     { name: 'Afro' },
+};
+/** The front of the hair (mirror): how it falls over the forehead. Free. (client/cosmetics.js hairline) */
+export const BANGS = {
+  straight: { name: 'Straight' },
+  side:     { name: 'Side-swept' },
+  curtain:  { name: 'Curtain' },
+  choppy:   { name: 'Choppy' },
 };
 export const HAIR_COLORS = {
   brown:  { name: 'Brown', color: 0x6b4423 },
@@ -197,9 +209,14 @@ export const SKINS = {
   deep:  { name: 'Deep brown', color: 0x7a4c30 },
   green: { name: 'Goblin green', color: 0xa8e08a },
   blue:  { name: 'Frosty blue', color: 0xa8c8ff },
+  golden: { name: 'Golden', color: 0xfff0cc },
+  olive:  { name: 'Olive', color: 0xdcd8a4 },
+  ebony:  { name: 'Ebony', color: 0x6e4834 },
+  rosy:   { name: 'Rosy pink', color: 0xffd0dc },
+  lilac:  { name: 'Fairy lilac', color: 0xd4c0ff },
 };
 
-export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS, tie: TIE_COLORS, brows: BROWS };
+export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, bangs: BANGS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS, tie: TIE_COLORS, brows: BROWS };
 
 /** Is this style free, or already in the closet (a list like ['hat:crown', 'dye:sky'])? */
 export function ownsStyle(closet, slot, id) {
@@ -209,7 +226,7 @@ export function ownsStyle(closet, slot, id) {
 
 /** Sanitise a look from the network or a profile; with a closet, also drops things not owned. */
 export function cleanLook(look, closet = null) {
-  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', clothes: 'none', hair: 'none', hairColor: 'brown', face: 'none', skin: 'none', tie: 'red', brows: 'soft' };
+  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', clothes: 'none', hair: 'none', bangs: 'none', hairColor: 'brown', face: 'none', skin: 'none', tie: 'red', brows: 'soft' };
   const out = {};
   for (const slot of Object.keys(fallback)) {
     const v = look?.[slot];

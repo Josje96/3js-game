@@ -565,6 +565,76 @@ const HAIR_BUILDERS = {
     g.add(mesh(new THREE.SphereGeometry(0.2, 14, 10), m, 0, 0.08, -0.12));
     return g;
   },
+  pixie(m) { // a short crop, with soft locks swept over from a side part
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.5, 1.0, HEAD_R * 1.01));
+    for (const [x, y, z, rz] of [[-0.05, -0.06, 0.3, -0.5], [0.12, -0.04, 0.2, -0.35], [0.22, -0.12, 0.06, -0.6]]) {
+      const lock = mesh(new THREE.SphereGeometry(0.2, 14, 8), m, x, y, z, 1.2, 0.42, 0.8);
+      lock.rotation.set(-0.3, 0.2, rz);
+      g.add(lock);
+    }
+    return g;
+  },
+  wavy(m) { // long hair falling in waves down the back
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.62, 0.85));
+    g.add(mesh(new THREE.SphereGeometry(0.4, 16, 10), m, 0, -0.72, -0.26, 1.1, 0.9, 0.5));
+    for (let k = 0; k < 5; k++) { // five locks, each a column of curls swaying side to side
+      const x0 = (k - 2) * 0.17, zb = -0.3 - Math.cos((k - 2) * 0.5) * 0.12;
+      for (let i = 0; i < 4; i++) {
+        const y = -0.78 - i * 0.15, x = x0 + Math.sin(i * 1.7 + k) * 0.04;
+        g.add(mesh(new THREE.SphereGeometry(0.12 - i * 0.012, 10, 8), m, x * (1 - i * 0.05), y, zb + i * 0.02, 1, 1, 0.75));
+      }
+    }
+    return g;
+  },
+  braid(m) { // one long plait down the back with a hair tie and a bow at the end
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.58));
+    g.add(mesh(new THREE.SphereGeometry(0.16, 12, 8), m, 0, -0.62, -0.5, 1, 1, 0.9)); // gathered at the nape
+    for (let i = 0; i < 7; i++) { // the plait: overlapping twists leaning left and right
+      const s = i % 2 ? 1 : -1, w = 0.11 - i * 0.006;
+      const twist = mesh(new THREE.SphereGeometry(w, 10, 8), m, s * 0.025, -0.76 - i * 0.1, -0.52 + i * 0.015, 1.05, 1.25, 0.85);
+      twist.rotation.z = s * 0.5;
+      g.add(twist);
+    }
+    const ribbon = mat(0xff6b8a, { roughness: 0.5 }), by = -1.48;
+    g.add(mesh(new THREE.SphereGeometry(0.04, 8, 6), ribbon, 0, by, -0.42));
+    for (const s of [-1, 1]) {
+      const loop = mesh(new THREE.ConeGeometry(0.06, 0.13, 8), ribbon, s * 0.07, by, -0.42, 1, 1, 0.5);
+      loop.rotation.z = s * Math.PI / 2;
+      g.add(loop);
+    }
+    g.add(mesh(new THREE.SphereGeometry(0.07, 10, 8), m, 0, by - 0.08, -0.42, 0.8, 1.2, 0.8)); // the tuft below the bow
+    return g;
+  },
+  spacebuns(m) { // two round buns high on the head, each wrapped with a little band
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.56));
+    for (const s of [-1, 1]) {
+      g.add(mesh(new THREE.SphereGeometry(0.17, 14, 10), m, s * 0.3, -0.04, -0.06));
+      const band = mesh(new THREE.TorusGeometry(0.12, 0.025, 6, 16), mat(0x7fd4ff, { roughness: 0.5 }), s * 0.25, -0.12, -0.05);
+      band.rotation.set(Math.PI / 2, 0, s * 0.6);
+      g.add(band);
+    }
+    return g;
+  },
+  afro(m) { // a big round cloud of curls, set back on the head so the face shows through the front (left off under a hat)
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.56, 1.0, HEAD_R * 1.02));
+    const geo = new THREE.SphereGeometry(0.56, 36, 24);
+    const pos = geo.attributes.position, q = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) { // bumpy all over: little curls
+      q.fromBufferAttribute(pos, i);
+      const k = 1 + 0.04 * Math.sin(q.x * 31) * Math.sin(q.y * 29) * Math.sin(q.z * 27);
+      pos.setXYZ(i, q.x * k, q.y * k, q.z * k);
+    }
+    geo.computeVertexNormals();
+    const puff = mesh(geo, m, 0, HEAD_Y + 0.22, -0.22, 1.1, 1, 1);
+    puff.userData.crown = true;
+    g.add(puff);
+    return g;
+  },
 };
 
 // ------------------------------------------------------------------ reading the KayKit textures
@@ -906,7 +976,7 @@ export function buildScalp(material, cranium) {
  * ball the hairstyle's extras are placed round). Removes the round shells from `hair`; returns the new one
  * (attach it to the 'scalp' anchor), or null when the style has none.
  */
-export function fitHair(hair, cranium, dome, underHat = false) {
+export function fitHair(hair, cranium, dome, underHat = false, bangs = 'none') {
   if (!hair || !cranium || !dome) return null;
   const shells = [];
   hair.traverse((o) => { if (o.userData.shell) shells.push(o); });
@@ -916,32 +986,74 @@ export function fitHair(hair, cranium, dome, underHat = false) {
   for (const s of shells) s.removeFromParent();
   if (!material) return null;
   const c = dome.centre, lift = dome.r * (0.05 + (shellR / HEAD_R - 1) * 1.5);
-  const src = cranium.attributes.position, pos = src.clone(), v = new THREE.Vector3();
-  for (let i = 0; i < pos.count; i++) {
-    v.fromBufferAttribute(src, i).sub(c);
-    const d = v.length() || 1;
-    v.multiplyScalar(1 + lift / d).add(c);
-    pos.setXYZ(i, v.x, v.y, v.z);
-  }
-  const capTo = Math.PI * 0.3, from = underHat ? Math.PI * 0.38 : 0, to = Math.PI * down;
-  const idx = cranium.index.array, kept = [];
+  const src = cranium.attributes.position, nrm = cranium.attributes.normal, v = new THREE.Vector3();
+  // where each corner sits round the dome: theta from the top (0) down, phi round from the face (0)
+  const angles = (x, y, z) => {
+    v.set(x, y, z).sub(c);
+    return [Math.acos(THREE.MathUtils.clamp(v.y / (v.length() || 1), -1, 1)), Math.atan2(v.x, v.z)];
+  };
+  // The hair is what's left after cutting away (each a test that is >= 0 where the hair stays):
+  const P = Math.PI, from = underHat ? P * 0.38 : 0, to = P * down, line = hairline(bangs, open);
+  const keep = [
+    (th) => to - th,                                              // below the hair's length
+    (th) => th - from,                                            // under a hat's brim
+    (th, ph) => Math.max(line(ph) - th, Math.abs(ph) - open),     // the face, up to the hairline (or bangs)
+    (th, ph) => ((th - P * 0.545) / 0.27) ** 2 + ((Math.abs(ph) - 1.59) / 0.24) ** 2 - 1, // a round gap round each ear (they stick out of the skull there)
+  ];
+  // Cut each triangle against each test (Sutherland-Hodgman), so the edges are smooth lines along the
+  // head instead of the stair-steps of whole triangles.
+  const out = [], norms = [], idx = cranium.index.array;
+  const corner = (i) => ({ p: new THREE.Vector3().fromBufferAttribute(src, i), n: new THREE.Vector3().fromBufferAttribute(nrm, i) });
   for (let t = 0; t < idx.length; t += 3) {
-    v.set(0, 0, 0);
-    for (let k = 0; k < 3; k++) v.x += src.getX(idx[t + k]) / 3, v.y += src.getY(idx[t + k]) / 3, v.z += src.getZ(idx[t + k]) / 3;
-    v.sub(c);
-    const theta = Math.acos(THREE.MathUtils.clamp(v.y / (v.length() || 1), -1, 1)), phi = Math.atan2(v.x, v.z);
-    if (theta < from || theta > to) continue;
-    if (theta > capTo && Math.abs(phi) < open) continue; // the face
-    kept.push(idx[t], idx[t + 1], idx[t + 2]);
+    let poly = [corner(idx[t]), corner(idx[t + 1]), corner(idx[t + 2])];
+    for (const test of keep) {
+      const g = poly.map((q) => test(...angles(q.p.x, q.p.y, q.p.z)));
+      if (g.every((x) => x >= 0)) continue;
+      if (g.every((x) => x < 0)) { poly = []; break; }
+      const next = [];
+      for (let i = 0; i < poly.length; i++) {
+        const j = (i + 1) % poly.length, a = poly[i], b = poly[j];
+        if (g[i] >= 0) next.push(a);
+        if ((g[i] >= 0) !== (g[j] >= 0)) {
+          const k = g[i] / (g[i] - g[j]);
+          next.push({ p: a.p.clone().lerp(b.p, k), n: a.n.clone().lerp(b.n, k).normalize() });
+        }
+      }
+      poly = next;
+      if (poly.length < 3) break;
+    }
+    for (let i = 1; i + 1 < poly.length; i++) {
+      for (const q of [poly[0], poly[i], poly[i + 1]]) {
+        v.copy(q.p).sub(c); // pushed out from the dome's centre, off the skin
+        const d = v.length() || 1;
+        v.multiplyScalar(1 + lift / d).add(c);
+        out.push(v.x, v.y, v.z);
+        norms.push(q.n.x, q.n.y, q.n.z);
+      }
+    }
   }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', pos);
-  geo.setAttribute('normal', cranium.attributes.normal);
-  geo.setIndex(kept);
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(out, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(norms, 3));
   const m = new THREE.Mesh(geo, material.clone());
   m.material.side = THREE.DoubleSide; // (seen from below, the inside shows: hair, not a hole)
   m.castShadow = true;
   return m;
+}
+
+/**
+ * The front hairline (BANGS in config.js): how far down the forehead the hair comes (theta, from the top
+ * of the dome) at each angle `phi` across the face (0 = the middle, +-open = the temples).
+ */
+function hairline(bangs, open) {
+  const P = Math.PI;
+  switch (bangs) {
+    case 'straight': return () => P * 0.33;                                                  // a blunt fringe, just above the brows
+    case 'side': return (ph) => P * (0.24 + 0.1 * THREE.MathUtils.clamp(0.5 - ph / open, 0, 1)); // swept across, longer on one side
+    case 'curtain': return (ph) => P * (0.19 + 0.13 * Math.min(1, Math.abs(ph) / (open * 0.8))); // parted in the middle, framing the face
+    case 'choppy': return (ph) => P * (0.29 + 0.035 * Math.abs((((ph / open) * 3.5 % 2) + 2) % 2 - 1)); // short wispy points
+    default: return () => P * 0.25;                                                           // none: the forehead shows
+  }
 }
 
 /**
@@ -1220,7 +1332,7 @@ export function buildHair(style, color, underHat = false) {
       if (t0 < BRIM) o.geometry = new THREE.SphereGeometry(p.radius, p.widthSegments, p.heightSegments, p.phiStart, p.phiLength, BRIM, t1 - BRIM);
       return;
     }
-    if (o.position.y > HEAD_Y + Math.cos(BRIM) * HEAD_R) cut.push(o); // spikes, buns, top curls: under the hat
+    if (o.userData.crown || o.position.y > HEAD_Y + Math.cos(BRIM) * HEAD_R) cut.push(o); // spikes, buns, top curls: under the hat
   });
   for (const o of cut) o.removeFromParent();
   return g;

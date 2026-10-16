@@ -1,7 +1,7 @@
 // HTML overlay on top of the 3D canvas.
 import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_SHOP_STOCK, shopTier, sellValue, isGear, PERKS } from '../shared/items.js';
 import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
-import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle, BANK_OPEN_FEE, TIE_COLORS, BROWS } from '../shared/config.js';
+import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle, BANK_OPEN_FEE, TIE_COLORS, BROWS, BANGS } from '../shared/config.js';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
@@ -565,6 +565,7 @@ export class Hud {
       };
       const opts = (table, none) => [...(none ? [['none', none]] : []), ...Object.entries(table).map(([k, v]) => [k, v.name, v.color])];
       row('Hair', opts(HAIRS, 'Outfit’s own'), 'hair');
+      row('Bangs', opts(BANGS, 'None'), 'bangs');
       row('Hair colour', opts(HAIR_COLORS), 'hairColor', true);
       row('Eyebrows', opts(BROWS), 'brows');
       row('Face', opts(FACES, 'Nothing'), 'face');

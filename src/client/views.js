@@ -373,8 +373,8 @@ export class CharacterView {
     const fancy = look?.clothes && look.clothes !== 'none';
     const costume = wear === 'halloween' ? this.costume : wear === 'santa' || wear === 'grandma' ? wear : null;
     if (wear === 'winter' || costume) look = { ...look, hat: 'none' }; // the bobble hat (or costume) goes on instead
-    const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red', brows = 'soft' } = look ?? {};
-    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${hairColor}/${face}/${skin}/${tie}/${brows}/${wear}`;
+    const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', bangs = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red', brows = 'soft' } = look ?? {};
+    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${bangs}/${hairColor}/${face}/${skin}/${tie}/${brows}/${wear}`;
     if (key === this.lookKey) return;
     this.lookKey = key;
     for (const m of this.borrowed) m.removeFromParent();
@@ -430,7 +430,7 @@ export class CharacterView {
       const helmet = hat === 'helmet';
       if (!helmet) {
         const style = buildHair(hair, hc, hatOn);
-        const hug = this.anchors.scalp && fitHair(style, this.cranium, this.dome, hatOn); // its round shell, remade round the skull
+        const hug = this.anchors.scalp && fitHair(style, this.cranium, this.dome, hatOn, bangs); // its round shell, remade round the skull
         this.attach(this.anchors.hair ? 'hair' : 'hat', style);
         if (hug) this.attach('scalp', hug);
       }

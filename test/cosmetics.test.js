@@ -29,3 +29,12 @@ describe('character skin swatches', () => {
     ]) expect(SKIN(s), `non-skin ${s}`).toBe(false);
   });
 });
+
+describe('the mirror', () => {
+  test('bangs are kept, and unknown ones fall back to none', async () => {
+    const { cleanLook, BANGS } = await import('../src/shared/config.js');
+    for (const b of Object.keys(BANGS)) expect(cleanLook({ hair: 'bob', bangs: b }).bangs).toBe(b);
+    expect(cleanLook({ hair: 'bob', bangs: 'mullet' }).bangs).toBe('none');
+    expect(cleanLook({ hair: 'bob' }).bangs).toBe('none'); // older looks have no bangs
+  });
+});
