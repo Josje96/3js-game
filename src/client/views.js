@@ -4,7 +4,8 @@ import { CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COL
 import { ITEMS, SWING_COOLDOWN, SWING_IMPACT } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
-import { bareBody, browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, craniumOf, cuteNose, faceSpotsOf, fitHair, buildClothes, buildArmor, hairlessHead, scalpOf, skinColour, skinSplit, smoothSkin, sweptCape, buildBrows } from './cosmetics.js';
+import { buildTailored, bindBones, handOnly } from './tailor.js';
+import { browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, craniumOf, cuteNose, faceSpotsOf, fitHair, buildClothes, buildArmor, hairlessHead, scalpOf, skinColour, skinSplit, smoothSkin, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -469,34 +470,47 @@ export class CharacterView {
     return this.forceWear ?? (this.noSeasonWear ? null : SEASON_WEAR.value);
   }
 
-  /** Fancy clothes: body and sleeves become a flat cloth colour (hands stay skin), legs too, plus extras. */
+  /**
+   * Fancy clothes: a tailored top (client/tailor.js: a smooth fitted jacket, bodice or coat with slim sleeves,
+   * skinned to the skeleton) instead of the outfit's own sculpted body and arms (only the hands are kept),
+   * trousers in the outfit's colour, and a skirt or robe hanging from the hips.
+   */
   setClothes(def, tieColor) {
     this.clothed = !!def;
     this.showArmor();
+    this.tailored?.removeFromParent();
+    this.tailored?.geometry.dispose();
+    this.tailored = null;
+    let body = null;
+    this.model.traverse((o) => { if (!body && o.isSkinnedMesh && /_Body$/.test(o.name)) body = o; });
+    const top = def && body ? buildTailored(def.extra, def.jacket, tieColor, body) : null;
+    const wristX = body ? Math.abs(bindBones(body).wristl?.at.x ?? 0.71) : 0.71;
     this.model.traverse((o) => {
       if (!o.isMesh || !/_(Body|ArmLeft|ArmRight|LegLeft|LegRight)$/.test(o.name)) return;
       o.userData.baseGeo ??= o.geometry;
       o.userData.baseMat ??= o.material;
       if (Array.isArray(o.material)) o.material[1].dispose();
-      else if (o.userData.baseMat && o.material !== o.userData.baseMat) o.material.dispose(); // a whole-cloth body
-      const image = o.userData.baseMat.map?.image;
-      const color = /_Leg/.test(o.name) ? def?.legs : def?.jacket;
-      if (!def || color == null || !image) { o.geometry = o.userData.baseGeo; o.material = o.userData.baseMat; return; }
-      const cloth = new THREE.MeshStandardMaterial({ color, roughness: 0.65 });
-      if (/_Body$/.test(o.name)) { // the body is all cloth (no bare chest, no beige tunic showing), without its buckles and pouches
-        o.geometry = bareBody(o.userData.baseGeo, image);
-        o.material = cloth;
+      o.geometry = o.userData.baseGeo; // (the hands' skinMat belongs to the head: not disposed here)
+      o.material = o.userData.baseMat;
+      o.visible = true;
+      if (!def) return;
+      if (/_Body$/.test(o.name)) { o.visible = !top; return; } // under the tailored top
+      if (/_Arm/.test(o.name)) { // the sleeves cover the rest; bare hands (no gauntlets or gloves with a suit)
+        if (top) { o.geometry = handOnly(o.userData.baseGeo, wristX); o.material = this.skinMat ?? o.userData.baseMat; }
         return;
       }
-      o.geometry = skinSplit(o.userData.baseGeo, image); // arms and legs: hands stay skin
-      o.material = [o.userData.baseMat, cloth];
+      const image = o.userData.baseMat.map?.image;
+      if (def.legs == null || !image) return;
+      o.geometry = skinSplit(o.userData.baseGeo, image); // trousers (bare feet stay skin)
+      o.material = [o.userData.baseMat, new THREE.MeshStandardMaterial({ color: def.legs, roughness: 0.65 })];
     });
     if (!def) return;
+    if (top) {
+      body.parent.add(top);
+      this.tailored = top;
+    }
     const extra = buildClothes(def.extra, def.jacket, tieColor);
-    if (extra.front) this.attach('front', extra.front);
     if (extra.hips) this.attach('hips', extra.hips);
-    if (extra.shoulderl) this.attach('shoulderl', extra.shoulderl); // a gown's puff sleeves
-    if (extra.shoulderr) this.attach('shoulderr', extra.shoulderr);
     if (extra.hips?.userData.cone && extra.hips.parent) this.skirt = extra.hips;
   }
 

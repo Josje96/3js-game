@@ -1137,25 +1137,25 @@ const CLOTHES_BUILDERS = {
     const silk = mat(color, { roughness: 0.35, metalness: 0.05, side: THREE.DoubleSide }), lace = mat(0xfffaf4, { roughness: 0.8 }), trim = mat(light, { roughness: 0.4 });
     const skirt = new THREE.Group();
     // the bell: a smooth lathe from the waist, puffing out and down to a wide hem
-    const TOP = 0.05, HEM = -1.08, R0 = 0.42, R1 = 1.22, pts = [];
-    const rAt = (y) => { const t = (y - TOP) / (HEM - TOP); return R0 + (R1 - R0) * Math.pow(Math.sin(t * Math.PI / 2), 0.62) + Math.sin(t * Math.PI) * 0.05; };
+    const TOP = 0.12, HEM = -0.56, R0 = 0.46, R1 = 0.76, pts = []; // (hips frame: the body ~1 wide; the ground is ~0.58 down)
+    const rAt = (y) => { const t = (y - TOP) / (HEM - TOP); return R0 + (R1 - R0) * Math.pow(t, 0.8) + Math.sin(t * Math.PI) * 0.06; }; // a soft bell
     for (let i = 0; i <= 16; i++) { const y = TOP + (HEM - TOP) * (i / 16); pts.push(new THREE.Vector2(rAt(y), y)); }
     const bell = mesh(new THREE.LatheGeometry(pts, 40), silk, 0, 0, 0);
     skirt.add(bell);
     // a short overskirt in a lighter shade, scalloped at its hem, over the top of the bell
-    const OVER = -0.32, over = [];
+    const OVER = -0.14, over = [];
     for (let i = 0; i <= 12; i++) { const y = TOP + (OVER - TOP) * (i / 12); over.push(new THREE.Vector2(rAt(y) + 0.035, y)); }
     const overGeo = new THREE.LatheGeometry(over, 48), op = overGeo.attributes.position;
     for (let i = 0; i < op.count; i++) { // scallops: the hem dips between the swags
       const y = op.getY(i);
-      if (y < TOP + (OVER - TOP) * 0.6) { const a = Math.atan2(op.getZ(i), op.getX(i)); op.setY(i, y - Math.abs(Math.sin(a * 3)) * 0.16 * ((TOP - y) / (TOP - OVER))); }
+      if (y < TOP + (OVER - TOP) * 0.6) { const a = Math.atan2(op.getZ(i), op.getX(i)); op.setY(i, y - Math.abs(Math.sin(a * 3)) * 0.1 * ((TOP - y) / (TOP - OVER))); }
     }
     overGeo.computeVertexNormals();
     skirt.add(mesh(overGeo, mat(light, { roughness: 0.4, side: THREE.DoubleSide }), 0, 0, 0));
     // the petticoat: a white lace ruffle peeking out under the hem
     for (let i = 0; i < 24; i++) {
       const a = (i / 24) * Math.PI * 2;
-      skirt.add(mesh(new THREE.SphereGeometry(0.13, 8, 6), lace, Math.cos(a) * (R1 + 0.02), HEM + 0.02, Math.sin(a) * (R1 + 0.02), 1.3, 0.55, 0.7)).children.at(-1).rotation.y = -a;
+      skirt.add(mesh(new THREE.SphereGeometry(0.09, 8, 6), lace, Math.cos(a) * (R1 + 0.01), HEM + 0.04, Math.sin(a) * (R1 + 0.01), 1.3, 0.55, 0.7)).children.at(-1).rotation.y = -a;
     }
     // a rose (in the dress's deep shade) at each point of the overskirt's scallops
     for (let i = 0; i < 6; i++) {
@@ -1167,28 +1167,13 @@ const CLOTHES_BUILDERS = {
       rose.add(mesh(new THREE.SphereGeometry(0.04, 6, 5), mat(0xfff0f6), 0, 0.02, 0));
       skirt.add(rose);
     }
-    skirt.add(mesh(new THREE.TorusGeometry(R0 + 0.01, 0.045, 6, 28), trim, 0, TOP, 0)).children.at(-1).rotation.x = Math.PI / 2; // the waistband
-    const sparkle = mat(0xffffff, { emissive: 0xfff4d0, emissiveIntensity: 0.6, metalness: 0.6, roughness: 0.2 });
+        const sparkle = mat(0xffffff, { emissive: 0xfff4d0, emissiveIntensity: 0.6, metalness: 0.6, roughness: 0.2 });
     for (let i = 0; i < 26; i++) { // sparkles scattered over the skirt
       const t = 0.5 + ((i * 0.37) % 0.45), a = i * 2.4, y = TOP + (HEM - TOP) * t, r = rAt(y) + 0.02; // over the bright skirt, below the overskirt
       skirt.add(mesh(new THREE.OctahedronGeometry(0.03, 0), sparkle, Math.cos(a) * r, y, Math.sin(a) * r));
     }
     skirt.userData.cone = { topY: TOP, hemY: HEM, rTop: R0, rBot: R1 }; // flared by the view so feet stay inside
-    // the bodice: a lace sweetheart neckline, a pearl necklace and a bow
-    const front = new THREE.Group();
-    for (const s of [-1, 1]) front.add(mesh(new THREE.TorusGeometry(0.11, 0.025, 6, 12, Math.PI), lace, s * 0.1, 0.24, 0.0)).children.at(-1).rotation.z = Math.PI;
-    for (let i = 0; i < 9; i++) { const a = Math.PI * (1.15 + i * 0.0875); front.add(mesh(new THREE.SphereGeometry(0.022, 6, 5), mat(0xfffaf0, { roughness: 0.15, metalness: 0.2 }), Math.cos(a) * 0.2, 0.42 + Math.sin(a) * 0.12, 0.02)); }
-    for (const s of [-1, 1]) front.add(mesh(new THREE.ConeGeometry(0.06, 0.12, 4), trim, s * 0.06, -0.16, 0.04)).children.at(-1).rotation.z = s * Math.PI / 2;
-    front.add(mesh(new THREE.SphereGeometry(0.03, 6, 5), trim, 0, -0.16, 0.05));
-    // puff sleeves on the shoulders
-    const puff = () => {
-      const g = new THREE.Group();
-      g.add(mesh(new THREE.SphereGeometry(0.5, 14, 10), silk, 0, -0.05, 0, 1.05, 0.85, 1.05));
-      for (let k = 0; k < 6; k++) g.add(mesh(new THREE.BoxGeometry(0.03, 0.75, 0.06), trim, Math.cos(k * 1.05) * 0.5, -0.05, Math.sin(k * 1.05) * 0.5)).children.at(-1).rotation.y = -k * 1.05; // gathers
-      g.add(mesh(new THREE.TorusGeometry(0.42, 0.05, 6, 18), lace, 0, -0.38, 0)).children.at(-1).rotation.x = Math.PI / 2;
-      return g;
-    };
-    return { front, hips: skirt, shoulderl: puff(), shoulderr: puff() };
+    return { hips: skirt }; // (the bodice and puff sleeves: tailor.js)
   },
   sash() { // a pirate captain: a gold sash round the body from shoulder to hip, brass buttons and a lace jabot
     const g = new THREE.Group();
@@ -1233,11 +1218,11 @@ const CLOTHES_BUILDERS = {
     const fur = mat(0xffffff, { roughness: 1 });
     for (let i = 0; i < 7; i++) front.add(mesh(new THREE.SphereGeometry(0.09, 8, 6), fur, -0.3 + i * 0.1, 0.3, -0.02 - Math.abs(i - 3) * 0.02));
     const hips = new THREE.Group();
-    const hem = mesh(new THREE.CylinderGeometry(0.46, 0.7, 0.75, 20, 1, true), mat(0x6a35b8), 0, -0.32, 0);
+    const hem = mesh(new THREE.CylinderGeometry(0.47, 0.7, 0.66, 20, 1, true), mat(0x6a35b8), 0, -0.24, 0); // (down to the ground: ~0.58 below the hips)
     hem.material.side = THREE.DoubleSide;
-    hips.add(hem, mesh(new THREE.TorusGeometry(0.7, 0.035, 6, 24), gold, 0, -0.69, 0));
+    hips.add(hem, mesh(new THREE.TorusGeometry(0.7, 0.035, 6, 24), gold, 0, -0.56, 0));
     hips.children.at(-1).rotation.x = Math.PI / 2;
-    hips.userData.cone = { topY: 0.055, hemY: -0.695, rTop: 0.46, rBot: 0.7 };
+    hips.userData.cone = { topY: 0.09, hemY: -0.57, rTop: 0.47, rBot: 0.7 };
     return { front, hips };
   },
 };
