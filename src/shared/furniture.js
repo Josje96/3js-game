@@ -106,6 +106,27 @@ export const FURNITURE = {
   cakestand:  { name: 'Grand cake stand', build: 'cakestand', price: 2600, radius: 0.5, luxury: true, use: 'cake' },
   dollhouse:  { name: 'Royal dollhouse', build: 'dollhouse', price: 3600, radius: 0.9, luxury: true, use: 'dollhouse' },
   hoard:      { name: 'Dragon’s hoard', build: 'hoard', price: 12000, radius: 1.1, luxury: true, use: 'hoard' },
+  // the luxury collection, part 3
+  lavalamp:   { name: 'Giant lava lamp', build: 'lavalamp', price: 2200, radius: 0.4, light: true, lightY: 1.0, lightColor: 0xff7ad0, luxury: true, use: 'light' },
+  bonsai:     { name: 'Golden bonsai', build: 'bonsai', price: 2400, radius: 0.5, luxury: true },
+  popcorn:    { name: 'Popcorn machine', build: 'popcorn', price: 2600, radius: 0.5, luxury: true, use: 'popcorn' },
+  hourglass:  { name: 'Giant hourglass', build: 'hourglass', price: 2800, radius: 0.5, luxury: true },
+  icecream:   { name: 'Ice-cream cart', build: 'icecream', price: 3000, radius: 0.8, luxury: true, use: 'icecream' },
+  crystals:   { name: 'Glowing crystals', build: 'crystals', price: 3400, radius: 0.6, light: true, lightY: 0.8, lightColor: 0x7fd8ff, luxury: true, use: 'light' },
+  rocket:     { name: 'Model rocket', build: 'rocket', price: 3500, radius: 0.6, luxury: true },
+  trophycase: { name: 'Trophy cabinet', build: 'trophycase', price: 3600, radius: 0.8, luxury: true },
+  peacock:    { name: 'Peacock statue', build: 'peacock', price: 4000, radius: 0.7, luxury: true },
+  jukebox:    { name: 'Glowing jukebox', build: 'jukebox', price: 4200, radius: 0.6, light: true, lightY: 1.2, lightColor: 0xffb04a, luxury: true, use: 'jukebox' },
+  castlemodel:{ name: 'Model castle', build: 'castlemodel', price: 4400, radius: 0.9, luxury: true },
+  arcade:     { name: 'Arcade cabinet', build: 'arcade', price: 4800, radius: 0.6, luxury: true, use: 'arcade' },
+  treasurechest: { name: 'Royal treasure chest', build: 'treasurechest', price: 5000, radius: 0.7, luxury: true, use: 'treasure' },
+  wishingwell:{ name: 'Wishing well', build: 'wishingwell', price: 5000, radius: 0.9, luxury: true, use: 'wish' },
+  orrery:     { name: 'Brass orrery', build: 'orrery', price: 5200, radius: 0.6, luxury: true },
+  pooltable:  { name: 'Billiards table', build: 'pooltable', price: 6000, radius: 1.4, luxury: true },
+  unicornstatue: { name: 'Unicorn statue', build: 'unicornstatue', price: 6000, radius: 0.8, luxury: true },
+  koipond:    { name: 'Indoor koi pond', build: 'koipond', price: 6500, radius: 1.2, luxury: true, use: 'aquarium' },
+  carousel:   { name: 'Little carousel', build: 'carousel', price: 7500, radius: 1.1, luxury: true, use: 'carousel' },
+  dragonstatue: { name: 'Golden dragon statue', build: 'dragonstatue', price: 9000, radius: 1.0, luxury: true },
 };
 
 /** Wall colours for the fort (painted over the stone walls). `price` 0 = the one you start with. */
@@ -130,6 +151,28 @@ export const WALL_STYLES = {
   harlequin:{ name: 'Harlequin wallpaper', price: 1600, tint: 0x6a2a4a, pattern: { kind: 'harlequin', bg: 0xf0e2c8, fg: 0x6a2a4a, accent: 0xd9b24a } },
   damask:   { name: 'Gold damask wallpaper', price: 2000, tint: 0x5a1e2a, pattern: { kind: 'damask', bg: 0x5a1e2a, fg: 0xd9b24a, accent: 0xf2d27a } },
   royal:    { name: 'Royal crown wallpaper', price: 2400, tint: 0x24306a, pattern: { kind: 'royal', bg: 0x24306a, fg: 0xe8c45a, accent: 0xf6e2a0 } },
+  // more paint
+  coral:    { name: 'Coral', price: 200, tint: 0xffb8a8 },
+  sage:     { name: 'Sage green', price: 200, tint: 0xc8dcb8 },
+  powder:   { name: 'Powder blue', price: 200, tint: 0xd2e6ff },
+  lilac:    { name: 'Lilac', price: 200, tint: 0xd8c4f0 },
+  sand:     { name: 'Sandstone', price: 220, tint: 0xf0dcb0 },
+  terracotta: { name: 'Terracotta', price: 240, tint: 0xe0a080 },
+  forestwall: { name: 'Forest green', price: 260, tint: 0x9cc89a },
+  navy:     { name: 'Deep navy', price: 260, tint: 0x8c9ad0 },
+  // more wallpaper
+  gingham:  { name: 'Picnic gingham wallpaper', price: 900, tint: 0xffc8c8, pattern: { kind: 'gingham', bg: 0xffffff, fg: 0xff9a9a } },
+  bluegingham: { name: 'Blue gingham wallpaper', price: 900, tint: 0xbcd8ff, pattern: { kind: 'gingham', bg: 0xffffff, fg: 0x8ab8f0 } },
+  mintstripe: { name: 'Mint stripe wallpaper', price: 900, tint: 0xc8f0dc, pattern: { kind: 'stripes', bg: 0xf2fff8, fg: 0xa8e6c8, accent: 0x6fcf9f } },
+  lemondot: { name: 'Lemon dot wallpaper', price: 900, tint: 0xfff0a0, pattern: { kind: 'polka', bg: 0xfff6c0, fg: 0xffffff } },
+  mermaid:  { name: 'Mermaid scale wallpaper', price: 1400, tint: 0x7fd0d8, pattern: { kind: 'scales', bg: 0x5ab8c8, fg: 0x9fe6ea, accent: 0xd8b4ff } },
+  dragonscale: { name: 'Dragon scale wallpaper', price: 1600, tint: 0x3a7a4a, pattern: { kind: 'scales', bg: 0x2a5a3a, fg: 0x5aa06a, accent: 0xe0c050 } },
+  garden:   { name: 'Rose garden wallpaper', price: 1200, tint: 0xe8f4e0, pattern: { kind: 'floral', bg: 0xe8f4e0, fg: 0xff6a8a, accent: 0xffffff } },
+  lovebirds:{ name: 'Lilac hearts wallpaper', price: 1200, tint: 0xeee0ff, pattern: { kind: 'hearts', bg: 0xf4ecff, fg: 0xb48cff, accent: 0xff9ac8 } },
+  sunset:   { name: 'Sunset stars wallpaper', price: 1500, tint: 0x6a2a5a, pattern: { kind: 'stars', bg: 0x5a2350, fg: 0xffc8e0, accent: 0xffb04a } },
+  emeraldhq:{ name: 'Emerald harlequin wallpaper', price: 1600, tint: 0x1f5a40, pattern: { kind: 'harlequin', bg: 0xe8f0e0, fg: 0x1f5a40, accent: 0xd9b24a } },
+  silverdamask: { name: 'Silver damask wallpaper', price: 2000, tint: 0x2a3550, pattern: { kind: 'damask', bg: 0x2a3550, fg: 0xc8d0e0, accent: 0xeef2ff } },
+  rubyroyal:{ name: 'Ruby crown wallpaper', price: 2400, tint: 0x7a1a2a, pattern: { kind: 'royal', bg: 0x7a1a2a, fg: 0xe8c45a, accent: 0xf6e2a0 } },
 };
 
 /** Floors for the fort. */
@@ -143,6 +186,27 @@ export const FLOOR_STYLES = {
   forest: { name: 'Forest boards', price: 220, model: 'dungeon/floor_wood_large', tint: 0xa8e0a0 },
   pearl:  { name: 'Pearl tiles', price: 220, model: 'dungeon/floor_tile_large', tint: 0xf0f4f8 },
   night:  { name: 'Midnight boards', price: 260, model: 'dungeon/floor_wood_large_dark', tint: 0x9aa0c0 },
+  // more floors
+  cherry:   { name: 'Cherry boards', price: 220, model: 'dungeon/floor_wood_large', tint: 0xe89a8a },
+  maple:    { name: 'Maple boards', price: 220, model: 'dungeon/floor_wood_large', tint: 0xffe2b0 },
+  whitewash:{ name: 'Whitewashed boards', price: 240, model: 'dungeon/floor_wood_large', tint: 0xf4f0ea },
+  ebony:    { name: 'Ebony boards', price: 260, model: 'dungeon/floor_wood_large_dark', tint: 0x6a6070 },
+  chocolate:{ name: 'Chocolate boards', price: 240, model: 'dungeon/floor_wood_large_dark', tint: 0xc89a7a },
+  teal:     { name: 'Teal boards', price: 240, model: 'dungeon/floor_wood_large', tint: 0x9adad4 },
+  lilacwood:{ name: 'Lilac boards', price: 240, model: 'dungeon/floor_wood_large', tint: 0xd4c0f0 },
+  sunny:    { name: 'Sunflower boards', price: 240, model: 'dungeon/floor_wood_large', tint: 0xffe680 },
+  skytile:  { name: 'Sky tiles', price: 220, model: 'dungeon/floor_tile_large', tint: 0xbcdcff },
+  minttile: { name: 'Mint tiles', price: 220, model: 'dungeon/floor_tile_large', tint: 0xbcf0d0 },
+  lemontile:{ name: 'Lemon tiles', price: 220, model: 'dungeon/floor_tile_large', tint: 0xfff2a8 },
+  terracottatile: { name: 'Terracotta tiles', price: 240, model: 'dungeon/floor_tile_large', tint: 0xf0a888 },
+  slate:    { name: 'Slate tiles', price: 240, model: 'dungeon/floor_tile_large', tint: 0x8a90a0 },
+  sandtile: { name: 'Sand tiles', price: 220, model: 'dungeon/floor_tile_large', tint: 0xf4e0b8 },
+  emerald:  { name: 'Emerald tiles', price: 300, model: 'dungeon/floor_tile_large', tint: 0x7ed8a0 },
+  sapphire: { name: 'Sapphire tiles', price: 300, model: 'dungeon/floor_tile_large', tint: 0x8aa8ff },
+  amethyst: { name: 'Amethyst tiles', price: 300, model: 'dungeon/floor_tile_large', tint: 0xc8a0ff },
+  goldtile: { name: 'Gold tiles', price: 400, model: 'dungeon/floor_tile_large', tint: 0xffd870 },
+  coraltile:{ name: 'Coral tiles', price: 240, model: 'dungeon/floor_tile_large', tint: 0xffb0a0 },
+  cloud:    { name: 'Cloud tiles', price: 260, model: 'dungeon/floor_tile_large', tint: 0xfaf8ff },
 };
 
 /** A blanket colour for each family member's bed (picked from their id, so it never changes). */
@@ -184,6 +248,12 @@ export const USES = {
   fire:         { verb: ['Light the fire', 'Put out the fire'], toggle: true, startOn: true },
   light:        { verb: ['Light it', 'Put it out'], toggle: true, startOn: true },
   fountain:     { verb: ['Turn the fountain on', 'Turn the fountain off'], toggle: true, startOn: true },
+  jukebox:      { verb: 'Pick a song', say: ['🎵 A bouncy tune fills the fort!', '🎵 Everybody dance!', '🎵 A slow, dreamy song. Someone yawns.', '🎵 The jukebox picks one by itself. It has good taste.'] },
+  carousel:     { verb: ['Start the carousel', 'Stop the carousel'], toggle: true },
+  popcorn:      { verb: 'Make some popcorn', heal: 5, say: ['🍿 Pop! Pop! Pop-pop-pop!', '🍿 Warm and buttery.'] },
+  icecream:     { verb: 'Get an ice cream', heal: 5, say: ['🍦 Strawberry with sprinkles!', '🍦 Mint choc chip. Brain freeze!', '🍦 Two scoops of vanilla, please.'] },
+  arcade:       { verb: 'Play a game', say: ['🕹 NEW HIGH SCORE!', '🕹 Game over… one more go?', '🕹 You beat level 1! (It was quite easy.)', '🕹 The ghosts got you. Again.'] },
+  wish:         { verb: 'Make a wish', say: ['🪙 Plink! Your wish is a secret.', '🪙 The water sparkles. Something good is coming.', '🪙 You hear a tiny “thank you” from the bottom of the well.'] },
 };
 
 /** The E prompt for a placed piece (`on` = a toggle piece's state). */

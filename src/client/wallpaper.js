@@ -98,6 +98,25 @@ function paint(g, { kind, bg, fg, accent = fg }) {
       g.beginPath(); g.moveTo(k * 64 + 32, 0); g.lineTo(k * 64 + 160, S); g.stroke();
       g.beginPath(); g.moveTo(k * 64 + 32, 0); g.lineTo(k * 64 - 96, S); g.stroke();
     }
+  } else if (kind === 'gingham') { // picnic checks: see-through bands both ways, darker where they cross
+    g.globalAlpha = 0.55;
+    for (let k = 0; k < S; k += 64) { g.fillRect(k, 0, 32, S); g.fillRect(0, k, S, 32); }
+    g.globalAlpha = 1;
+  } else if (kind === 'scales') { // overlapping fish (or dragon) scales, each with a shine
+    for (let row = -1; row < S / 32 + 1; row++) {
+      for (let x = (row % 2) * 32; x < S + 64; x += 64) {
+        const y = row * 32;
+        g.fillStyle = css(fg);
+        g.beginPath(); g.arc(x, y, 30, 0, Math.PI); g.fill();
+        g.strokeStyle = css(bg);
+        g.lineWidth = 3;
+        g.beginPath(); g.arc(x, y, 30, 0, Math.PI); g.stroke();
+        g.fillStyle = css(accent);
+        g.globalAlpha = 0.5;
+        g.beginPath(); g.arc(x - 8, y + 14, 6, 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 1;
+      }
+    }
   } else if (kind === 'royal') { // deep colour, gold crowns in a half-drop
     g.fillStyle = css(fg);
     tiled([[64, 64], [192, 192]], (x, y) => {

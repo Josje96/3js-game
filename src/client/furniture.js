@@ -1428,6 +1428,299 @@ export const FURNITURE_BUILDERS = {
     for (let r = 0; r < 4; r++) for (let c = 0; c < 5; c++) add(g, new THREE.BoxGeometry(0.08, 0.08, 0.01), mat(r === 1 && c === 3 ? 0xd8402a : 0xc8c0b0), -0.22 + c * 0.11, 1.4 - r * 0.15, 0.045);
     return g;
   },
+  // ---- the luxury collection, part 3
+  lavalamp() { // a tall lava lamp: blobs of glowing pink wax rise and sink in purple water
+    const g = new THREE.Group(), gold = mat(0xd9b24a, { metalness: 0.7, roughness: 0.3 });
+    add(g, cyl(0.28, 0.4, 0.4, 16), gold, 0, 0.2, 0);
+    add(g, new THREE.CylinderGeometry(0.22, 0.3, 1.2, 16), new THREE.MeshStandardMaterial({ color: 0x8a5ad8, transparent: true, opacity: 0.55, roughness: 0.1 }), 0, 1.0, 0);
+    add(g, cyl(0.1, 0.22, 0.25, 16), gold, 0, 1.72, 0);
+    const blobs = [];
+    for (let i = 0; i < 4; i++) {
+      const b = add(g, ball(0.1 + (i % 2) * 0.05), new THREE.MeshStandardMaterial({ color: 0xff7ad0, emissive: 0xff3aa0, emissiveIntensity: 0.9 }), 0, 0.6, 0);
+      b.userData.flicker = true;
+      blobs.push(b);
+    }
+    g.userData.update = (t) => blobs.forEach((b, i) => {
+      const u = (Math.sin(t * 0.5 + i * 1.7) + 1) / 2;
+      b.position.set(Math.sin(i * 2) * 0.07, 0.55 + u * 0.9, Math.cos(i * 2) * 0.07);
+      b.scale.set(1, 1 + Math.sin(t * 1.3 + i) * 0.25, 1);
+    });
+    return g;
+  },
+  bonsai() { // a little bonsai in a blue pot, its leaves real gold
+    const g = new THREE.Group(), gold = mat(0xffcf3f, { metalness: 0.75, roughness: 0.25 }), bark = mat(0x6b4a2c);
+    add(g, cyl(0.42, 0.34, 0.3, 16), mat(0x2f5fa8, { roughness: 0.3 }), 0, 0.15, 0);
+    const trunk = add(g, cyl(0.06, 0.1, 0.7, 8), bark, 0.05, 0.6, 0);
+    trunk.rotation.z = -0.3;
+    const branch = add(g, cyl(0.04, 0.06, 0.5, 8), bark, -0.15, 0.85, 0);
+    branch.rotation.z = 1.0;
+    for (const [x, y, z, r] of [[0.2, 1.0, 0, 0.26], [-0.32, 0.98, 0.05, 0.2], [0.05, 1.15, -0.1, 0.18], [0.3, 0.85, 0.12, 0.15]]) add(g, ball(r, 10), gold, x, y, z, [1.3, 0.7, 1.1]);
+    return g;
+  },
+  popcorn() { // a red popcorn cart with a glass box full of popcorn and a little lamp
+    const g = new THREE.Group(), red = mat(0xd8302a, { roughness: 0.4 }), white = mat(0xfff6dc);
+    box(g, 0.8, 0.7, 0.6, red, 0, 0.35, 0);
+    add(g, new THREE.BoxGeometry(0.72, 0.6, 0.52), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, roughness: 0.05 }), 0, 1.0, 0);
+    for (let i = 0; i < 30; i++) add(g, ball(0.045, 6), white, Math.sin(i * 1.7) * 0.28, 0.76 + (i % 5) * 0.05, Math.cos(i * 2.3) * 0.18);
+    box(g, 0.84, 0.1, 0.62, red, 0, 1.35, 0);
+    add(g, new THREE.ConeGeometry(0.4, 0.25, 4), mat(0xffcf3f, { metalness: 0.5 }), 0, 1.52, 0).rotation.y = Math.PI / 4;
+    return g;
+  },
+  hourglass() { // a big brass hourglass, sand trickling down
+    const g = new THREE.Group(), brass = mat(0xc89a3a, { metalness: 0.7, roughness: 0.3 }), glass = new THREE.MeshStandardMaterial({ color: 0xeef8ff, transparent: true, opacity: 0.3, roughness: 0.05 });
+    for (const y of [0.05, 1.55]) add(g, cyl(0.45, 0.45, 0.1, 6), brass, 0, y, 0);
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; add(g, cyl(0.03, 0.03, 1.5, 6), brass, Math.cos(a) * 0.4, 0.8, Math.sin(a) * 0.4); }
+    add(g, new THREE.ConeGeometry(0.32, 0.7, 16, 1, true), glass, 0, 0.45, 0);
+    add(g, new THREE.ConeGeometry(0.32, 0.7, 16, 1, true), glass, 0, 1.15, 0).rotation.x = Math.PI;
+    const sand = mat(0xf0c86a, { roughness: 1 });
+    const top = add(g, new THREE.ConeGeometry(0.25, 0.4, 16), sand, 0, 1.08, 0);
+    top.rotation.x = Math.PI;
+    const bottom = add(g, new THREE.ConeGeometry(0.28, 0.3, 16), sand, 0, 0.25, 0);
+    add(g, cyl(0.012, 0.012, 0.6, 4), sand, 0, 0.62, 0);
+    g.userData.update = (t) => { const u = (t / 30) % 1; top.scale.set(1 - u * 0.7, 1 - u * 0.7, 1 - u * 0.7); bottom.scale.set(0.4 + u * 0.6, 0.4 + u * 0.6, 0.4 + u * 0.6); };
+    return g;
+  },
+  icecream() { // a striped ice-cream cart with a parasol and three tubs
+    const g = new THREE.Group(), pink = mat(0xff9ac8, { roughness: 0.5 }), white = mat(0xffffff);
+    box(g, 1.2, 0.7, 0.7, white, 0, 0.55, 0);
+    for (let i = 0; i < 4; i++) box(g, 0.12, 0.7, 0.72, pink, -0.45 + i * 0.3, 0.55, 0);
+    for (const s of [-1, 1]) add(g, cyl(0.2, 0.2, 0.06, 14), mat(0x333333), s * 0.45, 0.2, 0.38).rotation.x = Math.PI / 2;
+    for (const [x, c] of [[-0.35, 0xffb3cc], [0, 0xfff2c0], [0.35, 0xa8e6c8]]) add(g, ball(0.13, 10), mat(c, { roughness: 0.6 }), x, 0.95, 0, [1, 0.7, 1]);
+    add(g, cyl(0.025, 0.025, 1.3, 6), white, 0.5, 1.5, -0.25);
+    add(g, new THREE.ConeGeometry(0.75, 0.35, 8), pink, 0.5, 2.2, -0.25);
+    return g;
+  },
+  crystals() { // a cluster of glowing blue crystals on a dark rock
+    const g = new THREE.Group(), glow = new THREE.MeshStandardMaterial({ color: 0x7fd8ff, emissive: 0x2a8ad8, emissiveIntensity: 0.9, roughness: 0.15, flatShading: true });
+    add(g, new THREE.IcosahedronGeometry(0.5, 0), mat(0x3a3540, { flatShading: true }), 0, 0.2, 0, [1.2, 0.5, 1]);
+    for (const [x, z, h, rx, rz] of [[0, 0, 1.3, 0, 0], [0.25, 0.1, 0.9, 0.2, -0.35], [-0.25, -0.05, 1.0, -0.1, 0.4], [0.05, 0.28, 0.7, 0.45, 0], [-0.1, -0.3, 0.6, -0.45, 0.1]]) {
+      const c = add(g, new THREE.ConeGeometry(0.13, h, 6), glow, x, 0.3 + h / 2, z);
+      c.rotation.set(rx, 0, rz);
+      c.userData.flicker = true;
+    }
+    return g;
+  },
+  rocket() { // a red and white model rocket on its launch stand
+    const g = new THREE.Group(), red = mat(0xd8302a, { roughness: 0.4 }), white = mat(0xf4f4f4, { roughness: 0.4 }), grey = mat(0x777777, { metalness: 0.6 });
+    add(g, cyl(0.45, 0.5, 0.1, 16), grey, 0, 0.05, 0);
+    add(g, cyl(0.2, 0.2, 1.1, 16), white, 0, 0.85, 0);
+    add(g, new THREE.ConeGeometry(0.2, 0.45, 16), red, 0, 1.62, 0);
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; const fin = box(g, 0.04, 0.4, 0.25, red, Math.cos(a) * 0.22, 0.45, Math.sin(a) * 0.22); fin.rotation.y = -a; }
+    add(g, cyl(0.07, 0.07, 0.02, 12), mat(0x7fd8ff, { emissive: 0x1a4a6a }), 0, 1.05, 0.2).rotation.x = Math.PI / 2;
+    return g;
+  },
+  trophycase() { // a glass-fronted cabinet with gold cups on its shelves
+    const g = new THREE.Group(), wood = mat(0x6b3a1e), gold = mat(0xffcf3f, { metalness: 0.75, roughness: 0.25 });
+    box(g, 1.4, 2.0, 0.06, mat(0x2a1a10), 0, 1.0, -0.27);                 // a hollow cabinet: the dark back,
+    for (const sx of [-1, 1]) box(g, 0.08, 2.0, 0.5, wood, sx * 0.66, 1.0, -0.05); // the sides,
+    for (const y of [0.04, 1.96]) box(g, 1.4, 0.08, 0.5, wood, 0, y, -0.05);       // the base and the top
+    for (const y of [0.55, 1.15]) box(g, 1.25, 0.05, 0.4, wood, 0, y, 0);
+    for (const [x, y] of [[-0.35, 0.58], [0.05, 0.58], [0.4, 0.58], [-0.2, 1.18], [0.3, 1.18], [0, 1.96]]) { // (the biggest cup stands on top)
+      add(g, cyl(0.06, 0.08, 0.06, 10), gold, x, y + 0.03, 0);
+      add(g, cyl(0.03, 0.03, 0.12, 6), gold, x, y + 0.12, 0);
+      add(g, cyl(0.12, 0.05, 0.18, 12), gold, x, y + 0.27, 0);
+    }
+    add(g, new THREE.BoxGeometry(1.25, 1.8, 0.02), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.15, roughness: 0.05 }), 0, 1.0, 0.22);
+    return g;
+  },
+  peacock() { // a peacock statue with its tail fanned out in blue and green eyes
+    const g = new THREE.Group(), blue = mat(0x2a6ad8, { roughness: 0.4 }), green = mat(0x2a9a6a, { roughness: 0.5 }), gold = mat(0xffcf3f, { metalness: 0.6 });
+    box(g, 0.6, 0.3, 0.6, mat(0xe8e2d8), 0, 0.15, 0);
+    add(g, ball(0.2, 12), blue, 0, 0.55, 0.1, [1, 1.3, 1]);
+    add(g, cyl(0.06, 0.08, 0.4, 8), blue, 0, 0.9, 0.18);
+    add(g, ball(0.1, 10), blue, 0, 1.12, 0.2);
+    add(g, new THREE.ConeGeometry(0.03, 0.12, 6), gold, 0, 1.12, 0.33).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 9; i++) { // the tail, fanned behind it
+      const a = -1.1 + i * 0.275;
+      const feather = new THREE.Group();
+      add(feather, new THREE.BoxGeometry(0.16, 1.1, 0.02), green, 0, 0.55, 0);
+      add(feather, new THREE.CircleGeometry(0.09, 12), gold, 0, 1.0, 0.012);
+      add(feather, new THREE.CircleGeometry(0.05, 12), blue, 0, 1.0, 0.014);
+      feather.position.set(0, 0.5, -0.05);
+      feather.rotation.set(-0.25, 0, a);
+      g.add(feather);
+    }
+    return g;
+  },
+  jukebox() { // a rounded jukebox with glowing coloured tubes and a record spinning behind glass
+    const g = new THREE.Group(), wood = mat(0x7a3a1e, { roughness: 0.4 });
+    box(g, 1.0, 1.1, 0.6, wood, 0, 0.55, 0);
+    add(g, cyl(0.5, 0.5, 0.6, 20, 1, false), wood, 0, 1.1, 0, [1, 1, 1]).rotation.x = Math.PI / 2;
+    const tubes = [];
+    for (const [c, r] of [[0xff5a8a, 0.44], [0xffd23f, 0.38], [0x5ac8ff, 0.32]]) {
+      const tube = add(g, new THREE.TorusGeometry(r, 0.035, 8, 24, Math.PI), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.9 }), 0, 1.1, 0.31);
+      tube.userData.flicker = true;
+      tubes.push(tube);
+    }
+    const record = add(g, cyl(0.2, 0.2, 0.02, 20), mat(0x111111, { roughness: 0.3 }), 0, 0.8, 0.31);
+    record.rotation.x = Math.PI / 2;
+    box(g, 0.6, 0.15, 0.04, mat(0xffcf3f, { metalness: 0.6 }), 0, 0.35, 0.31);
+    g.userData.update = (t) => { record.rotation.y = t * 3; tubes.forEach((m, i) => { m.material.emissiveIntensity = 0.6 + Math.abs(Math.sin(t * 2 + i)) * 0.6; }); };
+    return g;
+  },
+  castlemodel() { // a little stone castle on a table: towers, red flags, a gate
+    const g = new THREE.Group(), stone = mat(0xc8c0b0, { flatShading: true }), red = mat(0xd8302a);
+    box(g, 1.4, 0.5, 1.0, mat(0x8a5a34), 0, 0.25, 0);
+    box(g, 0.9, 0.5, 0.6, stone, 0, 0.75, 0);
+    for (const [x, z] of [[-0.5, -0.35], [0.5, -0.35], [-0.5, 0.35], [0.5, 0.35]]) {
+      add(g, cyl(0.15, 0.15, 0.8, 10), stone, x, 0.9, z);
+      add(g, new THREE.ConeGeometry(0.19, 0.3, 10), mat(0x2f4f8a), x, 1.45, z);
+      box(g, 0.12, 0.08, 0.01, red, x + 0.07, 1.62, z);
+      add(g, cyl(0.01, 0.01, 0.2, 4), mat(0x333333), x, 1.6, z);
+    }
+    box(g, 0.25, 0.3, 0.02, mat(0x4a2e1a), 0, 0.65, 0.31);
+    return g;
+  },
+  arcade() { // an arcade cabinet: a glowing screen, a joystick and two buttons
+    const g = new THREE.Group(), body = mat(0x2a2a6a, { roughness: 0.5 });
+    box(g, 0.8, 1.9, 0.7, body, 0, 0.95, 0);
+    const screen = box(g, 0.6, 0.5, 0.02, new THREE.MeshStandardMaterial({ color: 0x1a1a1a, emissive: 0x3aff8a, emissiveIntensity: 0.6 }), 0, 1.35, 0.36);
+    screen.rotation.x = -0.15;
+    box(g, 0.8, 0.12, 0.35, body, 0, 1.0, 0.45);
+    add(g, cyl(0.015, 0.015, 0.15, 6), mat(0x222222), -0.15, 1.12, 0.45);
+    add(g, ball(0.04, 8), mat(0xd8302a), -0.15, 1.2, 0.45);
+    for (const [x, c] of [[0.1, 0xffd23f], [0.25, 0x5ac8ff]]) add(g, cyl(0.04, 0.04, 0.03, 10), mat(c), x, 1.07, 0.45);
+    box(g, 0.8, 0.2, 0.05, new THREE.MeshStandardMaterial({ color: 0xff5a8a, emissive: 0xff3a6a, emissiveIntensity: 0.6 }), 0, 1.8, 0.33);
+    g.userData.update = (t) => { screen.material.emissive.setHSL((t * 0.1) % 1, 0.8, 0.45); };
+    return g;
+  },
+  treasurechest() { // a royal chest: deep red with gold bands, open and full of gold coins and gems
+    const g = new THREE.Group(), red = mat(0x8a1a2a, { roughness: 0.5 }), gold = mat(0xffcf3f, { metalness: 0.75, roughness: 0.25 });
+    box(g, 1.1, 0.55, 0.7, red, 0, 0.28, 0);
+    for (const x of [-0.4, 0, 0.4]) box(g, 0.08, 0.57, 0.72, gold, x, 0.28, 0);
+    const lid = box(g, 1.1, 0.12, 0.7, red, 0, 0.62, -0.38);
+    lid.rotation.x = -1.1;
+    lid.position.set(0, 0.85, -0.5);
+    for (let i = 0; i < 18; i++) add(g, cyl(0.06, 0.06, 0.02, 10), gold, Math.sin(i * 2.1) * 0.4, 0.56 + (i % 3) * 0.03, Math.cos(i * 1.3) * 0.2).rotation.x = Math.sin(i) * 0.5;
+    for (const [x, c] of [[-0.25, 0xff4a6a], [0.2, 0x4f8dff], [0.05, 0x3fe08a]]) add(g, new THREE.OctahedronGeometry(0.08), mat(c, { roughness: 0.1, emissive: c, emissiveIntensity: 0.2 }), x, 0.64, 0.05);
+    return g;
+  },
+  wishingwell() { // a round stone well with a little roof and a bucket on a rope
+    const g = new THREE.Group(), stone = mat(0xa8a098, { flatShading: true }), wood = mat(0x7a5030);
+    add(g, cyl(0.75, 0.8, 0.7, 14), stone, 0, 0.35, 0);
+    add(g, cyl(0.62, 0.62, 0.02, 20), mat(0x3a7ad8, { roughness: 0.05, emissive: 0x0a2a5a }), 0, 0.6, 0);
+    for (const s of [-1, 1]) box(g, 0.1, 1.4, 0.1, wood, s * 0.65, 1.2, 0);
+    const roof = add(g, new THREE.ConeGeometry(1.0, 0.6, 4), mat(0xb04a3a), 0, 2.15, 0);
+    roof.rotation.y = Math.PI / 4;
+    add(g, cyl(0.04, 0.04, 1.3, 6), wood, 0, 1.75, 0).rotation.z = Math.PI / 2;
+    add(g, cyl(0.01, 0.01, 0.6, 4), mat(0xd8c8a0), 0, 1.45, 0);
+    add(g, cyl(0.12, 0.09, 0.18, 10), wood, 0, 1.1, 0);
+    return g;
+  },
+  orrery() { // a brass model of the sun and planets, slowly turning
+    const g = new THREE.Group(), brass = mat(0xc89a3a, { metalness: 0.7, roughness: 0.3 });
+    add(g, cyl(0.3, 0.4, 0.15, 16), mat(0x5a3a1e), 0, 0.07, 0);
+    add(g, cyl(0.03, 0.03, 0.9, 8), brass, 0, 0.6, 0);
+    add(g, ball(0.16, 14), new THREE.MeshStandardMaterial({ color: 0xffc040, emissive: 0xff9a20, emissiveIntensity: 0.8 }), 0, 1.1, 0);
+    const arms = [];
+    for (const [r, size, c, speed] of [[0.3, 0.05, 0x9a9a9a, 1.2], [0.45, 0.07, 0xe8c070, 0.8], [0.6, 0.08, 0x4f8dff, 0.55], [0.78, 0.06, 0xd8603a, 0.35]]) {
+      const arm = new THREE.Group();
+      add(arm, cyl(0.008, 0.008, r, 4), brass, r / 2, 0, 0).rotation.z = Math.PI / 2;
+      add(arm, ball(size, 10), mat(c), r, 0, 0);
+      arm.position.y = 1.1;
+      arm.userData.speed = speed;
+      g.add(arm);
+      arms.push(arm);
+    }
+    g.userData.update = (t) => arms.forEach((a, i) => { a.rotation.y = t * a.userData.speed + i * 1.7; });
+    return g;
+  },
+  pooltable() { // a billiards table: green felt, wooden rails, pockets, a triangle of balls and a cue
+    const g = new THREE.Group(), wood = mat(0x6b3a1e, { roughness: 0.5 }), felt = mat(0x1f7a3a, { roughness: 0.9 });
+    for (const [x, z] of [[-1.0, -0.5], [1.0, -0.5], [-1.0, 0.5], [1.0, 0.5]]) box(g, 0.15, 0.8, 0.15, wood, x, 0.4, z);
+    box(g, 2.4, 0.15, 1.3, wood, 0, 0.85, 0);
+    box(g, 2.2, 0.04, 1.1, felt, 0, 0.94, 0);
+    for (const [x, z] of [[-1.1, -0.55], [1.1, -0.55], [-1.1, 0.55], [1.1, 0.55], [0, -0.58], [0, 0.58]]) add(g, cyl(0.06, 0.06, 0.02, 10), mat(0x111111), x, 0.965, z);
+    const cols = [0xffd23f, 0x2a5ad8, 0xd8302a, 0x7a3ab8, 0xff8a2a, 0x2a9a4a, 0x8a1a1a, 0x111111, 0xffd23f, 0x2a5ad8];
+    let k = 0;
+    for (let row = 0; row < 4; row++) for (let i = 0; i <= row; i++) add(g, ball(0.045, 10), mat(cols[k++ % cols.length], { roughness: 0.2 }), 0.45 + row * 0.08, 0.99, (i - row / 2) * 0.095);
+    add(g, ball(0.045, 10), mat(0xffffff, { roughness: 0.2 }), -0.5, 0.99, 0);
+    const cue = add(g, cyl(0.012, 0.022, 1.4, 6), mat(0xd8b080), -0.4, 1.0, 0.3);
+    cue.rotation.set(0, 0.2, Math.PI / 2);
+    return g;
+  },
+  unicornstatue() { // a white marble unicorn rearing on a plinth, with a golden horn
+    const g = new THREE.Group(), marble = mat(0xf4f0f8, { roughness: 0.3 }), gold = mat(0xffcf3f, { metalness: 0.7, roughness: 0.25 });
+    box(g, 0.9, 0.4, 0.6, mat(0xd8d0e0), 0, 0.2, 0);
+    const body = add(g, ball(0.3, 14), marble, 0, 0.95, 0, [0.8, 0.8, 1.4]);
+    body.rotation.x = -0.6;
+    for (const [x, z] of [[-0.1, -0.25], [0.1, -0.25]]) add(g, cyl(0.05, 0.05, 0.55, 8), marble, x, 0.6, z);
+    for (const s of [-1, 1]) { const leg = add(g, cyl(0.05, 0.05, 0.4, 8), marble, s * 0.1, 1.15, 0.38); leg.rotation.x = 1.0; }
+    add(g, cyl(0.1, 0.13, 0.4, 10), marble, 0, 1.35, 0.25).rotation.x = -0.5;
+    add(g, ball(0.14, 12), marble, 0, 1.58, 0.38, [0.9, 1, 1.4]);
+    add(g, new THREE.ConeGeometry(0.035, 0.32, 8), gold, 0, 1.78, 0.45).rotation.x = 0.5;
+    for (let i = 0; i < 5; i++) add(g, ball(0.06, 8), mat(0xffb3e0), 0, 1.5 - i * 0.07, 0.18 - i * 0.04); // a pink mane
+    add(g, new THREE.ConeGeometry(0.08, 0.5, 8), mat(0xffb3e0), 0, 0.8, -0.45).rotation.x = -2.4; // tail
+    return g;
+  },
+  koipond() { // a round pond set in stones: orange and white koi swim in circles, lily pads float
+    const g = new THREE.Group(), stone = mat(0x9a948a, { flatShading: true });
+    for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2; add(g, new THREE.DodecahedronGeometry(0.2), stone, Math.cos(a) * 1.0, 0.12, Math.sin(a) * 1.0, [1.2, 0.7, 1]); }
+    add(g, cyl(0.95, 0.95, 0.05, 28), mat(0x2a7ab8, { roughness: 0.05, emissive: 0x0a2a4a }), 0, 0.12, 0);
+    for (const [x, z] of [[0.4, 0.3], [-0.5, -0.2]]) add(g, cyl(0.15, 0.15, 0.01, 12), mat(0x4aa84a), x, 0.16, z);
+    const fish = [];
+    for (const c of [0xff7a2a, 0xffffff, 0xff9a4a]) {
+      const f = new THREE.Group();
+      add(f, ball(0.07, 10), mat(c, { roughness: 0.4 }), 0, 0, 0, [0.8, 0.6, 2]);
+      add(f, new THREE.ConeGeometry(0.06, 0.1, 6), mat(c), 0, 0, -0.17).rotation.x = -Math.PI / 2;
+      f.position.y = 0.13;
+      g.add(f);
+      fish.push(f);
+    }
+    g.userData.update = (t) => fish.forEach((f, i) => {
+      const a = t * (0.4 + i * 0.1) + i * 2.1, r = 0.35 + i * 0.15;
+      f.position.x = Math.cos(a) * r;
+      f.position.z = Math.sin(a) * r;
+      f.rotation.y = -a;
+    });
+    return g;
+  },
+  carousel() { // a little carousel: a striped canopy and horses going up and down as it turns (when it's on)
+    const g = new THREE.Group(), gold = mat(0xffcf3f, { metalness: 0.6, roughness: 0.3 });
+    add(g, cyl(1.0, 1.05, 0.15, 24), mat(0xf4e8d8), 0, 0.08, 0);
+    const turn = new THREE.Group();
+    g.add(turn);
+    add(turn, cyl(0.06, 0.06, 1.9, 8), gold, 0, 1.05, 0);
+    const canopy = add(turn, new THREE.ConeGeometry(1.15, 0.6, 12), mat(0xff6a8a, { roughness: 0.5 }), 0, 2.2, 0);
+    for (let i = 0; i < 6; i++) add(turn, new THREE.ConeGeometry(0.2, 0.6, 3), mat(0xffffff), Math.cos(i * 1.05) * 0.85, 2.05, Math.sin(i * 1.05) * 0.85).rotation.y = -i * 1.05; // white stripes
+    void canopy;
+    const horses = [];
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2, h = new THREE.Group();
+      add(turn, cyl(0.02, 0.02, 1.9, 6), gold, Math.cos(a) * 0.7, 1.05, Math.sin(a) * 0.7);
+      add(h, ball(0.16, 10), mat([0xffffff, 0xb48cff, 0x7fd8ff, 0xffb3e0][i]), 0, 0, 0, [0.7, 0.7, 1.4]);
+      add(h, ball(0.09, 8), mat([0xffffff, 0xb48cff, 0x7fd8ff, 0xffb3e0][i]), 0, 0.15, 0.2);
+      for (const s of [-1, 1]) for (const z of [-0.12, 0.12]) add(h, cyl(0.025, 0.025, 0.25, 6), mat(0xffffff), s * 0.06, -0.18, z);
+      h.position.set(Math.cos(a) * 0.7, 0.9, Math.sin(a) * 0.7);
+      h.rotation.y = -a;
+      turn.add(h);
+      horses.push(h);
+    }
+    g.userData.update = (t, view) => {
+      if (!view?.on) return;
+      turn.rotation.y = t * 0.8;
+      horses.forEach((h, i) => { h.position.y = 0.9 + Math.sin(t * 2.5 + i * 1.6) * 0.15; });
+    };
+    return g;
+  },
+  dragonstatue() { // a golden dragon coiled on a rock, wings up, with ruby eyes
+    const g = new THREE.Group(), gold = mat(0xffcf3f, { metalness: 0.8, roughness: 0.25 }), ruby = mat(0xff2a4a, { emissive: 0x8a0a1a, roughness: 0.1 });
+    add(g, new THREE.DodecahedronGeometry(0.6), mat(0x5a524a, { flatShading: true }), 0, 0.3, 0, [1.4, 0.6, 1.1]);
+    add(g, ball(0.35, 14), gold, 0, 0.85, 0, [1, 0.9, 1.4]);
+    for (let i = 0; i < 6; i++) add(g, ball(0.16 - i * 0.02, 10), gold, Math.sin(i * 0.9) * 0.4, 0.62 - i * 0.03, -0.4 - i * 0.12); // the tail, curling round
+    add(g, cyl(0.1, 0.16, 0.6, 10), gold, 0, 1.25, 0.3).rotation.x = -0.6;
+    add(g, ball(0.2, 12), gold, 0, 1.55, 0.5, [0.9, 0.8, 1.3]);
+    for (const s of [-1, 1]) {
+      add(g, ball(0.035, 8), ruby, s * 0.09, 1.6, 0.66);
+      add(g, new THREE.ConeGeometry(0.04, 0.2, 6), gold, s * 0.1, 1.75, 0.42).rotation.x = -0.6;
+      const wing = new THREE.Shape();
+      wing.moveTo(0, 0); wing.lineTo(0.8, 0.5); wing.lineTo(0.7, 0.1); wing.lineTo(0.55, 0.25); wing.lineTo(0.45, -0.05); wing.lineTo(0.3, 0.1); wing.lineTo(0, -0.1);
+      const w = add(g, new THREE.ExtrudeGeometry(wing, { depth: 0.03, bevelEnabled: false }), gold, s * 0.2, 1.0, -0.05);
+      w.scale.x = s;
+      w.rotation.y = s * 0.3;
+    }
+    return g;
+  },
   petbed() {
     const g = new THREE.Group();
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.18, 10, 24), mat(0xc96a8a, { roughness: 1 }));
@@ -1556,7 +1849,7 @@ export class FurnitureView {
 
   update(dt) {
     this.t += dt;
-    this.inner.userData.update?.(this.t); // ticking clocks, flapping... anything animated
+    this.inner.userData.update?.(this.t, this); // ticking clocks, flapping... anything animated (`this.on`: switched on)
     if (this.light) this.light.intensity = this.on ? 7 + Math.sin(this.t * 7) * 0.8 + Math.sin(this.t * 17) * 0.5 : 0;
     this.animate(dt);
     this.inner.traverse((o) => {
