@@ -4,7 +4,7 @@ import { INTERACT_RANGE, SPRING_COST, LUCK_SECONDS, FEAST_COST, CLASSES, CELL, c
 import { daysToNextSeason, seasonOf, SEASONS } from '../../shared/seasons.js';
 import { useDistance } from '../../shared/props.js';
 import { FURNITURE, blanketFor } from '../../shared/furniture.js';
-import { ITEMS } from '../../shared/items.js';
+import { ITEMS, isGear } from '../../shared/items.js';
 import { petMaxHp } from '../../shared/pets.js';
 import { dist2 } from '../../shared/physics.js';
 import { MAX_ROOMS } from '../../shared/fort.js';
@@ -38,7 +38,7 @@ export const interactions = {
   },
   wardrobe(p) { this.send(p, { t: 'ui', kind: 'wardrobe' }); },
   mirror(p) { this.send(p, { t: 'ui', kind: 'mirror' }); },
-  storage(p) { this.send(p, { t: 'ui', kind: 'chest', storage: this.chestStorage() }); },
+  storage(p) { this.send(p, { t: 'ui', kind: 'chest', storage: this.chestStorage(), ench: this.chestEnch() }); },
 };
 
 /** The fort was just loaded: put everyone's bed in it (plus any furniture, see decor.js). */
@@ -171,6 +171,11 @@ export const methods = {
     return (this.save.house.storage ??= {});
   },
 
+  /** Enchant levels of the weapons in the chest: { [weaponId]: [levels, highest first] } (0s not listed). */
+  chestEnch() {
+    return (this.save.house.storageEnch ??= {});
+  },
+
   /** Move items between your bag and the family chest (`dir` = 'in' or 'out'). Only at the chest. */
   on_stash(p, { item, qty, dir }) {
     const loc = this.locations.get(p.loc);
@@ -179,6 +184,7 @@ export const methods = {
     if (dir !== 'in' && dir !== 'out') return;
     const def = ITEMS[item], n = Math.floor(Number(qty));
     if (!def || def.kind === 'currency' || !(n > 0)) return;
+    if (isGear(item)) return this.stashGear(p, loc, item, dir);
     const store = this.chestStorage();
     const from = dir === 'in' ? p.inventory : store;
     const to = dir === 'in' ? store : p.inventory;
@@ -187,8 +193,41 @@ export const methods = {
     from[item] -= count;
     if (!from[item]) delete from[item];
     to[item] = (to[item] ?? 0) + count;
+    this.chestChanged(p, loc);
+  },
+
+  /**
+   * Weapons, shields and armor go in one at a time, and keep their enchant. Only gear you aren't
+   * wearing goes in; you can take one out if you don't already own that kind.
+   */
+  stashGear(p, loc, item, dir) {
+    const store = this.chestStorage(), ench = this.chestEnch(), name = ITEMS[item].name;
+    if (dir === 'in') {
+      if (!p.gear.includes(item)) return;
+      if (p.weapon === item || p.shield === item || p.armor === item) return this.toast(p, `Take off your ${name} first (C).`);
+      p.gear = p.gear.filter((g) => g !== item);
+      const level = p.enchants?.[item] ?? 0;
+      if (p.enchants) delete p.enchants[item];
+      store[item] = (store[item] ?? 0) + 1;
+      if (level > 0) ench[item] = [...(ench[item] ?? []), level].sort((a, b) => b - a);
+    } else {
+      if (!(store[item] > 0)) return;
+      if (p.gear.includes(item)) return this.toast(p, `You already have a ${name}.`);
+      store[item] -= 1;
+      if (!store[item]) delete store[item];
+      const level = ench[item]?.shift() ?? 0; // the best one first
+      if (!ench[item]?.length) delete ench[item];
+      p.gear.push(item);
+      if (level > 0) (p.enchants ??= {})[item] = level;
+      this.toast(p, `${name} is yours — press C to equip it.`);
+    }
+    this.chestChanged(p, loc);
+  },
+
+  chestChanged(p, loc) {
+    this.writeRecord(p);
     this.sendSelf(p);
-    this.sendToLocation(loc.key, { t: 'chestState', storage: store });
+    this.sendToLocation(loc.key, { t: 'chestState', storage: this.chestStorage(), ench: this.chestEnch() });
     this.persist();
   },
 

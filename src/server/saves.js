@@ -25,7 +25,8 @@ export function newSave({ name, seed }) {
     players: {},                   // playerId -> player record (see newPlayerRecord)
     house: {
       level: 1,
-      storage: {},                 // the family chest: { item: count }
+      storage: {},                 // the family chest: { item: count } (weapons, shields and armor too)
+      storageEnch: {},             // enchant levels of the weapons in the chest: { item: [levels, highest first] }
       beds: {},                    // playerId -> bed slot in the fort
       furniture: [],               // placed furniture: [{ id, item, room, dx, dz, rot }] (room = bed slot, -1 = the hall; dx/dz from its corner)
       owned: {},                   // furniture bought but not placed yet: { item: count }
@@ -184,6 +185,12 @@ export const MIGRATIONS = [
     version: 12, // the bank: an account per player (null until they open one)
     up(save) {
       for (const p of Object.values(save.players ?? {})) p.bank ??= null;
+    },
+  },
+  {
+    version: 13, // gear in the family chest keeps its enchant
+    up(save) {
+      save.house.storageEnch ??= {};
     },
   },
 ];

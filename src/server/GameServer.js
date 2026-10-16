@@ -202,7 +202,9 @@ export class GameServer {
     }
     const name = String(msg.name || 'Adventurer').slice(0, 20);
     const cls = CLASSES[msg.cls] ? msg.cls : 'Knight';
+    const fresh = !this.save.players[id]; // someone this world hasn't met (or a new device: see systems/characters.js)
     this.save.players[id] ??= newPlayerRecord({ name, cls });
+    c.isHost = !!msg.isHost;
     const rec = this.save.players[id];
     rec.closet ??= [];
     const look = cleanLook(msg.look ?? rec.look, rec.closet);
@@ -212,19 +214,20 @@ export class GameServer {
     const p = {
       id, ...structuredClone(Object.fromEntries(PLAYER_FIELDS.map((f) => [f, rec[f]]))),
       x: 0, z: 0, rot: 0, anim: 'idle', act: 0,
-      loc: null, epoch: 0, lastAttack: -1, triggers: new Set(),
+      loc: null, epoch: 0, lastAttack: -1, triggers: new Set(), fresh,
     };
     p.maxHp = maxHpFor(p.level, p.stats);
     p.hp = Math.max(1, Math.min(p.hp, p.maxHp));
     c.playerId = id;
     this.players.set(id, p);
-    c.conn.send({ t: 'welcome', you: id, isHost: !!msg.isHost });
+    c.conn.send({ t: 'welcome', you: id, isHost: !!msg.isHost, profile: { name: rec.name, cls: rec.cls, look: rec.look } });
     this.broadcastWorld();
     this.sendSelf(p);
     this.runHooks('onJoin', p);
     this.travel(p, 'house', null, this.bedSpot?.(p)); // everyone wakes up at home
     this.broadcast({ t: 'toast', text: `${name} joined the adventure!` });
     this.broadcastRoster();
+    if (fresh && this.characterList(p).length) this.offerCharacters(p, true); // "is one of these you?"
   }
 
   // ------------------------------------------------------------------ locations

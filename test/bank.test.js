@@ -48,23 +48,31 @@ test('bank: gold in the bank is safe when you faint at night', () => {
   assert.equal(p.mom.gold, carried - Math.floor(carried / 2), 'only the purse is halved');
 });
 
-test('bank: send gold to family — to their bank, or their purse if they have no account (even offline)', () => {
-  const { server, save, c, p } = atTheBank('mom', 'kid');
+test('bank: send gold to family — only to someone with an account (even offline)', () => {
+  const { server, save, c, p, booth } = atTheBank('mom', 'kid');
   p.mom.gold = 5000; p.kid.gold = 1000;
   c.mom.say({ t: 'bank', action: 'open' });
   c.mom.say({ t: 'bank', action: 'deposit', amount: 2000 });
+  c.mom.say({ t: 'interact', id: booth.id });
+  assert.deepEqual(c.mom.last('ui').family, [], 'the kid has no account: not on the list');
   c.mom.say({ t: 'bank', action: 'send', amount: 300, to: 'kid' });
-  assert.equal(p.mom.bank, 1700);
-  assert.equal(p.kid.gold, 1300, 'no account: straight into the kid’s purse');
+  assert.equal(p.mom.bank, 2000, 'no account: nothing sent');
+  assert.equal(p.kid.gold, 1000);
   c.kid.say({ t: 'bank', action: 'open' });
+  c.mom.say({ t: 'interact', id: booth.id });
+  assert.deepEqual(c.mom.last('ui').family.map((f) => f.id), ['kid']);
   c.mom.say({ t: 'bank', action: 'send', amount: 200, to: 'kid' });
-  assert.equal(p.kid.bank, 200, 'now into the kid’s bank');
+  assert.equal(p.kid.bank, 200, 'into the kid’s bank');
   c.mom.say({ t: 'bank', action: 'send', amount: 99999, to: 'kid' });
-  assert.equal(p.mom.bank, 1500, 'can’t send more than you have');
+  assert.equal(p.mom.bank, 1800, 'can’t send more than you have');
   // grandpa isn't playing right now
   save.players.grandpa = { ...save.players.kid, name: 'Grandpa', gold: 10, bank: null };
   c.mom.say({ t: 'bank', action: 'send', amount: 100, to: 'grandpa' });
-  assert.equal(save.players.grandpa.gold, 110);
+  assert.equal(save.players.grandpa.gold, 10, 'no account: nothing arrives');
+  assert.equal(p.mom.bank, 1800);
+  save.players.grandpa.bank = 5;
+  c.mom.say({ t: 'bank', action: 'send', amount: 100, to: 'grandpa' });
+  assert.equal(save.players.grandpa.bank, 105);
   assert.equal(server.players.get('grandpa'), undefined);
 });
 

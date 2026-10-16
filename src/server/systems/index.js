@@ -15,6 +15,7 @@
 // method AND its schema in shared/protocol.js (a test checks they match).
 
 import * as bank from './bank.js';
+import * as characters from './characters.js';
 import * as combat from './combat.js';
 import * as day from './day.js';
 import * as decor from './decor.js';
@@ -30,7 +31,7 @@ import * as shop from './shop.js';
 import * as town from './town.js';
 import * as wallet from './wallet.js';
 
-export const SYSTEMS = { bank, combat, day, decor, dungeons, enchant, holidays, home, pets, progression, seasons, seasonaltrader, shop, town, wallet };
+export const SYSTEMS = { bank, characters, combat, day, decor, dungeons, enchant, holidays, home, pets, progression, seasons, seasonaltrader, shop, town, wallet };
 
 /** Copy every system's methods onto the class; collect interactions and hooks. */
 export function installSystems(cls) {

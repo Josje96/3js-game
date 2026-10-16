@@ -29,6 +29,8 @@ export const CLIENT_MESSAGES = {
   spend:     { stat: 'str' },
   forge:     { recipe: 'str' },
   stash:     { item: 'str', qty: 'int', dir: 'str' },
+  characters:      {},
+  switchCharacter: { id: 'str' },
   buyPet:    { species: 'str', name: 'str?' },
   pickPet:   { id: 'str?' },
   renamePet: { id: 'str', name: 'str' },
@@ -52,7 +54,7 @@ export const CLIENT_MESSAGES = {
 
 /**
  * Server → client (documentation only; the client trusts the host).
- *   welcome  { you, isHost }                 you joined; `you` is your player id
+ *   welcome  { you, isHost, profile }        you joined; `you` is your player id, `profile` = { name, cls, look } (it changes on Load character)
  *   kicked   { reason }                      you can't (or can no longer) play here
  *   world    { name, seed, day, flags, dungeons, night, dayLeft, ... }   world-wide state, ~1/s
  *   self     { hp, maxHp, level, xp, gear, inventory, pets, ... }        your own character
@@ -67,7 +69,7 @@ export const CLIENT_MESSAGES = {
  *   chat     { from, text }
  *   ui       { kind, ... }                   open a window (shop, forge, pets, wardrobe, mirror, chest, elevator)
  *   fx       { kind, x, z, id?, ... }        one-off effects (damage numbers, level ups, debris...)
- *   chestState { storage }                   the family chest changed
+ *   chestState { storage, ench }             the family chest changed (`ench`: enchant levels of the weapons in it)
  *   night    { day, reason, fainted }        the day ended: show the night screen
  *   house    { owned, styles, wall, floor }  the family's furniture and fort styles changed
  */

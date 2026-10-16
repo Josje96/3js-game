@@ -108,10 +108,24 @@ export class GameClient {
 
   onMessage(msg) {
     switch (msg.t) {
-      case 'welcome':
+      case 'welcome': {
+        const switched = this.you != null && this.you !== msg.you; // Load character: we're someone else now
         this.you = msg.you; this.hud.you = msg.you;
+        if (msg.profile) { // remember who we are, so this device comes back as them next time
+          Object.assign(this.profile, { id: msg.you, name: msg.profile.name, cls: msg.profile.cls, look: msg.profile.look });
+          this.opts.onProfile?.(this.profile);
+        }
+        if (switched && this.me) {
+          const old = this.me;
+          this.me = this.makeMe();
+          this.me.root.position.copy(old.root.position);
+          old.dispose();
+          this.scene.add(this.me.root);
+          this.hud.closeModal();
+        }
         this.hud.onPresents = () => this.hud.openPresents({ onOpen: (item) => this.conn.send({ t: 'openPresent', item }), onSend: (item, to) => this.conn.send({ t: 'sendPresent', item, to }) });
         break;
+      }
       case 'world': {
         const restyle = this.layout?.key === 'house' && houseKey(msg.house) !== houseKey(this.world?.house);
         this.world = msg;
@@ -148,7 +162,7 @@ export class GameClient {
       case 'fx': this.onFx(msg); break;
       case 'toast': this.hud.toast(msg.text, msg.big); break;
       case 'night': this.sleeping = false; this.sfx.play('night'); this.hud.nightScreen(msg); break;
-      case 'chestState': this.hud.setChest(msg.storage); break;
+      case 'chestState': this.hud.setChest(msg.storage, msg.ench); break;
       case 'chat': this.hud.chat(msg.from, msg.text); break;
       case 'roster': this.hud.setRoster(msg.players); break;
       case 'ui': this.openUi(msg); break;
@@ -528,7 +542,9 @@ export class GameClient {
         onClose: () => { this.closeUp = false; },
       });
     } else if (msg.kind === 'chest') {
-      this.hud.openChest({ storage: msg.storage, onStash: (item, qty, dir) => this.conn.send({ t: 'stash', item, qty, dir }) });
+      this.hud.openChest({ storage: msg.storage, ench: msg.ench, onStash: (item, qty, dir) => this.conn.send({ t: 'stash', item, qty, dir }) });
+    } else if (msg.kind === 'characters') {
+      this.hud.openCharacters({ list: msg.list, fresh: msg.fresh, onPick: (id) => this.conn.send({ t: 'switchCharacter', id }) });
     } else if (msg.kind === 'talk') {
       this.hud.speech(msg.name, msg.text);
     } else if (msg.kind === 'decorator') {
@@ -647,7 +663,7 @@ export class GameClient {
     if (input.consume('menu')) {
       if (this.hud.modalOpen) this.hud.closeModal();
       else this.hud.openMenu({ isHost: this.opts.isHost, music: this.music, graphics: { level: this.gfx, set: (l) => this.setGraphics(l) },
-        stats: { on: !!this.showStats, toggle: () => { this.showStats = !this.showStats; this.hud.setStats(this.showStats ? 'measuring…' : null); } }, onSave: () => { this.opts.onSave?.(); this.hud.toast('Saved!'); }, onExport: this.opts.onExport, onQuit: this.opts.onQuit });
+        stats: { on: !!this.showStats, toggle: () => { this.showStats = !this.showStats; this.hud.setStats(this.showStats ? 'measuring…' : null); } }, onSave: () => { this.opts.onSave?.(); this.hud.toast('Saved!'); }, onExport: this.opts.onExport, onQuit: this.opts.onQuit, onCharacters: () => this.conn.send({ t: 'characters' }) });
     }
     if (input.consume('sheet')) {
       if (this.hud.modalOpen) this.hud.closeModal();

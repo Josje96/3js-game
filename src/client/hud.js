@@ -601,7 +601,9 @@ export class Hud {
 
   /** The bank: open an account (once), put gold in or take it out, send gold to family. */
   openBank({ family, onAction }) {
-    this.bankSend ??= { to: family[0]?.id ?? null, amount: '' };
+    this.bankSend ??= { to: null, amount: '' };
+    // (a remembered pick from an earlier visit only counts if they're still on the list)
+    if (!family.some((f) => f.id === this.bankSend.to)) this.bankSend.to = family.length === 1 ? family[0].id : null;
     this.openModal((box) => {
       const s = this.self ?? {}, gold = s.gold ?? 0;
       box.append(el('h2', null, `The Bank <span class="gold">🪙 ${gold}</span>`));
@@ -629,16 +631,19 @@ export class Hud {
         return row;
       };
       box.append(amountRow('Put in', gold, 'deposit'), amountRow('Take out', s.bank, 'withdraw'));
-      if (family.length) {
-        const send = el('div', 'bank-row', '<b>Send to</b>');
-        const who = el('select');
+      if (!family.length) {
+        box.append(el('p', 'muted small-note', 'You can send gold to family once they open a bank account too.'));
+      } else {
+        // who to send to: a button per person (a drop-down closed itself whenever the window refreshed)
+        const people = el('div', 'bank-row bank-people', '<b>Send to</b>');
+        const twins = (f) => family.filter((x) => x.name === f.name).length > 1; // two with one name: show levels
         for (const f of family) {
-          const o = el('option', null, esc(f.name));
-          o.value = f.id;
-          if (f.id === this.bankSend.to) o.selected = true;
-          who.append(o);
+          const b = el('button', `small${f.id === this.bankSend.to ? ' selected' : ''}`, `${esc(f.name)}${twins(f) ? ` <span class="muted">Lv ${f.level}</span>` : ''}`);
+          b.addEventListener('click', () => { this.bankSend.to = f.id; this.refreshModal?.(); });
+          people.append(b);
         }
-        who.addEventListener('change', () => { this.bankSend.to = who.value; });
+        box.append(people);
+        const send = el('div', 'bank-row', '<b>Amount</b>');
         const amount = el('input', 'bank-amount');
         amount.type = 'number';
         amount.min = '1';
@@ -650,14 +655,17 @@ export class Hud {
         go.addEventListener('mousedown', (e) => e.preventDefault()); // keep the amount box focused until we've read it
         go.addEventListener('click', () => {
           const n = Math.floor(Number(amount.value));
+          if (!this.bankSend.to) return this.toast('Who should we send it to? Pick a name.');
           if (!(n > 0)) return this.toast('How much gold should we send?');
           if (n > s.bank) return this.toast(`You only have ${s.bank} gold in the bank.`);
-          onAction('send', n, who.value);
+          onAction('send', n, this.bankSend.to);
           this.bankSend.amount = '';
           amount.blur();
         });
-        send.append(who, amount, go);
-        box.append(send, el('p', 'muted small-note', 'Sending comes out of your bank. It goes into their bank, or their purse if they don’t have an account.'));
+        const to = family.find((f) => f.id === this.bankSend.to);
+        go.textContent = to ? `Send to ${to.name} 💌` : 'Send 💌';
+        send.append(amount, go);
+        box.append(send, el('p', 'muted small-note', 'Sending comes out of your bank and goes into theirs. Only family with a bank account are listed.'));
       }
       box.append(closeButton(this));
     });
@@ -978,37 +986,79 @@ export class Hud {
     this.buildEl = null;
   }
 
-  /** The family chest: move things between your bag and the shared chest. */
-  openChest({ storage, onStash }) {
+  /** The family chest: move things (and gear: weapons, shields, armor) between you and the shared chest. */
+  openChest({ storage, ench, onStash }) {
     this.chestStorage = storage;
+    this.chestEnch = ench ?? {};
     this.openModal((box) => {
-      box.append(el('h2', null, 'Family chest'), el('p', 'muted', 'Everyone in the family shares this. Move things across with 1 or All.'));
+      box.append(el('h2', null, 'Family chest'), el('p', 'muted', 'Everyone in the family shares this. Move things across with 1 or All. Gear you’re wearing stays on you.'));
+      const s = this.self ?? {}, worn = [s.weapon, s.shield, s.armor];
+      // your spare gear: everything you own but aren't wearing (enchant shown, it goes in with it)
+      const spare = Object.fromEntries((s.gear ?? []).filter((g) => !worn.includes(g)).map((g) => [g, 1]));
       const cols = el('div', 'shop-cols');
-      cols.append(this.stashCol('Your bag', this.self?.inventory ?? {}, 'in', onStash), this.stashCol('In the chest', this.chestStorage ?? {}, 'out', onStash));
+      cols.append(
+        this.stashCol('Your bag', { ...(s.inventory ?? {}), ...spare }, 'in', onStash, (id) => s.enchants?.[id] ? [s.enchants[id]] : []),
+        this.stashCol('In the chest', this.chestStorage ?? {}, 'out', onStash, (id) => this.chestEnch?.[id] ?? [], s.gear ?? []),
+      );
       box.append(cols, closeButton(this));
     });
   }
 
-  setChest(storage) {
+  setChest(storage, ench) {
     this.chestStorage = storage;
+    this.chestEnch = ench ?? {};
     this.refreshModal?.();
   }
 
-  stashCol(title, items, dir, onStash) {
+  /** One side of the chest window. `enchOf(id)` = enchant levels of that gear; `owned` = gear you already have (can't take another). */
+  stashCol(title, items, dir, onStash, enchOf = () => [], owned = []) {
     const col = el('div', 'shop-col', `<h3>${title}</h3>`);
     const rows = Object.entries(items).filter(([id, n]) => n > 0 && ITEMS[id] && ITEMS[id].kind !== 'currency');
     if (!rows.length) col.append(el('p', 'muted', dir === 'in' ? 'Nothing in your bag.' : 'The chest is empty.'));
     for (const [id, n] of rows) {
       const row = el('div', 'stash-row');
-      row.append(el('span', null, `${iconImg(itemIcon(id))}${esc(ITEMS[id].name)} ×${n}`));
-      const one = el('button', '', '1');
-      one.addEventListener('click', () => onStash(id, 1, dir));
-      const all = el('button', 'primary', 'All');
-      all.addEventListener('click', () => onStash(id, n, dir));
-      row.append(one, all);
+      const gear = isGear(id), plus = enchOf(id).filter((l) => l > 0);
+      const tag = gear ? ` <span class="muted">${ITEMS[id].kind}</span>` : '';
+      row.append(el('span', null, `${iconImg(itemIcon(id))}${esc(ITEMS[id].name)}${plus.length ? ` <b class="gold">+${plus.join(', +')}</b>` : ''}${n > 1 || !gear ? ` ×${n}` : ''}${tag}`));
+      if (gear) { // one at a time (you can only own one of each)
+        const move = el('button', 'primary', dir === 'in' ? 'Put in' : 'Take');
+        if (dir === 'out' && owned.includes(id)) { move.disabled = true; move.title = 'You already have one'; }
+        move.addEventListener('click', () => onStash(id, 1, dir));
+        row.append(move);
+      } else {
+        const one = el('button', '', '1');
+        one.addEventListener('click', () => onStash(id, 1, dir));
+        const all = el('button', 'primary', 'All');
+        all.addEventListener('click', () => onStash(id, n, dir));
+        row.append(one, all);
+      }
       col.append(row);
     }
     return col;
+  }
+
+  /**
+   * Load character: the characters in this world nobody is playing. `fresh`: we just joined as
+   * someone the world didn't know — most likely a family member on a new device.
+   */
+  openCharacters({ list, fresh, onPick }) {
+    this.openModal((box) => {
+      box.append(el('h2', null, fresh ? 'Welcome! Is one of these you?' : 'Load character'),
+        el('p', 'muted', fresh
+          ? 'This world doesn’t know this device yet. If you’ve played here before, pick your character to carry on where you left off.'
+          : 'Play as another character from this world (only ones nobody is playing right now).'));
+      if (!list.length) box.append(el('p', 'muted', 'Everyone else is playing right now.'));
+      const grid = el('div', 'char-list');
+      for (const ch of list) {
+        const b = el('button', 'char-pick', `<b>${esc(ch.name)}</b><span class="muted">Level ${ch.level} ${esc(String(ch.cls).replace('_', ' '))}</span>`);
+        b.addEventListener('click', () => { this.closeModal(); onPick(ch.id); });
+        grid.append(b);
+      }
+      box.append(grid);
+      const close = el('button', fresh ? 'primary' : '', fresh ? 'I’m new here — start a new character' : 'Close');
+      close.addEventListener('click', () => this.closeModal());
+      box.append(close);
+    });
   }
 
   openElevator({ name, floors, onPick }) {
@@ -1031,7 +1081,7 @@ export class Hud {
     this.statsEl.style.display = text ? 'block' : 'none';
   }
 
-  openMenu({ isHost, music, graphics, stats, onSave, onExport, onQuit }) {
+  openMenu({ isHost, music, graphics, stats, onSave, onExport, onQuit, onCharacters }) {
     this.openModal((box) => {
       box.append(el('h2', null, 'Paused'), el('p', 'muted', isHost
         ? 'You are the host. Keep this tab open — the world lives here! It autosaves every 30s and when you sleep.'
@@ -1039,6 +1089,7 @@ export class Hud {
       const actions = el('div', 'menu-actions');
       const add = (label, fn, cls = '') => { const b = el('button', cls, label); b.addEventListener('click', fn); actions.append(b); };
       add('Resume', () => this.closeModal(), 'primary');
+      if (onCharacters) add('👤 Load character', onCharacters);
       if (isHost) { add('Save now', onSave); add('Download save file', onExport); }
       add(isHost ? 'Save & quit to title' : 'Leave game', onQuit);
       box.append(actions);
