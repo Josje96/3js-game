@@ -322,7 +322,7 @@ const HAIR_BUILDERS = {
   },
   suave(m) { // slicked back, with a swoop at the front and a neat side part
     const g = new THREE.Group();
-    g.add(hairShell(m, 0.4, 1.05, HEAD_R * 1.01));
+    g.add(hairShell(m, 0.56, 1.05, HEAD_R * 1.01));
     const quiff = mesh(new THREE.SphereGeometry(0.3, 18, 10), m, 0.08, -0.1, 0.28, 1.35, 0.55, 0.9);
     quiff.rotation.set(-0.35, 0, -0.15);
     g.add(quiff);
@@ -331,7 +331,7 @@ const HAIR_BUILDERS = {
   },
   spiky(m) {
     const g = new THREE.Group();
-    g.add(hairShell(m, 0.36));
+    g.add(hairShell(m, 0.54));
     for (let i = 0; i < 9; i++) {
       const a = (i / 9) * Math.PI * 2, tilt = 0.5 + (i % 2) * 0.2;
       g.add(mesh(new THREE.ConeGeometry(0.1, 0.32, 5), m, Math.sin(a) * 0.28, -0.02, Math.cos(a) * 0.28 - 0.04)).children.at(-1).rotation.set(Math.cos(a) * tilt, 0, -Math.sin(a) * tilt);
@@ -367,7 +367,7 @@ const HAIR_BUILDERS = {
   },
   curly(m) {
     const g = new THREE.Group();
-    g.add(hairShell(m, 0.4, 1.0, HEAD_R * 1.02));
+    g.add(hairShell(m, 0.56, 1.0, HEAD_R * 1.02));
     for (let i = 0; i < 26; i++) {
       const a = (i / 26) * Math.PI * 2 * 3, ring = Math.floor(i / 9);
       const th = 0.25 + ring * 0.38, ph = a;

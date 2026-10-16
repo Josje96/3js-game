@@ -24,6 +24,27 @@ const SKIRT_GAP = 0.15, SKIRT_MAX_FLARE = 1.7; // skirts: room left round a leg 
 const AIM_A = new THREE.Vector3(), AIM_B = new THREE.Vector3(), AIM_C = new THREE.Vector3(), AIM_M = new THREE.Matrix4();
 const AIM_Q = new THREE.Quaternion(), AIM_P = new THREE.Quaternion(), AIM_P2 = new THREE.Quaternion();
 
+const HAIR_HEAD_R = 0.56, HAIR_HEAD_DROP = 0.5; // the head ball hairstyles are built round (cosmetics.js HEAD_R, -HEAD_Y)
+
+/**
+ * The ball round the top of a skull geometry: centred over the middle of the dome, big enough that
+ * every point of the skull above its centre is inside it (hair built round it then covers it all).
+ */
+function skullDome(geo) {
+  const pos = geo.attributes.position, idx = geo.index, v = new THREE.Vector3(), pts = [];
+  for (let i = 0; i < idx.count; i++) pts.push(v.fromBufferAttribute(pos, idx.getX(i)).toArray());
+  const top = Math.max(...pts.map((p) => p[1]));
+  const dome = pts.filter((p) => p[1] > top - 0.35);
+  const cx = (Math.min(...dome.map((p) => p[0])) + Math.max(...dome.map((p) => p[0]))) / 2;
+  const cz = (Math.min(...dome.map((p) => p[2])) + Math.max(...dome.map((p) => p[2]))) / 2;
+  let r = (Math.max(...dome.map((p) => p[0])) - cx); // start: half the dome's width, then grow to hold it all
+  for (let k = 0; k < 4; k++) {
+    const cy = top - r;
+    r = Math.max(...pts.filter((p) => p[1] >= cy).map((p) => Math.hypot(p[0] - cx, p[1] - cy, p[2] - cz)));
+  }
+  return { centre: new THREE.Vector3(cx, top - r, cz), r };
+}
+
 const ANIMS = {
   idle: 'Idle_A',
   run: 'Running_A',
@@ -290,13 +311,16 @@ export class CharacterView {
         this.scalpColor = s.color;
         // new hair sits on that skull: its top just over the skull's top (it's taller than the old ball was,
         // so hair placed for the ball let the bald top show through)
-        let hairY = s.hair.y, hairSize = s.hair.size;
+        let hairX = s.hair.x, hairY = s.hair.y, hairZ = s.hair.z, hairSize = s.hair.size;
         if (this.cranium) {
-          const cb = this.cranium.boundingBox ?? (this.cranium.computeBoundingBox(), this.cranium.boundingBox);
-          hairY = new THREE.Vector3(0, cb.max.y + 0.03, 0).applyMatrix4(head.matrixWorld).y;
-          hairSize = Math.max(hairSize, (cb.max.x - cb.min.x) * 0.98); // at least as wide as the skull (the hooded Rogue's head is narrower)
+          // fit the hair to that skull: a hairstyle is built round a ball of radius HAIR_HEAD_R, HAIR_HEAD_DROP
+          // below its anchor (cosmetics.js HEAD_R / HEAD_Y), so put that ball just outside the skull's dome
+          const { centre, r } = skullDome(this.cranium);
+          hairSize = (r * 1.06) / HAIR_HEAD_R; // (a little over: the skull is low-poly, its corners poke out)
+          const at = centre.clone().add(new THREE.Vector3(0, HAIR_HEAD_DROP * hairSize, 0)).applyMatrix4(head.matrixWorld);
+          hairX = at.x; hairY = at.y; hairZ = at.z;
         }
-        out.hair = anchor('head', new THREE.Vector3(s.hair.x, hairY, s.hair.z), hairSize);
+        out.hair = anchor('head', new THREE.Vector3(hairX, hairY, hairZ), hairSize);
       }
       this.headMesh = head;
     }
