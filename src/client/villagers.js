@@ -1,6 +1,7 @@
 // Villagers strolling along Pebble Town's paths. Purely for looks and only on this screen (they
 // aren't sent over the network), so each family member may see them in slightly different
-// places — nobody can bump into them or talk to them; the townsfolk (shared/townsfolk.js) do the talking.
+// places. You bump into them (GameClient.solids) and they stop to let you by; nobody can talk to
+// them: the townsfolk (shared/townsfolk.js) do the talking.
 // They only use path cells clear of anything solid (stalls, the fountain, benches, townsfolk),
 // so they never walk through them.
 import { CELL } from '../shared/config.js';
@@ -54,11 +55,17 @@ export class Villagers {
     for (const w of this.walkers) group.add(w.view.root);
   }
 
-  update(dt, time) {
+  update(dt) {
+    const you = this.player; // (set by the game: villagers wait while you're in their way)
     for (const w of this.walkers) {
       if (w.len <= 0) continue;
-      // there and back again along the route
-      let s = (time * SPEED + w.offset) % (w.len * 2);
+      // there and back again along the route; standing still while you're just ahead of them
+      const p = w.view.root.position, ahead = w.view.root.rotation.y;
+      const blocked = you && w.started && (you.x - (p.x + Math.sin(ahead) * 0.7)) ** 2 + (you.z - (p.z + Math.cos(ahead) * 0.7)) ** 2 < 0.9 ** 2;
+      w.walked = (w.walked ?? w.offset) + (blocked ? 0 : dt * SPEED);
+      w.view.setBase(blocked ? 'idle' : 'walk'); // (waiting for you)
+      w.started = true;
+      let s = w.walked % (w.len * 2);
       const back = s > w.len;
       if (back) s = w.len * 2 - s;
       const i = Math.min(w.pts.length - 2, Math.floor(s / CELL)), u = (s - i * CELL) / CELL;

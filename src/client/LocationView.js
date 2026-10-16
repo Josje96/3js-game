@@ -563,9 +563,9 @@ export class LocationView {
   /** Pebble Town's extras: villagers strolling, bunting, butterflies, chimney smoke, banners on the walls. */
   buildTownLife() {
     const L = this.layout;
-    const villagers = new Villagers(L, this.rand);
+    const villagers = this.villagers = new Villagers(L, this.rand);
     villagers.addTo(this.group);
-    this.animated.push({ update: (dt) => villagers.update(dt, this.uTime.value), dispose: () => villagers.dispose() });
+    this.animated.push({ update: (dt) => villagers.update(dt), dispose: () => villagers.dispose() });
     const fun = buildTownFun(L, this.group, this.rand); // bunting, butterflies, chimney smoke
     this.animated.push({ update: () => fun.update(this.uTime.value) });
     // banners hanging on the inside of the north castle wall, and either side of the fort's door

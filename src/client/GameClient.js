@@ -660,14 +660,21 @@ export class GameClient {
 
   solids() {
     const out = [...this.layout.solids];
-    for (const { data } of this.ents.values()) {
+    for (const { data, view } of this.ents.values()) {
       if ((data.type === 'rock' || data.type === 'chest' || data.type === 'barrel' || data.type === 'furniture') && data.r > 0) out.push({ x: data.x, z: data.z, r: data.r });
+      // monsters (alive) and visitors like Santa: you bump into them, where they are on screen right now
+      else if ((data.type === 'slime' && data.hp > 0) || data.type === 'npc') {
+        const at = view?.root?.position ?? data;
+        out.push({ x: at.x, z: at.z, r: (data.r ?? 0.5) * 0.85 });
+      }
     }
+    for (const w of this.locView?.villagers?.walkers ?? []) out.push({ x: w.view.root.position.x, z: w.view.root.position.z, r: 0.4 });
     return out;
   }
 
   updateLocal(dt) {
     const input = this.input;
+    if (this.locView?.villagers) this.locView.villagers.player = this.pos; // they wait for you to pass
     if (input.consume('menu')) {
       if (this.hud.modalOpen) this.hud.closeModal();
       else this.hud.openMenu({ isHost: this.opts.isHost, music: this.music, graphics: { level: this.gfx, set: (l) => this.setGraphics(l) },
