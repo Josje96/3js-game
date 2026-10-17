@@ -53,6 +53,9 @@ export const methods = {
     const state = this.save.dungeons[dungeonId];
     const first = !state.completed;
     state.completed = true;
+    const town = this.locations.get('town');
+    if (town) this.syncTrophies(town);
+    if (first) this.broadcast({ t: 'toast', big: true, text: `🏆 A trophy for every hero waits by the ${DUNGEONS[dungeonId].name} in town — go and take yours!` });
     const next = DUNGEONS[dungeonId].next;
     if (!next || this.save.dungeons[next].unlocked) {
       if (first && !next) this.broadcast({ t: 'toast', text: 'You beat every dungeon in the land. The family are true heroes!', big: true });

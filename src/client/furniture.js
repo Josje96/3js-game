@@ -1509,6 +1509,58 @@ export const FURNITURE_BUILDERS = {
     add(g, cyl(0.07, 0.07, 0.02, 12), mat(0x7fd8ff, { emissive: 0x1a4a6a }), 0, 1.05, 0.2).rotation.x = Math.PI / 2;
     return g;
   },
+  // the dungeon trophies (one each for beating a dungeon): a stone plinth with a brass plaque, and on top...
+  minetrophy() { // ...the Old Mine: two golden pickaxes crossed behind the Ancient Dragon's glowing red heart-gem
+    const g = new THREE.Group(), gold = mat(0xffcf3f, { metalness: 0.45, roughness: 0.3, emissive: 0x2a1a00 });
+    trophyPlinth(g, 0x8a8478);
+    for (const s of [-1, 1]) {
+      const pick = new THREE.Group();
+      add(pick, cyl(0.025, 0.025, 0.7, 8), mat(0x6b4a2c), 0, 0.35, 0);
+      const head = add(pick, new THREE.TorusGeometry(0.17, 0.035, 6, 16, Math.PI * 0.7), gold, 0, 0.53, 0); // a curved bar across the top...
+      head.rotation.z = Math.PI * 0.15;
+      for (const e of [-1, 1]) { // ...ending in two points
+        const a = Math.PI / 2 + e * Math.PI * 0.35, tip = add(pick, new THREE.ConeGeometry(0.035, 0.1, 6), gold, Math.cos(a) * 0.17, 0.53 + Math.sin(a) * 0.17, 0);
+        tip.rotation.z = a + (e > 0 ? 0 : Math.PI);
+      }
+      pick.position.set(s * 0.1, 0.62, -0.08);
+      pick.rotation.z = s * 0.55;
+      g.add(pick);
+    }
+    const heart = add(g, new THREE.OctahedronGeometry(0.17, 0), mat(0xff2a3a, { emissive: 0xc8101a, emissiveIntensity: 0.7, roughness: 0.15, metalness: 0.2 }), 0, 0.92, 0.05, [1, 1.35, 1]);
+    for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; add(g, new THREE.OctahedronGeometry(0.05, 0), mat(0xff8a2a, { emissive: 0x8a2a00, emissiveIntensity: 0.5 }), Math.cos(a) * 0.2, 0.66, Math.sin(a) * 0.2 + 0.03); }
+    g.userData.update = (t) => { heart.rotation.y = t * 0.8; heart.position.y = 0.92 + Math.sin(t * 2) * 0.03; };
+    return g;
+  },
+  ruinstrophy() { // ...the Sunken Ruins: a golden trident standing up, a pearl in an open shell at its foot, a little coral
+    const g = new THREE.Group(), gold = mat(0xffcf3f, { metalness: 0.45, roughness: 0.3, emissive: 0x2a1a00 });
+    trophyPlinth(g, 0xd8c9a0);
+    add(g, cyl(0.025, 0.025, 1.0, 8), gold, 0.08, 1.1, -0.05);
+    box(g, 0.34, 0.04, 0.04, gold, 0.08, 1.48, -0.05);
+    for (const x of [-0.17, 0, 0.17]) add(g, new THREE.ConeGeometry(0.035, 0.22, 6), gold, 0.08 + x, 1.6 + (x ? 0 : 0.04), -0.05);
+    const shell = add(g, new THREE.SphereGeometry(0.16, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0xffc8d8, { side: THREE.DoubleSide, roughness: 0.4 }), -0.12, 0.62, 0.08, [1, 0.5, 1]);
+    shell.rotation.x = Math.PI; // (cupped)
+    add(g, ball(0.075, 14), mat(0xfff8f0, { roughness: 0.1, metalness: 0.3, emissive: 0x3a3a4a }), -0.12, 0.66, 0.08);
+    for (const [x, z, h, c] of [[0.2, 0.15, 0.22, 0xff6a6a], [0.26, 0.05, 0.16, 0xff9a5a], [-0.24, -0.12, 0.18, 0xff7ab8]]) add(g, cyl(0.015, 0.03, h, 5), mat(c), x, 0.6 + h / 2, z);
+    return g;
+  },
+  keeptrophy() { // ...the Shadow Keep: the Shadow King's crown, black and gold with violet gems, on a purple cushion
+    const g = new THREE.Group(), gold = mat(0xffcf3f, { metalness: 0.45, roughness: 0.3, emissive: 0x2a1a00 }), black = mat(0x1a1420, { metalness: 0.5, roughness: 0.35 });
+    trophyPlinth(g, 0x3a3440);
+    add(g, ball(0.26, 16), mat(0x6a2a9a, { roughness: 0.9 }), 0, 0.66, 0, [1, 0.35, 1]);
+    for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; add(g, ball(0.035, 8), gold, Math.cos(a) * 0.24, 0.62, Math.sin(a) * 0.24); } // tassels
+    const crown = new THREE.Group();
+    crown.position.y = 0.78;
+    g.add(crown);
+    add(crown, cyl(0.15, 0.14, 0.1, 18), black, 0, 0, 0);
+    add(crown, new THREE.TorusGeometry(0.15, 0.015, 6, 24), gold, 0, -0.05, 0).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      add(crown, new THREE.ConeGeometry(0.035, 0.16, 4), i % 2 ? gold : black, Math.cos(a) * 0.14, 0.12, Math.sin(a) * 0.14);
+      add(crown, ball(0.025, 8), mat(0xb04aff, { emissive: 0x6a1aaa, emissiveIntensity: 0.8 }), Math.cos(a) * 0.15, 0.01, Math.sin(a) * 0.15);
+    }
+    g.userData.update = (t) => { crown.rotation.y = t * 0.5; };
+    return g;
+  },
   trophycase() { // a glass-fronted cabinet with gold cups on its shelves
     const g = new THREE.Group(), wood = mat(0x6b3a1e), gold = mat(0xffcf3f, { metalness: 0.75, roughness: 0.25 });
     box(g, 1.4, 2.0, 0.06, mat(0x2a1a10), 0, 1.0, -0.27);                 // a hollow cabinet: the dark back,
@@ -1734,6 +1786,14 @@ export const FURNITURE_BUILDERS = {
 };
 
 /** One piece of furniture. Beds get their owner's blanket colour and name. */
+/** A dungeon trophy's stand: a stone plinth with a brass plaque on the front. */
+function trophyPlinth(g, stone) {
+  box(g, 0.62, 0.08, 0.62, mat(stone, { roughness: 0.9 }), 0, 0.04, 0);
+  box(g, 0.5, 0.42, 0.5, mat(stone, { roughness: 0.85 }), 0, 0.29, 0);
+  box(g, 0.58, 0.07, 0.58, mat(stone, { roughness: 0.9 }), 0, 0.535, 0);
+  box(g, 0.3, 0.14, 0.02, mat(0xd9a93a, { metalness: 0.7, roughness: 0.3 }), 0, 0.3, 0.255);
+}
+
 export class FurnitureView {
   constructor(e, makeLabel) {
     const def = FURNITURE[e.item] ?? {};

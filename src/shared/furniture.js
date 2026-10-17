@@ -12,6 +12,10 @@ export const DECORATOR_FLAG = 'mineCleared';
 export const FURNITURE = {
   bed:        { name: 'Bed', model: 'dungeon/bed_decorated', radius: 1.3, interact: 'sleep', notForSale: true },
   calendar:   { name: 'Calendar', build: 'calendar', radius: 0.35, interact: 'calendar', notForSale: true }, // beside every bed: sleep until the next season
+  // a beaten dungeon's trophy: everyone takes one from the stand by its gate in town (systems/trophies.js)
+  minetrophy:  { name: 'Old Mine trophy', build: 'minetrophy', radius: 0.5, notForSale: true, trophy: 'mine' },
+  ruinstrophy: { name: 'Sunken Ruins trophy', build: 'ruinstrophy', radius: 0.5, notForSale: true, trophy: 'ruins' },
+  keeptrophy:  { name: 'Shadow Keep trophy', build: 'keeptrophy', radius: 0.5, notForSale: true, trophy: 'keep' },
   chair:      { name: 'Chair', model: 'dungeon/chair', price: 60, radius: 0.5, seat: { face: 0 } },
   stool:      { name: 'Stool', model: 'dungeon/stool', price: 40, radius: 0.45, seat: { face: 0 } },
   smalltable: { name: 'Small table', model: 'dungeon/table_small_decorated_A', price: 90, radius: 0.8 },
