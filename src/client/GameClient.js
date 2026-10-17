@@ -745,6 +745,8 @@ export class GameClient {
       }
     }
     for (const w of this.locView?.villagers?.walkers ?? []) out.push({ x: w.view.root.position.x, z: w.view.root.position.z, r: 0.4 });
+    // the rest of the family: you bump into each other too (not someone asleep in bed)
+    for (const v of this.others.values()) if (v.base !== 'sleep' && !v.flying) out.push({ x: v.root.position.x, z: v.root.position.z, r: PLAYER_RADIUS * 0.9 });
     return out;
   }
 
