@@ -134,3 +134,41 @@ test('seasonal trader: only this season’s things, a different set every 6 days
   c.mom.say({ t: 'buyFurniture', item: decor.id });
   assert.equal(save.house.owned[decor.id], 1, 'the Decorator doesn’t sell seasonal things');
 });
+
+test('seasons: the boss fights back — hits don\'t freeze it, and it slams the ground (warned first) and charges', async () => {
+  const { SLAM_WINDUP, slamRadius } = await import('../src/server/LiveLocation.js');
+  const { server, p } = world('slam', 'mom');
+  const town = server.getLocation('town');
+  server.step(0.05);
+  const boss = bossIn(town);
+  server.travel(p.mom, 'town');
+  p.mom.maxHp = p.mom.hp = 1e6;
+  const sent = [];
+  const send = server.sendToLocation.bind(server);
+  server.sendToLocation = (key, msg) => { if (msg.t === 'fx') sent.push(msg.kind); return send(key, msg); };
+  // standing next to it, hitting it the whole time
+  let hits = 0;
+  for (let i = 0; i < 200; i++) {
+    p.mom.x = boss.x + boss.r + 0.6; p.mom.z = boss.z;
+    if (i % 3 === 0) { server.hitSlime(p.mom, town, boss, 1); hits++; }
+    server.step(0.05);
+  }
+  assert.ok(boss._stun <= 0, 'never frozen');
+  assert.ok(p.mom.hp < 1e6, 'it hits back even while being hit');
+  assert.ok(sent.includes('warn') && sent.includes('slam'), 'a slam, warned first');
+  assert.ok(sent.indexOf('warn') < sent.indexOf('slam'));
+  // a slam: out of the circle in time, no harm done
+  boss._slam = 0; boss._slamWind = 0;
+  p.mom.x = boss.x + 2; p.mom.z = boss.z;
+  server.step(0.05);
+  assert.ok(boss._slamWind > 0 && boss._slamWind <= SLAM_WINDUP, 'winding up');
+  p.mom.x = boss.x + slamRadius(boss) + 3;
+  const before = p.mom.hp;
+  for (let i = 0; i < 30; i++) { boss._atkCd = 9; server.step(0.05); }
+  assert.equal(p.mom.hp, before, 'ran out of the circle: missed');
+  // hanging back: it charges
+  boss._dash = 0; boss._slam = 99; boss._charge = 0;
+  p.mom.x = boss.x + 9; p.mom.z = boss.z;
+  server.step(0.05);
+  assert.ok(boss._charge > 0, 'charges at someone keeping their distance');
+});

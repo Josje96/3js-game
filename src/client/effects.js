@@ -70,6 +70,38 @@ export function glowTexture() {
   }));
 }
 
+/**
+ * A boss is winding up a ground slam: a red ring on the ground at the slam's edge, and a red disc
+ * filling it from the middle out; when it reaches the ring, the slam lands. Get out!
+ */
+export class SlamWarning {
+  constructor(x, z, radius, time) {
+    this.root = new THREE.Group();
+    this.root.position.set(x, 0.1, z);
+    this.t = 0;
+    this.life = time;
+    const flat = (geo, opacity) => { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; this.root.add(m); return m; };
+    this.ring = flat(new THREE.RingGeometry(radius - 0.15, radius, 48), 0.9);
+    this.fill = flat(new THREE.CircleGeometry(radius, 48), 0.35);
+    this.fill.position.y = -0.01;
+    this.fill.scale.setScalar(0.01);
+  }
+
+  get done() { return this.t >= this.life; }
+
+  update(dt) {
+    this.t += dt;
+    const u = Math.min(1, this.t / this.life);
+    this.fill.scale.setScalar(Math.max(0.01, u));
+    this.ring.material.opacity = 0.6 + Math.sin(this.t * 18) * 0.3; // flashing
+  }
+
+  dispose() {
+    this.root.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
+    this.root.removeFromParent();
+  }
+}
+
 const additive = (opts) => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, ...opts });
 
 /**

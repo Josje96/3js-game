@@ -14,6 +14,10 @@ const RADIUS = { rock: 1.0, chest: 1.0, barrel: 0.75, slime: 0.7, drop: 0.3, lad
 export const SOLID_TYPES = new Set(['rock', 'chest', 'barrel', 'furniture', 'dummy']);
 
 const HITTABLE = new Set(['rock', 'slime', 'chest', 'barrel', 'dummy']);
+// a seasonal boss's big moves (bossMoves): a ground slam you see coming, and a charge
+export const SLAM_WINDUP = 1.1;  // seconds of warning (a red circle on the ground) before the slam lands
+export const SLAM_HIT = 1.6;     // the slam hits this many times harder than a swipe
+export const slamRadius = (e) => e.r + 3;
 const LOOT_PRIVATE = 30; // seconds a share of a kill's loot stays its owner's alone
 
 export class LiveLocation {
@@ -138,6 +142,7 @@ export class LiveLocation {
   tickSlime(e, dt, players, solids) {
     e._atkCd = Math.max(0, (e._atkCd ?? 0) - dt);
     e._stun = Math.max(0, (e._stun ?? 0) - dt);
+    e._slow = Math.max(0, (e._slow ?? 0) - dt);
     const def = ENEMIES[e.variant] ?? {};
     const aggro = e.boss ? 40 : 18;
     let target = null, best = aggro * aggro;
@@ -154,7 +159,8 @@ export class LiveLocation {
     }
 
     let vx = 0, vz = 0;
-    if (e._stun <= 0) {
+    const move = e.seasonal ? this.bossMoves(e, dt, target, Math.sqrt(best), players) : null;
+    if (move) { vx = move.vx; vz = move.vz; } else if (e._stun <= 0) {
       if (target) {
         const d = Math.sqrt(best) || 1;
         const ux = (target.x - e.x) / d, uz = (target.z - e.z) / d;
@@ -219,6 +225,8 @@ export class LiveLocation {
         vz = e._wz * e.speed * 0.4;
       }
     }
+    if (e._slow > 0) { vx *= 0.5; vz *= 0.5; } // a frost weapon slows a boss (it doesn't freeze them)
+    else if (e.seasonal && !move && e.hp < e.maxHp * 0.5) { vx *= 1.3; vz *= 1.3; } // half beaten: angry, faster
     // knockback impulse
     vx += e._kx ?? 0; vz += e._kz ?? 0;
     e._kx = (e._kx ?? 0) * Math.pow(0.002, dt);
@@ -233,11 +241,55 @@ export class LiveLocation {
     if (target && e._atkCd <= 0 && e._stun <= 0 && !def.harmless) {
       const reach = e.r + (target.type === 'pet' ? target.r : PLAYER_RADIUS) + 0.25;
       if (dist2(e, target) < reach * reach) {
-        e._atkCd = 1.0;
+        e._atkCd = e.seasonal ? 0.8 : 1.0;
         if (target.type === 'pet') this.server.damagePet(target, e.damage);
         else this.server.damagePlayer(target, e.damage, e);
       }
     }
+  }
+
+  /**
+   * A seasonal boss fights back properly: now and then it crouches, a red circle spreads on the ground round it,
+   * and a moment later it slams the ground, hurting everyone still in the circle (roll or run out!); and anyone
+   * hanging back gets charged. Half beaten it gets angry: faster, and it slams and charges more often.
+   * Returns its movement while it's busy with a move (winding up, charging), or null to fight as usual.
+   */
+  bossMoves(e, dt, target, d, players) {
+    const angry = e.hp < e.maxHp * 0.5;
+    if (e._slamWind > 0) { // winding up: stands its ground, then the slam
+      e._slamWind -= dt;
+      if (e._slamWind <= 0) {
+        e.anim = undefined;
+        const r = slamRadius(e);
+        for (const p of players) if (dist2(p, e) < (r + PLAYER_RADIUS) ** 2) this.server.damagePlayer(p, Math.round(e.damage * SLAM_HIT), e);
+        this.server.sendToLocation(this.key, { t: 'fx', kind: 'slam', x: e.x, z: e.z, r });
+        e._slam = (angry ? 3 : 5) + Math.random() * 1.5;
+      }
+      return { vx: 0, vz: 0 };
+    }
+    if (e._charge > 0) { // charging in a straight line
+      e._charge -= dt;
+      if (e._charge <= 0) e.anim = undefined;
+      return { vx: e._cx * e.speed * 3.2, vz: e._cz * e.speed * 3.2 };
+    }
+    if (!target) return null;
+    e._slam = (e._slam ?? 3) - dt;
+    e._dash = (e._dash ?? 6) - dt;
+    if (e._slam <= 0 && d < slamRadius(e) + 1.5) {
+      e._slamWind = SLAM_WINDUP;
+      e.anim = 'crouch';
+      this.server.sendToLocation(this.key, { t: 'fx', kind: 'warn', x: e.x, z: e.z, r: slamRadius(e), time: SLAM_WINDUP });
+      return { vx: 0, vz: 0 };
+    }
+    if (e._dash <= 0 && d > 5 && d < 16 && ENEMIES[e.variant]?.ai !== 'shooter') {
+      e._dash = (angry ? 4 : 7) + Math.random() * 2;
+      e._charge = 0.6;
+      e.anim = 'leap';
+      e._cx = (target.x - e.x) / d; e._cz = (target.z - e.z) / d;
+      e.rot = Math.atan2(e._cx, e._cz);
+      return { vx: 0, vz: 0 };
+    }
+    return null;
   }
 
   /** Pets trot after their owner and pounce on enemies near them. */

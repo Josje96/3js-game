@@ -10,7 +10,7 @@ import { moveCircle } from '../shared/physics.js';
 import { ITEMS, weaponCooldown, bestHeal } from '../shared/items.js';
 import { LocationView } from './LocationView.js';
 import { CharacterView, Debris, makeEntityView } from './views.js';
-import { NovaBlast } from './effects.js';
+import { NovaBlast, SlamWarning } from './effects.js';
 import { Interpolator } from './interp.js';
 import { Input } from './input.js';
 import { Hud } from './hud.js';
@@ -435,6 +435,13 @@ export class GameClient {
         if (msg.use === 'hoard') this.addEffect(new Debris(msg.x, msg.z, [0xffd23f, 0xfff27a, 0xd9a93a], 16));
         break;
       }
+      case 'warn': this.addEffect(new SlamWarning(msg.x, msg.z, msg.r, msg.time)); break; // a boss is about to slam: get out of the circle!
+      case 'slam':
+        this.sfx.play('smash');
+        this.addEffect(new NovaBlast(msg.x, msg.z, msg.r, 0xff8a3a));
+        this.addEffect(new Debris(msg.x, msg.z, [0x8a6a4a, 0x6a5038, 0xb08a60], 18));
+        this.shake(Math.max(0, 0.9 - Math.hypot(msg.x - this.pos.x, msg.z - this.pos.z) / 25));
+        break;
       case 'nova':
         this.sfx.play('nova');
         this.addEffect(new NovaBlast(msg.x, msg.z, SPELL_RADIUS));

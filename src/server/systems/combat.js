@@ -95,7 +95,8 @@ export const methods = {
       this.sendToLocation(loc.key, { t: 'fx', kind: 'crit', x: e.x, z: e.z, lucky: true });
     }
     e.hp -= dmg;
-    e._stun = perk === 'frost' ? PERK_FREEZE : 0.25;
+    if (!e.boss) e._stun = perk === 'frost' ? PERK_FREEZE : 0.25;
+    else if (perk === 'frost') e._slow = PERK_FREEZE * 2; // bosses don't flinch at every hit (they'd never fight back); frost slows them
     if (perk === 'vampiric' && p.hp > 0 && p.hp < p.maxHp) {
       p.hp = Math.min(p.maxHp, p.hp + Math.max(1, Math.round(dmg * PERK_HEAL)));
       this.sendSelf(p);
