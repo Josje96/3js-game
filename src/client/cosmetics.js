@@ -13,41 +13,55 @@ const mesh = (geo, material, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1) => {
 };
 
 const HAT_BUILDERS = {
-  bandana() { // a red pirate bandana with white spots, knotted at the back with two tails
-    const g = new THREE.Group(), red = mat(0xc8202a, { roughness: 0.8 }), white = mat(0xffffff, { roughness: 0.8 });
-    const R = 0.57, sy = 1.02; // (over the outfit's own hair too: the hat frame's top is the top of the hair)
-    g.add(mesh(new THREE.SphereGeometry(R, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.45), red, 0, -0.48, 0, 1, sy, 1)); // snug over the top of the head
-    for (let i = 0; i < 22; i++) { // little white spots, lying flat on the cloth
-      const th = 0.2 + (i % 4) * 0.27, ph = i * 2.39;
-      const n = new THREE.Vector3(Math.sin(th) * Math.sin(ph), Math.cos(th) * sy, Math.sin(th) * Math.cos(ph));
-      const d = mesh(new THREE.CircleGeometry(0.022, 10), white, n.x * (R + 0.004), -0.48 + n.y * (R + 0.004), n.z * (R + 0.004));
-      d.lookAt(d.position.clone().add(n.normalize()));
-      g.add(d);
+  bandana() { // a red pirate bandana tied snug over the head: low on the forehead, lower at the back, little white spots, knotted behind with two tails
+    const g = new THREE.Group(), red = mat(0xc8202a, { roughness: 0.85 }), white = mat(0xffffff, { roughness: 0.8 }), dark = mat(0x9a1820, { roughness: 0.85 });
+    const R = HEAD_R * 1.07, OPEN = Math.PI * 0.47, TILT = -0.3; // (tilted back: the cloth comes down to the nape)
+    const cap = new THREE.Group();
+    cap.position.y = HEAD_Y;
+    cap.rotation.x = TILT;
+    g.add(cap);
+    cap.add(mesh(new THREE.SphereGeometry(R, 32, 14, 0, Math.PI * 2, 0, OPEN), red, 0, 0, 0));
+    const hem = mesh(new THREE.TorusGeometry(R * Math.sin(OPEN), 0.03, 6, 40), dark, 0, R * Math.cos(OPEN), 0); // the folded edge
+    hem.rotation.x = Math.PI / 2;
+    cap.add(hem);
+    for (let i = 0; i < 26; i++) { // spots, lying on the cloth
+      const th = 0.18 + (i % 4) * 0.3, ph = i * 2.39;
+      if (th > OPEN - 0.1) continue;
+      const n = new THREE.Vector3(Math.sin(th) * Math.sin(ph), Math.cos(th), Math.sin(th) * Math.cos(ph));
+      const d = mesh(new THREE.CircleGeometry(0.025, 10), white, n.x * (R + 0.004), n.y * (R + 0.004), n.z * (R + 0.004));
+      d.lookAt(d.position.clone().multiplyScalar(2));
+      cap.add(d);
     }
-    g.add(mesh(new THREE.SphereGeometry(0.08, 10, 8), red, 0, -0.3, -0.5)); // the knot
+    const back = new THREE.Vector3(0, Math.cos(OPEN - 0.08), -Math.sin(OPEN - 0.08)).multiplyScalar(R + 0.02);
+    cap.add(mesh(new THREE.SphereGeometry(0.08, 10, 8), red, back.x, back.y, back.z, 1.2, 0.9, 0.8)); // the knot
     for (const s of [-1, 1]) {
-      const tail = mesh(new THREE.ConeGeometry(0.07, 0.32, 6), red, s * 0.07, -0.44, -0.54, 1, 1, 0.4);
-      tail.rotation.set(-0.3, 0, Math.PI + s * 0.35);
-      g.add(tail);
+      const tail = mesh(new THREE.ConeGeometry(0.07, 0.34, 6), red, back.x + s * 0.06, back.y - 0.17, back.z - 0.04, 1, 1, 0.35);
+      tail.rotation.set(-0.25, 0, Math.PI + s * 0.3);
+      cap.add(tail);
     }
     return g;
   },
-  captain() { // a black captain's bicorne worn side to side: gold trim, a skull badge and a white feather
-    const g = new THREE.Group(), black = mat(0x1a1a1f, { roughness: 0.7 }), gold = mat(0xe0b84a, { metalness: 0.6, roughness: 0.3 });
-    g.add(mesh(new THREE.SphereGeometry(0.43, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), black, 0, -0.1, 0, 1, 0.6, 1)); // the crown
-    for (const z of [0.1, -0.1]) { // front and back brims, standing up into a half-moon
-      const brim = mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.06, 28, 1, false, Math.PI / 2, Math.PI), black, 0, -0.08, z, 1, 1, 0.62);
-      brim.rotation.x = Math.PI / 2;
-      brim.scale.set(1, 1, 0.62);
+  captain() { // a black captain's bicorne worn side to side: front and back brims standing up on the head, leaning in, gold trim, a skull badge, a feather
+    const g = new THREE.Group(), black = mat(0x1a1a1f, { roughness: 0.7, side: THREE.DoubleSide }), gold = mat(0xe0b84a, { metalness: 0.6, roughness: 0.3 });
+    g.add(mesh(new THREE.SphereGeometry(HEAD_R * 1.06, 28, 12, 0, Math.PI * 2, 0, Math.PI * 0.4), black, 0, HEAD_Y, 0)); // the crown, snug on the head
+    for (const s of [1, -1]) { // s = 1 the front brim, -1 the back
+      const brim = new THREE.Group();
+      brim.position.set(0, -0.2, s * 0.36);
+      brim.rotation.x = -s * 0.32; // leaning in over the top
+      brim.add(mesh(new THREE.CircleGeometry(0.62, 28, 0, Math.PI), black, 0, 0, 0, 1, 0.62, 1));
+      const trim = mesh(new THREE.TorusGeometry(0.62, 0.022, 4, 28, Math.PI), gold, 0, 0, s * 0.01, 1, 0.62, 1);
+      brim.add(trim);
       g.add(brim);
-      const trim = mesh(new THREE.TorusGeometry(0.62, 0.02, 4, 28, Math.PI), gold, 0, -0.08, z + Math.sign(z) * 0.035, 1, 0.62, 1);
-      g.add(trim);
     }
+    const front = new THREE.Group(); // the badge on the front brim
+    front.position.set(0, -0.2, 0.36);
+    front.rotation.x = -0.32;
+    g.add(front);
     const bone = mat(0xf3ead6);
-    g.add(mesh(new THREE.SphereGeometry(0.07, 10, 8), bone, 0, 0.12, 0.15));
-    for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.016, 6, 4), mat(0x111111), s * 0.025, 0.125, 0.21));
-    const feather = mesh(new THREE.SphereGeometry(0.1, 10, 8), mat(0xffffff, { roughness: 0.9 }), -0.38, 0.25, -0.02, 0.4, 1.6, 0.25);
-    feather.rotation.z = 0.5;
+    front.add(mesh(new THREE.SphereGeometry(0.065, 10, 8), bone, 0, 0.2, 0.03, 1, 1, 0.5));
+    for (const s of [-1, 1]) front.add(mesh(new THREE.SphereGeometry(0.015, 6, 4), mat(0x111111), s * 0.024, 0.205, 0.06));
+    const feather = mesh(new THREE.SphereGeometry(0.1, 10, 8), mat(0xffffff, { roughness: 0.9 }), -0.42, 0.08, 0.0, 0.4, 1.6, 0.25);
+    feather.rotation.z = 0.7;
     g.add(feather);
     return g;
   },
@@ -125,15 +139,15 @@ const HAT_BUILDERS = {
     }
     return g;
   },
-  crown() {
+  crown() { // (sitting down round the top of the head, not perched above it)
     const g = new THREE.Group();
     const gold = mat(0xffcf3f, { metalness: 0.8, roughness: 0.25 });
-    g.add(mesh(new THREE.CylinderGeometry(0.36, 0.34, 0.18, 24, 1, true), gold, 0, 0.06, 0)).children.at(-1).material.side = THREE.DoubleSide;
+    g.add(mesh(new THREE.CylinderGeometry(0.36, 0.34, 0.18, 24, 1, true), gold, 0, -0.1, 0)).children.at(-1).material.side = THREE.DoubleSide;
     const gems = [0xff4d6d, 0x4dc3ff, 0x6dff8a];
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
-      g.add(mesh(new THREE.ConeGeometry(0.07, 0.2, 6), gold, Math.cos(a) * 0.34, 0.24, Math.sin(a) * 0.34));
-      g.add(mesh(new THREE.SphereGeometry(0.045, 8, 6), mat(gems[i % 3], { roughness: 0.2 }), Math.cos(a) * 0.36, 0.07, Math.sin(a) * 0.36));
+      g.add(mesh(new THREE.ConeGeometry(0.07, 0.2, 6), gold, Math.cos(a) * 0.34, 0.08, Math.sin(a) * 0.34));
+      g.add(mesh(new THREE.SphereGeometry(0.045, 8, 6), mat(gems[i % 3], { roughness: 0.2 }), Math.cos(a) * 0.36, -0.09, Math.sin(a) * 0.36));
     }
     return g;
   },
@@ -1525,14 +1539,17 @@ const FACE_BUILDERS = {
     g.add(tuft);
     return g;
   },
-  scar(_, __, cheek) { // a pink scar down over one eye, with stitches
-    const g = new THREE.Group(), pink = mat(0xc8706a, { roughness: 0.7 });
-    const x = cheek?.x ?? 0.2;
-    const line = mesh(new THREE.CapsuleGeometry(0.012, 0.3, 3, 6), pink, x * 0.9, 0.02, 0.03);
+  scar(_, __, ___, skin = 0xf0b080) { // a battle scar down over one eye, stitched, and that eye shut
+    const g = new THREE.Group(), pink = mat(0xc8706a, { roughness: 0.7 }), x = 0.17;
+    g.add(mesh(new THREE.SphereGeometry(0.105, 16, 10), mat(skin, { roughness: 0.8 }), x, 0.005, 0.0, 1.15, 1.0, 0.4)); // the eyelid, over the eye
+    const shut = mesh(new THREE.TorusGeometry(0.065, 0.011, 6, 16, Math.PI), mat(0x2a1a14), x, 0.02, 0.04);
+    shut.rotation.z = Math.PI; // a closed eye: a little curve, lashes down
+    g.add(shut);
+    const line = mesh(new THREE.CapsuleGeometry(0.013, 0.34, 3, 6), pink, x + 0.01, 0.01, 0.05);
     line.rotation.z = 0.25;
     g.add(line);
-    for (const k of [-0.1, 0, 0.1]) {
-      const st = mesh(new THREE.CapsuleGeometry(0.007, 0.06, 2, 4), pink, x * 0.9 + k * 0.25 + 0.01, 0.02 + k, 0.035);
+    for (const k of [-0.11, 0, 0.11]) {
+      const st = mesh(new THREE.CapsuleGeometry(0.007, 0.06, 2, 4), pink, x + 0.01 - k * 0.25, 0.01 + k, 0.055);
       st.rotation.z = Math.PI / 2 + 0.25;
       g.add(st);
     }
@@ -1573,8 +1590,8 @@ function onCheek(m, s, cheek, dx, dy) {
 }
 
 /** A face extra (glasses, blush...). `cheek`: the cheek spot in the face frame (views.js, from faceSpotsOf). */
-export function buildFace(id, hairColor, cheek) {
-  return FACE_BUILDERS[id]?.(null, hairColor, cheek) ?? null;
+export function buildFace(id, hairColor, cheek, skin) {
+  return FACE_BUILDERS[id]?.(null, hairColor, cheek, skin) ?? null;
 }
 
 /**

@@ -153,6 +153,26 @@ const CAPE_PART = /_Cape$/;
 export const SEASON_WEAR = { value: null };
 const COATS = [0xb8333a, 0x2f4f8a, 0x2f7a4a, 0x7a3f8a, 0xc9862e, 0x3f8a8a];
 
+/**
+ * A cape that moves: its lower part ripples in a breeze, and `uPush` (0..1) lifts it out behind,
+ * `uSide` swings it away from the weapon hand. Done in the vertex shader, in the cape's bind space
+ * (before skinning, so it still follows the body). Returns the uniforms to drive each frame.
+ */
+function windCape(material) {
+  const u = { uTime: { value: 0 }, uPush: { value: 0 }, uSide: { value: 0 } };
+  material.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = 'uniform float uTime;\nuniform float uPush;\nuniform float uSide;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      float capeK = clamp((1.15 - position.y) / 1.05, 0.0, 1.0); // 0 at the shoulders, 1 at the hem
+      float flap = sin(uTime * 3.1 + position.y * 5.0 + position.x * 2.0) * 0.05 + sin(uTime * 1.7 + position.x * 3.0) * 0.035;
+      transformed.z -= capeK * capeK * (0.05 + uPush * 0.28) + capeK * flap * (1.0 + uPush * 0.5);
+      transformed.y += capeK * capeK * uPush * 0.16;
+      transformed.x -= capeK * capeK * uSide * 0.3 + capeK * sin(uTime * 2.3 + position.y * 3.0) * 0.025;`);
+  };
+  material.customProgramCacheKey = () => 'cape-wind';
+  return u;
+}
+
 export class CharacterView {
   constructor({ cls, look, name, weapon, ench = 0, shield = null, armor = null, isLocal = false }) {
     this.root = new THREE.Group();
@@ -391,6 +411,10 @@ export class CharacterView {
     const costume = wear === 'halloween' ? this.costume : wear === 'santa' || wear === 'grandma' ? wear : null;
     if (wear === 'winter' || costume) look = { ...look, hat: 'none' }; // the bobble hat (or costume) goes on instead
     const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', bangs = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red', brows = 'soft' } = look ?? {};
+    // a hat that covers the head, over the outfit's own (big, sculpted) hair: that hair poked out through it,
+    // so it goes, and a neat tucked-in style in your hair colour shows under the brim instead
+    const covered = COVERING_HATS.has(hat) || wear === 'winter' || !!costume;
+    const hairStyle = hair === 'none' && covered && this.anchors.scalp ? 'bob' : hair;
     const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${bangs}/${hairColor}/${face}/${skin}/${tie}/${brows}/${wear}`;
     if (key === this.lookKey) return;
     this.lookKey = key;
@@ -406,15 +430,15 @@ export class CharacterView {
         o.visible = o.userData.hatShown && (!this.inBed || /_Mask$/.test(o.name)); // (off in bed: showHats)
       }
       else if (CAPE_PART.test(o.name)) {
-        o.visible = cape === 'own';
+        o.visible = cape === 'own' && back === 'none'; // (something on your back replaces the cape)
         o.userData.unsweptGeo ??= o.geometry;
         o.geometry = sweptCape(o.userData.unsweptGeo);
       }
     });
     const h = HATS[hat], c = CAPES[cape], bk = BACKS[back];
     if (h?.from) for (const part of h.parts) this.borrow(h.from, part);
-    if (h?.build) this.attach(hair !== 'none' && this.anchors.hair ? 'hair' : 'hat', buildHat(h.build)); // with a new hairstyle: on top of it
-    if (c) this.borrow(c.from, 'Cape');
+    if (h?.build) this.attach(hairStyle !== 'none' && this.anchors.hair ? 'hair' : 'hat', buildHat(h.build)); // with a new hairstyle: on top of it
+    if (c && back === 'none') this.borrow(c.from, 'Cape');
     if (bk?.from) for (const part of bk.parts) this.borrow(bk.from, part);
     if (bk?.build) this.attach('back', buildBack(bk.build));
     // mirror: hair, face and skin
@@ -425,7 +449,7 @@ export class CharacterView {
       hm.userData.baseGeo ??= hm.geometry;
       const image = (hm.userData.baseMat ?? hm.material).map?.image, outfit = hm.name.replace(/_Head$/, '');
       // a new hairstyle carves the outfit's hair away; either way its own brows go (yours are drawn instead)
-      const geo = !image ? hm.userData.baseGeo : hair !== 'none' ? hairlessHead(hm.userData.baseGeo, image, outfit) : browlessHead(hm.userData.baseGeo, image);
+      const geo = !image ? hm.userData.baseGeo : hairStyle !== 'none' ? hairlessHead(hm.userData.baseGeo, image, outfit) : browlessHead(hm.userData.baseGeo, image);
       hm.userData.baseMat ??= hm.material;
       for (const m of [hm.material].flat()) if (m !== hm.userData.baseMat) m.dispose();
       const textured = hm.userData.baseMat; // (eyes, mouth, brows: as they are)
@@ -443,13 +467,13 @@ export class CharacterView {
       }
       // (the scalp and hair anchors are measured once, in the rest pose: computeAnchors)
     }
-    if (hair !== 'none') {
+    if (hairStyle !== 'none') {
       // under a hat the hair tucks in (no crown poking through it); a closed helmet hides it all
       // (winter's bobble hat and the holiday costumes put a hat on too)
-      const hatOn = COVERING_HATS.has(hat) || wear === 'winter' || !!costume; // (a crown, ears or a party hat sit on the hair)
+      const hatOn = covered; // (a crown, ears or a party hat sit on the hair)
       const helmet = hat === 'helmet';
       if (!helmet) {
-        const style = buildHair(hair, hc, hatOn);
+        const style = buildHair(hairStyle, hc, hatOn);
         const hug = this.anchors.scalp && fitHair(style, this.cranium, this.dome, hatOn, bangs); // its round shell, remade round the skull
         this.attach(this.anchors.hair ? 'hair' : 'hat', style);
         if (hug) this.attach('scalp', hug);
@@ -460,13 +484,14 @@ export class CharacterView {
     const pair = buildBrows(hc, brows);
     if (this.anchors.brow0 && this.anchors.brow1) for (const one of [...pair.children]) { one.position.set(0, 0, 0); this.attach(one.userData.side < 0 ? 'brow0' : 'brow1', one); }
     else this.attach('face', pair);
-    if (face !== 'none') this.attach('face', buildFace(face, hc, this.faceCheek));
+    if (face !== 'none') this.attach('face', buildFace(face, hc, this.faceCheek, this.skinMat?.color.getHex())); // (skin: a scarred eye's lid)
     // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
     this.setClothes(COSTUMES[costume]?.clothes ?? CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'coat' } : undefined), TIE_COLORS[tie]?.color);
-    if (costume) this.attach('hat', buildCostumeHat(costume));
+    const hatSlot = hairStyle !== 'none' && this.anchors.hair ? 'hair' : 'hat'; // (round the skull, over the tucked hair)
+    if (costume) this.attach(hatSlot, buildCostumeHat(costume));
     else if (wear === 'winter') {
       const ww = buildWinterWear(this.coatColor === COATS[1] ? COATS[0] : COATS[(COATS.indexOf(this.coatColor) + 1) % COATS.length]);
-      this.attach('hat', ww.hat);
+      this.attach(hatSlot, ww.hat);
       this.attach('front', ww.scarf);
     }
     // dye: give cape meshes their own copy of the (shared) material, painted a flat colour
@@ -474,11 +499,13 @@ export class CharacterView {
     const tint = DYES[dye]?.color;
     const capes = [];
     this.model.traverse((o) => { if (o.isMesh && CAPE_PART.test(o.name) && o.visible) capes.push(o); });
+    this.capeWind = [];
     for (const m of capes) {
       m.userData.baseMat ??= m.material;
       if (m.material !== m.userData.baseMat) m.material.dispose();
-      m.material = tint ? m.userData.baseMat.clone() : m.userData.baseMat;
+      m.material = m.userData.baseMat.clone(); // (each cape its own: it blows in its own wind)
       if (tint) { m.material.map = null; m.material.color.set(tint); }
+      this.capeWind.push(windCape(m.material));
     }
     this.flashMats = null; // materials changed: collect them again for the low-health flash
     dropTinyShadows(this.root);
@@ -612,6 +639,7 @@ export class CharacterView {
   }
 
   play(name) {
+    this.swingAttack = name === 'attack'; // (the cape flares out of the way of attacks: update)
     if (name === 'attack') {
       const def = ITEMS[this.weaponId];
       // bows and crossbows: no clip in the rig fits, so draw, aim and loose by hand (shootPose)
@@ -652,6 +680,17 @@ export class CharacterView {
     this.time += dt;
     if (this.seasonWear() !== this.wear) this.setLook(this.look); // the season changed (or we went in/out)
     for (const b of this.borrowed) b.children[0]?.userData.update?.(this.time, this); // flapping wings, a jetpack's flames
+    // capes: always a little breeze; streaming back when running; flung back and away from the weapon when
+    // attacking, so the weapon (right hand) swings under it instead of through it
+    if (this.capeWind?.length) {
+      const attacking = (this.oneShot != null && this.swingAttack) || this.shootT != null;
+      const push = attacking ? 1 : this.base === 'run' || this.flying ? 0.45 : 0;
+      for (const u of this.capeWind) {
+        u.uTime.value = this.time;
+        u.uPush.value += (push - u.uPush.value) * Math.min(1, dt * (attacking ? 14 : 4));
+        u.uSide.value += ((attacking ? 1 : 0) - u.uSide.value) * Math.min(1, dt * (attacking ? 14 : 4));
+      }
+    }
     this.weaponFx?.update(this.time);
     if (this.target) {
       const k = smooth(dt);
