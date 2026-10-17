@@ -169,6 +169,11 @@ export const ENEMIES = {
   sunwyrm:       { hp: 2400, damage: 11, speed: 2.8, gold: [3000, 3000], ai: 'shooter', body: 'sunserpent', scale: 2.6, r: 1.3, summon: 'firebat' },
   harvestking:   { hp: 2600, damage: 11, speed: 2.8, gold: [3000, 3000], ai: 'chase', body: 'pumpkinking', scale: 2.6, summon: 'skeleton' },
   frosttitan:    { hp: 3000, damage: 12, speed: 2.4, gold: [3000, 3000], ai: 'chase', body: 'icetitan', scale: 2.6, r: 1.4, summon: 'iceslime' },
+  // the Solstice Arena's warriors (halfway through summer, shared/seasons.js ARENA_ROUNDS): scaled to the family
+  gladiator:     { hp: 40,  damage: 4, speed: 3.2, gold: [12, 18], ai: 'chase', body: 'warrior' },
+  sunarcher:     { hp: 30,  damage: 4, speed: 3.0, gold: [12, 18], ai: 'shooter', body: 'warrior' },
+  sunknight:     { hp: 75,  damage: 5, speed: 2.8, gold: [16, 24], ai: 'pounce', body: 'warrior', r: 0.8 },
+  solarchampion: { hp: 1100, damage: 9, speed: 3.0, gold: [1500, 1500], ai: 'chase', body: 'warrior', scale: 1.8, r: 0.9, summon: 'gladiator' },
 };
 export const SLIME_STATS = ENEMIES; // older name
 

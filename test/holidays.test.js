@@ -15,7 +15,8 @@ test('holidays: Halloween halfway through autumn, Christmas halfway through wint
   assert.equal(holidayOf(CHRISTMAS), 'christmas');
   assert.equal(holidayOf(HALLOWEEN + 120), 'halloween', 'next year too');
   assert.equal(holidayOf(EASTER), 'easter');
-  for (const d of [1, 14, 16, 45, HALLOWEEN - 1, HALLOWEEN + 1, CHRISTMAS + 1]) assert.equal(holidayOf(d), null, `day ${d}`);
+  assert.equal(holidayOf(SEASON_DAYS + 15), 'solstice', 'Midsummer: the Solstice Arena');
+  for (const d of [1, 14, 16, 44, 46, HALLOWEEN - 1, HALLOWEEN + 1, CHRISTMAS + 1]) assert.equal(holidayOf(d), null, `day ${d}`);
   for (const id of ['candycorn', 'toffeeapple', 'candycane']) assert.ok(ITEMS[id]?.heal && !SHOP_STOCK.includes(id), `${id}: a holiday-only treat`);
 });
 

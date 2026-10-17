@@ -936,7 +936,13 @@ export function faceSpotsOf(geo, image) {
   const spread = Math.max(...pair.map((e) => Math.abs(e.x)));
   const cx = spread * 1.3, cy = eyeY - 0.13, cz = skinZ(cx, cy);
   const yaw = Math.atan2(skinZ(cx - 0.06, cy) - skinZ(cx + 0.06, cy), 0.12); // how much the cheek turns away
-  const out = { eyes: { y: eyeY, z: eyeZ, spread }, cheeks: Number.isFinite(cz) ? { x: cx, y: cy, z: cz, yaw: Number.isFinite(yaw) ? yaw : 0.4 } : null };
+  // up and down through the right eye (where a scar runs): how far the skin there is behind the eye's front
+  const eyeLine = [];
+  for (let dy = -0.24; dy <= 0.241; dy += 0.04) {
+    const z = skinZ(spread, eyeY + dy, 0.035);
+    if (z - eyeZ > -0.25) eyeLine.push({ y: dy, z: z - eyeZ }); // (not under the chin, round the back)
+  }
+  const out = { eyes: { y: eyeY, z: eyeZ, spread }, eyeLine, cheeks: Number.isFinite(cz) ? { x: cx, y: cy, z: cz, yaw: Number.isFinite(yaw) ? yaw : 0.4 } : null };
   faceCache.set(geo, out);
   return out;
 }
@@ -1569,18 +1575,29 @@ const FACE_BUILDERS = {
     g.add(tuft);
     return g;
   },
-  scar(_, __, ___, skin = 0xf0b080) { // a battle scar down over one eye, stitched, and that eye shut
+  scar(_, __, ___, skin = 0xf0b080, eyeLine) { // a battle scar down over one eye, stitched, and that eye shut
     const g = new THREE.Group(), pink = mat(0xc8706a, { roughness: 0.7 }), x = 0.17;
     g.add(mesh(new THREE.SphereGeometry(0.105, 16, 10), mat(skin, { roughness: 0.8 }), x, 0.005, 0.0, 1.15, 1.0, 0.4)); // the eyelid, over the eye
     const shut = mesh(new THREE.TorusGeometry(0.065, 0.011, 6, 16, Math.PI), mat(0x2a1a14), x, 0.02, 0.04);
     shut.rotation.z = Math.PI; // a closed eye: a little curve, lashes down
     g.add(shut);
-    const line = mesh(new THREE.CapsuleGeometry(0.013, 0.34, 3, 6), pink, x + 0.01, 0.01, 0.05);
-    line.rotation.z = 0.25;
-    g.add(line);
+    // the line follows the face back over the brow and down the cheek (straight, its ends floated in
+    // front of the face): over the lid, then on the skin measured through the eye (faceSpotsOf)
+    const skinAt = (y) => {
+      const lid = Math.abs(y - 0.005) < 0.1 ? 0.04 * Math.sqrt(1 - ((y - 0.005) / 0.1) ** 2) : -Infinity;
+      if (!eyeLine?.length) return Math.max(lid, -1.4 * y * y); // (not measured: these heads' usual curve)
+      const near = eyeLine.reduce((a, b) => (Math.abs(b.y - y) < Math.abs(a.y - y) ? b : a));
+      return Math.max(lid, near.z);
+    };
+    const tilt = 0.25, at = (t) => new THREE.Vector3(x + 0.01 - Math.sin(tilt) * t, 0.01 + Math.cos(tilt) * t, 0);
+    const pts = [];
+    for (let t = -0.18; t <= 0.181; t += 0.03) { const p = at(t); p.z = skinAt(p.y) + 0.006; pts.push(p); }
+    const curve = new THREE.CatmullRomCurve3(pts);
+    g.add(mesh(new THREE.TubeGeometry(curve, 24, 0.013, 6), pink));
+    for (const end of [pts[0], pts.at(-1)]) g.add(mesh(new THREE.SphereGeometry(0.013, 6, 4), pink, end.x, end.y, end.z)); // rounded ends
     for (const k of [-0.11, 0, 0.11]) {
-      const st = mesh(new THREE.CapsuleGeometry(0.007, 0.06, 2, 4), pink, x + 0.01 - k * 0.25, 0.01 + k, 0.055);
-      st.rotation.z = Math.PI / 2 + 0.25;
+      const p = at(k), st = mesh(new THREE.CapsuleGeometry(0.007, 0.06, 2, 4), pink, p.x, p.y, skinAt(p.y) + 0.012);
+      st.rotation.z = Math.PI / 2 + tilt;
       g.add(st);
     }
     return g;
@@ -1619,9 +1636,9 @@ function onCheek(m, s, cheek, dx, dy) {
   return m;
 }
 
-/** A face extra (glasses, blush...). `cheek`: the cheek spot in the face frame (views.js, from faceSpotsOf). */
-export function buildFace(id, hairColor, cheek, skin) {
-  return FACE_BUILDERS[id]?.(null, hairColor, cheek, skin) ?? null;
+/** A face extra (glasses, blush...). `cheek`: the cheek spot in the face frame (views.js, from faceSpotsOf); `eyeLine`: the skin's depth up and down the right eye, same frame. */
+export function buildFace(id, hairColor, cheek, skin, eyeLine) {
+  return FACE_BUILDERS[id]?.(null, hairColor, cheek, skin, eyeLine) ?? null;
 }
 
 /**

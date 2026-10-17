@@ -865,3 +865,69 @@ export function makeCottageSeasons(x, z, r = 0.5) {
   }
   return out;
 }
+
+/**
+ * The Solstice Arena (midsummer), drawn round the Sun Herald who stands at its north gate: a sand
+ * ring `r` across, centred `dz` south of him, ringed by stone posts hung with sun banners, braziers
+ * burning at the gate and a golden sun on an arch over it. All for looks: nothing here is solid.
+ */
+export function makeSolsticeArena(dz, r) {
+  const g = new THREE.Group(), arena = new THREE.Group();
+  arena.position.z = dz;
+  g.add(arena);
+  const sand = std(0xe8cf98, { roughness: 1 }), stone = std(0xcfc4ae, { roughness: 0.9 }), gold = std(0xffc83a, { metalness: 0.7, roughness: 0.3 });
+  const sun = new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffa82a, emissiveIntensity: 0.8 });
+  const floor = mesh(arena, new THREE.CircleGeometry(r, 40), sand, 0, 0.06, 0);
+  floor.rotation.x = -Math.PI / 2;
+  floor.castShadow = false;
+  const edge = mesh(arena, new THREE.RingGeometry(r - 0.25, r + 0.15, 40), std(0xb89a62, { roughness: 1 }), 0, 0.07, 0);
+  edge.rotation.x = -Math.PI / 2;
+  const mark = mesh(arena, new THREE.RingGeometry(1.1, 1.35, 32), std(0xd8b070, { roughness: 1 }), 0, 0.075, 0); // the centre ring
+  mark.rotation.x = -Math.PI / 2;
+  const banners = [];
+  const POSTS = 14;
+  for (let i = 0; i < POSTS; i++) {
+    const a = (i / POSTS) * Math.PI * 2 + Math.PI / POSTS;
+    if (Math.abs(Math.atan2(Math.sin(a + Math.PI / 2), Math.cos(a + Math.PI / 2))) < 0.4) continue; // the gate (north, -z)
+    const x = Math.cos(a) * (r + 0.4), z = Math.sin(a) * (r + 0.4);
+    mesh(arena, new THREE.CylinderGeometry(0.16, 0.2, 1.7, 8), stone, x, 0.85, z);
+    mesh(arena, new THREE.CylinderGeometry(0.24, 0.24, 0.14, 8), stone, x, 1.75, z);
+    mesh(arena, new THREE.SphereGeometry(0.12, 8, 6), gold, x, 1.9, z);
+    if (i % 2) { // a banner hanging outwards: red with a little sun
+      const b = new THREE.Group();
+      b.position.set(x, 1.62, z);
+      b.rotation.y = -a + Math.PI / 2;
+      arena.add(b);
+      const cloth = mesh(b, new THREE.PlaneGeometry(0.5, 0.9), std(0xc8301a, { side: THREE.DoubleSide, roughness: 1 }), 0, -0.48, 0.22);
+      mesh(cloth, new THREE.CircleGeometry(0.13, 12), sun, 0, 0.08, 0.01);
+      banners.push(cloth);
+    }
+  }
+  for (const sx of [-1, 1]) { // braziers either side of the gate, and the arch over it
+    const bx = sx * 1.9, bz = -r - 0.3;
+    mesh(arena, new THREE.CylinderGeometry(0.08, 0.12, 1.0, 6), std(0x3a3a42, { metalness: 0.6 }), bx, 0.5, bz);
+    mesh(arena, new THREE.CylinderGeometry(0.35, 0.2, 0.3, 10), std(0x3a3a42, { metalness: 0.6 }), bx, 1.1, bz);
+    mesh(arena, new THREE.CylinderGeometry(0.22, 0.24, 2.9, 8), stone, sx * 1.4, 1.45, -r - 0.9);
+  }
+  mesh(arena, new THREE.BoxGeometry(3.5, 0.4, 0.5), stone, 0, 3.05, -r - 0.9);
+  const disc = new THREE.Group();
+  disc.position.set(0, 3.75, -r - 0.9);
+  arena.add(disc);
+  mesh(disc, new THREE.CircleGeometry(0.55, 24), sun, 0, 0, 0.01);
+  mesh(disc, new THREE.CircleGeometry(0.55, 24), sun, 0, 0, -0.01).rotation.y = Math.PI;
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; mesh(disc, new THREE.ConeGeometry(0.09, 0.32, 4), sun, Math.cos(a) * 0.72, Math.sin(a) * 0.72, 0).rotation.z = a - Math.PI / 2; }
+  const fires = [];
+  for (const sx of [-1, 1]) {
+    const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xff8a2a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    f.position.set(sx * 1.9, 1.55, -r - 0.3);
+    f.scale.setScalar(1.1);
+    arena.add(f);
+    fires.push(f);
+  }
+  g.userData.update = (t) => {
+    disc.rotation.z = t * 0.3;
+    fires.forEach((f, i) => f.scale.set(0.9 + Math.sin(t * 11 + i) * 0.15, 1.2 + Math.sin(t * 8 + i * 2) * 0.25, 1));
+    banners.forEach((b, i) => { b.rotation.x = Math.sin(t * 2.2 + i) * 0.12; });
+  };
+  return g;
+}

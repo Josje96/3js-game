@@ -14,7 +14,8 @@ import { dropTinyShadows } from './merge.js';
 import { enchantWeapon } from './enchant.js';
 import { spellbookFx } from './spellbook.js';
 import { glowTexture } from './effects.js';
-import { makeChristmasCorner, makeEasterCorner } from './town.js';
+import { SOLSTICE_ARENA } from '../shared/seasons.js';
+import { makeChristmasCorner, makeEasterCorner, makeSolsticeArena } from './town.js';
 
 // sitting on a chair: how far the body drops and leans back, and how the legs and arms bend (radians)
 const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM = 0.5;
@@ -324,6 +325,7 @@ export class CharacterView {
         out.face = anchor('head', new THREE.Vector3(0, spots.eyes.y, spots.eyes.z).applyMatrix4(head.matrixWorld), W, head.getWorldQuaternion(new THREE.Quaternion()));
         const c = spots.cheeks;
         this.faceCheek = c && { x: c.x / W, y: (c.y - spots.eyes.y) / W, z: (c.z - spots.eyes.z) / W, yaw: c.yaw };
+        this.faceEyeLine = spots.eyeLine.map((e) => ({ y: e.y / W, z: e.z / W }));
       }
       // the eyebrows: each exactly where the outfit's own was, lying along the face the same way and
       // as long (cosmetics.js browsOf) — one shared spot for the pair floated off the sides of rounder faces
@@ -484,7 +486,7 @@ export class CharacterView {
     const pair = buildBrows(hc, brows);
     if (this.anchors.brow0 && this.anchors.brow1) for (const one of [...pair.children]) { one.position.set(0, 0, 0); this.attach(one.userData.side < 0 ? 'brow0' : 'brow1', one); }
     else this.attach('face', pair);
-    if (face !== 'none') this.attach('face', buildFace(face, hc, this.faceCheek, this.skinMat?.color.getHex())); // (skin: a scarred eye's lid)
+    if (face !== 'none') this.attach('face', buildFace(face, hc, this.faceCheek, this.skinMat?.color.getHex(), this.faceEyeLine)); // (skin: a scarred eye's lid)
     // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
     this.setClothes(COSTUMES[costume]?.clothes ?? CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'coat' } : undefined), TIE_COLORS[tie]?.color);
     const hatSlot = hairStyle !== 'none' && this.anchors.hair ? 'hair' : 'hat'; // (round the skull, over the tucked hair)
@@ -1323,7 +1325,8 @@ export class NpcView {
     this.ch.forceWear = e.wear ?? null;
     this.ch.setLook(e.look);
     this.root.add(this.ch.root);
-    this.decor = e.decor === 'christmas' ? makeChristmasCorner() : e.decor === 'easter' ? makeEasterCorner() : null;
+    this.decor = e.decor === 'christmas' ? makeChristmasCorner() : e.decor === 'easter' ? makeEasterCorner()
+      : e.decor === 'solstice' ? makeSolsticeArena(SOLSTICE_ARENA.z - e.z, SOLSTICE_ARENA.r) : null;
     if (this.decor) this.root.add(this.decor);
     this.time = 0;
   }

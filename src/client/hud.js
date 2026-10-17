@@ -22,7 +22,7 @@ function seasonLine(day) {
 /** "12 days until Summer" (small print under the calendar) */
 function nextSeasonLine(day) {
   const h = holidayOf(day);
-  if (h) return { easter: '🐣 Happy Easter!', halloween: '🎃 Happy Halloween!', christmas: '🎄 Merry Christmas!' }[h];
+  if (h) return { easter: '🐣 Happy Easter!', solstice: '☀️ Midsummer: the Solstice Arena!', halloween: '🎃 Happy Halloween!', christmas: '🎄 Merry Christmas!' }[h];
   const n = daysToNextSeason(day);
   const next = SEASONS[(SEASONS.indexOf(seasonOf(day)) + 1) % SEASONS.length];
   return n === 1 ? `${next.icon} ${next.name} starts tomorrow!` : `${n} days until ${next.name}`;

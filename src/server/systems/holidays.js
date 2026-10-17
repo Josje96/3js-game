@@ -39,6 +39,7 @@ const HELLO = {
   easter: '🐣 Happy Easter! Grandma is in the town square with an Easter basket for everyone (today only)!',
   halloween: '🎃 Happy Halloween! Everyone’s in costume — knock on the cottage doors in town to trick-or-treat!',
   christmas: '🎄 Merry Christmas! Santa is in the town square with a present for everyone (today only)!',
+  solstice: '☀️ Happy Midsummer! The Solstice Arena is open south-east of the market: beat three rounds of warriors to win the Solar Blade (today only)!',
 };
 
 export const interactions = {

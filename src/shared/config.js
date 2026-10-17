@@ -37,7 +37,7 @@ export const FEAST_COST = 10;        // gold for food at the fort's feast table 
 export const AUTOSAVE_SECONDS = 30;
 
 export const SAVE_VERSION = 13;
-export const PROTOCOL_VERSION = 46;
+export const PROTOCOL_VERSION = 47;
 export const PEER_PREFIX = 'famdungeon-v1-'; // PeerJS ids are global; namespace ours
 
 export const CLASSES = {

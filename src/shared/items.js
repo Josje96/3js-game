@@ -68,6 +68,8 @@ export const ITEMS = {
   emberstaff:   { name: 'Ember Staff',      kind: 'weapon', damage: 45, epic: true, sell: 30000, model: 'items/staff', swing: 'cast', ranged: 'magic', tint: 0xff6a2a },
   frostfang:    { name: 'Frostfang',        kind: 'weapon', damage: 36, epic: true, sell: 28000, model: 'items/dagger', swing: 'stab', tint: 0xbfeaff },
   glacierplate: { name: 'Glacier Plate',    kind: 'armor', armor: 0.56, epic: true, sell: 32000, color: 0xcfeeff, model: 'dungeon/trunk_small_C' },
+  // won in the Solstice Arena (all three rounds, halfway through summer)
+  solarblade:   { name: 'Solar Blade',      kind: 'weapon', damage: 48, epic: true, sell: 32000, model: 'items/sword_2handed_color', swing: 'slash', tint: 0xffc83a },
 
   // --- shields (left hand): a chance to block a hit completely ---
   woodshield:   { name: 'Wooden Shield',  kind: 'shield', block: 0.15, price: 110,   tier: 0, model: 'items/shield_round' },

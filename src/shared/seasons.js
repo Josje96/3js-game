@@ -44,13 +44,14 @@ export function daysToNextSeason(day) {
 
 /**
  * Holidays, one day each: Easter halfway through spring (Grandma brings everyone an Easter basket),
+ * the Summer Solstice halfway through summer (the Solstice Arena: three rounds of warriors, the Solar Blade),
  * Halloween halfway through autumn (costumes, pumpkins, trick-or-treat at the cottages) and
  * Christmas halfway through winter (Santa in the square, lights on the trees).
  */
 export const HOLIDAY_DAY = 15;
 export function holidayOf(day) {
   if (dayOfSeason(day) !== HOLIDAY_DAY) return null;
-  return { spring: 'easter', autumn: 'halloween', winter: 'christmas' }[seasonOf(day).id] ?? null;
+  return { spring: 'easter', summer: 'solstice', autumn: 'halloween', winter: 'christmas' }[seasonOf(day).id] ?? null;
 }
 /** Some spring days it rains (the same days for everyone: worked out from the day number). */
 export function isRainyDay(day) {
@@ -72,3 +73,17 @@ export function seasonBossDepth(maxLevel) {
 
 /** Where the boss stands in town (the open grass south-east of the market) and how far it roams. */
 export const SEASON_ARENA = { x: 110, z: 74, r: 9 };
+
+/**
+ * The Solstice Arena (halfway through summer): a sand ring on the grass south-east of the market, the
+ * Sun Herald at its north gate. Talk to the herald to start the next round; each is harder (`power`
+ * times the family's best level, as a dungeon depth). Win all three and every fighter gets the Solar Blade.
+ */
+export const SOLSTICE_ARENA = { x: 111, z: 75, r: 7.5 };
+export const SOLSTICE_HERALD = { x: 111, z: 66 };
+export const ARENA_ROUNDS = [
+  { name: 'the Bronze Gladiators', foes: { gladiator: 3 }, power: 1.2 },
+  { name: 'the Sun Guard', foes: { gladiator: 2, sunarcher: 2, sunknight: 1 }, power: 1.6 },
+  { name: 'the Solar Champion', foes: { solarchampion: 1, sunknight: 2 }, power: 2.0 },
+];
+export const ARENA_PRIZE = 'solarblade';
