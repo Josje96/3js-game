@@ -1339,9 +1339,135 @@ export class NpcView {
   dispose() { this.root.removeFromParent(); }
 }
 
+/**
+ * The Solstice Arena's warriors: built like the family (the same characters, so the same size and shape,
+ * running and swinging the same way) in armour: `cls` the body, `tint` gilds the outfit's own armour,
+ * `armor` [colour, tier] the chest plate and pauldrons, `helmet` a hand-made one, `halo` a burning ring.
+ */
+const WARRIORS = {
+  gladiator:     { cls: 'Barbarian', weapon: 'sword', shield: 'woodshield', armor: [0xc88a3a, 1], helmet: 'gladiator', look: { hat: 'none', cape: 'none' } },
+  sunarcher:     { cls: 'Ranger', weapon: 'longbow', armor: [0xe8c45a, 1], look: { hat: 'own', cape: 'own', dye: 'sunny' } },
+  sunknight:     { cls: 'Knight', weapon: 'royalsword', shield: 'royalshield', armor: [0xf6e2a0, 2], tint: 0xffe8a8, glow: 0x2a1a00, look: { hat: 'own', cape: 'own', dye: 'sunny' } },
+  solarchampion: { cls: 'Knight', weapon: 'greatsword', armor: [0xffc83a, 3], tint: 0xffd870, glow: 0x6a3800, halo: true, look: { hat: 'own', cape: 'own', dye: 'ruby' } },
+};
+const ARMOUR_PART = /_(Helmet|HelmetVisor|Body|ArmLeft|ArmRight|LegLeft|LegRight)$/;
+
+/** A bronze gladiator's helmet with a red crest front to back (hat frame: head 1 wide, y 0 on top). */
+function gladiatorHelmet() {
+  const g = new THREE.Group(), bronze = new THREE.MeshStandardMaterial({ color: 0xc88a3a, metalness: 0.7, roughness: 0.3 }), red = new THREE.MeshStandardMaterial({ color: 0xc8202a, roughness: 0.8 });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.58, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.48), bronze);
+  dome.position.y = -0.48; // (its top just over the top of the head)
+  g.add(dome);
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.06), bronze); // the nose guard
+  guard.position.set(0, -0.58, 0.56);
+  g.add(guard);
+  for (let i = 0; i < 9; i++) { // the crest, a fan of red bristles over the top
+    const a = -1.0 + i * 0.25, b = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.09), red);
+    b.position.set(0, -0.48 + Math.cos(a) * 0.64, Math.sin(a) * 0.64);
+    b.rotation.x = a;
+    g.add(b);
+  }
+  return g;
+}
+
+/** A ring of fire floating behind the Solar Champion's head, turning slowly. */
+function sunHalo() {
+  const g = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.04, 8, 32), new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xff8a1a, emissiveIntensity: 1.2 }));
+  g.add(ring);
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2, ray = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.18, 6), new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xff7a1a, emissiveIntensity: 1 }));
+    ray.position.set(Math.cos(a) * 0.62, Math.sin(a) * 0.62, 0);
+    ray.rotation.z = a - Math.PI / 2;
+    g.add(ray);
+  }
+  g.position.set(0, -0.45, -0.6);
+  g.userData.update = (t) => { g.rotation.z = t * 0.6; };
+  return g;
+}
+
+export class WarriorView {
+  constructor(e) {
+    const W = WARRIORS[e.variant];
+    this.root = new THREE.Group();
+    this.ch = new CharacterView({ cls: W.cls, look: W.look, name: null, weapon: W.weapon, shield: W.shield ?? null });
+    this.ch.noSeasonWear = true; // (no bobble hats in the arena)
+    this.ch.setLook(W.look);
+    if (W.tint) { // gild the outfit's own armour
+      this.ch.model.traverse((o) => {
+        if (!o.isMesh || !ARMOUR_PART.test(o.name)) return;
+        const list = Array.isArray(o.material), tint = new THREE.Color(W.tint);
+        const mats = [o.material].flat().map((m, i) => { // (skin, first in a list, stays skin)
+          const c = m.clone();
+          if (!list || i > 0) { c.color.multiply(tint).multiplyScalar(1.25); c.metalness = Math.min(c.metalness ?? 0, 0.25); if (W.glow) c.emissive?.setHex(W.glow); }
+          return c;
+        });
+        o.material = list ? mats : mats[0];
+      });
+    }
+    const parts = buildArmor(W.armor[0], W.armor[1]);
+    this.ch.attach('front', parts.chest);
+    this.ch.attach('shoulderl', parts.left);
+    this.ch.attach('shoulderr', parts.right);
+    if (W.helmet === 'gladiator') this.ch.attach('hat', gladiatorHelmet());
+    if (W.halo) this.ch.attach('hat', sunHalo());
+    this.ch.flashMats = null;
+    this.root.add(this.ch.root);
+    const s = e.scale ?? 1;
+    this.ch.root.scale.setScalar(s);
+    this.hpBar = makeHpBar(e.boss ? 3 : 1.2);
+    this.hpBar.group.position.y = 2.6 * s + 0.3;
+    this.hpBar.group.visible = !!e.boss;
+    this.root.add(this.hpBar.group);
+    if (e.boss || e.name) {
+      const label = makeLabel(e.name ?? '', '#ffd23f');
+      label.position.y = this.hpBar.group.position.y + 0.6;
+      if (e.name) this.root.add(label);
+    }
+    this.maxHp = e.maxHp;
+    this.flash = 0;
+    this.still = 0;
+    this.swingCd = Math.random() * 0.6;
+    this.root.position.set(e.x, 0, e.z);
+    this.apply(e);
+  }
+
+  apply(e) {
+    this.target = { x: e.x ?? this.target?.x, z: e.z ?? this.target?.z, rot: e.rot ?? this.target?.rot ?? 0 };
+    if ('anim' in e) this.anim = e.anim;
+    if (e.hp != null && e.hp < this.maxHp) {
+      this.hpBar.group.visible = true;
+      this.hpBar.set(e.hp / this.maxHp);
+    }
+  }
+
+  hit() { this.flash = 0.15; }
+
+  update(dt) {
+    const p = this.root.position, k = smooth(dt, 14);
+    const moving = Math.hypot(this.target.x - p.x, this.target.z - p.z) > 0.03;
+    p.x += (this.target.x - p.x) * k;
+    p.z += (this.target.z - p.z) * k;
+    this.root.rotation.y = lerpAngle(this.root.rotation.y, this.target.rot, k);
+    // run when moving; stopped next to someone, they're fighting: a swing (or a bow shot) now and then
+    this.still = moving ? 0 : this.still + dt;
+    this.swingCd -= dt;
+    if (this.anim === 'leap' && !this.leapt) { this.leapt = true; this.ch.play('attack'); } // a sun knight's pounce
+    if (this.anim !== 'leap') this.leapt = false;
+    if (!moving && this.still > 0.3 && this.swingCd <= 0) { this.ch.play('attack'); this.swingCd = 1.1 + Math.random() * 0.4; }
+    this.ch.setBase(moving || this.anim === 'leap' ? 'run' : 'idle');
+    this.ch.update(dt);
+    this.flash = Math.max(0, this.flash - dt);
+    const glow = this.flash > 0 ? 1 : 0;
+    if (glow !== this.glow) { this.glow = glow; for (const m of this.ch.materials()) m.emissive.setScalar(glow); }
+  }
+
+  dispose() { this.root.removeFromParent(); }
+}
+
 export function makeEntityView(e) {
   switch (e.type) {
-    case 'slime': return hasMobBody(e.variant) ? new MobView(e, makeLabel) : new SlimeView(e);
+    case 'slime': return WARRIORS[e.variant] ? new WarriorView(e) : hasMobBody(e.variant) ? new MobView(e, makeLabel) : new SlimeView(e);
     case 'rock': return new RockView(e);
     case 'drop': return new DropView(e);
     case 'chest': return new ChestView(e);
