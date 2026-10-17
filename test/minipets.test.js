@@ -15,6 +15,7 @@ test('mini bosses: one for every dungeon and seasonal boss, each unlocked by bea
 
 test('mini bosses: locked until the family beats the boss, then anyone can adopt one', () => {
   const { server, save, p, c } = world('mini', 'kid');
+  save.day = 2; // (not a sale day: full prices)
   server.travel(p.kid, 'town');
   p.kid.gold = 10000;
   c.kid.say({ t: 'buyPet', species: 'mini_king', name: 'Kingy' });

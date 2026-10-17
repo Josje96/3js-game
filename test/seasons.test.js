@@ -5,6 +5,7 @@ import { world } from './helpers.js';
 import { SEASONS, SEASON_DAYS, SEASON_ARENA, seasonOf, dayOfSeason, isBossDay } from '../src/shared/seasons.js';
 import { ENEMIES } from '../src/shared/dungeons.js';
 import { ITEMS, SHOP_STOCK, DROP_TIERS } from '../src/shared/items.js';
+import { HATS } from '../src/shared/config.js';
 
 test('calendar: 120-day years of four 30-day seasons, "Year 2 · Day 86"', async () => {
   const { calendar, dateLabel, YEAR_DAYS, CALENDAR_NAME } = await import('../src/shared/seasons.js');
@@ -109,6 +110,8 @@ test('seasonal trader: only this season’s things, a different set every 6 days
   assert.equal(seasonalSet(31).season, 'summer');
 
   const { server, save, p, c } = world('trader', 'mom');
+
+  save.day = 2; // (not a sale day: full prices)
   server.travel(p.mom, 'town');
   const stall = server.getLocation('town').layout.props.find((q) => q.interact === 'seasonal');
   p.mom.x = stall.x; p.mom.z = stall.z + 3;
@@ -172,4 +175,22 @@ test('seasons: the boss fights back — hits don\'t freeze it, and it slams the 
   p.mom.x = boss.x + 9; p.mom.z = boss.z;
   server.step(0.05);
   assert.ok(boss._charge > 0, 'charges at someone keeping their distance');
+});
+
+test('season sale: the first day of every season, everything in the town’s shops is half price', async () => {
+  const { isSaleDay, salePrice } = await import('../src/shared/seasons.js');
+  assert.deepEqual([1, 2, 30, 31, 61, 91, 121].map(isSaleDay), [true, false, false, true, true, true, true]);
+  assert.equal(salePrice(100, 31), 50);
+  assert.equal(salePrice(101, 31), 51, 'rounded up');
+  assert.equal(salePrice(100, 32), 100);
+  const { server, save, p } = world('sale', 'mom');
+  server.travel(p.mom, 'town');
+  const [style, def] = Object.entries(HATS).find(([, d]) => d.price && !d.seasonal);
+  for (const [day, paid] of [[31, Math.ceil(def.price / 2)], [32, def.price]]) {
+    save.day = day;
+    p.mom.closet = [];
+    p.mom.gold = 10000;
+    server.on_buyStyle(p.mom, { slot: 'hat', id: style });
+    assert.equal(10000 - p.mom.gold, paid, `day ${day}: ${paid} gold`);
+  }
 });

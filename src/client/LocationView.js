@@ -18,7 +18,7 @@ import { THEMES } from './themes.js';
 import { mergeStatic, dropTinyShadows } from './merge.js';
 import { buildTownFun, FLAG_SEASONS } from './townfun.js';
 import { makeWasteland } from './wasteland.js';
-import { seasonOf, holidayOf, isRainyDay } from '../shared/seasons.js';
+import { seasonOf, holidayOf, isRainyDay, isSaleDay } from '../shared/seasons.js';
 import { SeasonParticles, SpringBirds, easeSeasonLook, SEASON_LOOK, WINTER, snowOnTops } from './seasonfx.js';
 
 /** Wooden signpost for the healing spring. */
@@ -118,6 +118,8 @@ function makeWardrobe() {
 const N = [0, -1], E = [1, 0], S = [0, 1], W = [-1, 0];
 // wall rotation so its front faces into the walkable cell
 const EDGE_ROT = new Map([[N, 0], [S, Math.PI], [W, Math.PI / 2], [E, -Math.PI / 2]]);
+
+const SALE_SHOUTS = ['🎉 Half price today!', 'Everything ½ off!', '🛍️ Season sale!', 'Bargains! ½ price!', '✨ 50% off today!'];
 
 export class LocationView {
   constructor(layout, world) {
@@ -607,6 +609,16 @@ export class LocationView {
         npc.root.position.set(p.x, 0, p.z);
         npc.root.rotation.y = folk ? this.rand(Math.round(p.x), Math.round(p.z), 'face') * 1.2 - 0.6 : p.rot;
         this.animated.push(npc);
+        if (p.npc && !folk) { // a shopkeeper: on the first day of a season, shouting about the sale
+          const shout = makeLabel(SALE_SHOUTS[(this.saleShouts = (this.saleShouts ?? 0) + 1) % SALE_SHOUTS.length], '#ffe14a');
+          shout.position.y = 3.7;
+          npc.root.add(shout);
+          const bob = this.saleShouts * 1.7;
+          this.animated.push({ update: () => {
+            shout.visible = isSaleDay(this.world?.day ?? 0);
+            if (shout.visible) { const t = this.uTime.value + bob; shout.position.y = 3.7 + Math.abs(Math.sin(t * 2.2)) * 0.18; shout.scale.set(3 + Math.sin(t * 4.4) * 0.08, 0.75, 1); }
+          } });
+        }
         obj = npc.root;
       } else if (p.build === 'lamp') {
         obj = this.still(makeLampPost(lamps++ < 6));

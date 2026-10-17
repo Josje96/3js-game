@@ -84,6 +84,7 @@ test('town: the practice slime never hurts you, stays in its yard, and comes bac
 
 test('town: the Decorator opens after the King Slime; furniture is bought, placed and picked up', () => {
   const { server, save, p, c } = world('decor', 'mom', 'kid');
+  save.day = 2; // (not a sale day: full prices)
   server.travel(p.mom, 'town');
   const deco = propOf(server, 'decorator');
   standBy(p.mom, deco);
@@ -132,6 +133,7 @@ test('town: the Decorator opens after the King Slime; furniture is bought, place
 
 test('decor: everyone has their own room — its owner styles it and nobody else furnishes it', () => {
   const { server, save, c, p } = world('rooms', 'mom', 'kid');
+  save.day = 2; // (not a sale day: full prices)
   server.travel(p.mom, 'house');
   server.travel(p.kid, 'house');
   assert.equal(save.house.beds.mom, 0, 'mom claimed the first room');

@@ -13,7 +13,8 @@ function atForge(server, p) {
 }
 
 test('economy: everyone has their own gold', () => {
-  const { server, p, c } = world('gold', 'mom', 'kid');
+  const { server, p, c, save } = world('gold', 'mom', 'kid');
+  save.day = 2; // (not a sale day: full prices)
   for (const x of Object.values(p)) server.travel(x, 'town');
   p.mom.gold = 500; p.kid.gold = 0;
   c.kid.say({ t: 'buy', item: 'potion' });

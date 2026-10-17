@@ -435,6 +435,7 @@ test('server: XP levels you up, skill points raise stats, found weapons go in th
 
 test('server: blueprints from chests teach recipes; the forge turns ore into weapons', () => {
   const server = new GameServer({ save: newSave({ name: 't', seed: 'forge' }), log: () => {} });
+  server.save.day = 2; // (not a sale day: full prices)
   const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
   const p = server.players.get('a');
   server.travel(p, dungeonKey('mine', 1), 'U');
@@ -459,6 +460,7 @@ test('server: blueprints from chests teach recipes; the forge turns ore into wea
 
 test('server: the deep ores forge into the late gear', () => {
   const server = new GameServer({ save: newSave({ name: 't', seed: 'deepforge' }), log: () => {} });
+  server.save.day = 2; // (not a sale day: full prices)
   const c = fakeClient(server, { playerId: 'a', name: 'A', cls: 'Knight' });
   const p = server.players.get('a');
   for (const recipe of ['mythrilbrand', 'starcleaver']) {

@@ -4,6 +4,7 @@ import { ITEMS } from '../../shared/items.js';
 import { FURNITURE } from '../../shared/furniture.js';
 import { CLOTHES } from '../../shared/config.js';
 import { seasonalSet, seasonalPrice } from '../../shared/seasonal.js';
+import { salePrice } from '../../shared/seasons.js';
 
 export const interactions = {
   seasonal(p) {
@@ -21,7 +22,7 @@ export const methods = {
     const def = on.kind === 'item' ? ITEMS[item] : on.kind === 'clothes' ? CLOTHES[item] : FURNITURE[item];
     if (!def) return;
     if (on.kind === 'clothes' && p.closet.includes(`clothes:${item}`)) return this.toast(p, 'You already have that outfit — it’s in your wardrobe.');
-    if (!this.spend(p, seasonalPrice(def), def.name)) return;
+    if (!this.spend(p, salePrice(seasonalPrice(def), this.save.day), def.name)) return;
     if (on.kind === 'clothes') {
       p.closet.push(`clothes:${item}`);
       this.toast(p, `Bought ${def.name}! Try it on at the wardrobe at home.`);

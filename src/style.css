@@ -318,3 +318,6 @@ h1, h2, h3, .loc, .night-day, .xp-level, .title-logo { font-family: 'MedievalSha
 .hud-cinema .bar.bottom small { opacity: 0.55; font-size: 12px; }
 .hud-cinema.on .bar { height: 13vh; }
 .hud-cinema.on ~ * { opacity: 0; transition: opacity 0.4s; } /* (the rest of the HUD hides for the film) */
+
+/* the first day of a season: the old price struck through, the sale price after it */
+.gold s.was { opacity: 0.55; font-weight: normal; margin-right: 0.2em; }

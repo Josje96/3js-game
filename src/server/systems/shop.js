@@ -4,6 +4,7 @@
 import { STYLE_SLOTS, ownsStyle, INTERACT_RANGE } from '../../shared/config.js';
 import { dist2 } from '../../shared/physics.js';
 import { ITEMS, SHOP_STOCK, PET_SHOP_STOCK, FORGE_RECIPES, inShopFor, shopTier, sellValue, isGear, SMELT, SMELT_ORE } from '../../shared/items.js';
+import { salePrice } from '../../shared/seasons.js';
 
 export const interactions = {
   shop(p) { this.send(p, { t: 'ui', kind: 'shop' }); },
@@ -23,7 +24,7 @@ export const methods = {
     const gear = isGear(item);
     if (gear && !this.atForge(p)) return this.toast(p, 'Weapons and armor are sold by the Blacksmith, at the forge.');
     if (gear && p.gear.includes(item)) return this.toast(p, 'You already have that one. Press C to equip it.');
-    if (!this.spend(p, def.price, def.name)) return;
+    if (!this.spend(p, salePrice(def.price, this.save.day), def.name)) return;
     if (gear) {
       p.gear.push(item);
       p[def.kind] = item; // just bought it: put it on (weapon / shield / armor slot)
@@ -38,7 +39,7 @@ export const methods = {
   on_buyStyle(p, { slot, id }) {
     const def = STYLE_SLOTS[slot]?.[id];
     if (!def?.price || def.seasonal || ownsStyle(p.closet, slot, id) || p.loc !== 'town') return;
-    if (!this.spend(p, def.price, def.name)) return;
+    if (!this.spend(p, salePrice(def.price, this.save.day), def.name)) return;
     p.closet.push(`${slot}:${id}`);
     this.toast(p, `Bought ${def.name}! Try it on at the wardrobe at home.`);
     this.writeRecord(p);
@@ -53,7 +54,7 @@ export const methods = {
     for (const [item, n] of Object.entries(r.needs)) {
       if ((p.inventory[item] ?? 0) < n) return this.toast(p, `You need ${n} ${ITEMS[item].name}.`);
     }
-    if (!this.spend(p, r.gold, ITEMS[recipe].name)) return;
+    if (!this.spend(p, salePrice(r.gold, this.save.day), ITEMS[recipe].name)) return;
     for (const [item, n] of Object.entries(r.needs)) {
       p.inventory[item] -= n;
       if (!p.inventory[item]) delete p.inventory[item];

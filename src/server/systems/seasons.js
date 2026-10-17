@@ -5,7 +5,7 @@
 import { ENEMIES, makeEnemy } from '../../shared/dungeons.js';
 import { ITEMS } from '../../shared/items.js';
 import { XP } from '../../shared/progression.js';
-import { seasonOf, isBossDay, seasonBossDepth, SEASON_ARENA } from '../../shared/seasons.js';
+import { seasonOf, isBossDay, isSaleDay, seasonBossDepth, SEASON_ARENA } from '../../shared/seasons.js';
 
 const BEATEN = 'seasonBossBeaten'; // save.flags: the day the family last beat a seasonal boss
 const FIGHT_RANGE = SEASON_ARENA.r + 14; // who counts as having fought it (gets a piece of loot)
@@ -27,10 +27,12 @@ export function tick() {
     const s = seasonOf(this.save.day);
     this.broadcast({ t: 'toast', big: true, text: `${s.icon} ${s.name} is here! ${s.bossName} has come to Pebble Town — for today only. It’s very tough: bring the whole family!` });
   }
+  if (fresh && isSaleDay(this.save.day)) this.broadcast({ t: 'toast', big: true, text: `🛍️ First day of ${seasonOf(this.save.day).name}: everything in the town’s shops is HALF PRICE today!` });
 }
 
 /** Joining on the boss's day: tell them. */
 export function onJoin(p) {
+  if (isSaleDay(this.save.day)) this.toast(p, `🛍️ It’s the first day of ${seasonOf(this.save.day).name}: everything in the town’s shops is half price today!`);
   if (!this.seasonBossToday()) return;
   const s = seasonOf(this.save.day);
   this.toast(p, `${s.icon} ${s.bossName} is in town today only (south-east of the market)!`);

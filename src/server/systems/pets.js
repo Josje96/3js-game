@@ -1,6 +1,7 @@
 // pets — part of the GameServer (see systems/index.js). Methods run with `this` = the GameServer.
 import { ITEMS, bestHeal } from '../../shared/items.js';
 import { PET_SPECIES, PET_MAX_LEVEL, TRAIN_TO, TRAIN_COST, TIER_LOOKS, petStage, petTier, petFormName, petXpToNext, petMaxHp, reviveCost, newPet, cleanPetName } from '../../shared/pets.js';
+import { salePrice } from '../../shared/seasons.js';
 
 export const interactions = {
   pets(p) { this.send(p, { t: 'ui', kind: 'pets' }); },
@@ -32,7 +33,7 @@ export const methods = {
     if (!def) return;
     if (def.unlock && !this.save.flags[def.unlock]) return this.toast(p, `Beat ${def.unlockBy} first — then a little one will want to come home with you!`);
     if (p.pets.some((x) => x.species === species)) return this.toast(p, `You already have a ${def.name.toLowerCase()}!`);
-    if (!this.spend(p, def.price, `a ${def.name.toLowerCase()}`)) return;
+    if (!this.spend(p, salePrice(def.price, this.save.day), `a ${def.name.toLowerCase()}`)) return;
     const pet = newPet(species, name);
     p.pets.push(pet);
     p.pet = pet.id;

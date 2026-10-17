@@ -61,6 +61,11 @@ export function isRainyDay(day) {
 /** Where Santa (Christmas) and Grandma (Easter) stand: in the town square, east of the fountain. */
 export const SANTA_SPOT = { x: 84, z: 62 };
 
+/** The first day of every season is a sale: everything in the town's shops is half price (the shopkeepers shout it). */
+export const SALE_OFF = 0.5;
+export const isSaleDay = (day) => dayOfSeason(day) === 1;
+export const salePrice = (price, day) => (isSaleDay(day) ? Math.ceil(price * (1 - SALE_OFF)) : price);
+
 /** The seasonal boss is in town on the first day of every season. */
 export function isBossDay(day) {
   return dayOfSeason(day) === 1;

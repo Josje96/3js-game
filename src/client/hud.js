@@ -6,7 +6,7 @@ import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost, TRAIN_TO, TRAIN_COST } from '../shared/pets.js';
-import { seasonOf, holidayOf, dayOfSeason, daysToNextSeason, SEASONS, isBossDay, calendar, dateLabel, CALENDAR_NAME } from '../shared/seasons.js';
+import { seasonOf, holidayOf, dayOfSeason, daysToNextSeason, SEASONS, isBossDay, calendar, dateLabel, CALENDAR_NAME, salePrice, isSaleDay } from '../shared/seasons.js';
 import { ENCHANT_LOOKS, enchantCost, enchantedName, enchantDamage } from '../shared/enchant.js';
 import { seasonalPrice } from '../shared/seasonal.js';
 
@@ -118,6 +118,10 @@ export class Hud {
 
   setSelf(self) { this.self = self; this.luckEnd = self.luck ? performance.now() / 1000 + self.luck : 0; this.renderStatus(); this.renderInv(); this.refreshModal?.(); }
   setWorld(world) { this.world = world; this.renderStatus(); this.refreshModal?.(); }
+  /** The first day of a season is half price in every shop (shared/seasons.js salePrice). */
+  onSale() { return isSaleDay(this.world?.day ?? 0); }
+  sale(price) { return salePrice(price, this.world?.day ?? 0); }
+  priceTag(price) { return this.onSale() ? `<s class="was">${price}</s> ${this.sale(price)}` : `${price}`; }
   setLocation(title) { this.locTitle = title; this.renderStatus(); }
 
   renderStatus() {
@@ -529,9 +533,9 @@ export class Hud {
           }
           const owned = isGear(id) && (this.self?.gear ?? []).includes(id);
           const locked = it.tier > tier;
-          const row = el('button', `shop-row${locked ? ' locked' : ''}`, `<span>${iconImg(itemIcon(id))}${esc(it.name)} <small>${itemStat(it)}</small></span><span class="gold">${owned ? '✓' : locked ? '🔒' : it.price}</span>`);
-          row.disabled = locked || owned || gold < it.price;
-          row.addEventListener('click', () => this.askToBuy(it.name, it.price, () => onBuy(id), { img: iconImg(itemIcon(id)) }));
+          const row = el('button', `shop-row${locked ? ' locked' : ''}`, `<span>${iconImg(itemIcon(id))}${esc(it.name)} <small>${itemStat(it)}</small></span><span class="gold">${owned ? '✓' : locked ? '🔒' : this.priceTag(it.price)}</span>`);
+          row.disabled = locked || owned || gold < this.sale(it.price);
+          row.addEventListener('click', () => this.askToBuy(it.name, this.sale(it.price), () => onBuy(id), { img: iconImg(itemIcon(id)) }));
           body.append(row);
         }
       }
@@ -583,9 +587,9 @@ export class Hud {
         if (!def.price || def.seasonal) continue; // seasonal outfits: the Seasonal Trader
         const owned = ownsStyle(this.self?.closet, slot, id);
         const swatch = def.color != null ? `<i class="swatch" style="background:#${def.color.toString(16).padStart(6, '0')}"></i>` : '';
-        const b = el('button', 'shop-row', `<span>${swatch}${esc(def.name)}</span><span class="gold">${owned ? '✓' : def.price}</span>`);
-        b.disabled = owned || gold < def.price;
-        b.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuyStyle(slot, id), { tryOn: { slot, id } }));
+        const b = el('button', 'shop-row', `<span>${swatch}${esc(def.name)}</span><span class="gold">${owned ? '✓' : this.priceTag(def.price)}</span>`);
+        b.disabled = owned || gold < this.sale(def.price);
+        b.addEventListener('click', () => this.askToBuy(def.name, this.sale(def.price), () => onBuyStyle(slot, id), { tryOn: { slot, id } }));
         grid.append(b);
       }
       wrap.append(grid);
@@ -783,10 +787,10 @@ export class Hud {
       const body = el('div', 'shop-body');
       for (const { id, kind } of items) {
         const def = kind === 'item' ? ITEMS[id] : kind === 'clothes' ? CLOTHES[id] : FURNITURE[id];
-        const price = seasonalPrice(def), owned = kind === 'clothes' && (this.self?.closet ?? []).includes(`clothes:${id}`);
+        const price = this.sale(seasonalPrice(def)), full = seasonalPrice(def), owned = kind === 'clothes' && (this.self?.closet ?? []).includes(`clothes:${id}`);
         const icon = kind === 'item' ? iconImg(itemIcon(id)) : kind === 'furniture' ? iconImg(furnitureIcon(id)) : '👗 ';
         const sub = kind === 'item' ? `❤ +${def.heal}` : kind === 'clothes' ? 'fancy outfit · try it on!' : 'for the fort';
-        const row = el('button', 'shop-row', `<span>${icon}${esc(def.name)} <small>${sub}</small></span><span class="gold">${owned ? '✓' : price}</span>`);
+        const row = el('button', 'shop-row', `<span>${icon}${esc(def.name)} <small>${sub}</small></span><span class="gold">${owned ? '✓' : this.priceTag(full)}</span>`);
         row.disabled = owned || gold < price;
         row.addEventListener('click', () => this.askToBuy(def.name, price, () => onBuy(id), kind === 'clothes' ? { tryOn: { slot: 'clothes', id } } : { img: icon }));
         body.append(row);
@@ -866,12 +870,12 @@ export class Hud {
         `<span class="${have(item) >= n ? 'ok' : 'short'}">${esc(ITEMS[item].name)} ${have(item)}/${n}</span>`).join(' · ');
       const perk = PERKS[it.perk];
       const stat = it.kind === 'weapon' ? `⚔ ${it.damage}${it.ranged ? ' ranged' : ''}${perk ? ` · ${perk.icon} ${perk.name}: ${perk.text}` : ''}` : `🛡 ${Math.round(it.block * 100)}%`;
-      const row = el('div', 'forge-row', `<b>${iconImg(itemIcon(id))}${esc(it.name)} <small class="muted">${stat}</small></b><span class="needs">${needs} · <span class="gold">🪙 ${r.gold}</span></span>`);
+      const row = el('div', 'forge-row', `<b>${iconImg(itemIcon(id))}${esc(it.name)} <small class="muted">${stat}</small></b><span class="needs">${needs} · <span class="gold">🪙 ${this.priceTag(r.gold)}</span></span>`);
       const owned = s.gear?.includes(id);
-      const ready = !owned && gold >= r.gold && Object.entries(r.needs).every(([item, n]) => have(item) >= n);
+      const ready = !owned && gold >= this.sale(r.gold) && Object.entries(r.needs).every(([item, n]) => have(item) >= n);
       const b = el('button', ready ? 'primary' : '', owned ? 'Made ✓' : 'Forge');
       b.disabled = !ready;
-      b.addEventListener('click', () => this.askToBuy(`forge ${it.name}`, r.gold, () => onForge(id), { img: iconImg(itemIcon(id)) }));
+      b.addEventListener('click', () => this.askToBuy(`forge ${it.name}`, this.sale(r.gold), () => onForge(id), { img: iconImg(itemIcon(id)) }));
       row.append(b);
       list.append(row);
     }
@@ -951,9 +955,9 @@ export class Hud {
         const treats = el('div', 'fashion-grid');
         for (const id of PET_SHOP_STOCK) {
           const it = ITEMS[id], have = this.self?.inventory?.[id] ?? 0;
-          const b = el('button', 'shop-row', `<span>${esc(it.name)} <small>${itemStat(it)}${have ? ` · you have ${have}` : ''}</small></span><span class="gold">${it.price}</span>`);
-          b.disabled = gold < it.price;
-          b.addEventListener('click', () => this.askToBuy(it.name, it.price, () => onBuyItem(id), { img: iconImg(itemIcon(id)) }));
+          const b = el('button', 'shop-row', `<span>${esc(it.name)} <small>${itemStat(it)}${have ? ` · you have ${have}` : ''}</small></span><span class="gold">${this.priceTag(it.price)}</span>`);
+          b.disabled = gold < this.sale(it.price);
+          b.addEventListener('click', () => this.askToBuy(it.name, this.sale(it.price), () => onBuyItem(id), { img: iconImg(itemIcon(id)) }));
           treats.append(b);
         }
         box.append(treats);
@@ -965,9 +969,9 @@ export class Hud {
           if (def.unlock && !flags[def.unlock]) continue; // a mini boss you haven't earned yet (listed below)
           const owned = mine.some((x) => x.species === species);
           const card = el('div', `pet-card${owned ? ' owned' : ''}`, `<div class="pet-icon">${iconImg(petIcon(species), 'icon big') || ICONS[species] || '🐾'}</div><b>${esc(def.fixedName ?? def.name)}</b><small class="muted">${esc(def.fixedName ? 'Apricot Maltipoo' : `→ ${def.forms[2]}`)}</small>`);
-          const b = el('button', owned ? '' : 'primary', owned ? 'Yours ♥' : def.price ? `Adopt · ${def.price}g` : 'Adopt · free!');
-          b.disabled = owned || gold < def.price;
-          b.addEventListener('click', () => (def.price ? this.askToBuy(def.fixedName ?? `a ${def.name.toLowerCase()}`, def.price, () => onBuy(species)) : onBuy(species)));
+          const b = el('button', owned ? '' : 'primary', owned ? 'Yours ♥' : def.price ? `Adopt · ${this.sale(def.price)}g${this.onSale() ? ' (half price!)' : ''}` : 'Adopt · free!');
+          b.disabled = owned || gold < this.sale(def.price);
+          b.addEventListener('click', () => (def.price ? this.askToBuy(def.fixedName ?? `a ${def.name.toLowerCase()}`, this.sale(def.price), () => onBuy(species)) : onBuy(species)));
           card.append(b);
           grid.append(card);
         }
@@ -1039,18 +1043,18 @@ export class Hud {
         for (const [id, def] of Object.entries(FURNITURE)) {
           if (def.notForSale || def.seasonal || !!def.luxury !== (this.decoTab === 'luxury')) continue;
           const have = h.owned?.[id] ?? 0;
-          const row = el('button', 'shop-row', `<span>${iconImg(furnitureIcon(id))}${esc(def.name)}${have ? ` <small>${have} waiting at home</small>` : ''}</span><span class="gold">${def.price}</span>`);
-          row.disabled = gold < def.price;
-          row.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuy(id), { img: iconImg(furnitureIcon(id)) }));
+          const row = el('button', 'shop-row', `<span>${iconImg(furnitureIcon(id))}${esc(def.name)}${have ? ` <small>${have} waiting at home</small>` : ''}</span><span class="gold">${this.priceTag(def.price)}</span>`);
+          row.disabled = gold < this.sale(def.price);
+          row.addEventListener('click', () => this.askToBuy(def.name, this.sale(def.price), () => onBuy(id), { img: iconImg(furnitureIcon(id)) }));
           body.append(row);
         }
       } else {
         const kind = this.decoTab, table = kind === 'wall' ? WALL_STYLES : FLOOR_STYLES;
         for (const [id, def] of Object.entries(table)) {
           const owned = !def.price || (h.styles ?? []).includes(`${kind}:${id}`);
-          const row = el('button', 'shop-row', `<span>${styleSwatch(def)}${esc(def.name)}</span><span class="gold">${owned ? 'owned ✓' : def.price}</span>`);
-          row.disabled = owned || gold < def.price;
-          row.addEventListener('click', () => this.askToBuy(def.name, def.price, () => onBuyStyle(kind, id), { img: styleSwatch(def).replace('class="swatch"', 'class="swatch big"') }));
+          const row = el('button', 'shop-row', `<span>${styleSwatch(def)}${esc(def.name)}</span><span class="gold">${owned ? 'owned ✓' : this.priceTag(def.price)}</span>`);
+          row.disabled = owned || gold < this.sale(def.price);
+          row.addEventListener('click', () => this.askToBuy(def.name, this.sale(def.price), () => onBuyStyle(kind, id), { img: styleSwatch(def).replace('class="swatch"', 'class="swatch big"') }));
           body.append(row);
         }
       }
