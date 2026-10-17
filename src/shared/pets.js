@@ -3,7 +3,7 @@
 
 import { xpToNext } from './progression.js';
 import { DUNGEONS } from './dungeons.js';
-import { SEASONS } from './seasons.js';
+import { SEASON_BOSSES } from './seasons.js';
 
 /** Levels at which a pet evolves into its next form. */
 export const EVOLVE_AT = [10, 20];
@@ -74,7 +74,7 @@ export const PET_SPECIES = {
 export const MINI_PREFIX = 'mini_';
 const bossList = [
   ...Object.values(DUNGEONS).flatMap((d, di) => d.biomes.map((b, i) => ({ variant: b.boss.variant, name: b.boss.name, flag: b.boss.flag, price: 800 + di * 800 + i * 120 }))),
-  ...SEASONS.map((s) => ({ variant: s.boss, name: s.bossName, flag: `beat_${s.boss}`, price: 5000 })),
+  ...Object.values(SEASON_BOSSES).flat().map((b) => ({ variant: b.variant, name: b.name, flag: `beat_${b.variant}`, price: 5000 })),
 ];
 for (const b of bossList) {
   const name = b.name.replace(/^The /, '');

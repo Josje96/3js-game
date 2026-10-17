@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import { world } from './helpers.js';
 import { PET_SPECIES, isMiniPet } from '../src/shared/pets.js';
 import { DUNGEONS } from '../src/shared/dungeons.js';
-import { SEASONS } from '../src/shared/seasons.js';
+import { SEASON_BOSSES } from '../src/shared/seasons.js';
 
 test('mini bosses: one for every dungeon and seasonal boss, each unlocked by beating it', () => {
   const minis = Object.entries(PET_SPECIES).filter(([id]) => isMiniPet(id));
-  const bosses = Object.values(DUNGEONS).reduce((n, d) => n + d.biomes.length, 0) + SEASONS.length;
+  const bosses = Object.values(DUNGEONS).reduce((n, d) => n + d.biomes.length, 0) + Object.values(SEASON_BOSSES).flat().length;
   assert.equal(minis.length, bosses);
   for (const [id, def] of minis) assert.ok(def.unlock && def.price > 0 && def.forms.length === 3, id);
 });

@@ -10,6 +10,8 @@
 // THEMES + a music mood in client/music.js). Adding an enemy: ENEMIES below (+ a body in
 // client/enemies.js if it isn't a slime). Ids and flags are stored in saves: never rename them.
 
+import { SEASONS, SEASON_BOSSES } from './seasons.js';
+
 export const BIOME_FLOORS = 10;
 export const DUNGEON_FLOORS = 100;
 
@@ -218,4 +220,19 @@ export function parseKey(key) {
   const [id, f] = key.split('/');
   if (DUNGEONS[id]) return { kind: 'dungeon', dungeonId: id, floor: Number(f) };
   return { kind: id };
+}
+
+// the seasonal bosses of years 2..20 (shared/seasons.js SEASON_BOSSES): the season's first boss's strength, a little
+// more each year, in their own body, colour and fighting style. Big: they're bosses.
+const BOSS_SCALE = { goblin: 3.4, imp: 4.4, bat: 5, ghost: 4.2, skeleton: 3, spider: 3.4, crab: 3.4, shroom: 2.8, yeti: 2.4, golem: 2.2, dragon: 2.2 };
+const CROWNED = new Set(['goblin', 'shroom', 'golem', 'pumpkinking', 'treant', 'skeleton', 'warrior']); // (where a crown sits on the head)
+for (const s of SEASONS) {
+  const base = ENEMIES[s.boss];
+  SEASON_BOSSES[s.id].forEach((b, y) => {
+    if (!y) return;
+    ENEMIES[b.variant] = {
+      hp: Math.round(base.hp * (1 + 0.06 * y)), damage: base.damage + Math.floor(y / 4), speed: b.ai === 'flutter' ? 3.4 : base.speed,
+      gold: base.gold, ai: b.ai, body: b.body, tint: b.tint, scale: BOSS_SCALE[b.body] ?? 2.6, r: 1.3, summon: b.summon, ...(b.crown && CROWNED.has(b.body) ? { crown: true } : {}),
+    };
+  });
 }

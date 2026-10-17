@@ -6,7 +6,7 @@ import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost, TRAIN_TO, TRAIN_COST } from '../shared/pets.js';
-import { seasonOf, holidayOf, dayOfSeason, daysToNextSeason, SEASONS, isBossDay, calendar, dateLabel, CALENDAR_NAME, salePrice, isSaleDay } from '../shared/seasons.js';
+import { seasonOf, holidayOf, dayOfSeason, daysToNextSeason, SEASONS, isBossDay, calendar, dateLabel, CALENDAR_NAME, salePrice, isSaleDay, seasonBossFor } from '../shared/seasons.js';
 import { ENCHANT_LOOKS, enchantCost, enchantedName, enchantDamage } from '../shared/enchant.js';
 import { seasonalPrice } from '../shared/seasonal.js';
 
@@ -15,7 +15,7 @@ function seasonLine(day) {
   const s = seasonOf(day);
   const newYear = calendar(day).day === 1 && day > 1 ? `🎉 Happy new year! ` : '';
   return isBossDay(day)
-    ? `${newYear}${s.icon} ${s.name} begins! ${esc(s.bossName)} is in town — today only.`
+    ? `${newYear}${s.icon} ${s.name} begins! ${esc(seasonBossFor(day).name)} is in town — today only.`
     : `${s.icon} ${s.name}, day ${dayOfSeason(day)}`;
 }
 

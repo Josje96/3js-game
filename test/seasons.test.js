@@ -194,3 +194,32 @@ test('season sale: the first day of every season, everything in the town’s sho
     assert.equal(10000 - p.mom.gold, paid, `day ${day}: ${paid} gold`);
   }
 });
+
+test('seasonal bosses: a different one every year, twenty for each season, each a real and tougher enemy', async () => {
+  const { SEASON_BOSSES, BOSS_YEARS, seasonBossFor, YEAR_DAYS } = await import('../src/shared/seasons.js');
+  const all = Object.values(SEASON_BOSSES).flat();
+  assert.equal(BOSS_YEARS, 20);
+  assert.equal(new Set(all.map((b) => b.variant)).size, all.length, 'no boss twice');
+  for (const s of SEASONS) {
+    const list = SEASON_BOSSES[s.id];
+    assert.equal(list.length, BOSS_YEARS, `${s.id}: twenty bosses`);
+    assert.equal(list[0].variant, s.boss, 'year 1 is the season’s first boss (saves keep working)');
+    list.forEach((b, y) => {
+      const def = ENEMIES[b.variant];
+      assert.ok(def?.body && def.hp >= 2000 && b.name, `${b.variant} is a real boss with a body and a name`);
+      assert.ok(!def.summon || ENEMIES[def.summon], `${b.variant} summons a real enemy`);
+      if (y > 1) assert.ok(def.hp > ENEMIES[list[y - 1].variant].hp, `year ${y + 1} is tougher than year ${y}`);
+    });
+  }
+  // year by year, then round again
+  const first = (year, season) => (year - 1) * YEAR_DAYS + season * SEASON_DAYS + 1;
+  assert.equal(seasonBossFor(first(1, 0)).variant, 'bloomcolossus');
+  assert.equal(seasonBossFor(first(2, 0)).variant, SEASON_BOSSES.spring[1].variant);
+  assert.equal(seasonBossFor(first(7, 3) + 10).variant, SEASON_BOSSES.winter[6].variant, 'all season long');
+  assert.equal(seasonBossFor(first(21, 1)).variant, 'sunwyrm', 'year 21 starts them over');
+  // and the town gets this year's
+  const { server, save } = world('year2', 'mom');
+  save.day = first(2, 2);
+  server.step(0.05);
+  assert.equal(bossIn(server.getLocation('town')).variant, SEASON_BOSSES.autumn[1].variant);
+});
