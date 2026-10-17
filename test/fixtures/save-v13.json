@@ -1,0 +1,133 @@
+{
+  "version": 13,
+  "id": "wfixture13",
+  "name": "Fixture 13",
+  "seed": "v13",
+  "createdAt": 1760000000000,
+  "updatedAt": 1760000000000,
+  "day": 47,
+  "flags": {
+    "mineCleared": true,
+    "beat_bloomcolossus": true,
+    "solstice": {
+      "day": 45,
+      "won": 3
+    }
+  },
+  "dungeons": {
+    "mine": {
+      "deepest": 0,
+      "unlocked": true,
+      "completed": false
+    },
+    "ruins": {
+      "deepest": 0,
+      "unlocked": false,
+      "completed": false
+    },
+    "keep": {
+      "deepest": 0,
+      "unlocked": false,
+      "completed": false
+    }
+  },
+  "players": {
+    "pmom13": {
+      "name": "Mom",
+      "cls": "Knight",
+      "level": 24,
+      "xp": 0,
+      "points": 0,
+      "stats": {
+        "str": 2,
+        "dex": 0,
+        "int": 0,
+        "vit": 2
+      },
+      "hp": 26,
+      "maxHp": 26,
+      "gold": 3400,
+      "weapon": "royalsword",
+      "gear": [
+        "sword",
+        "royalsword",
+        "royalshield",
+        "plate",
+        "solarblade"
+      ],
+      "blueprints": [],
+      "inventory": {
+        "potion": 2
+      },
+      "shield": "royalshield",
+      "armor": "plate",
+      "closet": [
+        "hat:chef",
+        "clothes:chef"
+      ],
+      "pets": [],
+      "pet": null,
+      "look": {
+        "hat": "own",
+        "cape": "own",
+        "back": "none",
+        "dye": "none",
+        "clothes": "chef"
+      },
+      "enchants": {},
+      "bank": null
+    },
+    "pkid13": {
+      "name": "Kid",
+      "cls": "Ranger",
+      "level": 9,
+      "xp": 0,
+      "points": 0,
+      "stats": {
+        "str": 0,
+        "dex": 3,
+        "int": 0,
+        "vit": 1
+      },
+      "hp": 23,
+      "maxHp": 23,
+      "gold": 210,
+      "weapon": "bow",
+      "gear": [
+        "bow",
+        "leather"
+      ],
+      "blueprints": [],
+      "inventory": {
+        "potion": 2
+      },
+      "shield": null,
+      "armor": "leather",
+      "closet": [],
+      "pets": [],
+      "pet": null,
+      "look": {
+        "hat": "own",
+        "cape": "own",
+        "back": "none",
+        "dye": "none"
+      },
+      "enchants": {},
+      "bank": null
+    }
+  },
+  "house": {
+    "level": 1,
+    "storage": {},
+    "storageEnch": {},
+    "beds": {},
+    "furniture": [],
+    "owned": {
+      "minetrophy": 1
+    },
+    "styles": [],
+    "wall": "stone",
+    "floor": "oak",
+    "roomStyles": {}
+  }
+}

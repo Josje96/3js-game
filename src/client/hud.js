@@ -165,7 +165,7 @@ export class Hud {
     const s = this.self;
     if (!s) return;
     // what you're holding, then what the keys use (with the key on it), then the rest of your bag
-    const weapon = ITEMS[s.weapon], shield = ITEMS[s.shield], armor = ITEMS[s.armor];
+    const weapon = ITEMS[s.weapon], shield = ITEMS[s.shield], armor = ITEMS[s.armor], helmet = ITEMS[s.helmet];
     const inv = Object.entries(s.inventory ?? {}).filter(([id, n]) => n > 0 && ITEMS[id]);
     const slot = (cls, text, title = '') => `<span class="slot ${cls}" title="${esc(title)}">${text}</span>`;
     const heals = inv.filter(([id]) => ITEMS[id].heal), treats = inv.filter(([id]) => ITEMS[id].petHeal);
@@ -180,6 +180,7 @@ export class Hud {
       pick('weapon', s.weapon, slot('weapon', `${iconImg(itemIcon(s.weapon))}${esc(weapon?.name ?? s.weapon)}${s.enchants?.[s.weapon] ? ` <b class="ench">+${s.enchants[s.weapon]}</b>` : ''} <b>${(weapon?.damage ?? 1) + enchantDamage(s.weapon, s.enchants?.[s.weapon])}</b>`, 'Your weapon (C to change)')),
       shield ? pick('gear', s.shield, slot('weapon', iconImg(itemIcon(s.shield)) || '🛡', `${shield.name}: ${itemStat(shield)}`)) : '',
       armor ? pick('gear', s.armor, slot('weapon', iconImg(itemIcon(s.armor)) || '🥋', `${armor.name}: ${itemStat(armor)}`)) : '',
+      helmet ? pick('gear', s.helmet, slot('weapon', iconImg(itemIcon(s.helmet)) || '⛑', `${helmet.name}: ${itemStat(helmet)}`)) : '',
       groupPicks('Q', 'eat / drink', heals, 'heal'),
       groupPicks('G', 'feed pet', treats, 'treat'),
       // choosing: the bag opens out into its things; otherwise it's one 🎒 slot
@@ -548,7 +549,7 @@ export class Hud {
     const wrap = el('div', 'sell-list');
     const s = this.self ?? {};
     const loot = Object.entries(s.inventory ?? {}).filter(([id, n]) => ITEMS[id]?.sell && n > 0);
-    const spare = (s.gear ?? []).filter((id) => id !== s.weapon && id !== s.shield && id !== s.armor);
+    const spare = (s.gear ?? []).filter((id) => id !== s.weapon && id !== s.shield && id !== s.armor && id !== s.helmet);
     if (!loot.length && !spare.length) wrap.append(el('p', 'muted', 'Nothing to sell. Go mining!'));
     if (loot.length) {
       wrap.append(el('h3', null, 'Loot'));
@@ -687,16 +688,16 @@ export class Hud {
       box.append(stats);
       box.append(el('h3', null, 'Gear bag'), el('p', 'muted', 'Anyone can use anything! Damage = weapon + half the matching skill.'));
       const bag = el('div', 'fashion-grid');
-      const order = { weapon: 0, shield: 1, armor: 2 };
+      const order = { weapon: 0, shield: 1, armor: 2, helmet: 3 };
       const gear = [...(s.gear ?? [])].sort((a, b) => order[ITEMS[a].kind] - order[ITEMS[b].kind] || (ITEMS[a].damage ?? 0) - (ITEMS[b].damage ?? 0));
       for (const id of gear) {
         const it = ITEMS[id];
-        const on = id === s.weapon || id === s.shield || id === s.armor;
+        const on = id === s.weapon || id === s.shield || id === s.armor || id === s.helmet;
         const stat = it.kind === 'weapon'
           ? `⚔ ${attackDamage(id, s.stats, s.enchants?.[id])} <small>${STATS[weaponStat(id)].icon}${it.ranged ? ' ranged' : ''}</small>`
           : itemStat(it);
         const b = el('button', `shop-row${on ? ' selected' : ''}`, `<span>${iconImg(itemIcon(id))}${esc(enchantedName(id, s.enchants?.[id]))}</span><span>${stat}</span>`);
-        const removable = it.kind === 'shield' || it.kind === 'armor';
+        const removable = it.kind === 'shield' || it.kind === 'armor' || it.kind === 'helmet';
         b.addEventListener('click', () => (on && removable ? onEquip(null, it.kind) : onEquip(id)));
         b.title = on ? (removable ? 'Click to take it off' : 'Equipped') : 'Click to equip';
         bag.append(b);
@@ -1126,7 +1127,7 @@ export class Hud {
     this.chestEnch = ench ?? {};
     this.openModal((box) => {
       box.append(el('h2', null, 'Family chest'), el('p', 'muted', 'Everyone in the family shares this. Move things across with 1 or All. Gear you’re wearing stays on you.'));
-      const s = this.self ?? {}, worn = [s.weapon, s.shield, s.armor];
+      const s = this.self ?? {}, worn = [s.weapon, s.shield, s.armor, s.helmet];
       // your spare gear: everything you own but aren't wearing (enchant shown, it goes in with it)
       const spare = Object.fromEntries((s.gear ?? []).filter((g) => !worn.includes(g)).map((g) => [g, 1]));
       const cols = el('div', 'shop-cols');
@@ -1272,6 +1273,7 @@ function itemStat(it) {
   if (it.kind === 'weapon') return `⚔ ${it.damage}${it.ranged ? ' ranged' : ''}`;
   if (it.kind === 'shield') return `🛡 blocks ${Math.round(it.block * 100)}%`;
   if (it.kind === 'armor') return `🥋 −${Math.round(it.armor * 100)}% damage`;
+  if (it.kind === 'helmet') return `⛑ −${Math.round(it.armor * 100)}% damage`;
   if (it.heal) return it.heal >= 9999 ? '❤ full heal' : `❤ +${it.heal}`;
   if (it.petHeal) return `🐾 +${it.petHeal}`;
   return '';

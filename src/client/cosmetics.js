@@ -232,10 +232,11 @@ const HAT_BUILDERS = {
   },
   solarhelm() { // the Solstice Arena's prize: a golden helmet with a cheek guard each side, a sun on the brow and a crest of flame-coloured plumes
     const g = new THREE.Group(), gold = mat(0xffc83a, { metalness: 0.75, roughness: 0.25, emissive: 0x3a2000 }), dark = mat(0xb8862a, { metalness: 0.7, roughness: 0.35 });
-    g.add(mesh(new THREE.SphereGeometry(0.6, 28, 14, 0, Math.PI * 2, 0, Math.PI * 0.5), gold, 0, -0.47, 0));
-    g.add(mesh(new THREE.TorusGeometry(0.6, 0.04, 6, 36), dark, 0, -0.47, 0)).children.at(-1).rotation.x = Math.PI / 2;
+    const OPEN = Math.PI * 0.4, RIM = -0.47 + 0.6 * Math.cos(OPEN); // (the rim just above the brows)
+    g.add(mesh(new THREE.SphereGeometry(0.6, 28, 14, 0, Math.PI * 2, 0, OPEN), gold, 0, -0.47, 0));
+    g.add(mesh(new THREE.TorusGeometry(0.6 * Math.sin(OPEN), 0.04, 6, 36), dark, 0, RIM, 0)).children.at(-1).rotation.x = Math.PI / 2;
     for (const s of [-1, 1]) { // cheek guards
-      const guard = mesh(new THREE.BoxGeometry(0.06, 0.34, 0.3), gold, s * 0.57, -0.62, 0.12);
+      const guard = mesh(new THREE.BoxGeometry(0.06, 0.28, 0.28), gold, s * 0.56, RIM - 0.13, 0.06);
       guard.rotation.z = s * 0.12;
       g.add(guard);
     }
@@ -789,6 +790,51 @@ export function buildWinterWear(color, style = 'bobble') {
 }
 
 export function buildHat(id) { return HAT_BUILDERS[id]?.() ?? null; }
+
+/**
+ * A helmet (ITEMS kind 'helmet', its `helm` style and `color`) in the hat frame (head 1 wide, y 0 on top):
+ * a metal dome down to the brow, and per style a nose guard, cheek plates and a plume, wings, horns or a star.
+ */
+export function buildHelmet(def) {
+  if (def.helm === 'solar') return HAT_BUILDERS.solarhelm();
+  const g = new THREE.Group(), leather = def.helm === 'cap';
+  const metal = mat(def.color, leather ? { roughness: 0.85 } : { metalness: 0.45, roughness: 0.35 });
+  const trim = mat(leather ? 0x5a3a20 : new THREE.Color(def.color).multiplyScalar(0.7).getHex(), leather ? { roughness: 0.9 } : { metalness: 0.5, roughness: 0.4 });
+  const OPEN = Math.PI * 0.4, RIM = -0.48 + 0.61 * Math.cos(OPEN); // (the rim just above the brows, like the bobble hat's)
+  g.add(mesh(new THREE.SphereGeometry(0.61, 28, 14, 0, Math.PI * 2, 0, OPEN), metal, 0, -0.48, 0)); // the dome
+  g.add(mesh(new THREE.TorusGeometry(0.61 * Math.sin(OPEN), 0.04, 6, 36), trim, 0, RIM, 0)).children.at(-1).rotation.x = Math.PI / 2; // the rim
+  if (leather) { // stitched seams over the top
+    for (const a of [0, Math.PI / 2]) { const seam = mesh(new THREE.TorusGeometry(0.615, 0.012, 4, 24, Math.PI), trim, 0, -0.48, 0); seam.rotation.y = a; seam.scale.set(1, 1, 1); g.add(seam); }
+    return g;
+  }
+  g.add(mesh(new THREE.TorusGeometry(0.615, 0.03, 5, 28, Math.PI), trim, 0, -0.48, 0)).children.at(-1).rotation.y = Math.PI / 2; // a ridge front to back
+  for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; g.add(mesh(new THREE.SphereGeometry(0.03, 6, 4), trim, Math.sin(a) * 0.585, RIM + 0.05, Math.cos(a) * 0.585)); } // rivets
+  if (def.helm === 'nasal' || def.helm === 'knight') g.add(mesh(new THREE.BoxGeometry(0.08, 0.2, 0.05), metal, 0, RIM - 0.08, 0.6)); // nose guard
+  if (def.helm === 'knight') {
+    for (const s of [-1, 1]) { const cheek = mesh(new THREE.BoxGeometry(0.06, 0.26, 0.3), metal, s * 0.57, RIM - 0.12, 0.08); cheek.rotation.z = s * 0.1; g.add(cheek); }
+    for (let i = 0; i < 7; i++) { const a = -0.9 + i * 0.3, plume = mesh(new THREE.ConeGeometry(0.06, 0.32, 6), mat(0xd8302a, { roughness: 0.9 }), 0, -0.48 + Math.cos(a) * 0.72, Math.sin(a) * 0.72); plume.rotation.x = a; g.add(plume); }
+  }
+  if (def.helm === 'winged') for (const s of [-1, 1]) { // little wings at the temples
+    const wing = new THREE.Group();
+    for (let i = 0; i < 3; i++) { const f = mesh(new THREE.BoxGeometry(0.04, 0.3 - i * 0.07, 0.1), mat(0xf4f4f8, { roughness: 0.6 }), 0, 0.12 + i * 0.02, -i * 0.09); f.rotation.x = -0.4 - i * 0.25; wing.add(f); }
+    wing.position.set(s * 0.6, RIM + 0.05, 0.05);
+    wing.rotation.z = -s * 0.35;
+    g.add(wing);
+  }
+  if (def.helm === 'horned') for (const s of [-1, 1]) { // dark curling horns
+    const horn = mesh(new THREE.ConeGeometry(0.08, 0.42, 10), mat(0x1a1420, { roughness: 0.5 }), s * 0.55, -0.2, 0);
+    horn.rotation.z = -s * 0.9;
+    g.add(horn);
+  }
+  if (def.helm === 'star') { // a star on the brow, glowing
+    const star = new THREE.Group();
+    for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2, ray = mesh(new THREE.ConeGeometry(0.05, 0.16, 4), mat(0xfff6c0, { emissive: 0xffc83a, emissiveIntensity: 0.8 }), Math.sin(a) * 0.08, Math.cos(a) * 0.08, 0); ray.rotation.z = -a; star.add(ray); }
+    star.position.set(0, -0.22, 0.57);
+    star.rotation.x = -0.45;
+    g.add(star);
+  }
+  return g;
+}
 export function buildBack(id) { return BACK_BUILDERS[id]?.() ?? null; }
 
 // ------------------------------------------------------------------ mirror: hair + face

@@ -1,7 +1,7 @@
 // combat — part of the GameServer (see systems/index.js). Methods run with `this` = the GameServer.
 import { ATTACK_RANGE, SHOT_SPEED, SHOT_RANGE, ROLL_IFRAMES, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, SPELL_DAMAGE, DEATH_GOLD_PENALTY, LUCK_CRIT, LUCK_GOLD, LUCK_GEAR } from '../../shared/config.js';
 import { ENEMIES, biomeFor, makeEnemy, oresFor } from '../../shared/dungeons.js';
-import { ITEMS, weaponCooldown, weaponImpact, rollGearDrop, rollBlueprint, isGear, PERK_CRIT, PERK_HEAL, PERK_FREEZE, PERK_GIANT } from '../../shared/items.js';
+import { ITEMS, weaponCooldown, weaponImpact, rollGearDrop, rollBlueprint, isGear, PERK_CRIT, PERK_HEAL, PERK_FREEZE, PERK_GIANT, protection } from '../../shared/items.js';
 import { XP, attackDamage } from '../../shared/progression.js';
 import { dist2 } from '../../shared/physics.js';
 
@@ -229,7 +229,7 @@ export const methods = {
       this.sendToLocation(p.loc, { t: 'fx', kind: 'block', id: p.id, x: p.x, z: p.z });
       return;
     }
-    amount = Math.max(1, Math.round(amount * (1 - (ITEMS[p.armor]?.armor ?? 0)))); // armor softens every hit
+    amount = Math.max(1, Math.round(amount * (1 - protection(p.armor, p.helmet)))); // armor and helmet soften every hit
     p.hp = Math.max(0, p.hp - amount);
     this.sendSelf(p);
     this.sendToLocation(p.loc, { t: 'fx', kind: 'hurt', id: p.id, x: p.x, z: p.z, amount });

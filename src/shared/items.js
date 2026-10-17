@@ -69,6 +69,7 @@ export const ITEMS = {
   frostfang:    { name: 'Frostfang',        kind: 'weapon', damage: 36, epic: true, sell: 28000, model: 'items/dagger', swing: 'stab', tint: 0xbfeaff },
   glacierplate: { name: 'Glacier Plate',    kind: 'armor', armor: 0.56, epic: true, sell: 32000, color: 0xcfeeff, model: 'dungeon/trunk_small_C' },
   // won in the Solstice Arena (all three rounds, halfway through summer)
+  solarhelm:    { name: 'Solar Helmet',     kind: 'helmet', armor: 0.25, epic: true, sell: 30000, color: 0xffc83a, helm: 'solar' }, // the Solstice Arena's second prize
   solarblade:   { name: 'Solar Blade',      kind: 'weapon', damage: 48, epic: true, sell: 32000, model: 'items/sword_2handed_color', swing: 'slash', tint: 0xffc83a },
 
   // --- shields (left hand): a chance to block a hit completely ---
@@ -89,6 +90,15 @@ export const ITEMS = {
   mythrilmail: { name: 'Mythril Mail',     kind: 'armor', armor: 0.38, price: 13000, tier: 2, color: 0x7fd8ff, model: 'dungeon/trunk_small_C' },
   shadowplate: { name: 'Shadow Plate',     kind: 'armor', armor: 0.45, price: 32000, tier: 3, color: 0x7a52b8, model: 'dungeon/trunk_small_C' },
   starplate:   { name: 'Starforged Plate', kind: 'armor', armor: 0.52, price: 78000, tier: 4, color: 0xffe27a, model: 'dungeon/trunk_small_C' },
+
+  // --- helmets (your head): a little more protection on top of your armor; worn instead of your hat ---
+  leathercap:  { name: 'Leather Cap',     kind: 'helmet', armor: 0.03, price: 90,    tier: 0, color: 0x8a5a34, helm: 'cap' },
+  ironhelm:    { name: 'Iron Helm',       kind: 'helmet', armor: 0.06, price: 420,   tier: 0, color: 0x9aa3ad, helm: 'nasal' },
+  knighthelm:  { name: 'Knight’s Helm',   kind: 'helmet', armor: 0.09, price: 1250,  tier: 0, color: 0xc8ccd4, helm: 'knight' },
+  steelhelm:   { name: 'Steel Helm',      kind: 'helmet', armor: 0.12, price: 3800,  tier: 1, color: 0xe2e8f0, helm: 'winged' },
+  mythrilhelm: { name: 'Mythril Helm',    kind: 'helmet', armor: 0.15, price: 11000, tier: 2, color: 0x7fd8ff, helm: 'winged' },
+  shadowhelm:  { name: 'Shadow Helm',     kind: 'helmet', armor: 0.18, price: 27000, tier: 3, color: 0x6a4aa8, helm: 'horned' },
+  starhelm:    { name: 'Starforged Helm', kind: 'helmet', armor: 0.21, price: 65000, tier: 4, color: 0xffe27a, helm: 'star' },
 
   // --- food & potions ---
   bread:       { name: 'Bread Roll',      kind: 'consumable', heal: 6,    price: 15,   tier: 0, model: 'dungeon/plate_food_B' },
@@ -178,6 +188,7 @@ export const SHOP_SECTIONS = [
   { id: 'weapons', name: 'Weapons', icon: '⚔', kinds: ['weapon'] },
   { id: 'shields', name: 'Shields', icon: '🛡', kinds: ['shield'] },
   { id: 'armor', name: 'Armor', icon: '🥋', kinds: ['armor'] },
+  { id: 'helmets', name: 'Helmets', icon: '⛑', kinds: ['helmet'] },
   { id: 'food', name: 'Food, potions & presents', icon: '🍎', kinds: ['consumable', 'gift'] },
 ];
 
@@ -193,13 +204,13 @@ export function inShopFor(id, level) {
   return def?.tier != null && def.tier <= shopTier(level);
 }
 
-/** Gold the shop pays for one of these (loot, or a weapon/shield/armor from your bag). */
+/** Gold the shop pays for one of these (loot, or a weapon/shield/armor/helmet from your bag). */
 export function sellValue(id) {
   const def = ITEMS[id];
   if (!def) return 0;
   if (def.sell) return def.sell;
   if (def.forged) return Math.max(10, Math.floor((FORGE_RECIPES[id]?.gold ?? 40) * 1.5));
-  if (['weapon', 'shield', 'armor'].includes(def.kind)) return Math.max(5, Math.floor((def.price ?? 0) * 0.3));
+  if (GEAR_KINDS.includes(def.kind)) return Math.max(5, Math.floor((def.price ?? 0) * 0.3));
   return 0;
 }
 
@@ -213,7 +224,7 @@ export function bestHeal(inventory, missing, key = 'heal') {
 }
 
 /** Things you wear or wield (kept in the gear bag, one equipped per slot). */
-export const GEAR_KINDS = ['weapon', 'shield', 'armor'];
+export const GEAR_KINDS = ['weapon', 'shield', 'armor', 'helmet'];
 export const isGear = (id) => GEAR_KINDS.includes(ITEMS[id]?.kind);
 
 /** Seconds between attacks for each swing style (heavier = slower). */
@@ -254,15 +265,20 @@ export function rollBlueprint(depth, known = [], rand = Math.random) {
  * Each drop is from your depth's tier, sometimes one tier better.
  */
 export const DROP_TIERS = [
-  { depth: 1,   items: ['dagger', 'sword', 'axe', 'bow', 'staff', 'woodshield', 'leather'] },
-  { depth: 4,   items: ['crossbow', 'wand', 'greataxe', 'sword', 'squareshield', 'chainmail'] },
-  { depth: 8,   items: ['greatsword', 'heavybow', 'spellbook', 'greataxe', 'spikeshield', 'chainmail'] },
-  { depth: 15,  items: ['royalsword', 'greatsword', 'heavybow', 'spellbook', 'royalshield', 'plate'] },
-  { depth: 40,  items: ['steeldagger', 'steelblade', 'steelaxe', 'longbow', 'oakstaff', 'steelshield', 'steelplate'] },
-  { depth: 90,  items: ['mythrildagger', 'mythrilblade', 'mythrilaxe', 'mythrilbow', 'mythrilwand', 'mythrilshield', 'mythrilmail'] },
-  { depth: 160, items: ['shadowdagger', 'shadowblade', 'shadowaxe', 'shadowbow', 'shadowstaff', 'shadowshield', 'shadowplate'] },
-  { depth: 230, items: ['stardagger', 'starblade', 'staraxe', 'starbow', 'starbook', 'starshield', 'starplate'] },
+  { depth: 1,   items: ['dagger', 'sword', 'axe', 'bow', 'staff', 'woodshield', 'leather', 'leathercap'] },
+  { depth: 4,   items: ['crossbow', 'wand', 'greataxe', 'sword', 'squareshield', 'chainmail', 'ironhelm'] },
+  { depth: 8,   items: ['greatsword', 'heavybow', 'spellbook', 'greataxe', 'spikeshield', 'chainmail', 'ironhelm'] },
+  { depth: 15,  items: ['royalsword', 'greatsword', 'heavybow', 'spellbook', 'royalshield', 'plate', 'knighthelm'] },
+  { depth: 40,  items: ['steeldagger', 'steelblade', 'steelaxe', 'longbow', 'oakstaff', 'steelshield', 'steelplate', 'steelhelm'] },
+  { depth: 90,  items: ['mythrildagger', 'mythrilblade', 'mythrilaxe', 'mythrilbow', 'mythrilwand', 'mythrilshield', 'mythrilmail', 'mythrilhelm'] },
+  { depth: 160, items: ['shadowdagger', 'shadowblade', 'shadowaxe', 'shadowbow', 'shadowstaff', 'shadowshield', 'shadowplate', 'shadowhelm'] },
+  { depth: 230, items: ['stardagger', 'starblade', 'staraxe', 'starbow', 'starbook', 'starshield', 'starplate', 'starhelm'] },
 ];
+
+/** How much of each hit your armor and helmet take off together (0..1): each softens what the other lets through. */
+export function protection(armor, helmet) {
+  return 1 - (1 - (ITEMS[armor]?.armor ?? 0)) * (1 - (ITEMS[helmet]?.kind === 'helmet' ? ITEMS[helmet].armor : 0));
+}
 
 export function rollGearDrop(depth, rand = Math.random) {
   let tier = DROP_TIERS.findLastIndex((t) => depth >= t.depth);

@@ -202,4 +202,4 @@ export const ARENA_ROUNDS = [
 ];
 export const ARENA_PRIZE = 'solarblade';
 /** What winning round n gives everyone in the ring: an item (ITEMS), or a hat for the wardrobe (HATS). */
-export const ARENA_PRIZES = { 3: { item: ARENA_PRIZE }, 6: { hat: 'solarhelm' } };
+export const ARENA_PRIZES = { 3: { item: ARENA_PRIZE }, 6: { item: 'solarhelm' } }; // (6: a helmet, worn in the helmet slot)

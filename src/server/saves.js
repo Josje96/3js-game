@@ -57,6 +57,7 @@ export function newPlayerRecord({ name, cls }) {
     inventory: { potion: 2 },
     shield: null,
     armor: null,
+    helmet: null,                  // the helmet you wear (ITEMS kind 'helmet'), over your armor
     closet: [],                    // bought styles, e.g. ['hat:crown', 'dye:sky']
     pets: [],                      // owned pets: [{ id, species, name, level, xp }]
     pet: null,                     // id of the one following you around
@@ -72,7 +73,7 @@ export function newPlayerRecord({ name, cls }) {
  * and in a migration that fills it in for old saves.
  */
 export const PLAYER_FIELDS = ['name', 'cls', 'look', 'level', 'xp', 'points', 'stats', 'hp', 'maxHp', 'gold',
-  'weapon', 'shield', 'armor', 'gear', 'blueprints', 'inventory', 'closet', 'pets', 'pet', 'enchants', 'bank'];
+  'weapon', 'shield', 'armor', 'helmet', 'gear', 'blueprints', 'inventory', 'closet', 'pets', 'pet', 'enchants', 'bank'];
 
 /**
  * Save upgrades, oldest first. Each step brings a save up to `version`.
@@ -191,6 +192,12 @@ export const MIGRATIONS = [
     version: 13, // gear in the family chest keeps its enchant
     up(save) {
       save.house.storageEnch ??= {};
+    },
+  },
+  {
+    version: 14, // a helmet slot
+    up(save) {
+      for (const rec of Object.values(save.players ?? {})) rec.helmet ??= null;
     },
   },
 ];

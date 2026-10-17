@@ -39,13 +39,13 @@ export const methods = {
     this.sendSelf(p);
   },
 
-  /** Equip something from your gear bag (or take your shield off with item: null, slot: 'shield'). */
+  /** Equip something from your gear bag (or take off your shield, armor or helmet with item: null, slot: 'shield'...). */
   on_equip(p, { item, slot }) {
-    if (item == null && (slot === 'shield' || slot === 'armor')) p[slot] = null; // take it off
+    if (item == null && (slot === 'shield' || slot === 'armor' || slot === 'helmet')) p[slot] = null; // take it off
     else {
       const def = ITEMS[item];
       if (!def || !p.gear.includes(item) || !isGear(item)) return;
-      p[def.kind] = item; // weapon / shield / armor
+      p[def.kind] = item; // weapon / shield / armor / helmet
     }
     this.writeRecord(p);
     this.sendSelf(p);
@@ -62,7 +62,7 @@ export const methods = {
       return;
     }
     p.gear.push(item);
-    const score = (id) => (def.kind === 'weapon' ? attackDamage(id, p.stats, p.enchants?.[id]) : def.kind === 'shield' ? ITEMS[id]?.block ?? 0 : ITEMS[id]?.armor ?? 0);
+    const score = (id) => (def.kind === 'weapon' ? attackDamage(id, p.stats, p.enchants?.[id]) : def.kind === 'shield' ? ITEMS[id]?.block ?? 0 : ITEMS[id]?.armor ?? 0); // (armor and helmets: how much they take off)
     const better = score(item) > score(p[def.kind]);
     if (better) p[def.kind] = item;
     this.toast(p, `New ${def.kind}: ${def.name}!${better ? ' Equipped.' : ' Press C to equip it.'}`);

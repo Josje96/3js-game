@@ -151,7 +151,7 @@ export class GameServer {
   sendSelf(p) {
     this.send(p, {
       t: 'self', hp: p.hp, maxHp: p.maxHp, level: p.level, xp: p.xp, xpNext: xpToNext(p.level), points: p.points, stats: p.stats, gold: p.gold,
-      weapon: p.weapon, shield: p.shield, armor: p.armor, gear: p.gear, blueprints: p.blueprints, closet: p.closet, pets: p.pets, pet: p.pet, inventory: p.inventory, enchants: p.enchants ?? {}, bank: p.bank ?? null,
+      weapon: p.weapon, shield: p.shield, armor: p.armor, helmet: p.helmet ?? null, gear: p.gear, blueprints: p.blueprints, closet: p.closet, pets: p.pets, pet: p.pet, inventory: p.inventory, enchants: p.enchants ?? {}, bank: p.bank ?? null,
       luck: Math.max(0, Math.round((p.luckUntil ?? 0) - this.time)),
     });
   }
@@ -370,7 +370,7 @@ export { INTERACTIONS };
 
 /** Everything about how a player looks; when it changes, everyone nearby gets the full details again. */
 function appearanceKey(p) {
-  return `${p.name}|${p.cls}|${JSON.stringify(p.look)}|${p.weapon}|${p.enchants?.[p.weapon] ?? 0}|${p.shield}|${p.armor}|${p.maxHp}`;
+  return `${p.name}|${p.cls}|${JSON.stringify(p.look)}|${p.weapon}|${p.enchants?.[p.weapon] ?? 0}|${p.shield}|${p.armor}|${p.helmet}|${p.maxHp}`;
 }
 
 /** A player in a 'pos' message: [id, x, z, rot, anim, act, hp]. */
@@ -380,7 +380,7 @@ function playerPos(p) {
 
 function publicPlayer(p) {
   return {
-    id: p.id, name: p.name, cls: p.cls, look: p.look, weapon: p.weapon, ench: p.enchants?.[p.weapon] ?? 0, shield: p.shield, armor: p.armor,
+    id: p.id, name: p.name, cls: p.cls, look: p.look, weapon: p.weapon, ench: p.enchants?.[p.weapon] ?? 0, shield: p.shield, armor: p.armor, helmet: p.helmet ?? null,
     x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100,
     rot: Math.round(p.rot * 100) / 100, anim: p.anim, act: p.act, hp: p.hp, maxHp: p.maxHp,
   };

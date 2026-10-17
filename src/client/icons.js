@@ -7,6 +7,7 @@ import { cloneModel } from './assets.js';
 import { tintModel } from './views.js';
 import { FURNITURE_BUILDERS } from './furniture.js';
 import { PetView } from './pets.js';
+import { buildHelmet } from './cosmetics.js';
 
 const SIZE = 96;
 const cache = new Map();
@@ -59,6 +60,7 @@ function cached(key, make) {
 /** An item's picture (a data: URL), or null if its model isn't loaded. */
 export function itemIcon(id) {
   const def = ITEMS[id];
+  if (def?.kind === 'helmet') return cached(`item:${id}`, () => snapshot(buildHelmet(def), { yaw: 0.6, tilt: 0.35 })); // (no model: the one people wear)
   if (!def?.model) return null;
   const weapon = def.kind === 'weapon';
   return cached(`item:${id}`, () => snapshot(tintModel(cloneModel(def.model), def.tint), weapon ? { yaw: Math.PI / 2, tilt: 0.15, roll: -Math.PI / 4 } : { yaw: 0.6, tilt: 0.35 }));

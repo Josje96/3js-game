@@ -161,6 +161,7 @@ export class GameClient {
         this.me?.setWeapon(msg.weapon, msg.enchants?.[msg.weapon]);
         this.me?.setShield(msg.shield);
         this.me?.setArmor(msg.armor);
+        this.me?.setHelmet(msg.helmet);
         this.me?.setHealth(msg.hp / msg.maxHp);
         this.hud.setDanger(msg.hp / msg.maxHp);
         break;
@@ -251,7 +252,7 @@ export class GameClient {
   }
 
   makeMe() {
-    const me = new CharacterView({ cls: this.profile.cls, look: this.profile.look, name: this.profile.name, weapon: this.self?.weapon, ench: this.self?.enchants?.[this.self?.weapon], shield: this.self?.shield, armor: this.self?.armor, isLocal: true });
+    const me = new CharacterView({ cls: this.profile.cls, look: this.profile.look, name: this.profile.name, weapon: this.self?.weapon, ench: this.self?.enchants?.[this.self?.weapon], shield: this.self?.shield, armor: this.self?.armor, helmet: this.self?.helmet, isLocal: true });
     if (this.self) me.setHealth(this.self.hp / this.self.maxHp);
     return me;
   }
@@ -359,6 +360,7 @@ export class GameClient {
     v.setLook(p.look);
     v.setShield(p.shield);
     v.setArmor(p.armor);
+    v.setHelmet(p.helmet);
     if (p.act !== v.lastAct) { v.lastAct = p.act; v.play('attack'); }
   }
 

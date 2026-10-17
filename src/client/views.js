@@ -5,7 +5,7 @@ import { ITEMS, SWING_COOLDOWN, SWING_IMPACT } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
 import { buildTailored, bindBones, handOnly } from './tailor.js';
-import { browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildBack, buildHair, buildFace, buildScalp, craniumOf, cuteNose, faceSpotsOf, fitHair, buildClothes, buildArmor, hairlessHead, scalpOf, skinColour, skinSplit, smoothSkin, sweptCape, buildBrows } from './cosmetics.js';
+import { browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildHelmet, buildBack, buildHair, buildFace, buildScalp, craniumOf, cuteNose, faceSpotsOf, fitHair, buildClothes, buildArmor, hairlessHead, scalpOf, skinColour, skinSplit, smoothSkin, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -178,7 +178,7 @@ function windCape(material) {
 }
 
 export class CharacterView {
-  constructor({ cls, look, name, weapon, ench = 0, shield = null, armor = null, isLocal = false }) {
+  constructor({ cls, look, name, weapon, ench = 0, shield = null, armor = null, helmet = null, isLocal = false }) {
     this.root = new THREE.Group();
     this.cls = cls;
     this.model = cloneCharacter((CLASSES[cls] ?? CLASSES.Knight).model);
@@ -193,6 +193,7 @@ export class CharacterView {
     this.coatColor = COATS[hash % COATS.length];
     this.winterHat = WINTER_HATS[(hash >>> 3) % WINTER_HATS.length]; // the same one every winter
     this.costume = HALLOWEEN_COSTUMES[(Math.imul(hash ^ (hash >>> 16), 0x45d9f3b) >>> 16) % HALLOWEEN_COSTUMES.length]; // the same costume every Halloween
+    this.helmetId = ITEMS[helmet]?.kind === 'helmet' ? helmet : null; // (worn instead of the hat: setLook)
     this.setLook(look);
     this.mixer = new THREE.AnimationMixer(this.model);
     const clips = characterClips();
@@ -251,6 +252,15 @@ export class CharacterView {
       if (model === 'items/spellbook_open') this.bookFx = spellbookFx(this.weaponObj, this.root, ITEMS[id].tint); // runes and pages
       this.flashMats = null; // new materials: collect them again for the low-health flash
     }
+  }
+
+  /** A helmet (ITEMS kind 'helmet'): worn on the head instead of your hat; null takes it off. */
+  setHelmet(id) {
+    id = ITEMS[id]?.kind === 'helmet' ? id : null;
+    if (id === this.helmetId) return;
+    this.helmetId = id;
+    this.lookKey = null;
+    this.setLook(this.look);
   }
 
   /** Armor: shoulder pads and a chest plate in the armor's colour (built in cosmetics.js). */
@@ -416,15 +426,17 @@ export class CharacterView {
     const fancy = look?.clothes && look.clothes !== 'none';
     const costume = wear === 'halloween' ? this.costume : wear === 'santa' || wear === 'grandma' ? wear : null;
     if (wear === 'winter' || costume) look = { ...look, hat: 'none' }; // the bobble hat (or costume) goes on instead
+    const helm = !costume && ITEMS[this.helmetId]?.kind === 'helmet' ? ITEMS[this.helmetId] : null; // a helmet goes on instead of any hat
+    if (helm) look = { ...look, hat: 'none' };
     const { hat: picked = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', bangs = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red', brows = 'soft' } = look ?? {};
     // fancy clothes come with their own matching hat (a chef's hat with the chef whites...), worn instead of the outfit's
     const matching = picked === 'own' && !costume ? CLOTHES[clothes]?.hat ?? null : null;
     const hat = matching ?? picked;
     // a hat that covers the head, over the outfit's own (big, sculpted) hair: that hair poked out through it,
     // so it goes, and a neat tucked-in style in your hair colour shows under the brim instead
-    const covered = COVERING_HATS.has(hat) || (wear === 'winter' && this.winterHat !== 'earmuffs') || (!!costume && costume !== 'grandma'); // (Grandma's flower crown sits on her curls)
+    const covered = COVERING_HATS.has(hat) || !!helm || (wear === 'winter' && this.winterHat !== 'earmuffs') || (!!costume && costume !== 'grandma'); // (Grandma's flower crown sits on her curls)
     const hairStyle = hair === 'none' && covered && this.anchors.scalp ? 'bob' : hair;
-    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${bangs}/${hairColor}/${face}/${skin}/${tie}/${brows}/${wear}`;
+    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${bangs}/${hairColor}/${face}/${skin}/${tie}/${brows}/${wear}/${this.helmetId}`;
     if (key === this.lookKey) return;
     this.lookKey = key;
     for (const m of this.borrowed) m.removeFromParent();
@@ -500,9 +512,10 @@ export class CharacterView {
     if (costume) this.attach(hatSlot, buildCostumeHat(costume));
     else if (wear === 'winter') {
       const ww = buildWinterWear(this.coatColor === COATS[1] ? COATS[0] : COATS[(COATS.indexOf(this.coatColor) + 1) % COATS.length], this.winterHat);
-      this.attach(hatSlot, ww.hat);
+      if (!helm) this.attach(hatSlot, ww.hat); // (a helmet stays on in winter; the scarf goes on anyway)
       this.attach('front', ww.scarf);
     }
+    if (helm) this.attach(hatSlot, buildHelmet(helm));
     // dye: give cape meshes their own copy of the (shared) material, painted a flat colour
     // (multiplying over a red cape's texture would just give muddy red)
     const tint = DYES[dye]?.color;

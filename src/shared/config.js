@@ -37,8 +37,8 @@ export const LUCK_GOLD = 1.25, LUCK_CRIT = 0.1, LUCK_GEAR = 2; // while lucky: m
 export const FEAST_COST = 10;        // gold for food at the fort's feast table (heals half your health)
 export const AUTOSAVE_SECONDS = 30;
 
-export const SAVE_VERSION = 13;
-export const PROTOCOL_VERSION = 50;
+export const SAVE_VERSION = 14;
+export const PROTOCOL_VERSION = 51;
 export const PEER_PREFIX = 'famdungeon-v1-'; // PeerJS ids are global; namespace ours
 
 export const CLASSES = {

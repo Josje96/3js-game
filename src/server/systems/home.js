@@ -241,7 +241,7 @@ export const methods = {
     const store = this.chestStorage(), ench = this.chestEnch(), name = ITEMS[item].name;
     if (dir === 'in') {
       if (!p.gear.includes(item)) return;
-      if (p.weapon === item || p.shield === item || p.armor === item) return this.toast(p, `Take off your ${name} first (C).`);
+      if (p.weapon === item || p.shield === item || p.armor === item || p.helmet === item) return this.toast(p, `Take off your ${name} first (C).`);
       p.gear = p.gear.filter((g) => g !== item);
       const level = p.enchants?.[item] ?? 0;
       if (p.enchants) delete p.enchants[item];

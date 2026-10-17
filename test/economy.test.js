@@ -168,3 +168,27 @@ test('smelting: 20 ore make a bar at the Blacksmith, worth more than the ore', a
   c.kid.say({ t: 'smelt', ore: 'stone' });
   assert.ok(!p.kid.inventory.stonebar, 'only ores');
 });
+
+test('helmets: a slot of their own; armor and helmet together soften each hit; old saves get an empty slot', async () => {
+  const { protection, GEAR_KINDS } = await import('../src/shared/items.js');
+  assert.ok(GEAR_KINDS.includes('helmet'));
+  const helmets = Object.entries(ITEMS).filter(([, d]) => d.kind === 'helmet');
+  assert.ok(helmets.length >= 8 && helmets.every(([, d]) => d.armor > 0 && d.armor < 0.3 && d.helm), 'a helmet for every tier');
+  assert.equal(protection(null, null), 0);
+  assert.ok(Math.abs(protection('steelplate', 'steelhelm') - (1 - 0.7 * 0.88)) < 1e-9, 'each softens what the other lets through');
+  const old = migrate(JSON.parse(readFileSync(new URL('./fixtures/save-v13.json', import.meta.url))));
+  for (const rec of Object.values(old.players)) assert.equal(rec.helmet, null, 'an empty helmet slot');
+  const { server, p, c } = world('helm', 'mom');
+  server.travel(p.mom, 'town');
+  const hp = () => p.mom.hp;
+  p.mom.maxHp = p.mom.hp = 1000;
+  server.damagePlayer(p.mom, 100);
+  const bare = 1000 - hp();
+  p.mom.hp = 1000;
+  server.gainGear(p.mom, 'knighthelm');
+  assert.equal(p.mom.helmet, 'knighthelm', 'a new helmet goes straight on');
+  server.damagePlayer(p.mom, 100);
+  assert.ok(1000 - hp() < bare, 'the helmet takes some of the hit');
+  c.mom.say({ t: 'equip', item: null, slot: 'helmet' });
+  assert.equal(p.mom.helmet, null, 'and comes off again');
+});
