@@ -29,6 +29,8 @@ const BOOK_OUT = 0.16; // a spellbook, held this far out from the hand (away fro
 const AIM_E = new THREE.Euler(), AIM_P3 = new THREE.Quaternion();
 const AIM_A = new THREE.Vector3(), AIM_B = new THREE.Vector3(), AIM_C = new THREE.Vector3(), AIM_M = new THREE.Matrix4();
 const AIM_Q = new THREE.Quaternion(), AIM_P = new THREE.Quaternion(), AIM_P2 = new THREE.Quaternion();
+const SWING_CLEAR = 0.85; // how far (radians) a melee swing's arm leans out from the shoulder, away from the head and body
+const SC_M = new THREE.Matrix4(), SC_A = new THREE.Vector3(), SC_B = new THREE.Vector3(), SC_X = new THREE.Vector3();
 
 const HAIR_HEAD_R = 0.56, HAIR_HEAD_DROP = 0.5; // the head ball hairstyles are built round (cosmetics.js HEAD_R, -HEAD_Y)
 
@@ -664,6 +666,7 @@ export class CharacterView {
     }
     if (!this.actions[name]) return;
     this.oneShot = this.actions[name];
+    this.swingAction = this.swingAttack ? this.oneShot : null; // (swingClear: until it has faded right out)
     this.fadeTo(name, 0.08);
   }
 
@@ -749,6 +752,7 @@ export class CharacterView {
       this.flashing = this.lowHp;
     }
     this.mixer.update(dt);
+    if (this.swingAction && this.rollT == null) this.swingClear();
     if (this.base === 'sit' && this.rollT == null) this.sitPose();
     if (this.shootT != null) this.shootPose(dt);
     this.bookFx?.update(dt, this.time);
@@ -819,6 +823,32 @@ export class CharacterView {
    * Point `bone` (its +y runs down the limb) along (x, y, z) in character space, twisted `roll` radians
    * round itself from "front facing up", by `w` (0..1) over its animated pose.
    */
+  /**
+   * Melee swings: the clips swing the weapon close past the head (through a hat) and across the belly. Lean
+   * the weapon arm out from the shoulder, the hand moving away from the middle of the body whichever way the
+   * arm points (up past the head, down across the front), so the weapon's whole arc stays clear of both.
+   */
+  swingClear() {
+    const w = this.swingAction.getEffectiveWeight();
+    if (w <= 0.001) { if (!this.swingAction.isRunning()) this.swingAction = null; return; }
+    if (this.swingArm === undefined) { // the weapon arm: its shoulder, then its elbow (which leans out a little more)
+      const up = (re) => { let b = this.hand; while (b && !re.test(b.name)) b = b.parent; return b ?? null; };
+      this.swingArm = [[up(/^upperarm/), SWING_CLEAR], [up(/^lowerarm/), SWING_CLEAR * 0.5]].filter(([b]) => b);
+    }
+    for (const [bone, angle] of this.swingArm) {
+      this.root.updateWorldMatrix(true, true);
+      const inv = SC_M.copy(this.root.matrixWorld).invert();
+      const from = SC_A.setFromMatrixPosition(bone.matrixWorld).applyMatrix4(inv), hand = SC_B.setFromMatrixPosition(this.hand.matrixWorld).applyMatrix4(inv);
+      const side = Math.sign(from.x) || 1;
+      const along = hand.sub(from).normalize();
+      const axis = SC_X.set(side, 0, 0).cross(along).negate(); // turns `along` towards the arm's own side
+      if (axis.lengthSq() < 1e-4) continue;
+      axis.transformDirection(this.root.matrixWorld);
+      const world = AIM_Q.setFromAxisAngle(axis, angle * w).multiply(bone.getWorldQuaternion(AIM_P));
+      bone.quaternion.copy(bone.parent.getWorldQuaternion(AIM_P2).invert().multiply(world));
+    }
+  }
+
   setBone(bone, x, y, z, roll, w) {
     if (w <= 0) return;
     this.root.getWorldQuaternion(AIM_P);
