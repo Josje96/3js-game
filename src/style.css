@@ -64,6 +64,7 @@ summary { cursor: pointer; color: var(--accent); margin-bottom: 6px; }
 #game canvas { display: block; }
 #hud { position: fixed; inset: 0; pointer-events: none; }
 #hud > * { pointer-events: auto; }
+#hud > .hud-cinema, #hud > .hud-floats, #hud > .hud-danger, #hud > .hud-toasts, #hud > .hud-chat, #hud > .hud-xp, #hud > .hud-stats { pointer-events: none; } /* see-through overlays: clicks go to the game (#hud > * would make them catch every click) */
 .hud-status { position: absolute; top: 12px; left: 12px; padding: 10px 14px; min-width: 220px; }
 .hud-status .night { color: #b9a8ff; font-weight: 700; }
 .stash-row { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
