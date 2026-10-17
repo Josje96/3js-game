@@ -3,6 +3,9 @@
 import * as THREE from 'three';
 import { ENEMIES } from '../shared/dungeons.js';
 import { creatureLook } from './creaturelook.js';
+import { glowTexture } from './effects.js';
+
+const softGlow = () => (typeof document === 'undefined' ? null : glowTexture()); // (no canvas in the tests)
 
 const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...extra });
 const glow = (color) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.2, roughness: 0.4 });
@@ -392,7 +395,7 @@ const DETAILS = {
   ghost({ group: g, parts: P }) {
     const chain = mat(0x8a8aa0, { metalness: 0.6, roughness: 0.4 });
     for (const arm of P.arms) for (let i = 0; i < 3; i++) add(arm, new THREE.TorusGeometry(0.05, 0.015, 4, 8), chain, (arm.position.x > 0 ? 1 : -1) * (0.3 + i * 0.07), -0.1 - i * 0.05, 0.12).rotation.y = i; // shackles
-    const wisp = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x6aa8e0, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const wisp = new THREE.Sprite(new THREE.SpriteMaterial({ map: softGlow(), color: 0x6aa8e0, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending }));
     wisp.scale.setScalar(2.0);
     wisp.position.y = 0.3;
     g.add(wisp);
@@ -649,7 +652,7 @@ const SEASON_BODIES = {
       arms.push(arm);
       add(g, new THREE.IcosahedronGeometry(0.35, 0), ice, s * 0.4, 0.35, 0, 1, 1, 1.2); // feet
     }
-    const mist = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const mist = new THREE.Sprite(new THREE.SpriteMaterial({ map: softGlow(), color: 0xdff6ff, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending }));
     mist.scale.setScalar(3.5);
     mist.position.y = 1.3;
     g.add(mist);
@@ -741,7 +744,7 @@ BODIES.warrior = function warrior(fire, variant = 'gladiator') {
     blade.rotation.x = Math.PI / 2;
     add(R, new THREE.BoxGeometry(0.4, 0.07, 0.09), metal, 0, 0, 0.07);
     add(R, new THREE.CylinderGeometry(0.035, 0.035, 0.24, 6), leather, 0, 0, -0.08).rotation.x = Math.PI / 2;
-    flame = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xff9a2a, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+    flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: softGlow(), color: 0xff9a2a, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
     flame.scale.set(0.5, 1.6, 1);
     flame.position.set(0, 0.02, 0.75);
     R.add(flame);
