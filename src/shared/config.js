@@ -74,6 +74,18 @@ export const HATS = {
   bandana: { name: 'Pirate bandana', price: 80, build: 'bandana' },
   captain: { name: 'Captain’s hat', price: 260, build: 'captain' },
   mushroom:{ name: 'Mushroom cap', price: 110, build: 'mushroom' },
+  // the fancy clothes' matching hats (each outfit wears its own with the hat on 'own'; CLOTHES `hat`)
+  chef:     { name: 'Chef’s hat', price: 90, build: 'chef' },
+  straw:    { name: 'Straw hat', price: 70, build: 'straw' },
+  fedora:   { name: 'Fedora', price: 120, build: 'fedora' },
+  tiara:    { name: 'Tiara', price: 260, build: 'tiara' },
+  boater:   { name: 'Boater', price: 90, build: 'boater' },
+  sunhat:   { name: 'Sun hat', price: 110, build: 'sunhat' },
+  pith:     { name: 'Pith helmet', price: 120, build: 'pith' },
+  pumpkinhat: { name: 'Pumpkin beanie', price: 90, build: 'pumpkinhat' },
+  leafcrown:  { name: 'Autumn leaf crown', price: 90, build: 'leafcrown' },
+  icecrown:   { name: 'Ice crown', price: 300, build: 'icecrown' },
+  santahat:   { name: 'Santa hat', price: 100, build: 'santahat' },
 };
 export const CAPES = {
   knight: { name: 'Knight cape', from: 'Knight' },
@@ -161,34 +173,35 @@ export const FACES = {
 };
 /**
  * Fancy clothes over the outfit (bought in the shop's Fashion tab). `jacket` recolours the body and
- * sleeves (hands keep their skin), `legs` the trousers; `extra` is a little model from client/cosmetics.js.
+ * sleeves (hands keep their skin), `legs` the trousers; `extra` is a little model from client/cosmetics.js;
+ * `hat` the matching hat (a HATS key) it wears when your hat is on 'own' (the outfit's own).
  */
 export const CLOTHES = {
-  suit:   { name: 'Suit & tie', price: 240, jacket: 0x2e3440, legs: 0x262a33, extra: 'tie' },
-  tux:    { name: 'Tuxedo', price: 360, jacket: 0x16161c, legs: 0x16161c, extra: 'bowtie' },
-  gown:   { name: 'Ball gown', price: 360, jacket: 0xd8649f, legs: 0xd8649f, extra: 'gown' },
-  royal:  { name: 'Royal robe', price: 600, jacket: 0x6a35b8, legs: 0x3d2470, extra: 'robe' },
-  sunday: { name: 'Sunday best', price: 180, jacket: 0x5b86c9, legs: 0xe9e2cf, extra: 'vest' },
-  pirate: { name: 'Pirate captain', price: 420, jacket: 0x8a1a1a, legs: 0x2a2a2a, extra: 'sash' },
-  princess: { name: 'Princess gown', price: 480, jacket: 0x9fd8ff, legs: 0x9fd8ff, extra: 'gown' },
-  wizard: { name: 'Wizard robe', price: 520, jacket: 0x2a2a7a, legs: 0x22225a, extra: 'robe' },
-  chef:   { name: 'Chef whites', price: 200, jacket: 0xf4f4f4, legs: 0x3a3a3a, extra: 'apron' },
-  overalls: { name: 'Farmer overalls', price: 160, jacket: 0xd8402a, legs: 0x3b5f9a, extra: 'bib' },
-  sundress: { name: 'Summer dress', price: 300, jacket: 0xffd23f, legs: 0xffd23f, extra: 'gown' },
-  rosegown:     { name: 'Rose princess gown', price: 520, jacket: 0xff7ab8, legs: 0xff7ab8, extra: 'gown' },
-  lilacgown:    { name: 'Lilac princess gown', price: 520, jacket: 0xb898ff, legs: 0xb898ff, extra: 'gown' },
-  mintgown:     { name: 'Mint princess gown', price: 520, jacket: 0x7fe0b8, legs: 0x7fe0b8, extra: 'gown' },
-  goldgown:     { name: 'Golden princess gown', price: 680, jacket: 0xf0c040, legs: 0xf0c040, extra: 'gown' },
-  midnightgown: { name: 'Midnight princess gown', price: 680, jacket: 0x34407a, legs: 0x34407a, extra: 'gown' },
+  suit:   { name: 'Suit & tie', price: 240, jacket: 0x2e3440, legs: 0x262a33, extra: 'tie', hat: 'fedora' },
+  tux:    { name: 'Tuxedo', price: 360, jacket: 0x16161c, legs: 0x16161c, extra: 'bowtie', hat: 'tophat' },
+  gown:   { name: 'Ball gown', price: 360, jacket: 0xd8649f, legs: 0xd8649f, extra: 'gown', hat: 'tiara' },
+  royal:  { name: 'Royal robe', price: 600, jacket: 0x6a35b8, legs: 0x3d2470, extra: 'robe', hat: 'crown' },
+  sunday: { name: 'Sunday best', price: 180, jacket: 0x5b86c9, legs: 0xe9e2cf, extra: 'vest', hat: 'boater' },
+  pirate: { name: 'Pirate captain', price: 420, jacket: 0x8a1a1a, legs: 0x2a2a2a, extra: 'sash', hat: 'captain' },
+  princess: { name: 'Princess gown', price: 480, jacket: 0x9fd8ff, legs: 0x9fd8ff, extra: 'gown', hat: 'tiara' },
+  wizard: { name: 'Wizard robe', price: 520, jacket: 0x2a2a7a, legs: 0x22225a, extra: 'robe', hat: 'wizard' },
+  chef:   { name: 'Chef whites', price: 200, jacket: 0xf4f4f4, legs: 0x3a3a3a, extra: 'apron', hat: 'chef' },
+  overalls: { name: 'Farmer overalls', price: 160, jacket: 0xd8402a, legs: 0x3b5f9a, extra: 'bib', hat: 'straw' },
+  sundress: { name: 'Summer dress', price: 300, jacket: 0xffd23f, legs: 0xffd23f, extra: 'gown', hat: 'sunhat' },
+  rosegown:     { name: 'Rose princess gown', price: 520, jacket: 0xff7ab8, legs: 0xff7ab8, extra: 'gown', hat: 'tiara' },
+  lilacgown:    { name: 'Lilac princess gown', price: 520, jacket: 0xb898ff, legs: 0xb898ff, extra: 'gown', hat: 'tiara' },
+  mintgown:     { name: 'Mint princess gown', price: 520, jacket: 0x7fe0b8, legs: 0x7fe0b8, extra: 'gown', hat: 'tiara' },
+  goldgown:     { name: 'Golden princess gown', price: 680, jacket: 0xf0c040, legs: 0xf0c040, extra: 'gown', hat: 'tiara' },
+  midnightgown: { name: 'Midnight princess gown', price: 680, jacket: 0x34407a, legs: 0x34407a, extra: 'gown', hat: 'tiara' },
   // seasonal outfits: only from the Seasonal Trader, in their season (shared/seasonal.js)
-  blossomgown:  { name: 'Blossom gown', price: 1400, jacket: 0xffb3cc, legs: 0xffd6e4, extra: 'gown', seasonal: 'spring' },
-  gardener:     { name: 'Gardener’s overalls', price: 1000, jacket: 0xfff6dc, legs: 0x3fa84a, extra: 'bib', seasonal: 'spring' },
-  beachdress:   { name: 'Beach dress', price: 1200, jacket: 0x4fd8c0, legs: 0x4fd8c0, extra: 'gown', seasonal: 'summer' },
-  safari:       { name: 'Safari explorer', price: 1000, jacket: 0xd8c08a, legs: 0x8a7a5a, extra: 'vest', seasonal: 'summer' },
-  harvestcloak: { name: 'Harvest cloak', price: 1400, jacket: 0xd8782a, legs: 0x6b3a1a, extra: 'robe', seasonal: 'autumn' },
-  pumpkinsuit:  { name: 'Pumpkin patch suit', price: 1000, jacket: 0xff8a2a, legs: 0x3a5a2a, extra: 'tie', seasonal: 'autumn' },
-  snowqueen:    { name: 'Snow queen gown', price: 1600, jacket: 0xdff6ff, legs: 0xbfe0ff, extra: 'gown', seasonal: 'winter' },
-  wintercoat:   { name: 'Festive red coat', price: 1200, jacket: 0xd8302a, legs: 0x2a2a2a, extra: 'robe', seasonal: 'winter' },
+  blossomgown:  { name: 'Blossom gown', price: 1400, jacket: 0xffb3cc, legs: 0xffd6e4, extra: 'gown', hat: 'flowers', seasonal: 'spring' },
+  gardener:     { name: 'Gardener’s overalls', price: 1000, jacket: 0xfff6dc, legs: 0x3fa84a, extra: 'bib', hat: 'straw', seasonal: 'spring' },
+  beachdress:   { name: 'Beach dress', price: 1200, jacket: 0x4fd8c0, legs: 0x4fd8c0, extra: 'gown', hat: 'sunhat', seasonal: 'summer' },
+  safari:       { name: 'Safari explorer', price: 1000, jacket: 0xd8c08a, legs: 0x8a7a5a, extra: 'vest', hat: 'pith', seasonal: 'summer' },
+  harvestcloak: { name: 'Harvest cloak', price: 1400, jacket: 0xd8782a, legs: 0x6b3a1a, extra: 'robe', hat: 'leafcrown', seasonal: 'autumn' },
+  pumpkinsuit:  { name: 'Pumpkin patch suit', price: 1000, jacket: 0xff8a2a, legs: 0x3a5a2a, extra: 'tie', hat: 'pumpkinhat', seasonal: 'autumn' },
+  snowqueen:    { name: 'Snow queen gown', price: 1600, jacket: 0xdff6ff, legs: 0xbfe0ff, extra: 'gown', hat: 'icecrown', seasonal: 'winter' },
+  wintercoat:   { name: 'Festive red coat', price: 1200, jacket: 0xd8302a, legs: 0x2a2a2a, extra: 'robe', hat: 'santahat', seasonal: 'winter' },
 };
 /** Eyebrow shapes (the mirror). All free; they take the hair colour. */
 export const BROWS = {

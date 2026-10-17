@@ -52,7 +52,7 @@ function skullDome(geo) {
 }
 
 // hats that cover the top of the head: hair tucks in under them (the rest sit on top of it)
-const COVERING_HATS = new Set(['helmet', 'bear', 'wizard', 'tophat', 'viking', 'cowboy', 'pirate', 'bandana', 'captain', 'mushroom']);
+const COVERING_HATS = new Set(['helmet', 'bear', 'wizard', 'tophat', 'viking', 'cowboy', 'pirate', 'bandana', 'captain', 'mushroom', 'chef', 'straw', 'fedora', 'boater', 'sunhat', 'pith', 'pumpkinhat', 'santahat']);
 
 const ANIMS = {
   idle: 'Idle_A',
@@ -412,7 +412,10 @@ export class CharacterView {
     const fancy = look?.clothes && look.clothes !== 'none';
     const costume = wear === 'halloween' ? this.costume : wear === 'santa' || wear === 'grandma' ? wear : null;
     if (wear === 'winter' || costume) look = { ...look, hat: 'none' }; // the bobble hat (or costume) goes on instead
-    const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', bangs = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red', brows = 'soft' } = look ?? {};
+    const { hat: picked = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', bangs = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red', brows = 'soft' } = look ?? {};
+    // fancy clothes come with their own matching hat (a chef's hat with the chef whites...), worn instead of the outfit's
+    const matching = picked === 'own' && !costume ? CLOTHES[clothes]?.hat ?? null : null;
+    const hat = matching ?? picked;
     // a hat that covers the head, over the outfit's own (big, sculpted) hair: that hair poked out through it,
     // so it goes, and a neat tucked-in style in your hair colour shows under the brim instead
     const covered = COVERING_HATS.has(hat) || wear === 'winter' || (!!costume && costume !== 'grandma'); // (Grandma's flower crown sits on her curls)
@@ -428,7 +431,7 @@ export class CharacterView {
       // the outfit's own hat — but picking a hairstyle takes it off, so the style shows (a hat you pick
       // yourself still goes on over it, tucking it in). The hooded Rogue's mask isn't a hat: it stays.
       if (HAT_PART.test(o.name)) {
-        o.userData.hatShown = hat === 'own' && (hair === 'none' || /_Mask$/.test(o.name));
+        o.userData.hatShown = (hat === 'own' || matching && /_Mask$/.test(o.name)) && (hair === 'none' || /_Mask$/.test(o.name));
         o.visible = o.userData.hatShown && (!this.inBed || /_Mask$/.test(o.name)); // (off in bed: showHats)
       }
       else if (CAPE_PART.test(o.name)) {

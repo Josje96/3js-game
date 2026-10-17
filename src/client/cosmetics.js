@@ -12,6 +12,9 @@ const mesh = (geo, material, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1) => {
   return m;
 };
 
+/** A brimmed hat pulled down onto the head (its band at the brow line, not perched on top with the scalp showing at the back). */
+const pulledOn = (g) => { g.scale.multiplyScalar(1.12); g.position.y -= 0.14; return g; };
+
 const HAT_BUILDERS = {
   bandana() { // a red pirate bandana tied snug over the head (no dome standing off it, or it's a toadstool): low on the forehead, down to the nape at the back, tiny white polka dots, knotted behind with two tails hanging down
     const g = new THREE.Group(), red = mat(0xc8202a, { roughness: 0.9 }), white = mat(0xffffff, { roughness: 0.9 }), dark = mat(0xa01a22, { roughness: 0.9 });
@@ -89,6 +92,145 @@ const HAT_BUILDERS = {
     g.add(feather);
     return g;
   },
+  chef() { // a tall white chef's toque: a pleated band round the head and a big puffed top
+    const g = new THREE.Group(), white = mat(0xfbfbf8, { roughness: 0.9, side: THREE.DoubleSide });
+    g.add(mesh(new THREE.CylinderGeometry(0.47, 0.45, 0.32, 28, 1, true), white, 0, -0.03, 0));
+    for (let i = 0; i < 16; i++) { // pleats
+      const a = (i / 16) * Math.PI * 2;
+      g.add(mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.3, 5), white, Math.sin(a) * 0.465, -0.03, Math.cos(a) * 0.465));
+    }
+    g.add(mesh(new THREE.SphereGeometry(0.34, 20, 12), white, 0, 0.36, 0, 1, 0.75, 1));
+    for (let i = 0; i < 7; i++) { // the puffs round the top
+      const a = (i / 7) * Math.PI * 2;
+      g.add(mesh(new THREE.SphereGeometry(0.25, 14, 10), white, Math.sin(a) * 0.27, 0.27, Math.cos(a) * 0.27, 1, 0.85, 1));
+    }
+    return pulledOn(g);
+  },
+  straw() { // a farmer's straw hat: a wide flat brim, woven rings, a red band and a stalk of wheat tucked in it
+    const g = new THREE.Group(), straw = mat(0xe8c86a, { roughness: 1, side: THREE.DoubleSide }), weave = mat(0xc9a64c, { roughness: 1 });
+    const brim = new THREE.LatheGeometry([[0.36, -0.07], [0.6, -0.09], [0.8, -0.07], [0.86, -0.03]].map(([x, y]) => new THREE.Vector2(x, y)), 32);
+    g.add(mesh(brim, straw));
+    for (const r of [0.55, 0.7]) g.add(mesh(new THREE.TorusGeometry(r, 0.008, 4, 40), weave, 0, r === 0.55 ? -0.083 : -0.084, 0)).children.at(-1).rotation.x = Math.PI / 2;
+    g.add(mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.36, 24), straw, 0, 0.1, 0));
+    g.add(mesh(new THREE.SphereGeometry(0.34, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2), straw, 0, 0.28, 0, 1, 0.22, 1));
+    for (const y of [0.12, 0.2]) g.add(mesh(new THREE.TorusGeometry(0.39 - (y - 0.04) * 0.2, 0.007, 4, 32), weave, 0, y, 0)).children.at(-1).rotation.x = Math.PI / 2;
+    g.add(mesh(new THREE.CylinderGeometry(0.415, 0.425, 0.08, 24), mat(0xc8302a), 0, -0.03, 0));
+    const wheat = new THREE.Group();
+    wheat.add(mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.36, 4), weave, 0, 0.18, 0));
+    for (let i = 0; i < 5; i++) wheat.add(mesh(new THREE.SphereGeometry(0.025, 6, 4), mat(0xd8b040), (i % 2 ? 1 : -1) * 0.018, 0.3 + i * 0.03, 0, 0.8, 1.4, 0.8));
+    wheat.position.set(0.3, -0.02, 0.28);
+    wheat.rotation.set(0.2, 0, -0.55);
+    g.add(wheat);
+    g.rotation.x = -0.06;
+    return pulledOn(g);
+  },
+  fedora() { // a smart grey fedora: a short brim, a pinched crown with a crease on top, a black band
+    const g = new THREE.Group(), felt = mat(0x5a5e68, { roughness: 0.75 });
+    const brim = new THREE.LatheGeometry([[0.33, -0.05], [0.5, -0.06], [0.6, -0.04], [0.64, 0.0]].map(([x, y]) => new THREE.Vector2(x, y)), 32);
+    g.add(mesh(brim, mat(0x5a5e68, { roughness: 0.75, side: THREE.DoubleSide }), 0, 0, 0, 1, 1, 0.92));
+    g.add(mesh(new THREE.CylinderGeometry(0.3, 0.38, 0.36, 24), felt, 0, 0.13, 0, 0.92, 1, 1));
+    g.add(mesh(new THREE.SphereGeometry(0.3, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2), felt, 0, 0.31, 0, 0.92, 0.22, 1));
+    g.add(mesh(new THREE.BoxGeometry(0.05, 0.05, 0.4), mat(0x484c55, { roughness: 0.8 }), 0, 0.34, 0)); // the crease
+    g.add(mesh(new THREE.CylinderGeometry(0.375, 0.383, 0.08, 24), mat(0x16161c), 0, -0.01, 0, 0.92, 1, 1));
+    g.rotation.set(-0.08, 0, 0.08);
+    return pulledOn(g);
+  },
+  tiara() { // a silver princess tiara at the front of the head: a row of points, tallest in the middle, with a pink jewel
+    const g = new THREE.Group(), silver = mat(0xeef2fa, { metalness: 0.85, roughness: 0.2 });
+    const band = mesh(new THREE.TorusGeometry(0.42, 0.022, 6, 32, Math.PI), silver, 0, -0.12, 0);
+    band.rotation.x = Math.PI / 2;
+    g.add(band);
+    for (let i = 0; i <= 8; i++) {
+      const a = 0.35 + i * (Math.PI - 0.7) / 8, mid = 1 - Math.abs(a - Math.PI / 2) / (Math.PI / 2), h = 0.08 + mid * 0.16;
+      const x = Math.cos(a) * 0.42, z = Math.sin(a) * 0.42;
+      g.add(mesh(new THREE.ConeGeometry(0.028, h, 4), silver, x, -0.12 + h / 2, z));
+      g.add(mesh(new THREE.SphereGeometry(0.022, 6, 4), mat(i % 2 ? 0x9fd8ff : 0xffffff, { roughness: 0.1, metalness: 0.3 }), x * 1.02, -0.08, z * 1.02));
+    }
+    g.add(mesh(new THREE.OctahedronGeometry(0.06), mat(0xff6aa8, { roughness: 0.1, metalness: 0.2 }), 0, -0.03, 0.44, 0.8, 1.1, 0.5));
+    g.rotation.x = -0.25; // (leaning back on the head, the front raised)
+    return g;
+  },
+  boater() { // a summer straw boater: a flat round brim, a flat-topped crown and a navy ribbon
+    const g = new THREE.Group(), straw = mat(0xf0d890, { roughness: 1 });
+    g.add(mesh(new THREE.CylinderGeometry(0.66, 0.66, 0.035, 32), straw, 0, -0.06, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.4, 0.42, 0.26, 28), straw, 0, 0.07, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.425, 0.43, 0.1, 28), mat(0x24306a), 0, -0.0, 0));
+    g.add(mesh(new THREE.TorusGeometry(0.62, 0.012, 4, 40), mat(0xc9a64c), 0, -0.04, 0)).children.at(-1).rotation.x = Math.PI / 2;
+    g.rotation.z = -0.06;
+    return pulledOn(g);
+  },
+  sunhat() { // a big floppy sun hat: a wide drooping cream brim, a yellow ribbon and a flower at the side
+    const g = new THREE.Group(), cream = mat(0xfff0cc, { roughness: 0.9, side: THREE.DoubleSide });
+    const brim = new THREE.LatheGeometry([[0.38, -0.06], [0.6, -0.1], [0.82, -0.17], [0.96, -0.23]].map(([x, y]) => new THREE.Vector2(x, y)), 40);
+    const pos = brim.attributes.position; // a gentle wave in the brim
+    for (let i = 0; i < pos.count; i++) { const x = pos.getX(i), z = pos.getZ(i), r = Math.hypot(x, z); pos.setY(i, pos.getY(i) + Math.sin(Math.atan2(z, x) * 5) * Math.max(0, r - 0.5) * 0.12); }
+    brim.computeVertexNormals();
+    g.add(mesh(brim, cream));
+    g.add(mesh(new THREE.SphereGeometry(0.43, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), cream, 0, -0.08, 0, 1, 0.8, 1));
+    g.add(mesh(new THREE.CylinderGeometry(0.43, 0.435, 0.09, 28, 1, true), mat(0xffd23f, { side: THREE.DoubleSide }), 0, -0.035, 0));
+    const flower = new THREE.Group();
+    for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; flower.add(mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(0xff7aa8), Math.cos(a) * 0.06, Math.sin(a) * 0.06, 0, 1, 1, 0.4)); }
+    flower.add(mesh(new THREE.SphereGeometry(0.035, 8, 6), mat(0xffe066), 0, 0, 0.02));
+    flower.position.set(0.33, 0.0, 0.28);
+    flower.lookAt(new THREE.Vector3(0.9, 0.1, 0.8));
+    g.add(flower);
+    return g;
+  },
+  pith() { // a safari pith helmet: a khaki dome, a sloping brim longer front and back, a brown band and a button on top
+    const g = new THREE.Group(), khaki = mat(0xd8c48a, { roughness: 0.85 });
+    g.add(mesh(new THREE.SphereGeometry(0.5, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), khaki, 0, -0.14, 0, 1, 0.92, 1.1));
+    const brim = new THREE.LatheGeometry([[0.48, -0.13], [0.62, -0.19], [0.72, -0.25]].map(([x, y]) => new THREE.Vector2(x, y)), 32);
+    g.add(mesh(brim, mat(0xd8c48a, { roughness: 0.85, side: THREE.DoubleSide }), 0, 0, 0, 1, 1, 1.15));
+    g.add(mesh(new THREE.CylinderGeometry(0.5, 0.505, 0.07, 28, 1, true), mat(0x6b4a2a, { side: THREE.DoubleSide }), 0, -0.1, 0, 1, 1, 1.1));
+    g.add(mesh(new THREE.SphereGeometry(0.05, 8, 6), khaki, 0, 0.32, 0));
+    return pulledOn(g);
+  },
+  pumpkinhat() { // an orange knitted beanie ribbed like a pumpkin, a turned-up cuff, a stalk and a leaf on top
+    const g = new THREE.Group(), orange = mat(0xf07a1a, { roughness: 0.9 });
+    const dome = new THREE.SphereGeometry(0.6, 32, 12, 0, Math.PI * 2, 0, Math.PI * 0.4);
+    const pos = dome.attributes.position;
+    for (let i = 0; i < pos.count; i++) { const x = pos.getX(i), z = pos.getZ(i), k = 1 + 0.035 * Math.cos(Math.atan2(z, x) * 8); pos.setX(i, x * k); pos.setZ(i, z * k); }
+    dome.computeVertexNormals();
+    g.add(mesh(dome, orange, 0, -0.47, 0));
+    g.add(mesh(new THREE.TorusGeometry(0.6 * Math.sin(Math.PI * 0.4), 0.06, 8, 36), mat(0xd8641a, { roughness: 0.9 }), 0, -0.47 + 0.6 * Math.cos(Math.PI * 0.4), 0)).children.at(-1).rotation.x = Math.PI / 2;
+    g.add(mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.16, 8), mat(0x5a4022), 0, 0.17, 0)).children.at(-1).rotation.z = 0.25;
+    const leaf = mesh(new THREE.SphereGeometry(0.09, 10, 6), mat(0x4f9a3a), 0.09, 0.15, 0.02, 1, 0.2, 0.55);
+    leaf.rotation.z = -0.4;
+    g.add(leaf);
+    return g;
+  },
+  leafcrown() { // a wreath of autumn leaves round the head, orange, red and gold, with a few acorns
+    const g = new THREE.Group();
+    g.add(mesh(new THREE.TorusGeometry(0.42, 0.025, 6, 32), mat(0x6b4a2a), 0, -0.06, 0)).children.at(-1).rotation.x = Math.PI / 2;
+    const colours = [0xe8641a, 0xc8302a, 0xf0b030, 0xd8781a];
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2, leaf = mesh(new THREE.SphereGeometry(0.1, 10, 6), mat(colours[i % 4], { roughness: 0.8 }), Math.sin(a) * 0.43, -0.03 + (i % 2) * 0.02, Math.cos(a) * 0.43, 0.55, 0.18, 1);
+      leaf.rotation.set(0.5, a + Math.PI / 2, 0.3);
+      g.add(leaf);
+    }
+    for (const a of [0.6, 2.4, 4.4]) {
+      g.add(mesh(new THREE.SphereGeometry(0.045, 8, 6), mat(0x9a6434), Math.sin(a) * 0.45, -0.07, Math.cos(a) * 0.45, 1, 1.2, 1));
+      g.add(mesh(new THREE.SphereGeometry(0.048, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x5a3a1e), Math.sin(a) * 0.45, -0.05, Math.cos(a) * 0.45));
+    }
+    return g;
+  },
+  icecrown() { // the snow queen's crown: icy crystal spikes round a silver band, a snowflake at the front
+    const g = new THREE.Group(), silver = mat(0xf0f6ff, { metalness: 0.8, roughness: 0.2 }), ice = mat(0xbfe8ff, { roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.85, emissive: 0x2a5a7a, emissiveIntensity: 0.4 });
+    g.add(mesh(new THREE.CylinderGeometry(0.38, 0.37, 0.07, 28, 1, true), mat(0xf0f6ff, { metalness: 0.8, roughness: 0.2, side: THREE.DoubleSide }), 0, -0.1, 0));
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2, front = (Math.cos(a) + 1) / 2, h = 0.12 + front * 0.16 + (i % 2) * 0.05;
+      const spike = mesh(new THREE.ConeGeometry(0.035, h, 4), ice, Math.sin(a) * 0.38, -0.07 + h / 2, Math.cos(a) * 0.38);
+      spike.rotation.set(Math.cos(a) * 0.15, 0, -Math.sin(a) * 0.15);
+      g.add(spike);
+    }
+    const flake = new THREE.Group();
+    for (let i = 0; i < 3; i++) flake.add(mesh(new THREE.BoxGeometry(0.2, 0.025, 0.02), silver, 0, 0, 0)).children.at(-1).rotation.z = i * Math.PI / 3;
+    flake.add(mesh(new THREE.OctahedronGeometry(0.035), ice));
+    flake.position.set(0, 0.04, 0.42);
+    g.add(flake);
+    return g;
+  },
+  santahat() { const g = new THREE.Group(); g.add(buildCostumeHat('santa')); g.position.y -= 0.08; return g; },
   party() {
     const g = new THREE.Group();
     const cone = mesh(new THREE.ConeGeometry(0.28, 0.75, 20), mat(0xff7ac0), 0, 0.3, 0);
@@ -145,11 +287,12 @@ const HAT_BUILDERS = {
   tophat() {
     const g = new THREE.Group();
     const black = mat(0x26222e, { roughness: 0.4 });
-    g.add(mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 28), black, 0, 0, 0));
-    g.add(mesh(new THREE.CylinderGeometry(0.32, 0.34, 0.6, 28), black, 0, 0.32, 0));
-    g.add(mesh(new THREE.CylinderGeometry(0.345, 0.345, 0.1, 28), mat(0xd94a5a), 0, 0.1, 0));
-    g.rotation.z = -0.12;
-    return g;
+    g.add(mesh(new THREE.CylinderGeometry(0.58, 0.58, 0.05, 28), black, 0, 0, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.66, 28), black, 0, 0.3, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.1, 28), mat(0xd94a5a), 0, 0.08, 0));
+    g.rotation.z = -0.06;
+    g.position.y -= 0.08; // (a top hat sits low, down to the ears)
+    return pulledOn(g);
   },
   viking() {
     const g = new THREE.Group();
