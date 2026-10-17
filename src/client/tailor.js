@@ -251,6 +251,20 @@ const STYLES = {
     for (const y of [1.0, 0.85, 0.7]) cl.blob(surface(y, FRONT + 0.22, 0.016), [0.045, 0.014, 0.014], 0x6b4a2c, torsoWeights(y));
     for (const s of [-1, 1]) sleeve(cl, s, c, { cuff: true, cuffColor: 0xf6f2ea });
   },
+  // winter (everyone, views.js SEASON_WEAR): a padded parka that stops at the hips (trousers under it, no skirt):
+  // quilted bands, a zip up the middle, a ribbed waistband, two pockets, a hood bunched at the back of the neck
+  parka(cl, c) {
+    torso(cl, c);
+    const dark = darker(c, 0.22);
+    for (const y of [0.66, 0.84, 1.02]) band(cl, () => y, 0.014, 0.007, darker(c, 0.12)); // the quilting
+    band(cl, () => 0.44, 0.09, 0.016, dark); // the waistband
+    panel(cl, 0.42, TOP - 0.03, () => FRONT - 0.03, () => FRONT + 0.03, 0.016, 0x9aa0a8, 14, 1); // the zip
+    cl.blob(surface(1.12, FRONT + 0.05, 0.03), [0.018, 0.035, 0.012], 0xc8ccd2, torsoWeights(1.12)); // its pull
+    for (const s of [-1, 1]) panel(cl, 0.52, 0.66, () => FRONT + s * 0.2, () => FRONT + s * 0.42, 0.014, dark, 3, 3); // pockets
+    band(cl, () => 1.2, 0.08, 0.025, dark); // a high collar
+    for (let i = 0; i < 7; i++) { const a = FRONT + Math.PI + (i / 6 - 0.5) * 1.6; cl.blob(surface(1.2, a, 0.05), [0.1, 0.08, 0.08], darker(c, 0.08), torsoWeights(1.2)); } // the hood, down
+    for (const s of [-1, 1]) sleeve(cl, s, c, { cuff: true, cuffColor: dark });
+  },
   // a princess gown's bodice: fitted, a lace neckline, pearls, a ribbon at the waist and puff sleeves
   gown(cl, c) {
     torso(cl, c, 0.62);

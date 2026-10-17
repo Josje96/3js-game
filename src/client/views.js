@@ -152,6 +152,7 @@ const CAPE_PART = /_Cape$/;
  * dresses one character whatever the season ('santa').
  */
 export const SEASON_WEAR = { value: null };
+const WINTER_HATS = ['bobble', 'trapper', 'earmuffs'];
 const COATS = [0xb8333a, 0x2f4f8a, 0x2f7a4a, 0x7a3f8a, 0xc9862e, 0x3f8a8a];
 
 /**
@@ -188,6 +189,7 @@ export class CharacterView {
     this.root.userData.noSnow = true; // characters don't get the town's snowy tops (seasonfx.js)
     const hash = [...String(name ?? '')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
     this.coatColor = COATS[hash % COATS.length];
+    this.winterHat = WINTER_HATS[(hash >>> 3) % WINTER_HATS.length]; // the same one every winter
     this.costume = HALLOWEEN_COSTUMES[(Math.imul(hash ^ (hash >>> 16), 0x45d9f3b) >>> 16) % HALLOWEEN_COSTUMES.length]; // the same costume every Halloween
     this.setLook(look);
     this.mixer = new THREE.AnimationMixer(this.model);
@@ -418,7 +420,7 @@ export class CharacterView {
     const hat = matching ?? picked;
     // a hat that covers the head, over the outfit's own (big, sculpted) hair: that hair poked out through it,
     // so it goes, and a neat tucked-in style in your hair colour shows under the brim instead
-    const covered = COVERING_HATS.has(hat) || wear === 'winter' || (!!costume && costume !== 'grandma'); // (Grandma's flower crown sits on her curls)
+    const covered = COVERING_HATS.has(hat) || (wear === 'winter' && this.winterHat !== 'earmuffs') || (!!costume && costume !== 'grandma'); // (Grandma's flower crown sits on her curls)
     const hairStyle = hair === 'none' && covered && this.anchors.scalp ? 'bob' : hair;
     const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${bangs}/${hairColor}/${face}/${skin}/${tie}/${brows}/${wear}`;
     if (key === this.lookKey) return;
@@ -431,7 +433,7 @@ export class CharacterView {
       // the outfit's own hat — but picking a hairstyle takes it off, so the style shows (a hat you pick
       // yourself still goes on over it, tucking it in). The hooded Rogue's mask isn't a hat: it stays.
       if (HAT_PART.test(o.name)) {
-        o.userData.hatShown = (hat === 'own' || matching && /_Mask$/.test(o.name)) && (hair === 'none' || /_Mask$/.test(o.name));
+        o.userData.hatShown = (hat === 'own' || (!!matching && /_Mask$/.test(o.name))) && (hair === 'none' || /_Mask$/.test(o.name));
         o.visible = o.userData.hatShown && (!this.inBed || /_Mask$/.test(o.name)); // (off in bed: showHats)
       }
       else if (CAPE_PART.test(o.name)) {
@@ -491,11 +493,11 @@ export class CharacterView {
     else this.attach('face', pair);
     if (face !== 'none') this.attach('face', buildFace(face, hc, this.faceCheek, this.skinMat?.color.getHex(), this.faceEyeLine)); // (skin: a scarred eye's lid)
     // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
-    this.setClothes(COSTUMES[costume]?.clothes ?? CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'coat' } : undefined), TIE_COLORS[tie]?.color);
+    this.setClothes(COSTUMES[costume]?.clothes ?? CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'parka' } : undefined), TIE_COLORS[tie]?.color);
     const hatSlot = hairStyle !== 'none' && this.anchors.hair ? 'hair' : 'hat'; // (round the skull, over the tucked hair)
     if (costume) this.attach(hatSlot, buildCostumeHat(costume));
     else if (wear === 'winter') {
-      const ww = buildWinterWear(this.coatColor === COATS[1] ? COATS[0] : COATS[(COATS.indexOf(this.coatColor) + 1) % COATS.length]);
+      const ww = buildWinterWear(this.coatColor === COATS[1] ? COATS[0] : COATS[(COATS.indexOf(this.coatColor) + 1) % COATS.length], this.winterHat);
       this.attach(hatSlot, ww.hat);
       this.attach('front', ww.scarf);
     }

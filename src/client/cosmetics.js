@@ -721,14 +721,34 @@ export function buildCostumeHat(kind) {
  * Winter wear (views.js SEASON_WEAR): a knitted bobble hat (hat frame: head 1 wide, y 0 on top)
  * and a striped scarf (front frame, like the tie). `color` = the knit's main colour.
  */
-export function buildWinterWear(color) {
+export function buildWinterWear(color, style = 'bobble') {
   const knit = mat(color, { roughness: 1 }), cream = mat(0xf4efe4, { roughness: 1 });
   const hat = new THREE.Group();
-  hat.add(mesh(new THREE.SphereGeometry(0.62, 24, 12, 0, Math.PI * 2, 0, 1.25), knit, 0, -0.5, 0));
-  // a turned-up ribbed brim hugging the bottom edge, and a stripe higher up
-  hat.add(mesh(new THREE.TorusGeometry(0.58, 0.07, 8, 28), cream, 0, -0.29, 0, 1, 1, 1.7)).children.at(-1).rotation.x = Math.PI / 2;
-  hat.add(mesh(new THREE.TorusGeometry(0.43, 0.03, 6, 24), cream, 0, -0.05, 0)).children.at(-1).rotation.x = Math.PI / 2;
-  hat.add(mesh(new THREE.IcosahedronGeometry(0.13, 1), cream, 0, 0.15, 0)); // the bobble
+  if (style === 'trapper') { // a trapper hat: a padded crown, a thick fur brim, fur ear flaps hanging down
+    const fur = mat(0x8a6a4a, { roughness: 1 });
+    hat.add(mesh(new THREE.SphereGeometry(0.62, 24, 12, 0, Math.PI * 2, 0, 1.2), knit, 0, -0.5, 0));
+    hat.add(mesh(new THREE.TorusGeometry(0.6, 0.09, 8, 28), fur, 0, -0.3, 0, 1, 1, 1.6)).children.at(-1).rotation.x = Math.PI / 2;
+    for (const s of [-1, 1]) {
+      const flap = mesh(new THREE.CapsuleGeometry(0.17, 0.22, 4, 10), fur, s * 0.6, -0.55, -0.02, 0.45, 1, 1);
+      flap.rotation.z = s * 0.12;
+      hat.add(flap);
+      hat.add(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.2, 4), mat(0x5a4030), s * 0.6, -0.86, 0.02)); // the tie string
+    }
+  } else if (style === 'earmuffs') { // fluffy earmuffs on a band over the top of the head (the hair stays out)
+    const fluff = mat(0xf4efe4, { roughness: 1 });
+    const bandArc = mesh(new THREE.TorusGeometry(0.6, 0.035, 8, 24, Math.PI), knit, 0, -0.5, 0);
+    hat.add(bandArc);
+    for (const s of [-1, 1]) {
+      hat.add(mesh(new THREE.SphereGeometry(0.2, 14, 10), fluff, s * 0.62, -0.52, 0, 0.6, 1, 1));
+      hat.add(mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.04, 14), knit, s * 0.7, -0.52, 0)).children.at(-1).rotation.z = Math.PI / 2;
+    }
+  } else { // a bobble hat
+    hat.add(mesh(new THREE.SphereGeometry(0.62, 24, 12, 0, Math.PI * 2, 0, 1.25), knit, 0, -0.5, 0));
+    // a turned-up ribbed brim hugging the bottom edge, and a stripe higher up
+    hat.add(mesh(new THREE.TorusGeometry(0.58, 0.07, 8, 28), cream, 0, -0.29, 0, 1, 1, 1.7)).children.at(-1).rotation.x = Math.PI / 2;
+    hat.add(mesh(new THREE.TorusGeometry(0.43, 0.03, 6, 24), cream, 0, -0.05, 0)).children.at(-1).rotation.x = Math.PI / 2;
+    hat.add(mesh(new THREE.IcosahedronGeometry(0.13, 1), cream, 0, 0.15, 0)); // the bobble
+  }
   const scarf = new THREE.Group();
   const wrap = mesh(new THREE.TorusGeometry(0.36, 0.1, 8, 24), knit, 0, 0.33, -0.42);
   wrap.rotation.x = Math.PI / 2 + 0.18;
@@ -1483,7 +1503,8 @@ const CLOTHES_BUILDERS = {
     for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.025, 6, 4), mat(0xd9a93a, { metalness: 0.7 }), s * 0.13, 0.05, 0.075));
     return { front: g };
   },
-  coat() { // winter coat (views.js SEASON_WEAR): fur down the front, toggle buttons, a short flared hem
+  parka() { return {}; }, // (all of it is tailored: tailor.js)
+  coat() { // Santa's coat: fur down the front, toggle buttons, a short flared hem
     const front = new THREE.Group(), fur = mat(0xf6f2ea, { roughness: 1 }), toggle = mat(0x6b4a2c, { roughness: 0.6 });
     for (let i = 0; i < 6; i++) front.add(mesh(new THREE.SphereGeometry(0.06, 8, 6), fur, 0, 0.22 - i * 0.09, 0.01, 1, 1, 0.6));
     for (const y of [0.13, 0.0, -0.13]) front.add(mesh(new THREE.CapsuleGeometry(0.018, 0.07, 3, 6), toggle, 0.09, y, 0.035)).children.at(-1).rotation.z = Math.PI / 2;
