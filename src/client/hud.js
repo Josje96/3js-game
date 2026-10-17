@@ -52,6 +52,8 @@ export class Hud {
     this.barHint = el('div', 'hud-bar-hint panel'); // choosing in the bar: what's picked, and the keys
     this.xp = el('div', 'hud-xp');
     this.promptEl = el('div', 'hud-prompt');
+    this.cinemaEl = el('div', 'hud-cinema'); // a film playing: black bars top and bottom, a caption (cinema)
+    this.cinemaEl.innerHTML = '<div class="bar top"></div><div class="bar bottom"><span></span><small>Esc to skip</small></div>';
     this.seasonSleepEl = el('button', 'hud-season-sleep primary'); // by your own bed: sleep through to the next season
     this.seasonSleepEl.addEventListener('click', () => this.onSeasonSleep?.());
     this.spell = el('div', 'hud-spell panel');
@@ -64,7 +66,7 @@ export class Hud {
     this.modal = el('div', 'modal-backdrop hidden');
     this.danger = el('div', 'hud-danger');
     this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · V fly (jetpack) · E interact · Q potion · G feed pet · R area spell · Tab item bar · C character · P pets · Enter chat · M music · Esc menu');
-    root.append(this.danger, this.status, this.invite, this.xp, this.inv, this.barHint, this.promptEl, this.seasonSleepEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
+    root.append(this.cinemaEl, this.danger, this.status, this.invite, this.xp, this.inv, this.barHint, this.promptEl, this.seasonSleepEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
     this.self = null;
     this.world = null;
     this.locTitle = '';
@@ -291,6 +293,12 @@ export class Hud {
       }
     }, { onClose: () => { this.seasonVoteOpen = false; } });
     this.seasonVoteOpen = true;
+  }
+
+  /** Cinema bars for a little film, with a caption (null: the film is over). */
+  cinema(text) {
+    this.cinemaEl.classList.toggle('on', text != null);
+    if (text != null) this.cinemaEl.querySelector('span').textContent = text;
   }
 
   /** The "sleep until next season" button (null hides it). */

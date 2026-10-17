@@ -413,7 +413,7 @@ export class CharacterView {
     const { hat = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', bangs = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red', brows = 'soft' } = look ?? {};
     // a hat that covers the head, over the outfit's own (big, sculpted) hair: that hair poked out through it,
     // so it goes, and a neat tucked-in style in your hair colour shows under the brim instead
-    const covered = COVERING_HATS.has(hat) || wear === 'winter' || !!costume;
+    const covered = COVERING_HATS.has(hat) || wear === 'winter' || (!!costume && costume !== 'grandma'); // (Grandma's flower crown sits on her curls)
     const hairStyle = hair === 'none' && covered && this.anchors.scalp ? 'bob' : hair;
     const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${bangs}/${hairColor}/${face}/${skin}/${tie}/${brows}/${wear}`;
     if (key === this.lookKey) return;

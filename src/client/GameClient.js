@@ -635,6 +635,72 @@ export class GameClient {
     try { localStorage.setItem(key, JSON.stringify(seen)); } catch {}
   }
 
+  /**
+   * Easter: the first time you're in town that day, a little film. Grandma and Grandpa walk into the
+   * square together (cinema bars, the camera tracking them), stop at their spot, turn and wave, and
+   * pastel confetti flies. Once per Easter per world in this browser; Esc skips it.
+   */
+  checkVisit() {
+    if (this.cinematic || this.layout?.key !== 'town' || !this.world || holidayOf(this.world.day) !== 'easter') return;
+    const key = `fdg.visitSeen.${this.world.seed}.${this.world.name}`;
+    let seen = null;
+    try { seen = localStorage.getItem(key); } catch {}
+    if (seen === String(this.world.day) || this.visitShown === this.world.day) return;
+    const npcs = [...this.ents.values()].filter((e) => e.data.type === 'npc' && (e.data.name === 'Grandma' || e.data.name === 'Grandpa') && e.view?.ch);
+    if (npcs.length < 2) return; // (not here yet)
+    this.visitShown = this.world.day;
+    const WALK = 22; // they come in from the north end of the square
+    this.cinematic = {
+      kind: 'visit', t: 0, waved: false,
+      npcs: npcs.map((e) => ({ view: e.view, at: { x: e.data.x, z: e.data.z }, rot: e.data.rot ?? 0, from: { x: e.data.x - 2 + (e.data.name === 'Grandma' ? 2 : 0), z: e.data.z - WALK } })),
+      done: () => { try { localStorage.setItem(key, String(this.world.day)); } catch {} },
+    };
+    this.hud.cinema('🐣 Look who’s coming to Pebble Town…');
+  }
+
+  /** The Easter visit film, frame by frame (from updateCamera). */
+  playVisit(c, dt) {
+    c.t += dt;
+    const WALK_T = 6.5, END = 12.5;
+    const u = Math.min(1, c.t / WALK_T), ease = u * u * (3 - 2 * u);
+    let mid = new THREE.Vector3();
+    for (const n of c.npcs) {
+      const ch = n.view.ch, x = n.from.x + (n.at.x - n.from.x) * ease, z = n.from.z + (n.at.z - n.from.z) * ease;
+      // walk them along (their own spot is the view's root; the basket corner stays put)
+      const local = new THREE.Vector3(x - n.at.x, 0, z - n.at.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), -n.rot);
+      ch.root.position.copy(local);
+      const walking = u < 1;
+      ch.root.rotation.y = walking ? Math.atan2(n.at.x - n.from.x, n.at.z - n.from.z) - n.rot : ch.root.rotation.y * (1 - Math.min(1, dt * 4)); // then turn to face the town
+      ch.setBase(walking ? 'run' : 'idle');
+      mid.add(new THREE.Vector3(x, 0, z));
+    }
+    mid.multiplyScalar(1 / c.npcs.length);
+    if (u >= 1 && !c.waved) {
+      c.waved = true;
+      for (const n of c.npcs) n.view.ch.play('cheer');
+      this.sfx.play('chime');
+      this.addEffect(new Debris(mid.x, mid.z, [0xffb3d9, 0xfff2a8, 0xb3e6ff, 0xc8f7c5, 0xe2c8ff], 40));
+      this.hud.cinema('🐣 Grandma and Grandpa came for Easter! Go and say hello!');
+    }
+    // the camera: tracking alongside as they walk, then swinging round in front for the hello
+    const track = new THREE.Vector3(mid.x + 8.5, 5.2, mid.z + 7);
+    const front = new THREE.Vector3(mid.x + 1.2, 2.6, mid.z + 6.5);
+    const k = Math.min(1, Math.max(0, (c.t - WALK_T + 0.8) / 2.2));
+    const want = track.lerp(front, k * k * (3 - 2 * k));
+    if (c.t < dt * 1.5) this.camera.position.copy(want);
+    this.camera.position.lerp(want, 1 - Math.exp(-dt * 2.5));
+    this.camera.lookAt(mid.x, 1.5, mid.z);
+    if (c.t > END || c.skip) this.endVisit(c);
+  }
+
+  endVisit(c) {
+    for (const n of c.npcs) { n.view.ch.root.position.set(0, 0, 0); n.view.ch.root.rotation.y = 0; n.view.ch.setBase('idle'); }
+    c.done();
+    this.cinematic = null;
+    this.snapCamera = true;
+    this.hud.cinema(null);
+  }
+
   /** Outdoors, the last two minutes before night turn the sky orange, then purple. */
   updateSky(dt) {
     if (!this.layout || this.layout.theme !== 'outdoor' || !this.locView) return;
@@ -685,8 +751,10 @@ export class GameClient {
   updateLocal(dt) {
     const input = this.input;
     if (this.locView?.villagers) this.locView.villagers.player = this.pos; // they wait for you to pass
+    this.checkVisit();
     if (input.consume('menu')) {
-      if (this.hud.modalOpen) this.hud.closeModal();
+      if (this.cinematic?.kind === 'visit') this.cinematic.skip = true; // Esc skips the film
+      else if (this.hud.modalOpen) this.hud.closeModal();
       else this.hud.openMenu({ isHost: this.opts.isHost, music: this.music, graphics: { level: this.gfx, set: (l) => this.setGraphics(l) },
         stats: { on: !!this.showStats, toggle: () => { this.showStats = !this.showStats; this.hud.setStats(this.showStats ? 'measuring…' : null); } }, onSave: () => { this.opts.onSave?.(); this.hud.toast('Saved!'); }, onExport: this.opts.onExport, onQuit: this.opts.onQuit, onCharacters: () => this.conn.send({ t: 'characters' }) });
     }
@@ -902,6 +970,7 @@ export class GameClient {
   }
 
   updateCamera(dt) {
+    if (this.cinematic?.kind === 'visit') return this.playVisit(this.cinematic, dt);
     if (this.cinematic) {
       const c = this.cinematic;
       c.t += dt;

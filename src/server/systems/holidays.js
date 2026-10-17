@@ -150,12 +150,12 @@ export const methods = {
     } else if (h === 'easter') {
       loc.spawn({
         type: 'npc', holiday: h, name: 'Grandma', cls: 'Mage', wear: 'grandma', decor: 'easter',
-        look: { hat: 'none', cape: 'none', hair: 'curly', hairColor: 'blonde' },
+        look: { hat: 'none', cape: 'none', hair: 'curly', hairColor: 'blonde', brows: 'arched', face: 'none' }, // friendly brows, no whiskers
         x: SANTA_SPOT.x, z: SANTA_SPOT.z, rot: 0, r: 0.8, interact: 'easter', prompt: 'Talk to Grandma 🐣',
       });
       loc.spawn({ // and Grandpa, in his Sunday waistcoat
         type: 'npc', holiday: h, name: 'Grandpa', cls: 'Ranger',
-        look: { hat: 'none', cape: 'none', hair: 'suave', hairColor: 'black', clothes: 'sunday', face: 'mustache' },
+        look: { hat: 'none', cape: 'none', hair: 'suave', hairColor: 'black', clothes: 'sunday', brows: 'arched', face: 'none' }, // clean-shaven, friendly brows
         x: SANTA_SPOT.x - 2.2, z: SANTA_SPOT.z + 0.4, rot: 0.3, r: 0.8,
       });
     } else if (h === 'christmas') {
