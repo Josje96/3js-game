@@ -762,7 +762,7 @@ export class GameClient {
     if (this.locView?.villagers) this.locView.villagers.player = this.pos; // they wait for you to pass
     this.checkVisit();
     if (input.consume('menu')) {
-      if (this.cinematic?.kind === 'visit') this.cinematic.skip = true; // Esc skips the film
+      if (this.cinematic) this.cinematic.skip = true; // Esc skips a film
       else if (this.hud.modalOpen) this.hud.closeModal();
       else this.hud.openMenu({ isHost: this.opts.isHost, music: this.music, graphics: { level: this.gfx, set: (l) => this.setGraphics(l) },
         stats: { on: !!this.showStats, toggle: () => { this.showStats = !this.showStats; this.hud.setStats(this.showStats ? 'measuring…' : null); } }, onSave: () => { this.opts.onSave?.(); this.hud.toast('Saved!'); }, onExport: this.opts.onExport, onQuit: this.opts.onQuit, onCharacters: () => this.conn.send({ t: 'characters' }) });
@@ -988,15 +988,20 @@ export class GameClient {
   updateCamera(dt) {
     if (this.cinematic?.kind === 'visit') return this.playVisit(this.cinematic, dt);
     if (this.cinematic) {
-      const c = this.cinematic;
+      // the chains film: black bars and captions; the camera sweeps slowly round in front of the gate, the
+      // padlock shakes and bursts, the chains fall, the gate opens and glows; Esc skips
+      const c = this.cinematic, name = DUNGEONS[c.id]?.name ?? 'dungeon';
       c.t += dt;
-      // stand out in town in front of the gate, a little to the side, looking at it
-      const want = new THREE.Vector3(c.at.x + c.at.dx * 9 - c.at.dz * 3, 8, c.at.z + c.at.dz * 9 + c.at.dx * 3 + 2);
+      this.hud.cinema(c.t < 1.6 ? `⛓️ For so long, the ${name} has been chained shut…` : c.t < 4.2 ? '💥 But now the chains are breaking!' : `⚔️ The ${name} is open! Who’s brave enough to go in?`);
+      const sweep = -0.5 + Math.min(1, c.t / 8) * 1.0, dist = 10 - Math.min(1, c.t / 3) * 2.5; // round from one side, and closer
+      const fx = c.at.dx * Math.cos(sweep) - c.at.dz * Math.sin(sweep), fz = c.at.dz * Math.cos(sweep) + c.at.dx * Math.sin(sweep);
+      const want = new THREE.Vector3(c.at.x + fx * dist, 6.5 - Math.min(1, c.t / 3) * 2, c.at.z + fz * dist + 1);
       this.camera.position.lerp(want, 1 - Math.exp(-dt * 3));
-      this.camera.lookAt(c.at.x, 1.8, c.at.z);
-      if (c.t > 1.2 && !c.broke) { c.broke = true; this.locView.playUnlock(c.id); this.sfx.play('chain'); }
-      if (c.t > 2.3 && c.t - dt <= 2.3) { this.shake(0.6); this.addEffect(new Debris(c.at.x, c.at.z, [0xffd23f, 0x9aa3ad, 0xffffff], 22)); }
-      if (c.t > 5) { c.done(); this.cinematic = null; this.snapCamera = false; }
+      this.camera.lookAt(c.at.x, 2, c.at.z);
+      if ((c.t > 1.8 || c.skip) && !c.broke) { c.broke = true; this.locView.playUnlock(c.id); this.sfx.play('chain'); }
+      if (c.t > 2.9 && c.t - dt <= 2.9) { this.shake(0.7); this.addEffect(new Debris(c.at.x, c.at.z, [0xffd23f, 0x9aa3ad, 0xffffff], 26)); this.sfx.play('nova'); }
+      if (c.t > 4.3 && c.t - dt <= 4.3) this.addEffect(new NovaBlast(c.at.x, c.at.z, 3, 0xffd23f)); // the gate lights up
+      if (c.t > 8 || c.skip) { c.done(); this.cinematic = null; this.snapCamera = true; this.hud.cinema(null); }
       return;
     }
     // debug/screenshot hook: window.game.client.camOverride = { pos: [x, y, z], look: [x, y, z] }

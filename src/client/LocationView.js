@@ -763,7 +763,7 @@ export class LocationView {
       gate.closed.visible = !open && !gate.chains.breaking;
       gate.open.visible = open || gate.chains.breaking;
       gate.glow.visible = open;
-      gate.chains.group.visible = gate.chains.breaking ? !gate.chains.done : !open || gate.keepChains;
+      gate.chains.group.visible = gate.chains.breaking ? !gate.chains.done : !open || !!gate.keepChains; // (strictly true/false: three.js only hides `false`)
     }
   }
 
