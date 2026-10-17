@@ -6,12 +6,19 @@ import * as THREE from 'three';
 import { CELL } from '../shared/config.js';
 import { glowTexture } from './effects.js';
 
-const FLAG_COLORS = [0xff5a6a, 0xffd23f, 0x4fa8ff, 0x7cdf6a, 0xff9ad5, 0xb48cff];
+/** The town's flags change with the season: spring a rainbow, summer orange, yellow and blue, autumn red, orange, yellow and brown, winter red and green. */
+export const FLAG_SEASONS = {
+  spring: [0xff4a4a, 0xff9a2a, 0xffd23f, 0x5fcf4a, 0x3f9aff, 0x9a6aff],
+  summer: [0xff8a1a, 0xffd23f, 0x2f7fff, 0xffb02a, 0x6ac0ff],
+  autumn: [0xc8302a, 0xe8721a, 0xf0b030, 0x7a4a24],
+  winter: [0xd02028, 0x2a8a3a],
+};
+const FLAG_COLORS = FLAG_SEASONS.spring;
 const BUTTERFLY_COLORS = [0xffb03a, 0x7fd8ff, 0xff8ad8, 0xfff27a, 0xffffff, 0xb48cff];
 const MAYPOLE_TOP = 9;
 const LAMP_TOP = 3.9;
 
-/** Adds everything to `group`; returns { update(time) } for the moving parts. */
+/** Adds everything to `group`; returns { update(time) } for the moving parts and setSeason(id) for the bunting's colours. */
 export function buildTownFun(layout, group, rand) {
   const parts = [];
   const lamps = layout.props.filter((p) => p.build === 'lamp');
@@ -61,12 +68,13 @@ export function buildTownFun(layout, group, rand) {
   }
   const flags = [];
   const linePts = [];
+  let setColors = () => {};
   for (const [a, b] of strings) {
     const len = Math.hypot(b.x - a.x, b.z - a.z), sag = len * 0.05, n = Math.floor(len / 1.1);
     const at = (u) => new THREE.Vector3(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u - sag * 4 * u * (1 - u), a.z + (b.z - a.z) * u);
     for (let i = 0; i < 24; i++) linePts.push(at(i / 24), at((i + 1) / 24));
     const rot = Math.atan2(-(b.z - a.z), b.x - a.x);
-    for (let i = 1; i < n; i++) flags.push({ p: at(i / n), rot, color: FLAG_COLORS[(i + flags.length) % FLAG_COLORS.length] });
+    for (let i = 1; i < n; i++) { const k = i + flags.length; flags.push({ p: at(i / n), rot, k, color: FLAG_COLORS[k % FLAG_COLORS.length] }); }
   }
   if (linePts.length) group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(linePts), new THREE.LineBasicMaterial({ color: 0x6b4a2c })));
   if (flags.length) {
@@ -79,6 +87,10 @@ export function buildTownFun(layout, group, rand) {
       inst.setColorAt(i, new THREE.Color(f.color));
     });
     group.add(inst);
+    setColors = (colors) => {
+      flags.forEach((f, i) => inst.setColorAt(i, new THREE.Color(colors[f.k % colors.length])));
+      inst.instanceColor.needsUpdate = true;
+    };
     // a gentle flutter: the whole set sways a touch in the breeze
     parts.push((t) => {
       flags.forEach((f, i) => {
@@ -147,5 +159,9 @@ export function buildTownFun(layout, group, rand) {
     });
   }
 
-  return { update: (t) => { for (const f of parts) f(t); } };
+  let season = null;
+  return {
+    update: (t) => { for (const f of parts) f(t); },
+    setSeason: (id) => { if (id !== season && FLAG_SEASONS[id]) { season = id; setColors(FLAG_SEASONS[id]); } },
+  };
 }

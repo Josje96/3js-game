@@ -448,10 +448,15 @@ export function makeTrees(cells, rand, uTime) {
     // only the leaves change with the season (green-ish vertex colours), not trunks or blossom
     // blossom trees only flower in spring: the rest of the year their pink turns to leaves, which then follow the season
     // each leafy tree turns its own autumn colour (yellow, orange or red); pines stay green (but take the snow)
+    // in spring every tree is in blossom: its leaves turn pink, each tree its own shade
     seasonFragment(shader, 'max(clamp((vColor.g - max(vColor.r, vColor.b)) * 14.0, 0.0, 1.0), bloom)', 'fract(vTreeSeed + fract(vColor.b * 13.0 + vColor.r * 7.0) * 0.22)', `
       float bloom = clamp((vColor.r - vColor.g) * 4.0, 0.0, 1.0) * step(0.55, vColor.b);
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.32, 0.58, 0.24) * (0.8 + vColor.r * 0.4), bloom * (1.0 - uSeason.x));`, evergreen ? 'vec4(uSeason.x + uSeason.z, uSeason.y, 0.0, uSeason.w)' : 'uSeason', 'varying float vTreeSeed;', evergreen ? '' : `
-      diffuseColor.rgb = mix(diffuseColor.rgb, treeAutumn(preSeason, fract(vTreeSeed + fract(vColor.b * 13.0 + vColor.r * 7.0) * 0.22)), uSeason.z * clamp((vColor.g - max(vColor.r, vColor.b)) * 14.0, 0.0, 1.0) * 0.9);`);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.32, 0.58, 0.24) * (0.8 + vColor.r * 0.4), bloom * (1.0 - uSeason.x));`, evergreen ? 'vec4(uSeason.x + uSeason.z, uSeason.y, 0.0, uSeason.w)' : 'uSeason', 'varying float vTreeSeed;', (evergreen ? '' : `
+      diffuseColor.rgb = mix(diffuseColor.rgb, treeAutumn(preSeason, fract(vTreeSeed + fract(vColor.b * 13.0 + vColor.r * 7.0) * 0.22)), uSeason.z * clamp((vColor.g - max(vColor.r, vColor.b)) * 14.0, 0.0, 1.0) * 0.9);`) + `
+      float leafy = clamp((vColor.g - max(vColor.r, vColor.b)) * 14.0, 0.0, 1.0);
+      float pl = dot(preSeason, vec3(0.3, 0.59, 0.11));
+      vec3 pinkLeaf = mix(vec3(1.0, 0.66, 0.8), vec3(1.0, 0.5, 0.72), fract(vTreeSeed * 3.7)) * (0.7 + pl * 0.9);
+      diffuseColor.rgb = mix(diffuseColor.rgb, pinkLeaf, uSeason.x * leafy);`);
     shader.uniforms.uTime = uTime;
     shader.vertexShader = `uniform float uTime;\nvarying float vTreeSeed;\n${shader.vertexShader}`.replace('#include <begin_vertex>', `
       #include <begin_vertex>

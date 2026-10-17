@@ -16,7 +16,7 @@ import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
 import { roomIndexAt } from '../shared/locations.js';
 import { THEMES } from './themes.js';
 import { mergeStatic, dropTinyShadows } from './merge.js';
-import { buildTownFun } from './townfun.js';
+import { buildTownFun, FLAG_SEASONS } from './townfun.js';
 import { makeWasteland } from './wasteland.js';
 import { seasonOf, holidayOf, isRainyDay } from '../shared/seasons.js';
 import { SeasonParticles, SpringBirds, easeSeasonLook, SEASON_LOOK, WINTER, snowOnTops } from './seasonfx.js';
@@ -456,6 +456,7 @@ export class LocationView {
             const top = makeTowerTop(cx * CELL + CELL / 2, cz * CELL + CELL / 2, 12, this.rand(cx, cz, 'tw'));
             this.group.add(top);
             this.animated.push({ update: () => top.userData.update(this.uTime.value) });
+            (this.towerTops ??= []).push(top);
           }
         } else if (ch === 'Q' || ch === 'q') {
           block('blocks/stone_dark', cx, cz, 2);
@@ -568,6 +569,15 @@ export class LocationView {
     this.animated.push({ update: (dt) => villagers.update(dt), dispose: () => villagers.dispose() });
     const fun = buildTownFun(L, this.group, this.rand); // bunting, butterflies, chimney smoke
     this.animated.push({ update: () => fun.update(this.uTime.value) });
+    let flagSeason = null;
+    this.animated.push({ update: () => { // the bunting and the tower flags in the season's colours
+      const season = seasonOf(this.world?.day ?? 1).id;
+      if (season === flagSeason) return;
+      flagSeason = season;
+      fun.setSeason(season);
+      const colors = FLAG_SEASONS[season];
+      for (const top of this.towerTops ?? []) top.userData.flag.material.color.set(colors[top.userData.flagPick % colors.length]);
+    } });
     // banners hanging on the inside of the north castle wall, and either side of the fort's door
     const colors = ['red', 'blue', 'yellow', 'green'];
     for (let cx = 2; cx < L.w - 2; cx += 4) {

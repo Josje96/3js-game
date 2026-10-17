@@ -50,6 +50,8 @@ export function makeTowerTop(x, z, y, r) {
   mesh(g, new THREE.CylinderGeometry(0.05, 0.05, 2, 6), std(0x3a2a1c), 0, 3.8, 0);
   const flag = mesh(g, new THREE.PlaneGeometry(1.2, 0.7, 6, 1), std(r > 0.5 ? 0xffd23f : 0xe0525a, { side: THREE.DoubleSide }), 0.62, 4.4, 0);
   flag.userData.wave = r * 10;
+  g.userData.flag = flag; // (recoloured with the season: townfun.js FLAG_SEASONS)
+  g.userData.flagPick = Math.floor(r * 97);
   g.userData.update = (t) => {
     const pos = flag.geometry.attributes.position;
     for (let i = 0; i < pos.count; i++) pos.setZ(i, Math.sin(t * 4 + pos.getX(i) * 4 + flag.userData.wave) * 0.12 * (pos.getX(i) + 0.6));

@@ -477,7 +477,7 @@ const DETAILS = {
 const SEASON_BODIES = {
   treant() { // spring: a walking blossom tree with a bark face and root feet
     const g = new THREE.Group();
-    const bark = mat(0x6b4a2c, { roughness: 1, flatShading: true }), bloom = mat(0xffb3cc, { roughness: 1 }), leaf = mat(0x5fae4a, { roughness: 1 });
+    const bark = mat(0x6b4a2c, { roughness: 1, flatShading: true }), bloom = mat(0xffb3cc, { roughness: 1 }), leaf = mat(0xff8fc0, { roughness: 1 }); // (all pink: two shades of blossom)
     add(g, new THREE.CylinderGeometry(0.45, 0.6, 1.8, 9), bark, 0, 1.1, 0);
     for (let i = 0; i < 8; i++) add(g, new THREE.BoxGeometry(0.06, 1.4, 0.05), mat(0x4a3220), Math.cos(i * 0.8) * 0.5, 1.1, Math.sin(i * 0.8) * 0.5).rotation.y = -i * 0.8; // bark grooves
     const crown = new THREE.Group();
