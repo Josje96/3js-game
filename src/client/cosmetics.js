@@ -214,7 +214,7 @@ const HAT_BUILDERS = {
 };
 
 const BACK_BUILDERS = {
-  parrot() { // a red and blue parrot perched on your left shoulder, bobbing and flapping now and then
+  parrot() { // a red and blue parrot flying along beside your head, wings beating, bobbing up and down
     const g = new THREE.Group(), bird = new THREE.Group();
     const red = mat(0xe0302a, { roughness: 0.6 }), blue = mat(0x2f6fd8, { roughness: 0.6 }), yellow = mat(0xffcf3f, { roughness: 0.5 });
     bird.add(mesh(new THREE.SphereGeometry(0.16, 12, 10), red, 0, 0.14, 0, 0.9, 1.25, 0.9));          // body
@@ -240,12 +240,13 @@ const BACK_BUILDERS = {
     tail.rotation.x = Math.PI - 0.5;
     bird.add(tail);
     for (const s of [-1, 1]) bird.add(mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.08, 5), mat(0x555555), s * 0.05, -0.04, 0.02)); // feet
-    bird.position.set(0.86, 0.1, 0.45); // on the edge of the left shoulder, out past the (big) head (back frame: z towards the front)
+    bird.position.set(0.95, 0.55, 0.3); // beside the head, out past it (back frame: z towards the front)
     g.add(bird);
     g.userData.update = (t) => {
-      bird.rotation.x = Math.max(0, Math.sin(t * 1.3)) * 0.25; // bobbing
-      const flap = Math.sin(t * 0.7) > 0.85 ? Math.sin(t * 30) * 0.7 : 0; // a flap every few seconds
-      for (const w of wings) w.rotation.z = w.userData.side * (0.1 + Math.abs(flap));
+      bird.position.y = 0.55 + Math.sin(t * 2.2) * 0.08; // bobbing along in the air
+      bird.rotation.x = 0.25 + Math.sin(t * 2.2 + 1) * 0.08; // leaning into its flight
+      const flap = Math.sin(t * 16); // wings beating all the time
+      for (const w of wings) w.rotation.z = w.userData.side * (0.5 + flap * 0.7);
     };
     return g;
   },
@@ -259,6 +260,11 @@ const BACK_BUILDERS = {
     flag.add(mesh(new THREE.BoxGeometry(0.07, 0.04, 0.02), white, 0.31, -0.015, 0.012));
     for (const s of [-1, 1]) flag.add(mesh(new THREE.SphereGeometry(0.018, 6, 4), mat(0x151515), 0.31 + s * 0.03, 0.06, 0.035));
     for (const s of [-1, 1]) flag.add(mesh(new THREE.BoxGeometry(0.3, 0.035, 0.02), white, 0.31, -0.08, 0.01)).children.at(-1).rotation.z = s * 0.5; // crossbones
+    // the same on the back, so it reads from behind too
+    flag.add(mesh(new THREE.SphereGeometry(0.075, 10, 8), white, 0.31, 0.05, -0.012, 1, 1, 0.3));
+    flag.add(mesh(new THREE.BoxGeometry(0.07, 0.04, 0.02), white, 0.31, -0.015, -0.012));
+    for (const s of [-1, 1]) flag.add(mesh(new THREE.SphereGeometry(0.018, 6, 4), mat(0x151515), 0.31 + s * 0.03, 0.06, -0.035));
+    for (const s of [-1, 1]) flag.add(mesh(new THREE.BoxGeometry(0.3, 0.035, 0.02), white, 0.31, -0.08, -0.01)).children.at(-1).rotation.z = s * 0.5;
     flag.position.set(0.27, 1.32, -0.32);
     g.add(flag);
     g.userData.update = (t) => { flag.rotation.y = Math.sin(t * 2.2) * 0.35; };
