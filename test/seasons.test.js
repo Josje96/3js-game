@@ -157,6 +157,8 @@ test('seasons: the boss fights back — hits don\'t freeze it, and it slams the 
   assert.ok(sent.includes('warn') && sent.includes('slam'), 'a slam, warned first');
   assert.ok(sent.indexOf('warn') < sent.indexOf('slam'));
   // a slam: out of the circle in time, no harm done
+  for (const e of [...town.entities.values()]) if (e.type === 'slime' && e !== boss) town.remove(e.id); // (its helpers would nibble too)
+  boss._summon = 99;
   boss._slam = 0; boss._slamWind = 0;
   p.mom.x = boss.x + 2; p.mom.z = boss.z;
   server.step(0.05);

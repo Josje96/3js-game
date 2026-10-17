@@ -77,7 +77,8 @@ export const SEASON_ARENA = { x: 110, z: 74, r: 9 };
 /**
  * The Solstice Arena (halfway through summer): a sand ring on the grass south-east of the market, the
  * Sun Herald at its north gate. Talk to the herald to start the next round; each is harder (`power`
- * times the family's best level, as a dungeon depth). Win all three and every fighter gets the Solar Blade.
+ * times the family's best level, as a dungeon depth). Win the first three and every fighter gets the Solar Blade;
+ * the next three are harder still, and win the Solar Helmet (ARENA_PRIZES).
  */
 export const SOLSTICE_ARENA = { x: 111, z: 75, r: 7.5 };
 export const SOLSTICE_HERALD = { x: 111, z: 66 };
@@ -85,5 +86,11 @@ export const ARENA_ROUNDS = [
   { name: 'the Bronze Gladiators', foes: { gladiator: 3 }, power: 1.2 },
   { name: 'the Sun Guard', foes: { gladiator: 2, sunarcher: 2, sunknight: 1 }, power: 1.6 },
   { name: 'the Solar Champion', foes: { solarchampion: 1, sunknight: 2 }, power: 2.0 },
+  // won the Solar Blade? three more, harder still, for the Solar Helmet
+  { name: 'the Flame Legion', foes: { flamegladiator: 3, sunarcher: 2 }, power: 2.5 },
+  { name: 'the Dawn Paladins', foes: { sunpaladin: 2, flamegladiator: 2, sunarcher: 2 }, power: 3.0 },
+  { name: 'the Sun King', foes: { sunking: 1, sunpaladin: 2 }, power: 3.6 },
 ];
 export const ARENA_PRIZE = 'solarblade';
+/** What winning round n gives everyone in the ring: an item (ITEMS), or a hat for the wardrobe (HATS). */
+export const ARENA_PRIZES = { 3: { item: ARENA_PRIZE }, 6: { hat: 'solarhelm' } };

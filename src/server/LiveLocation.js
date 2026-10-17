@@ -159,7 +159,7 @@ export class LiveLocation {
     }
 
     let vx = 0, vz = 0;
-    const move = e.seasonal ? this.bossMoves(e, dt, target, Math.sqrt(best), players) : null;
+    const move = e.seasonal || e.bigMoves ? this.bossMoves(e, dt, target, Math.sqrt(best), players) : null;
     if (move) { vx = move.vx; vz = move.vz; } else if (e._stun <= 0) {
       if (target) {
         const d = Math.sqrt(best) || 1;
@@ -226,7 +226,7 @@ export class LiveLocation {
       }
     }
     if (e._slow > 0) { vx *= 0.5; vz *= 0.5; } // a frost weapon slows a boss (it doesn't freeze them)
-    else if (e.seasonal && !move && e.hp < e.maxHp * 0.5) { vx *= 1.3; vz *= 1.3; } // half beaten: angry, faster
+    else if ((e.seasonal || e.bigMoves) && !move && e.hp < e.maxHp * 0.5) { vx *= 1.3; vz *= 1.3; } // half beaten: angry, faster
     // knockback impulse
     vx += e._kx ?? 0; vz += e._kz ?? 0;
     e._kx = (e._kx ?? 0) * Math.pow(0.002, dt);
@@ -241,7 +241,7 @@ export class LiveLocation {
     if (target && e._atkCd <= 0 && e._stun <= 0 && !def.harmless) {
       const reach = e.r + (target.type === 'pet' ? target.r : PLAYER_RADIUS) + 0.25;
       if (dist2(e, target) < reach * reach) {
-        e._atkCd = e.seasonal ? 0.8 : 1.0;
+        e._atkCd = e.seasonal || e.bigMoves ? 0.8 : 1.0;
         if (target.type === 'pet') this.server.damagePet(target, e.damage);
         else this.server.damagePlayer(target, e.damage, e);
       }
@@ -249,7 +249,7 @@ export class LiveLocation {
   }
 
   /**
-   * A seasonal boss fights back properly: now and then it crouches, a red circle spreads on the ground round it,
+   * A seasonal boss (or the arena's Sun King) fights back properly: now and then it crouches, a red circle spreads on the ground round it,
    * and a moment later it slams the ground, hurting everyone still in the circle (roll or run out!); and anyone
    * hanging back gets charged. Half beaten it gets angry: faster, and it slams and charges more often.
    * Returns its movement while it's busy with a move (winding up, charging), or null to fight as usual.

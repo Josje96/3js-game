@@ -38,7 +38,7 @@ export const FEAST_COST = 10;        // gold for food at the fort's feast table 
 export const AUTOSAVE_SECONDS = 30;
 
 export const SAVE_VERSION = 13;
-export const PROTOCOL_VERSION = 47;
+export const PROTOCOL_VERSION = 48;
 export const PEER_PREFIX = 'famdungeon-v1-'; // PeerJS ids are global; namespace ours
 
 export const CLASSES = {
@@ -87,6 +87,8 @@ export const HATS = {
   leafcrown:  { name: 'Autumn leaf crown', price: 90, build: 'leafcrown' },
   icecrown:   { name: 'Ice crown', price: 300, build: 'icecrown' },
   santahat:   { name: 'Santa hat', price: 100, build: 'santahat' },
+  // won, never sold: the Solstice Arena's second prize (shared/seasons.js ARENA_PRIZES)
+  solarhelm:  { name: 'Solar Helmet', price: 90000, build: 'solarhelm', seasonal: 'solstice' },
 };
 export const CAPES = {
   knight: { name: 'Knight cape', from: 'Knight' },

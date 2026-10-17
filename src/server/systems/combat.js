@@ -83,6 +83,7 @@ export const methods = {
   },
 
   hitSlime(p, loc, e, dmg, from = p) {
+    if (!loc.entities.has(e.id)) return; // (already gone: beaten, or sent away)
     const perk = ITEMS[p?.weapon]?.perk; // forged weapons' perks (shared/items.js PERKS)
     if (perk === 'keen' && Math.random() < PERK_CRIT) {
       dmg *= 2;

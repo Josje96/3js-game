@@ -1371,13 +1371,16 @@ const WARRIORS = {
   gladiator:     { cls: 'Barbarian', weapon: 'sword', shield: 'woodshield', armor: [0xc88a3a, 1], helmet: 'gladiator', look: { hat: 'none', cape: 'none' } },
   sunarcher:     { cls: 'Ranger', weapon: 'longbow', armor: [0xe8c45a, 1], look: { hat: 'own', cape: 'own', dye: 'sunny' } },
   sunknight:     { cls: 'Knight', weapon: 'royalsword', shield: 'royalshield', armor: [0xf6e2a0, 2], tint: 0xffe8a8, glow: 0x2a1a00, look: { hat: 'own', cape: 'own', dye: 'sunny' } },
+  flamegladiator: { cls: 'Barbarian', weapon: 'greataxe', shield: 'spikeshield', armor: [0x4a4a52, 2], tint: 0x8a8a96, glow: 0x3a0e00, helmet: 'flame', look: { hat: 'none', cape: 'none' } },
+  sunpaladin:    { cls: 'Knight', weapon: 'royalsword', shield: 'starshield', armor: [0xfff6d8, 3], tint: 0xfff4d8, glow: 0x3a2a00, look: { hat: 'own', cape: 'own', dye: 'sky' } },
+  sunking:       { cls: 'Knight', weapon: 'solarblade', armor: [0xffb020, 4], tint: 0xffc850, glow: 0x8a4000, halo: true, crown: true, look: { hat: 'none', cape: 'own', dye: 'ruby' } },
   solarchampion: { cls: 'Knight', weapon: 'greatsword', armor: [0xffc83a, 3], tint: 0xffd870, glow: 0x6a3800, halo: true, look: { hat: 'own', cape: 'own', dye: 'ruby' } },
 };
 const ARMOUR_PART = /_(Helmet|HelmetVisor|Body|ArmLeft|ArmRight|LegLeft|LegRight)$/;
 
 /** A bronze gladiator's helmet with a red crest front to back (hat frame: head 1 wide, y 0 on top). */
-function gladiatorHelmet() {
-  const g = new THREE.Group(), bronze = new THREE.MeshStandardMaterial({ color: 0xc88a3a, metalness: 0.7, roughness: 0.3 }), red = new THREE.MeshStandardMaterial({ color: 0xc8202a, roughness: 0.8 });
+function gladiatorHelmet(metal = 0xc88a3a, crest = 0xc8202a) {
+  const g = new THREE.Group(), bronze = new THREE.MeshStandardMaterial({ color: metal, metalness: metal === 0xc88a3a ? 0.7 : 0.3, roughness: metal === 0xc88a3a ? 0.3 : 0.45 }), red = new THREE.MeshStandardMaterial({ color: crest, roughness: 0.8, emissive: crest === 0xc8202a ? 0x000000 : crest, emissiveIntensity: 0.35 });
   const dome = new THREE.Mesh(new THREE.SphereGeometry(0.58, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.48), bronze);
   dome.position.y = -0.48; // (its top just over the top of the head)
   g.add(dome);
@@ -1433,6 +1436,8 @@ export class WarriorView {
     this.ch.attach('shoulderl', parts.left);
     this.ch.attach('shoulderr', parts.right);
     if (W.helmet === 'gladiator') this.ch.attach('hat', gladiatorHelmet());
+    if (W.helmet === 'flame') this.ch.attach('hat', gladiatorHelmet(0x9a9aa6, 0xff6a1a)); // iron, a crest of flame
+    if (W.crown) this.ch.attach('hat', buildHat('crown'));
     if (W.halo) this.ch.attach('hat', sunHalo());
     this.ch.flashMats = null;
     this.root.add(this.ch.root);

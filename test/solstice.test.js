@@ -2,7 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { world } from './helpers.js';
-import { holidayOf, SEASON_DAYS, SOLSTICE_ARENA, ARENA_ROUNDS, ARENA_PRIZE } from '../src/shared/seasons.js';
+import { holidayOf, SEASON_DAYS, SOLSTICE_ARENA, ARENA_ROUNDS, ARENA_PRIZE, ARENA_PRIZES } from '../src/shared/seasons.js';
+import { HATS, ownsStyle } from '../src/shared/config.js';
 import { ENEMIES } from '../src/shared/dungeons.js';
 import { ITEMS, SHOP_STOCK, DROP_TIERS } from '../src/shared/items.js';
 import { blocked } from '../src/shared/physics.js';
@@ -26,7 +27,9 @@ const beatRound = (w, who) => { for (let i = 0; i < 20 && foes(w.town).length; i
 test('solstice arena: halfway through summer; three rounds of real warriors with bodies; the prize is epic and only won here', () => {
   assert.equal(holidayOf(SOLSTICE), 'solstice');
   assert.equal(holidayOf(SOLSTICE + 120), 'solstice', 'every year');
-  assert.equal(ARENA_ROUNDS.length, 3);
+  assert.equal(ARENA_ROUNDS.length, 6, 'three for the Solar Blade, three harder ones for the Solar Helmet');
+  assert.equal(ARENA_PRIZES[3].item, ARENA_PRIZE);
+  assert.ok(HATS[ARENA_PRIZES[6].hat]?.seasonal, 'the helmet is never sold');
   for (const [i, r] of ARENA_ROUNDS.entries()) {
     for (const v of Object.keys(r.foes)) assert.ok(ENEMIES[v]?.body === 'warrior', `${v} is a warrior`);
     if (i) assert.ok(r.power > ARENA_ROUNDS[i - 1].power, `round ${i + 1} is harder`);
@@ -47,10 +50,11 @@ test('solstice arena: the herald is only there on the solstice, standing somewhe
   assert.equal(herald(w.town), undefined, 'gone the next day');
 });
 
-test('solstice arena: each round is harder; winning all three gives everyone in the ring the Solar Blade', () => {
+test('solstice arena: each round is harder; three won gives everyone in the ring the Solar Blade, six the Solar Helmet', () => {
   const w = arena('mom', 'kid');
   const hp = [];
-  for (let n = 1; n <= 3; n++) {
+  const helm = ARENA_PRIZES[6].hat;
+  for (let n = 1; n <= 6; n++) {
     talk(w, 'mom');
     const f = foes(w.town);
     assert.equal(f.length, Object.values(ARENA_ROUNDS[n - 1].foes).reduce((a, b) => a + b, 0), `round ${n}'s warriors`);
@@ -58,12 +62,16 @@ test('solstice arena: each round is harder; winning all three gives everyone in 
     talk(w, 'kid');
     assert.equal(foes(w.town).length, f.length, 'no second round on top of the first');
     if (n === 3) assert.ok(f.some((e) => e.boss && e.variant === 'solarchampion'), 'the Solar Champion in the final');
-    assert.ok(!w.p.mom.gear.includes(ARENA_PRIZE), 'no blade yet');
+    if (n === 6) assert.ok(f.some((e) => e.boss && e.variant === 'sunking' && e.bigMoves), 'the Sun King in the last, with a boss’s big moves');
+    assert.equal(w.p.mom.gear.includes(ARENA_PRIZE), n > 3, n > 3 ? 'the blade from round 3' : 'no blade yet');
+    assert.ok(!ownsStyle(w.p.mom.closet, 'hat', helm), 'no helmet yet');
     beatRound(w, 'mom');
     assert.equal(w.save.flags.solstice.won, n);
   }
-  assert.ok(hp[0] < hp[1] && hp[1] < hp[2], 'the warriors get tougher');
+  for (let i = 1; i < 6; i++) assert.ok(hp[i - 1] < hp[i] || i === 3, `round ${i + 1}'s warriors are tougher`);
+  assert.ok(hp[3] > hp[1], 'the second set starts harder than the first');
   assert.ok(w.p.mom.gear.includes(ARENA_PRIZE) && w.p.kid.gear.includes(ARENA_PRIZE), 'a Solar Blade each');
+  assert.ok(ownsStyle(w.p.mom.closet, 'hat', helm) && ownsStyle(w.p.kid.closet, 'hat', helm), 'a Solar Helmet each, in the wardrobe');
   talk(w, 'mom');
   assert.equal(foes(w.town).length, 0, 'won for this year');
 });

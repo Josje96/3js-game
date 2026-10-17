@@ -230,6 +230,29 @@ const HAT_BUILDERS = {
     g.add(flake);
     return g;
   },
+  solarhelm() { // the Solstice Arena's prize: a golden helmet with a cheek guard each side, a sun on the brow and a crest of flame-coloured plumes
+    const g = new THREE.Group(), gold = mat(0xffc83a, { metalness: 0.75, roughness: 0.25, emissive: 0x3a2000 }), dark = mat(0xb8862a, { metalness: 0.7, roughness: 0.35 });
+    g.add(mesh(new THREE.SphereGeometry(0.6, 28, 14, 0, Math.PI * 2, 0, Math.PI * 0.5), gold, 0, -0.47, 0));
+    g.add(mesh(new THREE.TorusGeometry(0.6, 0.04, 6, 36), dark, 0, -0.47, 0)).children.at(-1).rotation.x = Math.PI / 2;
+    for (const s of [-1, 1]) { // cheek guards
+      const guard = mesh(new THREE.BoxGeometry(0.06, 0.34, 0.3), gold, s * 0.57, -0.62, 0.12);
+      guard.rotation.z = s * 0.12;
+      g.add(guard);
+    }
+    const sun = new THREE.Group(); // a sun on the brow
+    sun.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.03, 16), mat(0xffe27a, { emissive: 0xff9a1a, emissiveIntensity: 0.8 }))).children.at(-1).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2, ray = mesh(new THREE.ConeGeometry(0.03, 0.09, 4), gold, Math.cos(a) * 0.14, Math.sin(a) * 0.14, 0); ray.rotation.z = a - Math.PI / 2; sun.add(ray); }
+    sun.position.set(0, -0.25, 0.55);
+    sun.rotation.x = -0.45;
+    g.add(sun);
+    const plume = [0xff7a1a, 0xffb02a, 0xffd23f, 0xff5a1a];
+    for (let i = 0; i < 11; i++) { // the crest, front to back over the top
+      const a = -1.2 + i * 0.24, b = mesh(new THREE.ConeGeometry(0.07, 0.38, 6), mat(plume[i % 4], { emissive: plume[i % 4], emissiveIntensity: 0.25 }), 0, -0.47 + Math.cos(a) * 0.72, Math.sin(a) * 0.72);
+      b.rotation.x = a;
+      g.add(b);
+    }
+    return g;
+  },
   santahat() { const g = new THREE.Group(); g.add(buildCostumeHat('santa')); g.position.y -= 0.08; return g; },
   party() {
     const g = new THREE.Group();

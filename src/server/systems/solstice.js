@@ -2,11 +2,13 @@
 // sand ring on the grass south-east of the market with the Sun Herald at its gate. Talk to the herald
 // to start the next round of warriors (ARENA_ROUNDS: three, each harder, scaled to the family). They
 // only fight people inside the ring. If everyone leaves (or faints) mid-round the warriors bow out and
-// the round can be tried again. Win the third and everyone in the ring gets the Solar Blade.
+// the round can be tried again. Win the third and everyone in the ring gets the Solar Blade; three more,
+// harder still, win the Solar Helmet (ARENA_PRIZES).
 import { ENEMIES, makeEnemy } from '../../shared/dungeons.js';
 import { ITEMS } from '../../shared/items.js';
 import { XP } from '../../shared/progression.js';
-import { holidayOf, SOLSTICE_ARENA, SOLSTICE_HERALD, ARENA_ROUNDS, ARENA_PRIZE } from '../../shared/seasons.js';
+import { HATS } from '../../shared/config.js';
+import { holidayOf, SOLSTICE_ARENA, SOLSTICE_HERALD, ARENA_ROUNDS, ARENA_PRIZES } from '../../shared/seasons.js';
 
 const LOG = 'solstice';               // save.flags: { day, won: rounds won today }
 const RING = SOLSTICE_ARENA.r + 3;    // who counts as in the fight
@@ -40,7 +42,7 @@ export const interactions = {
     if (holidayOf(this.save.day) !== 'solstice' || p.loc !== 'town') return;
     const town = this.locations.get('town'), won = this.solsticeLog().won;
     if (this.arenaFoes(town).length) return this.toast(p, `☀️ Round ${won + 1} is on! Beat the warriors in the ring!`);
-    if (won >= ARENA_ROUNDS.length) return this.toast(p, `☀️ “Hail, Solstice Champions! The Solar Blade is yours. Come back next summer!”`);
+    if (won >= ARENA_ROUNDS.length) return this.toast(p, `☀️ “Hail, Solstice Champions! The Solar Blade and the Solar Helmet are yours. Come back next summer!”`);
     this.startArenaRound(town, won + 1, p);
   },
 };
@@ -80,10 +82,10 @@ export const methods = {
     foes.forEach((variant, i) => {
       const a = Math.PI * (0.15 + (0.7 * (i + 0.5)) / foes.length); // a fan facing the gate
       const x = ARENA.x + Math.cos(a) * ARENA.r * 0.6, z = ARENA.z + Math.sin(a) * ARENA.r * 0.6;
-      const def = ENEMIES[variant], boss = variant === 'solarchampion';
+      const def = ENEMIES[variant], boss = !!def.champion;
       loc.spawn({
         ...makeEnemy(variant, depth, x, z), rot: Math.PI, r: (def.r ?? 0.7) * (def.scale ?? 1),
-        ...(boss ? { boss: true, name: 'The Solar Champion' } : {}),
+        ...(boss ? { boss: true, name: def.champion, bigMoves: def.bigMoves } : {}),
         _depth: depth, _home: ARENA,
       });
       this.sendToLocation(loc.key, { t: 'fx', kind: 'nova', x, z });
@@ -117,11 +119,20 @@ export const methods = {
     this.sendToLocation(loc.key, { t: 'fx', kind: 'nova', x: ARENA.x, z: ARENA.z });
     const fighters = loc.livePlayers().filter(inRing);
     if (by && !fighters.includes(by)) fighters.push(by);
+    const prize = ARENA_PRIZES[log.won];
+    if (prize) {
+      for (const p of fighters) {
+        if (prize.item) this.gainGear(p, prize.item);
+        else if (!(p.closet ??= []).includes(`hat:${prize.hat}`)) { p.closet.push(`hat:${prize.hat}`); this.sendSelf(p); } // (into the wardrobe)
+      }
+      const name = prize.item ? ITEMS[prize.item].name : HATS[prize.hat].name;
+      this.broadcast({ t: 'toast', big: true, text: `☀️🏆 ${fighters.map((p) => p.name).join(' & ') || 'The family'} won ${log.won < ARENA_ROUNDS.length ? 'the Solstice Arena' : 'the Solstice Arena’s hardest trial'} and earned the ${name}!${prize.hat ? ' (It’s in your wardrobe.)' : ''}` });
+    }
     if (log.won < ARENA_ROUNDS.length) {
-      this.sendToLocation(loc.key, { t: 'toast', big: true, text: `🏆 Round ${log.won} won! Talk to the Sun Herald when you’re ready for round ${log.won + 1}.` });
-    } else {
-      for (const p of fighters) this.gainGear(p, ARENA_PRIZE);
-      this.broadcast({ t: 'toast', big: true, text: `☀️🏆 ${fighters.map((p) => p.name).join(' & ') || 'The family'} won the Solstice Arena and earned the ${ITEMS[ARENA_PRIZE].name}!` });
+      const next = ARENA_ROUNDS[log.won];
+      this.sendToLocation(loc.key, { t: 'toast', big: true, text: prize
+        ? `☀️ The Sun Herald has a harder challenge: ${next.name} and ${ARENA_ROUNDS.length - log.won} more rounds for the Solar Helmet! Talk to him when you’re ready.`
+        : `🏆 Round ${log.won} won! Talk to the Sun Herald when you’re ready for round ${log.won + 1}.` });
     }
     this.persist();
   },

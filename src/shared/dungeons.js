@@ -173,7 +173,11 @@ export const ENEMIES = {
   gladiator:     { hp: 40,  damage: 4, speed: 3.2, gold: [12, 18], ai: 'chase', body: 'warrior' },
   sunarcher:     { hp: 30,  damage: 4, speed: 3.0, gold: [12, 18], ai: 'shooter', body: 'warrior' },
   sunknight:     { hp: 75,  damage: 5, speed: 2.8, gold: [16, 24], ai: 'pounce', body: 'warrior', r: 0.8 },
-  solarchampion: { hp: 1100, damage: 9, speed: 3.0, gold: [1500, 1500], ai: 'chase', body: 'warrior', scale: 1.8, r: 0.9, summon: 'gladiator' },
+  solarchampion: { hp: 1100, damage: 9, speed: 3.0, gold: [1500, 1500], ai: 'chase', body: 'warrior', scale: 1.8, r: 0.9, summon: 'gladiator', champion: 'The Solar Champion' },
+  flamegladiator: { hp: 70, damage: 6, speed: 3.4, gold: [20, 30], ai: 'chase', body: 'warrior' },
+  sunpaladin:    { hp: 120, damage: 7, speed: 3.0, gold: [26, 36], ai: 'pounce', body: 'warrior', r: 0.85 },
+  // the arena's last round: slams the ground and charges like a seasonal boss (`bigMoves`, LiveLocation bossMoves)
+  sunking:       { hp: 1900, damage: 12, speed: 3.2, gold: [3000, 3000], ai: 'chase', body: 'warrior', scale: 2.1, r: 1.0, summon: 'flamegladiator', champion: 'The Sun King', bigMoves: true },
 };
 export const SLIME_STATS = ENEMIES; // older name
 
