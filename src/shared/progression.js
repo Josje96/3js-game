@@ -26,9 +26,12 @@ export const CLASS_STATS = {
 export const POINTS_PER_LEVEL = 2;
 export const MAX_LEVEL = 99;
 
-/** XP needed to go from `level` to the next one. */
+/**
+ * XP needed to go from `level` to the next one: a curve, so each level takes a bit more work than the last
+ * (enemies give more XP the deeper you go, but not as fast as this climbs). Level 10 → 210, 30 → 890, 60 → 2660.
+ */
 export function xpToNext(level) {
-  return 15 + level * 10;
+  return Math.round(20 + level * 14 + level * level * 0.5);
 }
 
 export function maxHpFor(level, stats) {

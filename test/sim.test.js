@@ -661,3 +661,10 @@ test('server: the area spell hits every enemy around you, once a minute', () => 
   c.say({ t: 'spell' });
   assert.ok(near.hp < after, 'ready again after a minute');
 });
+
+test('levels: each one takes more XP than the last, and the climb steepens', async () => {
+  const { xpToNext } = await import('../src/shared/progression.js');
+  for (let l = 1; l < 99; l++) assert.ok(xpToNext(l + 1) > xpToNext(l), `level ${l + 1} costs more than ${l}`);
+  assert.ok(xpToNext(60) > 4 * xpToNext(10), 'high levels are much harder than low ones');
+  assert.ok(xpToNext(1) <= 40, 'but the first few come quickly');
+});
