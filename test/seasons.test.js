@@ -147,10 +147,9 @@ test('seasons: the boss fights back — hits don\'t freeze it, and it slams the 
   const send = server.sendToLocation.bind(server);
   server.sendToLocation = (key, msg) => { if (msg.t === 'fx') sent.push(msg.kind); return send(key, msg); };
   // standing next to it, hitting it the whole time
-  let hits = 0;
   for (let i = 0; i < 200; i++) {
     p.mom.x = boss.x + boss.r + 0.6; p.mom.z = boss.z;
-    if (i % 3 === 0) { server.hitSlime(p.mom, town, boss, 1); hits++; }
+    if (i % 3 === 0) server.hitSlime(p.mom, town, boss, 1);
     server.step(0.05);
   }
   assert.ok(boss._stun <= 0, 'never frozen');

@@ -1,7 +1,7 @@
 // One player's view of the game. Renders whatever location the server says
 // we're in, moves our own character locally, and sends intents to the host.
 import * as THREE from 'three';
-import { BACKS, FLY_HEIGHT, FLY_SPEED, CELL, PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
+import { BACKS, FLY_HEIGHT, FLY_SPEED, CELL, PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, JUMP_TIME, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
 import { buildLayout, roomIndexAt } from '../shared/locations.js';
 import { DUNGEONS } from '../shared/dungeons.js';
 import { FURNITURE, DECORATOR_FLAG, useVerb } from '../shared/furniture.js';
@@ -811,6 +811,13 @@ export class GameClient {
       this.me.roll(ROLL_TIME);
       this.conn.send({ t: 'roll' });
     }
+    // J: jump (up and down again; the view does the hop)
+    if (input.consume('jump') && !this.me.jumping && !this.flying && this.rolling <= 0 && this.self?.hp > 0) {
+      if (this.sitting) this.standUp();
+      this.sleeping = false;
+      this.me.jump();
+      this.jumpUntil = performance.now() + JUMP_TIME * 1000;
+    }
     if (this.rolling > 0) {
       this.rolling -= dt;
       const sx = Math.sin(this.pos.rot) * ROLL_SPEED * dt, sz = Math.cos(this.pos.rot) * ROLL_SPEED * dt;
@@ -825,11 +832,11 @@ export class GameClient {
     }
     if (moving || this.rolling > 0) this.sleeping = false; // getting out of bed
     if ((moving || this.rolling > 0) && this.sitting) this.standUp();
-    this.anim = this.rolling > 0 ? 'roll' : this.flying ? 'fly' : moving ? 'run' : this.sleeping ? 'sleep' : this.sitting ? 'sit' : 'idle';
-    if (this.rolling <= 0) this.me.setBase(this.anim === 'fly' ? 'idle' : this.anim); // (hovering)
+    this.anim = this.rolling > 0 ? 'roll' : this.flying ? 'fly' : performance.now() < (this.jumpUntil ?? 0) ? 'jump' : moving ? 'run' : this.sleeping ? 'sleep' : this.sitting ? 'sit' : 'idle';
+    if (this.rolling <= 0) this.me.setBase(this.anim === 'fly' ? 'idle' : this.anim === 'jump' ? (moving ? 'run' : 'idle') : this.anim); // (hovering; a jump is the view's hop)
     this.flyY = (this.flyY ?? 0) + ((this.flying ? FLY_HEIGHT : 0) - (this.flyY ?? 0)) * Math.min(1, dt * 3);
     this.me.flying = this.flying;
-    this.me.root.position.set(this.pos.x, this.flyY + (this.flying ? Math.sin(performance.now() / 400) * 0.08 : 0), this.pos.z);
+    this.me.root.position.set(this.pos.x, this.flyY + (this.flying ? Math.sin(performance.now() / 400) * 0.08 : 0) + (this.me.jumpY ?? 0), this.pos.z);
     const r = this.me.root.rotation;
     r.y += (((this.pos.rot - r.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 18);
 

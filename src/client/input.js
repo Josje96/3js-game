@@ -1,14 +1,14 @@
 // Keyboard + mouse + gamepad. Movement is read every frame; actions are
 // "pressed this frame" events you consume().
 //
-//   Move: WASD / arrows / left stick        Attack: Space / J / click / (A)
+//   Move: WASD / arrows / left stick        Attack: Space / click / (A)    Jump: J
 //   Interact: E / (X)    Potion: Q / (Y)    Menu: Esc / (Start)    Chat: Enter    Music: M
 //   Roll: Shift / K / (B)    Character sheet: C / I / (Back)    Pets: P    Area spell: R    Feed pet: G
 //   At home: B = build mode (place furniture; R rotates, E places, X picks up)
 //   Item bar: Tab (or click it) picks things in the bar at the bottom: ←/→ choose, Enter uses, Esc/Tab done
 
 const KEY_ACTIONS = {
-  Space: 'attack', KeyJ: 'attack',
+  Space: 'attack', KeyJ: 'jump',
   KeyE: 'interact', KeyF: 'interact',
   KeyQ: 'potion', KeyR: 'spell', KeyG: 'feed',
   Escape: 'menu',

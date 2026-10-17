@@ -1,6 +1,6 @@
 // 3D views for things that move or change: characters, slimes, rocks, drops...
 import * as THREE from 'three';
-import { FLY_HEIGHT, CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COLORS } from '../shared/config.js';
+import { FLY_HEIGHT, JUMP_TIME, JUMP_HEIGHT, CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COLORS } from '../shared/config.js';
 import { ITEMS, SWING_COOLDOWN, SWING_IMPACT } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
@@ -636,6 +636,14 @@ export class CharacterView {
   }
 
   /** Dodge roll: a tucked forward somersault (the rig has no roll clip). */
+  /** J: a hop, knees tucked up, then down again. `jumpY` is the height off the ground right now. */
+  jump() {
+    this.jumpT = 0;
+    if (this.rollT == null) this.fadeTo('tuck', 0.08);
+  }
+
+  get jumping() { return this.jumpT != null; }
+
   roll(duration) {
     this.rollT = 0;
     this.rollDur = duration;
@@ -703,11 +711,21 @@ export class CharacterView {
       this.root.position.z += (this.target.z - this.root.position.z) * k;
       this.root.rotation.y = lerpAngle(this.root.rotation.y, this.target.rot, k);
       this.flying = this.target.anim === 'fly'; // up on a jetpack
-      this.root.position.y += ((this.flying ? FLY_HEIGHT + Math.sin(this.time * 2.5) * 0.08 : 0) - this.root.position.y) * Math.min(1, dt * 3);
+      this.lift = (this.lift ?? 0) + ((this.flying ? FLY_HEIGHT + Math.sin(this.time * 2.5) * 0.08 : 0) - (this.lift ?? 0)) * Math.min(1, dt * 3);
+      if (this.target.anim !== 'jump') this.jumpSeen = false; // one hop per jump
+      else if (!this.jumpSeen) { this.jumpSeen = true; this.jump(); }
+      this.root.position.y = this.lift + (this.jumpY ?? 0);
       // one somersault per roll, even if the 'roll' state lingers a little over the network
       if (this.target.anim !== 'roll') this.rollSeen = false;
       else if (!this.rollSeen) { this.rollSeen = true; this.roll(ROLL_TIME); }
       this.setBase(['run', 'sleep', 'sit'].includes(this.target.anim) ? this.target.anim : 'idle');
+    }
+    this.jumpY = 0;
+    if (this.jumpT != null) {
+      this.jumpT += dt;
+      const u = Math.min(1, this.jumpT / JUMP_TIME);
+      this.jumpY = 4 * JUMP_HEIGHT * u * (1 - u);
+      if (u >= 1) { this.jumpT = null; if (this.rollT == null) this.fadeTo(this.base, 0.12); }
     }
     if (this.rollT != null) {
       this.rollT += dt;
