@@ -51,7 +51,7 @@ function skullDome(geo) {
 }
 
 // hats that cover the top of the head: hair tucks in under them (the rest sit on top of it)
-const COVERING_HATS = new Set(['helmet', 'bear', 'wizard', 'tophat', 'viking', 'cowboy', 'pirate', 'bandana', 'captain']);
+const COVERING_HATS = new Set(['helmet', 'bear', 'wizard', 'tophat', 'viking', 'cowboy', 'pirate', 'bandana', 'captain', 'mushroom']);
 
 const ANIMS = {
   idle: 'Idle_A',

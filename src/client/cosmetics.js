@@ -13,31 +13,55 @@ const mesh = (geo, material, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1) => {
 };
 
 const HAT_BUILDERS = {
-  bandana() { // a red pirate bandana tied snug over the head: low on the forehead, lower at the back, little white spots, knotted behind with two tails
-    const g = new THREE.Group(), red = mat(0xc8202a, { roughness: 0.85 }), white = mat(0xffffff, { roughness: 0.8 }), dark = mat(0x9a1820, { roughness: 0.85 });
-    const R = HEAD_R * 1.07, OPEN = Math.PI * 0.47, TILT = -0.3; // (tilted back: the cloth comes down to the nape)
+  bandana() { // a red pirate bandana tied snug over the head (no dome standing off it, or it's a toadstool): low on the forehead, down to the nape at the back, tiny white polka dots, knotted behind with two tails hanging down
+    const g = new THREE.Group(), red = mat(0xc8202a, { roughness: 0.9 }), white = mat(0xffffff, { roughness: 0.9 }), dark = mat(0xa01a22, { roughness: 0.9 });
+    const R = HEAD_R * 1.04, OPEN = Math.PI * 0.53, TILT = -0.55, NARROW = 0.9; // (tipped back: the edge runs from the forehead down over the ears to the nape, no level rim; narrowed to the face)
     const cap = new THREE.Group();
-    cap.position.y = HEAD_Y;
+    cap.position.set(0, HEAD_Y, -0.03); // (back a touch: snug on the forehead)
     cap.rotation.x = TILT;
+    cap.scale.x = NARROW;
     g.add(cap);
-    cap.add(mesh(new THREE.SphereGeometry(R, 32, 14, 0, Math.PI * 2, 0, OPEN), red, 0, 0, 0));
-    const hem = mesh(new THREE.TorusGeometry(R * Math.sin(OPEN), 0.03, 6, 40), dark, 0, R * Math.cos(OPEN), 0); // the folded edge
+    cap.add(mesh(new THREE.SphereGeometry(R, 32, 14, 0, Math.PI * 2, 0, OPEN), red));
+    const hem = mesh(new THREE.TorusGeometry(R * Math.sin(OPEN - 0.04), 0.016, 5, 40), dark, 0, R * Math.cos(OPEN - 0.04), 0); // the folded edge, flush with the cloth
     hem.rotation.x = Math.PI / 2;
     cap.add(hem);
-    for (let i = 0; i < 26; i++) { // spots, lying on the cloth
-      const th = 0.18 + (i % 4) * 0.3, ph = i * 2.39;
-      if (th > OPEN - 0.1) continue;
-      const n = new THREE.Vector3(Math.sin(th) * Math.sin(ph), Math.cos(th), Math.sin(th) * Math.cos(ph));
-      const d = mesh(new THREE.CircleGeometry(0.025, 10), white, n.x * (R + 0.004), n.y * (R + 0.004), n.z * (R + 0.004));
-      d.lookAt(d.position.clone().multiplyScalar(2));
-      cap.add(d);
+    for (let ring = 1; ring <= 5; ring++) { // polka dots in rings, lying on the cloth
+      const th = ring * 0.27, n = Math.round(ring * 6);
+      for (let i = 0; i < n; i++) {
+        const ph = (i + (ring % 2) * 0.5) / n * Math.PI * 2;
+        const v = new THREE.Vector3(Math.sin(th) * Math.sin(ph), Math.cos(th), Math.sin(th) * Math.cos(ph)).multiplyScalar(R + 0.003);
+        const d = mesh(new THREE.CircleGeometry(0.018, 8), white, v.x, v.y, v.z);
+        d.lookAt(v.clone().multiplyScalar(2));
+        cap.add(d);
+      }
     }
-    const back = new THREE.Vector3(0, Math.cos(OPEN - 0.08), -Math.sin(OPEN - 0.08)).multiplyScalar(R + 0.02);
-    cap.add(mesh(new THREE.SphereGeometry(0.08, 10, 8), red, back.x, back.y, back.z, 1.2, 0.9, 0.8)); // the knot
+    // the knot and its tails, low on the back of the head (outside the narrowed cap so they keep their shape)
+    const back = new THREE.Vector3(0, Math.cos(OPEN - 0.12), -Math.sin(OPEN - 0.12)).multiplyScalar(R).applyAxisAngle(new THREE.Vector3(1, 0, 0), TILT);
+    back.y += HEAD_Y; back.z -= 0.03;
+    g.add(mesh(new THREE.SphereGeometry(0.075, 10, 8), red, back.x, back.y, back.z - 0.03, 1.3, 0.9, 0.8));
     for (const s of [-1, 1]) {
-      const tail = mesh(new THREE.ConeGeometry(0.07, 0.34, 6), red, back.x + s * 0.06, back.y - 0.17, back.z - 0.04, 1, 1, 0.35);
-      tail.rotation.set(-0.25, 0, Math.PI + s * 0.3);
-      cap.add(tail);
+      const tail = mesh(new THREE.ConeGeometry(0.075, 0.3, 6), red, back.x + s * 0.07, back.y - 0.14, back.z - 0.06, 1, 1, 0.3);
+      tail.rotation.set(-0.3, 0, Math.PI + s * 0.35);
+      g.add(tail);
+    }
+    return g;
+  },
+  mushroom() { // a toadstool cap: a wide red dome well out past the head, raised white spots, cream gills underneath
+    const g = new THREE.Group(), red = mat(0xd42a2a, { roughness: 0.55 }), white = mat(0xfff8ec, { roughness: 0.7 }), cream = mat(0xf0dfc0, { roughness: 0.9, side: THREE.DoubleSide }), gills = mat(0xd9c39c, { roughness: 1 });
+    const R = 0.78, SQUASH = 0.62, Y = -0.18;
+    g.add(mesh(new THREE.SphereGeometry(R, 32, 14, 0, Math.PI * 2, 0, Math.PI * 0.5), red, 0, Y, 0, 1, SQUASH, 1));
+    g.add(mesh(new THREE.RingGeometry(0.3, R, 40, 1), cream, 0, Y - 0.005, 0)).children.at(-1).rotation.x = -Math.PI / 2; // the underside
+    for (let i = 0; i < 28; i++) { // gills: thin ridges running out from the middle
+      const a = (i / 28) * Math.PI * 2, gill = mesh(new THREE.BoxGeometry(0.012, 0.035, R - 0.32), gills, Math.sin(a) * (R + 0.3) / 2, Y - 0.02, Math.cos(a) * (R + 0.3) / 2);
+      gill.rotation.y = a;
+      g.add(gill);
+    }
+    for (const [th, ph, r] of [[0, 0, 0.11], [0.5, 0.3, 0.09], [0.55, 1.9, 0.1], [0.6, 3.4, 0.09], [0.5, 4.8, 0.1], [1.0, 0.9, 0.08], [1.05, 2.6, 0.09], [0.95, 4.1, 0.08], [1.1, 5.5, 0.08], [1.25, 1.7, 0.06], [1.3, 3.3, 0.06], [1.2, 5.0, 0.06]]) {
+      const n = new THREE.Vector3(Math.sin(th) * Math.sin(ph), Math.cos(th) * SQUASH, Math.sin(th) * Math.cos(ph)), at = n.clone().multiplyScalar(R);
+      const spot = mesh(new THREE.SphereGeometry(r, 10, 6), white, at.x, Y + at.y, at.z, 1, 0.3, 1);
+      spot.lookAt(spot.position.clone().add(new THREE.Vector3(n.x * SQUASH, n.y / SQUASH, n.z * SQUASH))); // lie flat on the dome
+      spot.rotateX(Math.PI / 2);
+      g.add(spot);
     }
     return g;
   },

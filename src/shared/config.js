@@ -73,6 +73,7 @@ export const HATS = {
   halo:    { name: 'Halo', price: 300, build: 'halo' },
   bandana: { name: 'Pirate bandana', price: 80, build: 'bandana' },
   captain: { name: 'Captain’s hat', price: 260, build: 'captain' },
+  mushroom:{ name: 'Mushroom cap', price: 110, build: 'mushroom' },
 };
 export const CAPES = {
   knight: { name: 'Knight cape', from: 'Knight' },
