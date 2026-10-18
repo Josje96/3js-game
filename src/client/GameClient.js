@@ -18,13 +18,68 @@ import { Music, moodFor } from './music.js';
 import { Sfx } from './sfx.js';
 import { ENCHANT_LOOKS } from '../shared/enchant.js';
 import { useDistance } from '../shared/props.js';
-import { holidayOf, seasonOf } from '../shared/seasons.js';
+import { holidayOf, seasonOf, SOLSTICE_ARENA } from '../shared/seasons.js';
 import { SEASON_LOOK } from './seasonfx.js';
 
 /** What the fort looks like, reduced to what a re-render depends on (so a change re-dresses it). */
 function houseKey(h) {
   return h ? JSON.stringify([h.wall, h.floor, h.roomStyles ?? {}, (h.rooms ?? []).map((r) => r.owner)]) : '';
 }
+
+/**
+ * The holiday films (GameClient.checkVisit), one for each season's holiday: each returns its cast,
+ * captions and colours, or null while the cast isn't in town yet. Called with `this` = the GameClient.
+ */
+const HOLIDAY_FILMS = {
+  easter() { // Grandma and Grandpa come in from the north end of the square
+    const npcs = this.filmCast((d) => d.name === 'Grandma' || d.name === 'Grandpa', (d) => ({ x: d.x - 2 + (d.name === 'Grandma' ? 2 : 0), z: d.z - 22 }));
+    if (npcs.length < 2) return null;
+    return { npcs, intro: '🐣 Look who’s coming to Pebble Town…', outro: '🐣 Grandma and Grandpa came for Easter! Go and say hello!', colors: [0xffb3d9, 0xfff2a8, 0xb3e6ff, 0xc8f7c5, 0xe2c8ff] };
+  },
+  solstice() { // the Sun Herald marches up from the market to the arena gate, and golden sparks fly
+    const npcs = this.filmCast((d) => d.arenaHerald, (d) => ({ x: d.x - 6, z: d.z - 16 }));
+    if (!npcs.length) return null;
+    return {
+      npcs, arrive: 6, end: 12, sound: 'levelup', burstAt: { x: SOLSTICE_ARENA.x, z: SOLSTICE_ARENA.z }, front: [6, 3, 1.5], // side on, the arena behind him
+      intro: '☀️ The longest day of the year dawns over Pebble Town…',
+      outro: '⚔️ The Solstice Arena is open! Win three rounds to earn the Solar Blade!',
+      colors: [0xffd23f, 0xffb02a, 0xfff6b0, 0xff7a1a],
+    };
+  },
+  halloween() { // nobody visits: a swoop round the jack-o'-lanterns at the fountain, then up to a cottage door
+    const fountain = this.layout.props.find((p) => p.build === 'fountain');
+    const doors = [...this.ents.values()].map((e) => e.data).filter((d) => d.type === 'door');
+    if (!fountain || !doors.length) return null;
+    const f = new THREE.Vector3(fountain.x, 0, fountain.z);
+    const door = doors.sort((a, b) => Math.hypot(a.x - f.x, a.z - f.z) - Math.hypot(b.x - f.x, b.z - f.z))[0];
+    const d = new THREE.Vector3(door.x, 0, door.z);
+    return {
+      arrive: 7.5, end: 11.5, sound: 'caw', focus: d, burstAt: d,
+      intro: '🎃 The sky has gone dark over Pebble Town…',
+      outro: '👻 Everyone’s in costume! Knock on the cottage doors to trick-or-treat!',
+      colors: [0xff8a1a, 0x8a3ad8, 0x2a2a2a, 0x7aff5a],
+      shot: (t) => {
+        if (t < 5) { // round the ring of jack-o'-lanterns
+          const a = -0.6 + (t / 5) * Math.PI * 1.4;
+          return { pos: new THREE.Vector3(f.x + Math.sin(a) * 8, 3.2, f.z + Math.cos(a) * 8), look: new THREE.Vector3(f.x, 0.6, f.z) };
+        }
+        const k = Math.min(1, (t - 5) / 2.5), e = k * k * (3 - 2 * k);
+        const a = -0.6 + Math.PI * 1.4, from = new THREE.Vector3(f.x + Math.sin(a) * 8, 3.2, f.z + Math.cos(a) * 8);
+        return { pos: from.lerp(new THREE.Vector3(d.x + 1.5, 3.4, d.z + 6.5), e), look: f.clone().setY(0.6).lerp(d.clone().setY(1.2), e) };
+      },
+    };
+  },
+  christmas() { // Santa floats down out of the sky onto his spot in the square
+    const npcs = this.filmCast((d) => d.name === 'Santa', (d) => ({ x: d.x + 3, y: 16, z: d.z - 6 }));
+    if (!npcs.length) return null;
+    return {
+      npcs, fly: true, arrive: 7, end: 12.5, sound: 'evolve',
+      intro: '🎄 Snow has fallen on Pebble Town… what’s that up in the sky?',
+      outro: '🎅 Ho ho ho! Santa’s here with a present for everyone!',
+      colors: [0xd8302a, 0x2a9a4a, 0xffffff, 0xffd23f],
+    };
+  },
+};
 
 export class GameClient {
   /**
@@ -645,60 +700,75 @@ export class GameClient {
   }
 
   /**
-   * Easter: the first time you're in town that day, a little film. Grandma and Grandpa walk into the
-   * square together (cinema bars, the camera tracking them), stop at their spot, turn and wave, and
-   * pastel confetti flies. Once per Easter per world in this browser; Esc skips it.
+   * Every season's holiday has a little film the first time you're in town that day (cinema bars,
+   * the camera moving, a caption): Easter, Grandma and Grandpa walk into the square and wave;
+   * Midsummer, the Sun Herald marches up to the Solstice Arena; Halloween, a dusky swoop round the
+   * jack-o'-lanterns to a cottage door; Christmas, Santa floats down out of the sky. Once per
+   * holiday per world in this browser; Esc skips it.
    */
   checkVisit() {
-    if (this.cinematic || this.layout?.key !== 'town' || !this.world || holidayOf(this.world.day) !== 'easter') return;
-    const key = `fdg.visitSeen.${this.world.seed}.${this.world.name}`;
+    const h = this.world && holidayOf(this.world.day);
+    if (this.cinematic || this.layout?.key !== 'town' || !h || !HOLIDAY_FILMS[h]) return;
+    const key = h === 'easter' ? `fdg.visitSeen.${this.world.seed}.${this.world.name}` : `fdg.filmSeen.${h}.${this.world.seed}.${this.world.name}`;
     let seen = null;
     try { seen = localStorage.getItem(key); } catch {}
-    if (seen === String(this.world.day) || this.visitShown === this.world.day) return;
-    const npcs = [...this.ents.values()].filter((e) => e.data.type === 'npc' && (e.data.name === 'Grandma' || e.data.name === 'Grandpa') && e.view?.ch);
-    if (npcs.length < 2) return; // (not here yet)
-    this.visitShown = this.world.day;
-    const WALK = 22; // they come in from the north end of the square
-    this.cinematic = {
-      kind: 'visit', t: 0, waved: false,
-      npcs: npcs.map((e) => ({ view: e.view, at: { x: e.data.x, z: e.data.z }, rot: e.data.rot ?? 0, from: { x: e.data.x - 2 + (e.data.name === 'Grandma' ? 2 : 0), z: e.data.z - WALK } })),
-      done: () => { try { localStorage.setItem(key, String(this.world.day)); } catch {} },
-    };
-    this.hud.cinema('🐣 Look who’s coming to Pebble Town…');
+    if (seen === String(this.world.day) || this.visitShown === `${h}${this.world.day}`) return;
+    const film = HOLIDAY_FILMS[h].call(this);
+    if (!film) return; // (the cast isn't here yet)
+    this.visitShown = `${h}${this.world.day}`;
+    this.cinematic = { kind: 'visit', t: 0, waved: false, npcs: [], ...film, done: () => { try { localStorage.setItem(key, String(this.world.day)); } catch {} } };
+    this.hud.cinema(film.intro);
   }
 
-  /** The Easter visit film, frame by frame (from updateCamera). */
+  /** Holiday visitors (town npcs) matching `test`, set up to walk or fly in from `from(npc)`. */
+  filmCast(test, from) {
+    return [...this.ents.values()].filter((e) => e.data.type === 'npc' && test(e.data) && e.view?.ch)
+      .map((e) => ({ view: e.view, at: { x: e.data.x, z: e.data.z }, rot: e.data.rot ?? 0, from: from(e.data) }));
+  }
+
+  /** A holiday film, frame by frame (from updateCamera). */
   playVisit(c, dt) {
+    if (this.layout?.key !== 'town') return this.endVisit(c); // you left town mid-film
     c.t += dt;
-    const WALK_T = 6.5, END = 12.5;
+    const WALK_T = c.arrive ?? 6.5, END = c.end ?? 12.5;
     const u = Math.min(1, c.t / WALK_T), ease = u * u * (3 - 2 * u);
-    let mid = new THREE.Vector3();
+    const mid = new THREE.Vector3();
     for (const n of c.npcs) {
-      const ch = n.view.ch, x = n.from.x + (n.at.x - n.from.x) * ease, z = n.from.z + (n.at.z - n.from.z) * ease;
-      // walk them along (their own spot is the view's root; the basket corner stays put)
+      const ch = n.view.ch, fy = n.from.y ?? 0;
+      const x = n.from.x + (n.at.x - n.from.x) * ease, z = n.from.z + (n.at.z - n.from.z) * ease, y = fy * (1 - ease);
+      // move them along (their own spot is the view's root; any stall or corner stays put)
       const local = new THREE.Vector3(x - n.at.x, 0, z - n.at.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), -n.rot);
-      ch.root.position.copy(local);
-      const walking = u < 1;
+      ch.root.position.set(local.x, y + (c.fly && u < 1 ? Math.sin(c.t * 3) * 0.15 : 0), local.z);
+      const walking = u < 1 && !c.fly;
       ch.root.rotation.y = walking ? Math.atan2(n.at.x - n.from.x, n.at.z - n.from.z) - n.rot : ch.root.rotation.y * (1 - Math.min(1, dt * 4)); // then turn to face the town
       ch.setBase(walking ? 'run' : 'idle');
-      mid.add(new THREE.Vector3(x, 0, z));
+      mid.add(new THREE.Vector3(x, y, z));
     }
-    mid.multiplyScalar(1 / c.npcs.length);
+    if (c.npcs.length) mid.multiplyScalar(1 / c.npcs.length);
+    else mid.copy(c.focus);
     if (u >= 1 && !c.waved) {
       c.waved = true;
       for (const n of c.npcs) n.view.ch.play('cheer');
-      this.sfx.play('chime');
-      this.addEffect(new Debris(mid.x, mid.z, [0xffb3d9, 0xfff2a8, 0xb3e6ff, 0xc8f7c5, 0xe2c8ff], 40));
-      this.hud.cinema('🐣 Grandma and Grandpa came for Easter! Go and say hello!');
+      this.sfx.play(c.sound ?? 'chime');
+      const at = c.burstAt ?? mid;
+      this.addEffect(new Debris(at.x, at.z, c.colors, 40));
+      this.hud.cinema(c.outro);
     }
-    // the camera: tracking alongside as they walk, then swinging round in front for the hello
-    const track = new THREE.Vector3(mid.x + 8.5, 5.2, mid.z + 7);
-    const front = new THREE.Vector3(mid.x + 1.2, 2.6, mid.z + 6.5);
-    const k = Math.min(1, Math.max(0, (c.t - WALK_T + 0.8) / 2.2));
-    const want = track.lerp(front, k * k * (3 - 2 * k));
-    if (c.t < dt * 1.5) this.camera.position.copy(want);
-    this.camera.position.lerp(want, 1 - Math.exp(-dt * 2.5));
-    this.camera.lookAt(mid.x, 1.5, mid.z);
+    if (c.shot) { // a camera move of its own
+      const { pos, look } = c.shot(c.t);
+      if (c.t < dt * 1.5) this.camera.position.copy(pos);
+      this.camera.position.lerp(pos, 1 - Math.exp(-dt * 3));
+      this.camera.lookAt(look);
+    } else { // tracking alongside as they come in, then swinging round in front for the hello
+      const track = new THREE.Vector3(mid.x + 8.5, 5.2 + mid.y * 0.5, mid.z + 7);
+      const [fx, fy, fz] = c.front ?? [1.2, 2.6, 6.5];
+      const front = new THREE.Vector3(mid.x + fx, fy, mid.z + fz);
+      const k = Math.min(1, Math.max(0, (c.t - WALK_T + 0.8) / 2.2));
+      const want = track.lerp(front, k * k * (3 - 2 * k));
+      if (c.t < dt * 1.5) this.camera.position.copy(want);
+      this.camera.position.lerp(want, 1 - Math.exp(-dt * 2.5));
+      this.camera.lookAt(mid.x, mid.y + 1.5, mid.z);
+    }
     if (c.t > END || c.skip) this.endVisit(c);
   }
 
