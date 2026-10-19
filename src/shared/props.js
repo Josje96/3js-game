@@ -7,6 +7,22 @@
 // a market stall is a counter and four poles 4.2 wide.
 const STALL_BLOCKS = [[-1.4, 0.4, 1.4], [0, 0.4, 1.4], [1.4, 0.4, 1.4]];
 
+/**
+ * How high a jetpack flies at (x, z): its usual `base` height, but up over a market stall's roof
+ * (canopies reach about 3.8) instead of through it, easing up as you come near.
+ */
+export function flyHeightAt(props, x, z, base) {
+  let h = base;
+  for (const p of props ?? []) {
+    if (!p.stall) continue;
+    // distance outside the stall's roof (x: ±2.4, z: -1.4..+2.3 from the prop), 0 underneath it
+    const dx = Math.max(0, Math.abs(x - p.x) - 2.4), dz = Math.max(0, p.z - 1.4 - z, z - (p.z + 2.3));
+    const near = 1 - Math.min(1, Math.hypot(dx, dz) / 3.5);
+    if (near > 0) h = Math.max(h, base + (4.7 - base) * Math.min(1, near * 1.6));
+  }
+  return h;
+}
+
 export const PROPS = {
   chest:      { model: 'dungeon/chest', radius: 1.0, interact: 'storage', prompt: 'Family chest' },
   table:      { model: 'dungeon/table_medium_decorated_A', radius: 1.1 },

@@ -265,3 +265,17 @@ test('the healing spring: 50 gold, a full heal and two minutes of luck (more gol
   for (let i = 0; i < 200; i++) plain += kill();
   assert.ok(lucky > plain * (1 + (LUCK_GOLD - 1) / 2), `lucky gold ${lucky} vs ${plain}`);
 });
+
+test('town: a jetpack climbs over the market stalls instead of flying through their roofs', async () => {
+  const { flyHeightAt } = await import('../src/shared/props.js');
+  const { FLY_HEIGHT } = await import('../src/shared/config.js');
+  const L = buildLayout('town', 1, {});
+  const stalls = L.props.filter((p) => p.stall);
+  assert.ok(stalls.length >= 3, 'the market has stalls');
+  for (const p of stalls) {
+    assert.ok(flyHeightAt(L.props, p.x, p.z + 0.4, FLY_HEIGHT) > 4.2, `over the ${p.interact} stall you clear its 3.8 roof`);
+    assert.ok(flyHeightAt(L.props, p.x + 1.8, p.z + 2, FLY_HEIGHT) > 4.2, 'even near the corner of the roof');
+  }
+  const fountain = L.props.find((p) => p.build === 'fountain');
+  assert.equal(flyHeightAt(L.props, fountain.x, fountain.z, FLY_HEIGHT), FLY_HEIGHT, 'out in the square you fly at the usual height');
+});

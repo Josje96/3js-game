@@ -178,6 +178,9 @@ function windCape(material) {
 }
 
 export class CharacterView {
+  /** How high someone on a jetpack flies at (x, z): GameClient points this at the current place's stalls. */
+  static flyHeight = () => FLY_HEIGHT;
+
   constructor({ cls, look, name, weapon, ench = 0, shield = null, armor = null, helmet = null, isLocal = false }) {
     this.root = new THREE.Group();
     this.cls = cls;
@@ -729,7 +732,8 @@ export class CharacterView {
       this.root.position.z += (this.target.z - this.root.position.z) * k;
       this.root.rotation.y = lerpAngle(this.root.rotation.y, this.target.rot, k);
       this.flying = this.target.anim === 'fly'; // up on a jetpack
-      this.lift = (this.lift ?? 0) + ((this.flying ? FLY_HEIGHT + Math.sin(this.time * 2.5) * 0.08 : 0) - (this.lift ?? 0)) * Math.min(1, dt * 3);
+      const flyTo = this.flying ? CharacterView.flyHeight(this.root.position.x, this.root.position.z) + Math.sin(this.time * 2.5) * 0.08 : 0;
+      this.lift = (this.lift ?? 0) + (flyTo - (this.lift ?? 0)) * Math.min(1, dt * (flyTo > (this.lift ?? 0) ? 7 : 3));
       if (this.target.anim !== 'jump') this.jumpSeen = false; // one hop per jump
       else if (!this.jumpSeen) { this.jumpSeen = true; this.jump(); }
       this.root.position.y = this.lift + (this.jumpY ?? 0);

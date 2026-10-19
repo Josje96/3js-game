@@ -17,7 +17,7 @@ import { Hud } from './hud.js';
 import { Music, moodFor } from './music.js';
 import { Sfx } from './sfx.js';
 import { ENCHANT_LOOKS } from '../shared/enchant.js';
-import { useDistance } from '../shared/props.js';
+import { useDistance, flyHeightAt } from '../shared/props.js';
 import { holidayOf, seasonOf } from '../shared/seasons.js';
 import { SEASON_LOOK } from './seasonfx.js';
 
@@ -202,6 +202,7 @@ export class GameClient {
 
     this.epoch = msg.epoch;
     this.layout = buildLayout(msg.key, msg.seed, msg.opts);
+    CharacterView.flyHeight = (x, z) => flyHeightAt(this.layout.props, x, z, FLY_HEIGHT); // others fly over stalls too
     this.locView = new LocationView(this.layout, this.world);
     this.unlockShown = new Set();
     this.scene.add(this.locView.group);
@@ -836,7 +837,8 @@ export class GameClient {
     if ((moving || this.rolling > 0) && this.sitting) this.standUp();
     this.anim = this.rolling > 0 ? 'roll' : this.flying ? 'fly' : performance.now() < (this.jumpUntil ?? 0) ? 'jump' : moving ? 'run' : this.sleeping ? 'sleep' : this.sitting ? 'sit' : 'idle';
     if (this.rolling <= 0) this.me.setBase(this.anim === 'fly' ? 'idle' : this.anim === 'jump' ? (moving ? 'run' : 'idle') : this.anim); // (hovering; a jump is the view's hop)
-    this.flyY = (this.flyY ?? 0) + ((this.flying ? FLY_HEIGHT : 0) - (this.flyY ?? 0)) * Math.min(1, dt * 3);
+    const flyTo = this.flying ? flyHeightAt(this.layout.props, this.pos.x, this.pos.z, FLY_HEIGHT) : 0; // up over market stalls
+    this.flyY = (this.flyY ?? 0) + (flyTo - (this.flyY ?? 0)) * Math.min(1, dt * (flyTo > (this.flyY ?? 0) ? 7 : 3));
     this.me.flying = this.flying;
     this.me.root.position.set(this.pos.x, this.flyY + (this.flying ? Math.sin(performance.now() / 400) * 0.08 : 0) + (this.me.jumpY ?? 0), this.pos.z);
     const r = this.me.root.rotation;
