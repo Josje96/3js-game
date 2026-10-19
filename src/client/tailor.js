@@ -171,17 +171,18 @@ function buttons(cl, ys, color, da = 0, lift = 0.012, r = 0.022) {
 const vee = (yv, w) => (y) => Math.max(0, w * (y - yv) / (TOP - 0.03 - yv));
 
 const STYLES = {
-  // suit: a white shirt in a V, lapels, a slim tie tucked under the buttoned jacket, shirt cuffs
-  tie(cl, c, tie = 0xc0303a) { // an open jacket over a white shirt; the tie runs all the way down and tucks in at the belt
+  // suit: a buttoned jacket; the white shirt and the tie show in the V at the collar, and the tie
+  // tucks in under the jacket where it closes (nothing white below that)
+  tie(cl, c, tie = 0xc0303a) {
     torso(cl, c);
-    const lap = darker(c, 0.18);
-    const sw = (y) => (y < 0.95 ? 0.24 : 0.24 + 0.38 * (y - 0.95) / (TOP - 0.03 - 0.95)); // the shirt showing: a strip, opening into a V at the collar
-    panel(cl, 0.45, TOP - 0.03, (y) => FRONT - sw(y), (y) => FRONT + sw(y), 0.006, 0xf6f6f6, 16, 6);
-    for (const s of [-1, 1]) panel(cl, 0.9, TOP - 0.05, (y) => FRONT + s * sw(y), (y) => FRONT + s * (sw(y) + 0.17), 0.016, lap, 10, 3); // lapels
-    panel(cl, 0.5, 0.57, () => FRONT - 0.26, () => FRONT + 0.26, 0.01, 0x2a2a2e, 1, 6); // the belt
-    const tw = (y) => (y < 0.66 ? 0.095 * Math.max(0.15, (y - 0.57) / 0.09) : 0.065 + (1.17 - y) * 0.06); // widening down, a point at the bottom
-    panel(cl, 0.57, 1.17, (y) => FRONT - tw(y), (y) => FRONT + tw(y), 0.013, tie, 16, 2);
-    cl.blob(surface(1.19, FRONT, 0.025), [0.045, 0.035, 0.025], darker(tie, 0.1), torsoWeights(1.19));
+    const yv = 0.9, w = vee(yv, 0.6), lap = darker(c, 0.18);
+    panel(cl, yv, TOP - 0.03, (y) => FRONT - w(y), (y) => FRONT + w(y), 0.006, 0xf6f6f6, 12, 6); // the shirt, only in the V
+    // the tie: from the knot down into the V, narrowing with it so it slips under the jacket
+    const tw = (y) => Math.min(0.065 + (1.17 - y) * 0.05, w(y) * 0.8);
+    panel(cl, yv + 0.015, 1.17, (y) => FRONT - tw(y), (y) => FRONT + tw(y), 0.011, tie, 12, 2);
+    cl.blob(surface(1.19, FRONT, 0.022), [0.045, 0.035, 0.025], darker(tie, 0.1), torsoWeights(1.19));
+    for (const s of [-1, 1]) panel(cl, yv - 0.03, TOP - 0.05, (y) => FRONT + s * w(y), (y) => FRONT + s * (w(y) + 0.17), 0.016, lap, 12, 3); // lapels, over the tie's edges
+    buttons(cl, [0.82, 0.68], lighter(c, 0.3), 0, 0.012, 0.02); // done up
     for (const s of [-1, 1]) sleeve(cl, s, c, { cuff: true });
   },
   // tuxedo: satin lapels, a crisp white shirt with studs and a bow tie
