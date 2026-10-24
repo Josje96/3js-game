@@ -634,22 +634,94 @@ const BACK_BUILDERS = {
 
 /**
  * Halloween costumes and Santa's suit (views.js SEASON_WEAR / forceWear): a hat-frame piece
- * (head 1 wide, y 0 on top) and the clothes it goes with ({ jacket, legs, extra } like CLOTHES).
+ * (head 1 wide, y 0 on top) and the clothes it goes with ({ jacket, legs, extra } like CLOTHES;
+ * the extra is a tailor.js style: 'plain' is just a top in one colour). Any costume takes your cape
+ * and backpack off. `mask`: it covers the whole head, so no hair, brows or face show (they poked
+ * through). `hideBody`: the costume is all there is (the ghost's sheet): no body, clothes or armor.
  */
 export const COSTUMES = {
   witch:   { name: 'Witch',        clothes: { jacket: 0x3a2350, legs: 0x2a1a3a, extra: 'robe' } },
-  pumpkin: { name: 'Pumpkin head', clothes: { jacket: 0x2f6a2a, legs: 0x2a4a22 } },
-  ghost:   { name: 'Ghost',        clothes: { jacket: 0xf4f4f8, legs: 0xf4f4f8, extra: 'gown' } },
-  devil:   { name: 'Little devil', clothes: { jacket: 0xb8202a, legs: 0x8a1a20 } },
+  pumpkin: { name: 'Pumpkin head', clothes: { jacket: 0x2f6a2a, legs: 0x2a4a22, extra: 'plain' }, mask: true },
+  ghost:   { name: 'Ghost',        clothes: null, mask: true, hideBody: true },
+  devil:   { name: 'Little devil', clothes: { jacket: 0xb8202a, legs: 0x8a1a20, extra: 'plain' } },
   vampire: { name: 'Vampire',      clothes: { jacket: 0x141018, legs: 0x141018, extra: 'bowtie' } },
-  cat:     { name: 'Black cat',    clothes: { jacket: 0x1a1a20, legs: 0x1a1a20 } },
-  mummy:   { name: 'Mummy',        clothes: { jacket: 0xe8e0c8, legs: 0xd8cfb4 } },
-  skeleton: { name: 'Skeleton',    clothes: { jacket: 0x1a1a1a, legs: 0x1a1a1a } },
+  cat:     { name: 'Black cat',    clothes: { jacket: 0x1a1a20, legs: 0x1a1a20, extra: 'plain' } },
+  mummy:   { name: 'Mummy',        clothes: { jacket: 0xe8e0c8, legs: 0xd8cfb4, extra: 'wraps' }, mask: true },
+  skeleton: { name: 'Skeleton',    clothes: { jacket: 0x1a1a1a, legs: 0x1a1a1a, extra: 'bones' }, mask: true },
   pirate:  { name: 'Pirate',       clothes: { jacket: 0x8a1a1a, legs: 0x2a2a2a, extra: 'sash' } },
+  frankenstein: { name: 'Frankenstein', clothes: { jacket: 0x2c2c34, legs: 0x1c1c24, extra: 'plain' }, mask: true },
+  werewolf: { name: 'Werewolf',    clothes: { jacket: 0x8a2a24, legs: 0x3a3a4a, extra: 'plain' }, mask: true },
   santa:   { name: 'Santa',        clothes: { jacket: 0xc8202a, legs: 0xc8202a, extra: 'coat' } },
   grandma: { name: 'Grandma',      clothes: { jacket: 0xd8c8f4, legs: 0xf6c8dc, extra: 'gown' } }, // pastel lavender and pink
 };
-export const HALLOWEEN_COSTUMES = ['witch', 'pumpkin', 'ghost', 'devil', 'vampire', 'cat', 'mummy', 'skeleton', 'pirate'];
+export const HALLOWEEN_COSTUMES = ['witch', 'pumpkin', 'ghost', 'devil', 'vampire', 'cat', 'mummy', 'skeleton', 'pirate', 'frankenstein', 'werewolf'];
+
+/** The ghost: one sheet from the top of the head to just above the ground, folds deepening towards a gently rolling hem. */
+function ghostSheet() {
+  const g = new THREE.Group();
+  const profile = [[0.001, 0.07], [0.3, 0.02], [0.5, -0.14], [0.6, -0.42], [0.6, -0.78], [0.64, -1.02], [0.74, -1.45], [0.84, -1.9], [0.9, -2.22]]
+    .map(([r, y]) => new THREE.Vector2(r, y));
+  const geo = new THREE.LatheGeometry(profile, 40);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), a = Math.atan2(x, z);
+    const drape = THREE.MathUtils.clamp((-0.9 - y) / 1.3, 0, 1); // 0 over the head and shoulders, 1 at the hem
+    const fold = 1 + Math.sin(a * 7) * 0.06 * drape;
+    pos.setXYZ(i, x * fold, y + (y < -2.1 ? Math.sin(a * 5) * 0.05 : 0), z * fold); // (the hem rolls a little: no points)
+  }
+  geo.computeVertexNormals();
+  g.add(mesh(geo, mat(0xf6f6fa, { roughness: 0.95, side: THREE.DoubleSide })));
+  for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.075, 12, 8), mat(0x101018), s * 0.17, -0.42, 0.585, 1, 1.45, 0.35)); // eye holes
+  return g;
+}
+
+/** Frankenstein's monster, in the hat frame: a squarish green head over the whole of yours. */
+function frankensteinHead() {
+  const g = new THREE.Group(), skin = mat(0x86b86a, { roughness: 0.75 }), black = mat(0x16161a, { roughness: 0.7 });
+  const box = new THREE.BoxGeometry(1.08, 1.04, 1.0, 4, 4, 4), pos = box.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i); const r = v.clone().normalize().multiplyScalar(0.62); v.lerp(r, 0.28); pos.setXYZ(i, v.x, v.y, v.z); } // softened corners
+  box.computeVertexNormals();
+  g.add(mesh(box, skin, 0, -0.5, 0));
+  g.add(mesh(new THREE.BoxGeometry(1.12, 0.2, 1.04), black, 0, 0.0, 0)); // the flat top of the hair
+  for (let i = 0; i < 7; i++) { const tip = mesh(new THREE.ConeGeometry(0.08, 0.2, 4), black, -0.42 + i * 0.14, -0.16, 0.5); tip.rotation.x = Math.PI; g.add(tip); } // a jagged fringe
+  g.add(mesh(new THREE.BoxGeometry(0.78, 0.07, 0.06), black, 0, -0.36, 0.52)); // one heavy brow
+  for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.06, 10, 8), mat(0x101010), s * 0.2, -0.47, 0.52, 1, 0.8, 0.5));
+  g.add(mesh(new THREE.BoxGeometry(0.3, 0.03, 0.03), mat(0x2a3a22), 0, -0.72, 0.52)); // a flat mouth
+  g.add(mesh(new THREE.BoxGeometry(0.34, 0.02, 0.02), mat(0x2a2a2a), 0.2, -0.22, 0.52)).children.at(-1).rotation.z = 0.2; // the scar...
+  for (let i = 0; i < 4; i++) g.add(mesh(new THREE.BoxGeometry(0.012, 0.08, 0.02), mat(0x2a2a2a), 0.08 + i * 0.08, -0.24 + i * 0.016, 0.53)); // ...and its stitches
+  for (const s of [-1, 1]) { // a bolt each side of the neck
+    g.add(mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 10), mat(0x9a9aa2, { metalness: 0.7, roughness: 0.35 }), s * 0.6, -0.92, 0)).children.at(-1).rotation.z = Math.PI / 2;
+    g.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.06, 6), mat(0x8a8a92, { metalness: 0.7, roughness: 0.35 }), s * 0.75, -0.92, 0)).children.at(-1).rotation.z = Math.PI / 2;
+  }
+  return g;
+}
+
+/** A werewolf mask, in the hat frame: a shaggy head over yours, long snout to the front (+z). */
+function werewolfHead() {
+  const g = new THREE.Group(), fur = mat(0x6a5646, { roughness: 1 }), pale = mat(0xa8957e, { roughness: 1 }), dark = mat(0x2a2018, { roughness: 1 });
+  g.add(mesh(new THREE.SphereGeometry(0.62, 20, 14), fur, 0, -0.5, -0.02, 1.05, 0.98, 1));
+  const snout = mesh(new THREE.CylinderGeometry(0.17, 0.3, 0.55, 14), pale, 0, -0.64, 0.6);
+  snout.rotation.x = Math.PI / 2;
+  g.add(snout);
+  g.add(mesh(new THREE.SphereGeometry(0.1, 10, 8), mat(0x101010, { roughness: 0.3 }), 0, -0.56, 0.9, 1.2, 0.8, 1)); // the nose
+  for (const s of [-1, 1]) {
+    const ear = mesh(new THREE.ConeGeometry(0.17, 0.42, 4), fur, s * 0.34, 0.02, -0.05, 1, 1, 0.6);
+    ear.rotation.z = -s * 0.25;
+    g.add(ear);
+    g.add(mesh(new THREE.ConeGeometry(0.08, 0.26, 4), mat(0x8a5a5a), s * 0.33, -0.02, 0.0, 1, 1, 0.4)).children.at(-1).rotation.z = -s * 0.25;
+    g.add(mesh(new THREE.SphereGeometry(0.065, 10, 8), mat(0xffcc22, { emissive: 0x664400 }), s * 0.2, -0.4, 0.54, 1.2, 0.8, 0.5)); // yellow eyes
+    g.add(mesh(new THREE.BoxGeometry(0.18, 0.04, 0.05), dark, s * 0.2, -0.32, 0.55)).children.at(-1).rotation.z = s * 0.35; // a scowl
+    const fang = mesh(new THREE.ConeGeometry(0.03, 0.12, 6), mat(0xfaf6ea), s * 0.1, -0.84, 0.75);
+    fang.rotation.x = Math.PI;
+    g.add(fang);
+    for (let i = 0; i < 4; i++) { // shaggy cheek fur sticking out
+      const tuft = mesh(new THREE.ConeGeometry(0.08, 0.26, 5), fur, s * 0.6, -0.6 - i * 0.1, 0.1 - i * 0.05);
+      tuft.rotation.z = -s * (Math.PI / 2 + 0.3);
+      g.add(tuft);
+    }
+  }
+  return g;
+}
 
 export function buildCostumeHat(kind) {
   const g = new THREE.Group();
@@ -680,14 +752,8 @@ export function buildCostumeHat(kind) {
     const grin = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.26, 16, 1, Math.PI * 1.15, Math.PI * 0.7), glow);
     grin.position.set(0, -0.48, 0.6);
     g.add(grin);
-  } else if (kind === 'ghost') { // a white sheet over the head with two dark eye holes
-    const sheet = mat(0xf6f6fa, { roughness: 0.9 });
-    g.add(mesh(new THREE.SphereGeometry(0.63, 22, 14, 0, Math.PI * 2, 0, Math.PI * 0.62), sheet, 0, -0.5, 0));
-    const lowered = mesh(new THREE.CylinderGeometry(0.6, 0.66, 0.5, 22, 1, true), sheet, 0, -0.95, 0);
-    lowered.material = sheet.clone();
-    lowered.material.side = THREE.DoubleSide;
-    g.add(lowered);
-    for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.07, 10, 8), mat(0x101018), s * 0.17, -0.45, 0.58, 1, 1.4, 0.4));
+  } else if (kind === 'ghost') { // a sheet thrown over the head, draping in soft folds to just above the ground, two eye holes
+    g.add(ghostSheet());
   } else if (kind === 'devil') { // little red horns and a pointy tail is all a devil needs
     const red = mat(0xd02a2a, { roughness: 0.4 });
     for (const s of [-1, 1]) {
@@ -714,9 +780,14 @@ export function buildCostumeHat(kind) {
     g.add(mesh(new THREE.SphereGeometry(0.61, 18, 12), wrap, 0, -0.5, 0));
     for (let i = 0; i < 6; i++) g.add(mesh(new THREE.TorusGeometry(0.6 - Math.abs(i - 2.5) * 0.06, 0.035, 4, 24), mat(0xd8cfb4), 0, -0.2 - i * 0.12, 0, 1, 1, 1)).children.at(-1).rotation.set(Math.PI / 2 + (i % 2 ? 0.15 : -0.12), 0, 0);
     for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.07, 8, 6), mat(0x101010), s * 0.18, -0.45, 0.56, 1.2, 0.7, 0.4));
-  } else if (kind === 'skeleton') { // a skull mask
+  } else if (kind === 'frankenstein') { // a square green head, a flat black fringe, a stitched scar and bolts in the neck
+    g.add(frankensteinHead());
+  } else if (kind === 'werewolf') { // a shaggy wolf's head: long snout, pointed ears, yellow eyes, fangs
+    g.add(werewolfHead());
+  } else if (kind === 'skeleton') { // a skull mask (with a jaw)
     const bone = mat(0xf2ede0, { roughness: 0.7 }), dark = mat(0x101010);
-    g.add(mesh(new THREE.SphereGeometry(0.6, 18, 12), bone, 0, -0.5, 0.02));
+    g.add(mesh(new THREE.SphereGeometry(0.6, 18, 12), bone, 0, -0.45, 0.02, 1, 0.92, 1));
+    g.add(mesh(new THREE.BoxGeometry(0.62, 0.26, 0.5), bone, 0, -0.86, 0.12)); // the jaw
     for (const s of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.13, 10, 8), dark, s * 0.2, -0.45, 0.52, 1, 1.1, 0.5));
     g.add(mesh(new THREE.ConeGeometry(0.06, 0.1, 3), dark, 0, -0.62, 0.58)).children.at(-1).rotation.x = Math.PI;
     for (let i = 0; i < 5; i++) g.add(mesh(new THREE.BoxGeometry(0.05, 0.08, 0.02), dark, -0.12 + i * 0.06, -0.8, 0.5));

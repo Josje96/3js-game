@@ -498,6 +498,7 @@ export class CharacterView {
     const wear = this.wear = this.seasonWear();
     const fancy = look?.clothes && look.clothes !== 'none';
     const costume = wear === 'halloween' ? this.costume : wear === 'santa' || wear === 'grandma' ? wear : null;
+    const C = COSTUMES[costume], masked = !!C?.mask; // (a mask covers the whole head: no hair, brows or face under it)
     if (wear === 'winter' || costume) look = { ...look, hat: 'none' }; // the bobble hat (or costume) goes on instead
     const helm = !costume && ITEMS[this.helmetId]?.kind === 'helmet' ? ITEMS[this.helmetId] : null; // a helmet goes on instead of any hat
     if (helm) look = { ...look, hat: 'none' };
@@ -508,7 +509,7 @@ export class CharacterView {
     // a hat that covers the head, over the outfit's own (big, sculpted) hair: that hair poked out through it,
     // so it goes, and a neat tucked-in style in your hair colour shows under the brim instead
     const covered = COVERING_HATS.has(hat) || !!helm || (wear === 'winter' && this.winterHat !== 'earmuffs') || (!!costume && costume !== 'grandma'); // (Grandma's flower crown sits on her curls)
-    const hairStyle = hair === 'none' && covered && this.anchors.scalp ? 'bob' : hair;
+    const hairStyle = masked ? 'none' : hair === 'none' && covered && this.anchors.scalp ? 'bob' : hair;
     const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${bangs}/${hairColor}/${face}/${skin}/${tie}/${brows}/${wear}/${this.helmetId}`;
     if (key === this.lookKey) return;
     this.lookKey = key;
@@ -524,7 +525,7 @@ export class CharacterView {
         o.visible = o.userData.hatShown && (!this.inBed || /_Mask$/.test(o.name)); // (off in bed: showHats)
       }
       else if (CAPE_PART.test(o.name)) {
-        o.visible = cape === 'own' && back === 'none'; // (something on your back replaces the cape)
+        o.visible = cape === 'own' && back === 'none' && !costume; // (something on your back replaces the cape; a costume takes both off)
         o.userData.unsweptGeo ??= o.geometry;
         o.geometry = sweptCape(o.userData.unsweptGeo);
       }
@@ -532,9 +533,9 @@ export class CharacterView {
     const h = HATS[hat], c = CAPES[cape], bk = BACKS[back];
     if (h?.from) for (const part of h.parts) this.borrow(h.from, part, true);
     if (h?.build) this.attach(hairStyle !== 'none' && this.anchors.hair ? 'hair' : 'hat', buildHat(h.build), true); // with a new hairstyle: on top of it
-    if (c && back === 'none') this.borrow(c.from, 'Cape');
-    if (bk?.from) for (const part of bk.parts) this.borrow(bk.from, part);
-    if (bk?.build) this.attach('back', buildBack(bk.build));
+    if (c && back === 'none' && !costume) this.borrow(c.from, 'Cape');
+    if (bk?.from && !costume) for (const part of bk.parts) this.borrow(bk.from, part);
+    if (bk?.build && !costume) this.attach('back', buildBack(bk.build));
     // mirror: hair, face and skin
     const hc = HAIR_COLORS[hairColor]?.color ?? HAIR_COLORS.brown.color;
     const tone = SKINS[skin]?.color;
@@ -543,7 +544,8 @@ export class CharacterView {
       hm.userData.baseGeo ??= hm.geometry;
       const image = (hm.userData.baseMat ?? hm.material).map?.image, outfit = hm.name.replace(/_Head$/, '');
       // a new hairstyle carves the outfit's hair away; either way its own brows go (yours are drawn instead)
-      const geo = !image ? hm.userData.baseGeo : hairStyle !== 'none' ? hairlessHead(hm.userData.baseGeo, image, outfit) : browlessHead(hm.userData.baseGeo, image);
+      const geo = !image ? hm.userData.baseGeo : hairStyle !== 'none' || masked ? hairlessHead(hm.userData.baseGeo, image, outfit) : browlessHead(hm.userData.baseGeo, image);
+      hm.visible = true; // (a ghost's sheet hides it: below)
       hm.userData.baseMat ??= hm.material;
       for (const m of [hm.material].flat()) if (m !== hm.userData.baseMat) m.dispose();
       const textured = hm.userData.baseMat; // (eyes, mouth, brows: as they are)
@@ -576,13 +578,18 @@ export class CharacterView {
     }
     // your eyebrows, in your hair colour, each where the outfit's own was (they're cut out)
     const pair = buildBrows(hc, brows);
-    if (this.anchors.brow0 && this.anchors.brow1) for (const one of [...pair.children]) { one.position.set(0, 0, 0); this.attach(one.userData.side < 0 ? 'brow0' : 'brow1', one); }
+    if (masked) { /* under the mask */ } else if (this.anchors.brow0 && this.anchors.brow1) for (const one of [...pair.children]) { one.position.set(0, 0, 0); this.attach(one.userData.side < 0 ? 'brow0' : 'brow1', one); }
     else this.attach('face', pair);
-    if (face !== 'none') this.attach('face', buildFace(face, hc, this.faceCheek, this.skinMat?.color.getHex(), this.faceEyeLine)); // (skin: a scarred eye's lid)
+    if (face !== 'none' && !masked) this.attach('face', buildFace(face, hc, this.faceCheek, this.skinMat?.color.getHex(), this.faceEyeLine)); // (skin: a scarred eye's lid)
     // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
-    this.setClothes(COSTUMES[costume]?.clothes ?? CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'parka' } : undefined), TIE_COLORS[tie]?.color);
+    this.setClothes(C ? C.clothes : CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'parka' } : undefined), TIE_COLORS[tie]?.color);
     const hatSlot = hairStyle !== 'none' && this.anchors.hair ? 'hair' : 'hat'; // (round the skull, over the tucked hair)
     if (costume) this.attach(hatSlot, buildCostumeHat(costume), true);
+    if (C?.hideBody) { // the ghost: just the sheet (no hands, feet, head or armor poking out of it)
+      this.model.traverse((o) => { if (o.isMesh && /_(Body|ArmLeft|ArmRight|LegLeft|LegRight|Head)$/.test(o.name)) o.visible = false; });
+      for (const a of this.armorParts ?? []) a.visible = false;
+      if (this.tailored) this.tailored.visible = false;
+    }
     else if (wear === 'winter') {
       const ww = buildWinterWear(this.coatColor === COATS[1] ? COATS[0] : COATS[(COATS.indexOf(this.coatColor) + 1) % COATS.length], this.winterHat);
       if (!helm) this.attach(hatSlot, ww.hat, true); // (a helmet stays on in winter; the scarf goes on anyway)

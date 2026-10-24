@@ -170,7 +170,7 @@ function buttons(cl, ys, color, da = 0, lift = 0.012, r = 0.022) {
 /** The jacket opening: half-angle of the V at height y, from 0 at `yv` to `w` at the collar. */
 const vee = (yv, w) => (y) => Math.max(0, w * (y - yv) / (TOP - 0.03 - yv));
 
-const STYLES = {
+export const STYLES = { // (exported for test/costumes.test.js)
   // suit: a buttoned jacket; the white shirt and the tie show in the V at the collar, and the tie
   // tucks in under the jacket where it closes (nothing white below that)
   tie(cl, c, tie = 0xc0303a) {
@@ -184,6 +184,30 @@ const STYLES = {
     for (const s of [-1, 1]) panel(cl, yv - 0.03, TOP - 0.05, (y) => FRONT + s * w(y), (y) => FRONT + s * (w(y) + 0.17), 0.016, lap, 12, 3); // lapels, over the tie's edges
     buttons(cl, [0.82, 0.68], lighter(c, 0.3), 0, 0.012, 0.02); // done up
     for (const s of [-1, 1]) sleeve(cl, s, c, { cuff: true });
+  },
+  // a plain top in one colour: costumes (no shirt and tie under a pumpkin head)
+  plain(cl, c) {
+    torso(cl, c);
+    for (const s of [-1, 1]) sleeve(cl, s, c);
+  },
+  // a skeleton suit: black, with the ribs, breastbone and hips painted on in white
+  bones(cl, c) {
+    torso(cl, c);
+    const bone = 0xf2ede0;
+    panel(cl, 0.74, 1.2, () => FRONT - 0.06, () => FRONT + 0.06, 0.008, bone, 8, 1); // breastbone
+    for (let i = 0; i < 4; i++) {
+      const y = 1.13 - i * 0.1, w = 0.8 - i * 0.05;
+      for (const s of [-1, 1]) panel(cl, y - 0.028, y + 0.028, () => FRONT + s * 0.1, () => FRONT + s * w, 0.008, bone, 1, 8); // ribs
+    }
+    panel(cl, 0.47, 0.6, () => FRONT - 0.6, () => FRONT + 0.6, 0.008, bone, 2, 10); // hips
+    for (const s of [-1, 1]) sleeve(cl, s, c, { cuff: true, cuffColor: bone });
+  },
+  // a mummy: bandages wound round and round, a little crooked
+  wraps(cl, c) {
+    torso(cl, c);
+    const shadow = darker(c, 0.14);
+    for (let i = 0; i < 9; i++) band(cl, (a) => 0.46 + i * 0.09 + Math.sin(a + i * 1.3) * 0.035, 0.03, 0.006, shadow);
+    for (const s of [-1, 1]) sleeve(cl, s, c, { cuff: true, cuffColor: shadow });
   },
   // tuxedo: satin lapels, a crisp white shirt with studs and a bow tie
   bowtie(cl, c, tie = 0x111111) {

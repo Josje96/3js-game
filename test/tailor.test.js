@@ -21,7 +21,7 @@ function rig() {
 }
 
 describe('tailored clothes', () => {
-  const extras = new Set([...Object.values(CLOTHES), ...Object.values(COSTUMES).map((c) => c.clothes)].map((c) => c.extra));
+  const extras = new Set([...Object.values(CLOTHES), ...Object.values(COSTUMES).map((c) => c.clothes).filter(Boolean)].map((c) => c.extra)); // (the ghost wears no clothes: just its sheet)
   extras.add('coat'); // winter's coat
   for (const extra of extras) {
     test(`${extra} builds a sound skinned top`, () => {
