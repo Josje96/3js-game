@@ -36,6 +36,8 @@ export const LUCK_SECONDS = 120;     // the spring's luck: how long it lasts
 export const LUCK_GOLD = 1.25, LUCK_CRIT = 0.1, LUCK_GEAR = 2; // while lucky: more gold, a lucky crit now and then, gear drops twice as often
 export const FEAST_COST = 10;        // gold for food at the fort's feast table (heals half your health)
 export const AUTOSAVE_SECONDS = 30;
+/** After the last one into bed lies down, the night waits this long (their bedtime film: the hat on the table, good night). */
+export const BEDTIME_SECONDS = 3;
 
 export const SAVE_VERSION = 14;
 export const PROTOCOL_VERSION = 51;

@@ -9,7 +9,7 @@ import { FurnitureView } from './furniture.js';
 import { moveCircle } from '../shared/physics.js';
 import { ITEMS, weaponCooldown, bestHeal } from '../shared/items.js';
 import { LocationView } from './LocationView.js';
-import { CharacterView, Debris, makeEntityView } from './views.js';
+import { CharacterView, Debris, makeEntityView, BEDSIDE_TABLE } from './views.js';
 import { NovaBlast, SlamWarning } from './effects.js';
 import { Interpolator } from './interp.js';
 import { Input } from './input.js';
@@ -30,6 +30,14 @@ function houseKey(h) {
  * The holiday films (GameClient.checkVisit), one for each season's holiday: each returns its cast,
  * captions and colours, or null while the cast isn't in town yet. Called with `this` = the GameClient.
  */
+/** Where you stand to put your hat down at bedtime: beside the bed, in front of its table (bed space). */
+const BEDTIME_STAND = [1.25, 0, 0.5];
+/** A point in a bed's own space (x across, z from headboard to foot), in the world. */
+function bedPoint(bed, x, y, z) {
+  const s = Math.sin(bed.rot), c = Math.cos(bed.rot);
+  return new THREE.Vector3(bed.x + x * c + z * s, y, bed.z - x * s + z * c);
+}
+
 const HOLIDAY_FILMS = {
   easter() { // Grandma and Grandpa come in from the north end of the square
     const npcs = this.filmCast((d) => d.name === 'Grandma' || d.name === 'Grandpa', (d) => ({ x: d.x - 2 + (d.name === 'Grandma' ? 2 : 0), z: d.z - 22 }));
@@ -454,7 +462,10 @@ export class GameClient {
         this.addEffect(new Debris(msg.x, msg.z, [0xffd23f, 0xfff27a, 0xffffff], 18));
         break;
       case 'sleep': // into bed: lie down on it
-        if (msg.id === this.you) { this.sleeping = true; this.pos.x = msg.x; this.pos.z = msg.z; this.pos.rot = msg.rot ?? 0; } // head towards the headboard (the bed's -z)
+        if (msg.id === this.you) { // head towards the headboard (the bed's -z)
+          this.sleeping = true; this.pos.x = msg.x; this.pos.z = msg.z; this.pos.rot = msg.rot ?? 0;
+          this.startBedtime({ x: msg.x, z: msg.z, rot: msg.rot ?? 0 });
+        }
         break;
       case 'wake':
         if (msg.id === this.you && this.sleeping) { // out of bed, onto the floor at its foot
@@ -773,6 +784,70 @@ export class GameClient {
     if (c.t > END || c.skip) this.endVisit(c);
   }
 
+  /**
+   * Bedtime: you get into bed with something on your head, so first a little film: standing by the
+   * bed you reach out and set your hat (helmet, bobble hat...) down on the bedside table, then lie
+   * down. It stays there all night (CharacterView.putHatOnTable) and goes back on when you get up.
+   * Only on your own screen (everyone sees the hat on the table); Esc skips it.
+   */
+  startBedtime(bed) {
+    if (this.cinematic || !this.me) return;
+    const copy = this.me.headwearCopy();
+    if (!copy) return; // nothing on your head: straight into bed
+    copy.group.visible = false;
+    this.scene.add(copy.group);
+    this.cinematic = { kind: 'bedtime', t: 0, bed, hat: copy.group, from: copy.from, lain: false };
+    this.hud.cinema('🎩 Hat off for the night…');
+  }
+
+  /** The bedtime film, frame by frame (from updateCamera). */
+  playBedtime(c, dt) {
+    c.t += dt;
+    const REACH = 0.3, LIFT = 0.55, DOWN = 1.45, LIE = 1.85, END = 3.4;
+    const me = this.me, table = bedPoint(c.bed, BEDSIDE_TABLE.x, BEDSIDE_TABLE.y, BEDSIDE_TABLE.z);
+    if (c.t >= REACH && !c.reached) { c.reached = true; me.play('cheer'); } // (the rig's reach-out clip)
+    if (c.t >= LIFT && !c.lain) {
+      if (!me.hatOff) { // off the head and into the hand
+        c.start = me.root.localToWorld(c.from.clone());
+        c.startYaw = me.root.rotation.y;
+        me.hatOff = true;
+        me.showHats();
+        c.hat.visible = true;
+        c.hat.scale.copy(me.root.scale);
+      }
+      // an arc from the head down onto the table, turning to how it'll sit there
+      const u = Math.min(1, (c.t - LIFT) / (DOWN - LIFT)), e = u * u * (3 - 2 * u);
+      c.hat.position.lerpVectors(c.start, table, e);
+      c.hat.position.y += Math.sin(e * Math.PI) * 0.45;
+      c.hat.rotation.y = c.startYaw + (c.bed.rot + 0.5 - c.startYaw) * e;
+    }
+    if (c.t >= LIE && !c.lain) { // into bed: the view puts its own copy on the table, just where this one landed
+      c.lain = true;
+      this.dropBedtimeHat(c);
+      this.hud.cinema('💤 Good night!');
+    }
+    // the camera: at the foot of the bed, looking up it at you and the bedside table
+    const want = bedPoint(c.bed, 0.1, 4.6, 2.7), look = bedPoint(c.bed, 1.1, 0.7, -0.5); // (from above the foot of the bed)
+    if (c.t < dt * 1.5) this.camera.position.copy(want);
+    this.camera.position.lerp(want, 1 - Math.exp(-dt * 3));
+    this.camera.lookAt(look);
+    if (c.t > END || c.skip) this.endBedtime(c);
+  }
+
+  dropBedtimeHat(c) {
+    c.hat.removeFromParent();
+    for (const m of c.hat.children) m.geometry.dispose();
+    this.me.hatOff = false;
+    this.me.showHats(); // (in bed it's off anyway: on the table)
+  }
+
+  endBedtime(c) {
+    if (!c.lain) { c.lain = true; this.dropBedtimeHat(c); }
+    this.cinematic = null;
+    this.snapCamera = true;
+    this.hud.cinema(null);
+  }
+
   endVisit(c) {
     for (const n of c.npcs) { n.view.ch.root.position.set(0, 0, 0); n.view.ch.root.rotation.y = 0; n.view.ch.setBase('idle'); }
     c.done();
@@ -904,15 +979,24 @@ export class GameClient {
       this.pos.rot = Math.atan2(m.x, m.z);
     }
     if (moving || this.rolling > 0) this.sleeping = false; // getting out of bed
+    const bedtime = this.cinematic?.kind === 'bedtime' ? this.cinematic : null;
+    if (bedtime && !this.sleeping) this.endBedtime(bedtime); // got up in the middle of it
+    const standing = bedtime && this.sleeping && !bedtime.lain; // (the film: still by the bed, hat in hand)
     if ((moving || this.rolling > 0) && this.sitting) this.standUp();
     this.anim = this.rolling > 0 ? 'roll' : this.flying ? 'fly' : performance.now() < (this.jumpUntil ?? 0) ? 'jump' : moving ? 'run' : this.sleeping ? 'sleep' : this.sitting ? 'sit' : 'idle';
-    if (this.rolling <= 0) this.me.setBase(this.anim === 'fly' ? 'idle' : this.anim === 'jump' ? (moving ? 'run' : 'idle') : this.anim); // (hovering; a jump is the view's hop)
+    // (hovering; a jump is the view's hop; the bedtime film: in bed as far as everyone else knows, still standing on our screen)
+    if (this.rolling <= 0) this.me.setBase(standing ? 'idle' : this.anim === 'fly' ? 'idle' : this.anim === 'jump' ? (moving ? 'run' : 'idle') : this.anim);
     const flyTo = this.flying ? flyHeightAt(this.layout.props, this.pos.x, this.pos.z, FLY_HEIGHT) : 0; // up over market stalls
     this.flyY = (this.flyY ?? 0) + (flyTo - (this.flyY ?? 0)) * Math.min(1, dt * (flyTo > (this.flyY ?? 0) ? 7 : 3));
     this.me.flying = this.flying;
     this.me.root.position.set(this.pos.x, this.flyY + (this.flying ? Math.sin(performance.now() / 400) * 0.08 : 0) + (this.me.jumpY ?? 0), this.pos.z);
     const r = this.me.root.rotation;
     r.y += (((this.pos.rot - r.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 18);
+    if (standing) { // beside the bed, facing the bedside table
+      const at = bedPoint(bedtime.bed, ...BEDTIME_STAND), table = bedPoint(bedtime.bed, BEDSIDE_TABLE.x, 0, BEDSIDE_TABLE.z);
+      this.me.root.position.copy(at);
+      r.y = Math.atan2(table.x - at.x, table.z - at.z);
+    }
 
     this.updateBuild(dt);
 
@@ -1061,6 +1145,7 @@ export class GameClient {
 
   updateCamera(dt) {
     if (this.cinematic?.kind === 'visit') return this.playVisit(this.cinematic, dt);
+    if (this.cinematic?.kind === 'bedtime') return this.playBedtime(this.cinematic, dt);
     if (this.cinematic) {
       // the chains film: black bars and captions; the camera sweeps slowly round in front of the gate, the
       // padlock shakes and bursts, the chains fall, the gate opens and glows; Esc skips

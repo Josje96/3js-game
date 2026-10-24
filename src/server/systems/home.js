@@ -1,6 +1,6 @@
 // home — the Family Fort: a bed for every family member (the day ends when everyone online is in
 // bed), the wardrobe, mirror and family chest, and the healing spring in town.
-import { INTERACT_RANGE, SPRING_COST, LUCK_SECONDS, FEAST_COST, CLASSES, CELL, cleanLook } from '../../shared/config.js';
+import { INTERACT_RANGE, SPRING_COST, LUCK_SECONDS, FEAST_COST, CLASSES, CELL, BEDTIME_SECONDS, cleanLook } from '../../shared/config.js';
 import { daysToNextSeason, seasonOf, SEASONS } from '../../shared/seasons.js';
 import { useDistance } from '../../shared/props.js';
 import { FURNITURE, blanketFor } from '../../shared/furniture.js';
@@ -72,6 +72,11 @@ export function onLeave() {
   this.checkAllAsleep();
 }
 
+/** Everyone's in bed: the night comes once the last one has had a moment to settle in (checkAllAsleep). */
+export function tick() {
+  if (this.nightPending) this.checkAllAsleep();
+}
+
 export const methods = {
   /** How many rooms the fort has: one per bed slot in use. */
   fortRooms() {
@@ -111,7 +116,8 @@ export const methods = {
 
   /** The calendar standing beside a bed (its side away from the room's middle): sleep until the next season. */
   placeCalendar(loc, playerId, at) {
-    const spot = { x: at.x + CALENDAR_BESIDE_BED, z: at.z - (at.rot ? -0.6 : 0.6), rot: at.rot ?? 0 };
+    // (a bed facing the other way has its table on the far side; this one's table is right here, so stand by the middle of the bed: the hat goes on the table at bedtime)
+    const spot = { x: at.x + CALENDAR_BESIDE_BED, z: at.z + (at.rot ? 0.6 : 1.2), rot: at.rot ?? 0 };
     const existing = [...loc.entities.values()].find((e) => e.type === 'furniture' && e.item === 'calendar' && e.owner === playerId);
     if (existing) { Object.assign(existing, spot); existing._dirty = true; return; }
     loc.spawn({ type: 'furniture', item: 'calendar', owner: playerId, ...spot, r: FURNITURE.calendar.radius, interact: 'calendar', prompt: 'Look at the calendar', reach: 0.8 });
@@ -153,6 +159,7 @@ export const methods = {
   lieDown(p, bed, season) {
     p.sleeping = true;
     p.sleepSeason = season;
+    p.sleptAt = this.time;
     this.send(p, { t: 'fx', kind: 'sleep', id: p.id, x: bed.x, z: bed.z, rot: bed.rot });
     const asleep = [...this.players.values()].filter((x) => x.sleeping).length;
     if (asleep < this.players.size) {
@@ -198,7 +205,10 @@ export const methods = {
   /** Stardew-style: once everyone online is asleep, the night passes. */
   checkAllAsleep() {
     const all = [...this.players.values()];
+    this.nightPending = false;
     if (!all.length || !all.every((x) => x.sleeping)) return;
+    // the last one in gets a few seconds to lie down first (their bedtime film), then the night comes
+    if (all.some((x) => this.time - (x.sleptAt ?? -Infinity) < BEDTIME_SECONDS)) { this.nightPending = true; return; }
     // everyone chose "until next season": sleep through to its first day (and its boss); otherwise one night
     this.endDay('sleep', all.every((x) => x.sleepSeason) ? daysToNextSeason(this.save.day) : 1);
   },

@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { world } from './helpers.js';
-import { DAY_SECONDS } from '../src/shared/config.js';
+import { DAY_SECONDS, BEDTIME_SECONDS } from '../src/shared/config.js';
 
 const runTo = (server, seconds) => { while (server.dayClock < seconds) server.step(0.25); };
 
@@ -35,6 +35,11 @@ test('day: at nightfall whoever is out faints and drops half their gold; the day
   assert.ok(server.dayClock < 5, 'the clock starts again');
 });
 
+/** Let the last one into bed lie down (BEDTIME_SECONDS) before the night comes. */
+function settle(server) {
+  for (let t = 0; t < BEDTIME_SECONDS + 0.2; t += 0.1) server.step(0.1);
+}
+
 test('day: everyone has their own bed, and the day ends once everybody is in bed', () => {
   const { server, save, c, p } = world('beds', 'mom', 'kid');
   const house = server.locations.get('house');
@@ -55,6 +60,8 @@ test('day: everyone has their own bed, and the day ends once everybody is in bed
   assert.ok(!p.kid.sleeping);
   goToBed('kid');
   goToBed('mom');
+  assert.equal(save.day, day, 'the last one in gets a moment to lie down (their bedtime film) first');
+  settle(server);
   assert.equal(save.day, day + 1, 'everyone asleep: morning');
   assert.ok(!p.mom.sleeping && !p.kid.sleeping);
   assert.equal(c.mom.last('night').reason, 'sleep');
@@ -69,6 +76,7 @@ test('day: if the last person awake leaves, the sleepers get their morning', () 
   c.mom.say({ t: 'interact', id: bed.id });
   const day = save.day;
   server.dropConnection([...server.conns].find(([, x]) => x.playerId === 'kid')[0]);
+  settle(server);
   assert.equal(save.day, day + 1);
 });
 
@@ -83,10 +91,12 @@ test('day: sleep until next season — when everyone in bed picks it, you wake o
   assert.ok(!p.mom.sleeping, 'not in someone else\'s bed');
   c.mom.say({ t: 'sleepSeason', bed: bedOf('mom').id });
   c.kid.say({ t: 'interact', id: bedOf('kid').id }); // the kid only wants one night
+  settle(server);
   assert.equal(save.day, 6, 'one night: not everyone chose the season');
   to('mom'); to('kid');
   c.mom.say({ t: 'sleepSeason', bed: bedOf('mom').id });
   c.kid.say({ t: 'sleepSeason', bed: bedOf('kid').id });
+  settle(server);
   assert.equal(save.day, 31, 'first day of summer');
   assert.equal(c.mom.last('night').days, 25);
 });

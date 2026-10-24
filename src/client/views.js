@@ -21,6 +21,8 @@ import { makeChristmasCorner, makeEasterCorner, makeSolsticeArena } from './town
 const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM = 0.5;
 // lying in bed: the body (feet first) sits this far towards the foot of the bed so the head lands on the pillow
 const SLEEP_FORWARD = 0.5;
+/** The free front corner of the bedside table on the bed model (dungeon/bed_decorated), in the bed's own space. */
+export const BEDSIDE_TABLE = new THREE.Vector3(1.52, 1.0, -0.76);
 const SKIRT_GAP = 0.15, SKIRT_MAX_FLARE = 1.7; // skirts: room left round a leg (in body widths), and how far they may flare
 
 // how a crossbow sits in the hand slot (which holds things pointing out to the side): its +z ahead, its top up
@@ -404,22 +406,89 @@ export class CharacterView {
     return m;
   }
 
-  attach(slot, obj) {
+  /** Put `obj` on an anchor (hat, hair, face...). `headwear`: it's worn on the head (a hat, a helmet), so it comes off at bedtime. */
+  attach(slot, obj, headwear = false) {
     const a = this.anchors[slot];
     if (!a || !obj) return;
     const holder = new THREE.Group();
     a.local.decompose(holder.position, holder.quaternion, holder.scale);
     holder.add(obj);
     holder.userData.slot = slot;
-    if (slot === 'hat' && this.inBed) holder.visible = false;
+    holder.userData.headwear = headwear;
+    if (headwear && (this.inBed || this.hatOff)) holder.visible = false;
     a.bone.add(holder);
     this.borrowed.push(holder);
   }
 
-  /** Hats come off in bed (they went through the headboard and pillow), and back on when you get up. */
+  /**
+   * Hats come off in bed (they went through the headboard and pillow) and sit on the bedside table,
+   * and go back on when you get up. `hatOff`: taken off for the bedtime film (GameClient).
+   */
   showHats() {
-    this.model.traverse((o) => { if (o.isMesh && HAT_PART.test(o.name) && !/_Mask$/.test(o.name)) o.visible = (o.userData.hatShown ?? true) && !this.inBed; });
-    for (const h of this.borrowed) if (h.userData.slot === 'hat') h.visible = !this.inBed;
+    const off = this.inBed || this.hatOff;
+    this.model.traverse((o) => { if (o.isMesh && HAT_PART.test(o.name) && !/_Mask$/.test(o.name)) o.visible = (o.userData.hatShown ?? true) && !off; });
+    for (const h of this.borrowed) if (h.userData.headwear) h.visible = !off;
+  }
+
+  /** The meshes of whatever is worn on the head right now: the outfit's own hat, a picked hat, a helmet, a winter hat. */
+  headwearParts() {
+    const out = [];
+    this.model.traverse((o) => { if (o.isMesh && HAT_PART.test(o.name) && !/_Mask$/.test(o.name) && o.userData.hatShown) out.push(o); });
+    for (const h of this.borrowed) if (h.userData.headwear) h.traverse((o) => { if (o.isMesh) out.push(o); });
+    return out;
+  }
+
+  /**
+   * A still copy of the headwear, as it sits on our head standing up straight, for putting down
+   * somewhere (the bedside table). `group` has its origin under the middle of the hat; `from` is where
+   * that point was on us (root space). Null if nothing is on our head.
+   */
+  headwearCopy() {
+    const parts = this.headwearParts();
+    if (!parts.length) return null;
+    const rotX = this.model.rotation.x, at = this.model.position.clone();
+    this.model.rotation.x = 0; // (lying in bed: stand up for a moment, so the copy is upright)
+    this.model.position.set(0, 0, 0);
+    this.root.updateMatrixWorld(true);
+    const toRoot = this.root.matrixWorld.clone().invert(), v = new THREE.Vector3(), box = new THREE.Box3();
+    const group = new THREE.Group();
+    for (const o of parts) {
+      const geo = o.geometry.clone(), pos = geo.attributes.position;
+      const m = new THREE.Matrix4().multiplyMatrices(toRoot, o.matrixWorld);
+      for (let i = 0; i < pos.count; i++) {
+        if (o.isSkinnedMesh) o.getVertexPosition(i, v); else v.fromBufferAttribute(pos, i); // (skinned: posed by the bones)
+        pos.setXYZ(i, ...v.applyMatrix4(m).toArray());
+      }
+      for (const name of ['skinIndex', 'skinWeight']) if (geo.attributes[name]) geo.deleteAttribute(name);
+      geo.computeVertexNormals();
+      geo.computeBoundingBox();
+      box.union(geo.boundingBox);
+      const mesh = new THREE.Mesh(geo, o.material);
+      mesh.castShadow = true;
+      group.add(mesh);
+    }
+    this.model.rotation.x = rotX;
+    this.model.position.copy(at);
+    this.root.updateMatrixWorld(true);
+    const from = new THREE.Vector3((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
+    for (const mesh of group.children) mesh.geometry.translate(-from.x, -from.y, -from.z);
+    return { group, from };
+  }
+
+  /** In bed, the headwear rests on the bedside table (the bed and we share a spot and a direction). */
+  putHatOnTable(asleep) {
+    if (this.tableHat) {
+      this.tableHat.removeFromParent();
+      for (const m of this.tableHat.children) m.geometry.dispose();
+      this.tableHat = null;
+    }
+    if (!asleep) return;
+    const copy = this.headwearCopy();
+    if (!copy) return;
+    this.tableHat = copy.group;
+    this.tableHat.position.copy(BEDSIDE_TABLE).divide(this.root.scale);
+    this.tableHat.rotation.y = 0.5; // (set down a little askew)
+    this.root.add(this.tableHat);
   }
 
   /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories, clothes and dye. */
@@ -460,8 +529,8 @@ export class CharacterView {
       }
     });
     const h = HATS[hat], c = CAPES[cape], bk = BACKS[back];
-    if (h?.from) for (const part of h.parts) this.borrow(h.from, part);
-    if (h?.build) this.attach(hairStyle !== 'none' && this.anchors.hair ? 'hair' : 'hat', buildHat(h.build)); // with a new hairstyle: on top of it
+    if (h?.from) for (const part of h.parts) this.borrow(h.from, part, true);
+    if (h?.build) this.attach(hairStyle !== 'none' && this.anchors.hair ? 'hair' : 'hat', buildHat(h.build), true); // with a new hairstyle: on top of it
     if (c && back === 'none') this.borrow(c.from, 'Cape');
     if (bk?.from) for (const part of bk.parts) this.borrow(bk.from, part);
     if (bk?.build) this.attach('back', buildBack(bk.build));
@@ -512,13 +581,13 @@ export class CharacterView {
     // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
     this.setClothes(COSTUMES[costume]?.clothes ?? CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'parka' } : undefined), TIE_COLORS[tie]?.color);
     const hatSlot = hairStyle !== 'none' && this.anchors.hair ? 'hair' : 'hat'; // (round the skull, over the tucked hair)
-    if (costume) this.attach(hatSlot, buildCostumeHat(costume));
+    if (costume) this.attach(hatSlot, buildCostumeHat(costume), true);
     else if (wear === 'winter') {
       const ww = buildWinterWear(this.coatColor === COATS[1] ? COATS[0] : COATS[(COATS.indexOf(this.coatColor) + 1) % COATS.length], this.winterHat);
-      if (!helm) this.attach(hatSlot, ww.hat); // (a helmet stays on in winter; the scarf goes on anyway)
+      if (!helm) this.attach(hatSlot, ww.hat, true); // (a helmet stays on in winter; the scarf goes on anyway)
       this.attach('front', ww.scarf);
     }
-    if (helm) this.attach(hatSlot, buildHelmet(helm));
+    if (helm) this.attach(hatSlot, buildHelmet(helm), true);
     // dye: give cape meshes their own copy of the (shared) material, painted a flat colour
     // (multiplying over a red cape's texture would just give muddy red)
     const tint = DYES[dye]?.color;
@@ -621,7 +690,7 @@ export class CharacterView {
     sk.scale.set(s, 1, s);
   }
 
-  borrow(model, part) {
+  borrow(model, part, headwear = false) {
     const src = characterScene(model).getObjectByName(`${model.replace('_', '')}_${part}`);
     if (!src?.isSkinnedMesh) return;
     // same rig everywhere: rebuild the skeleton from our own bones (matched by name)
@@ -631,7 +700,8 @@ export class CharacterView {
     mesh.material = src.material.clone();
     if (part === 'Cape') mesh.geometry = sweptCape(src.geometry);
     mesh.bind(new THREE.Skeleton(bones, src.skeleton.boneInverses), src.bindMatrix);
-    mesh.visible = true;
+    mesh.userData.headwear = headwear;
+    mesh.visible = !(headwear && (this.inBed || this.hatOff));
     (this.model.getObjectByName(src.parent.name) ?? this.model).add(mesh);
     this.borrowed.push(mesh);
   }
@@ -648,7 +718,12 @@ export class CharacterView {
     this.base = name;
     // asleep: lying on our back on the bed, head on the pillow at its -z end (no sleeping clip: tip the idle pose over)
     const asleep = name === 'sleep';
-    if (asleep !== !!this.inBed) { this.inBed = asleep; this.showHats(); }
+    if (asleep !== !!this.inBed) {
+      if (asleep) this.model.rotation.x = 0; // (still standing: the table copy is taken upright)
+      this.putHatOnTable(asleep);
+      this.inBed = asleep;
+      this.showHats();
+    }
     this.model.rotation.x = asleep ? -Math.PI / 2 : 0;
     this.model.position.set(0, asleep ? 1.05 : name === 'sit' ? SIT_DROP : 0, asleep ? SLEEP_FORWARD : name === 'sit' ? SIT_BACK : 0);
     if (this.label) this.label.visible = !asleep;
