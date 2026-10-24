@@ -1415,17 +1415,12 @@ export const FURNITURE_BUILDERS = {
     });
     return g;
   },
-  calendar() { // a wall calendar on a little wooden stand: a red top, a page of days, one circled
-    const g = new THREE.Group(), wood = mat(0x8a5a34);
-    for (const s of [-1, 1]) {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.3, 0.06), wood);
-      leg.position.set(s * 0.25, 0.65, -0.05);
-      leg.rotation.x = -0.1;
-      g.add(leg);
-    }
-    add(g, new THREE.BoxGeometry(0.66, 0.78, 0.04), mat(0xfaf6ec), 0, 1.22, 0.02);
-    add(g, new THREE.BoxGeometry(0.66, 0.16, 0.05), mat(0xd8402a), 0, 1.6, 0.025);
-    for (let r = 0; r < 4; r++) for (let c = 0; c < 5; c++) add(g, new THREE.BoxGeometry(0.08, 0.08, 0.01), mat(r === 1 && c === 3 ? 0xd8402a : 0xc8c0b0), -0.22 + c * 0.11, 1.4 - r * 0.15, 0.045);
+  calendar() { // a calendar hanging on the wall by the bed, on a nail: a red top, a page of days, one circled
+    const g = new THREE.Group();
+    add(g, new THREE.BoxGeometry(0.66, 0.78, 0.04), mat(0xfaf6ec), 0, 1.82, 0.02);
+    add(g, new THREE.BoxGeometry(0.66, 0.16, 0.05), mat(0xd8402a), 0, 2.2, 0.025);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 5; c++) add(g, new THREE.BoxGeometry(0.08, 0.08, 0.01), mat(r === 1 && c === 3 ? 0xd8402a : 0xc8c0b0), -0.22 + c * 0.11, 2.0 - r * 0.15, 0.045);
+    add(g, new THREE.CylinderGeometry(0.025, 0.025, 0.06, 6), mat(0x6a6a72, { metalness: 0.6 }), 0, 2.33, 0.03).rotation.x = Math.PI / 2; // the nail
     return g;
   },
   // ---- the luxury collection, part 3
@@ -1794,6 +1789,43 @@ function trophyPlinth(g, stone) {
   box(g, 0.3, 0.14, 0.02, mat(0xd9a93a, { metalness: 0.7, roughness: 0.3 }), 0, 0.3, 0.255);
 }
 
+/** The middle of the bedside table's top (bedsideTable below), in the bed's own space: the hat goes here at bedtime. */
+export const BEDSIDE_TABLE = new THREE.Vector3(1.62, 1.02, -1.08);
+
+/** The bed model (dungeon/bed_decorated) minus its bedside table and what stands on it (+x of the pillow end). */
+const trimmedBeds = new Map();
+function withoutBedsideTable(geo) {
+  if (!trimmedBeds.has(geo.uuid)) {
+    const pos = geo.attributes.position, idx = geo.index ? geo.index.array : [...Array(pos.count).keys()];
+    const keep = [];
+    for (let t = 0; t < idx.length; t += 3) {
+      let x = 0, y = 0, z = 0;
+      for (let k = 0; k < 3; k++) { x += pos.getX(idx[t + k]) / 3; y += pos.getY(idx[t + k]) / 3; z += pos.getZ(idx[t + k]) / 3; }
+      const table = x > 1.02 && z < -0.4, bottle = x > 0.88 && z < -0.4 && y > 1.0; // (the bottle leans in towards the pillow)
+      if (!table && !bottle) keep.push(idx[t], idx[t + 1], idx[t + 2]);
+    }
+    const out = geo.clone();
+    out.setIndex(keep);
+    trimmedBeds.set(geo.uuid, out);
+  }
+  return trimmedBeds.get(geo.uuid);
+}
+
+/** A wooden nightstand beside the pillow end of a bed, top at BEDSIDE_TABLE.y, two drawers facing the room. */
+function bedsideTable() {
+  const g = new THREE.Group(), wood = mat(0x8a5a34, { roughness: 0.8 }), dark = mat(0x6b4426, { roughness: 0.8 });
+  const { x, y, z } = BEDSIDE_TABLE, w = 1.1, d = 1.05;
+  add(g, new THREE.BoxGeometry(w + 0.08, 0.08, d + 0.08), wood, x, y - 0.04, z); // the top
+  add(g, new THREE.BoxGeometry(w, y - 0.18, d), dark, x, (y - 0.08) / 2 + 0.05, z); // the body
+  for (const h of [0.62, 0.3]) {
+    add(g, new THREE.BoxGeometry(w - 0.14, 0.24, 0.04), wood, x, h, z + d / 2 + 0.01); // a drawer front
+    add(g, new THREE.SphereGeometry(0.04, 8, 6), mat(0xd9b24a, { metalness: 0.7, roughness: 0.3 }), x, h, z + d / 2 + 0.05); // its knob
+  }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(g, new THREE.BoxGeometry(0.1, 0.1, 0.1), dark, x + sx * (w / 2 - 0.05), 0.05, z + sz * (d / 2 - 0.05)); // feet
+  for (const m of g.children) { m.castShadow = true; m.receiveShadow = true; }
+  return g;
+}
+
 export class FurnitureView {
   constructor(e, makeLabel) {
     const def = FURNITURE[e.item] ?? {};
@@ -1809,6 +1841,10 @@ export class FurnitureView {
       this.root.add(this.light);
     }
     if (e.item === 'bed') {
+      // the model's own little bedside table (and the bottle and candles on it) is cut away for a
+      // bigger one with a clear top: your hat goes there at bedtime (views.js BEDSIDE_TABLE)
+      this.inner.traverse((o) => { if (o.isMesh) o.geometry = withoutBedsideTable(o.geometry); });
+      this.root.add(bedsideTable());
       // a quilt in the owner's colour over the KayKit bed, and their name on a little sign
       const quilt = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.16, 2.0), mat(e.blanket ?? 0xe0525a, { roughness: 1 }));
       quilt.position.set(0, 0.86, 0.45);

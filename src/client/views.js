@@ -9,7 +9,7 @@ import { browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, b
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
-import { FurnitureView } from './furniture.js';
+import { FurnitureView, BEDSIDE_TABLE } from './furniture.js';
 import { dropTinyShadows } from './merge.js';
 import { enchantWeapon } from './enchant.js';
 import { spellbookFx } from './spellbook.js';
@@ -23,8 +23,7 @@ const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM 
 const SLEEP_FORWARD = 0.5;
 /** The dodge roll spins round this height (the middle of the curled-up body, ~2.55 tall), hopping this high. */
 const ROLL_PIVOT = 1.25, ROLL_HOP = 0.2;
-/** The free front corner of the bedside table on the bed model (dungeon/bed_decorated), in the bed's own space. */
-export const BEDSIDE_TABLE = new THREE.Vector3(1.52, 1.0, -0.76);
+export { BEDSIDE_TABLE }; // (from furniture.js: where the hat goes at bedtime)
 const SKIRT_GAP = 0.15, SKIRT_MAX_FLARE = 1.7; // skirts: room left round a leg (in body widths), and how far they may flare
 
 // how a crossbow sits in the hand slot (which holds things pointing out to the side): its +z ahead, its top up

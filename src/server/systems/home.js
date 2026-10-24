@@ -12,7 +12,8 @@ import { MAX_ROOMS } from '../../shared/fort.js';
 const nextSeasonName = (day) => SEASONS[(SEASONS.indexOf(seasonOf(day)) + 1) % SEASONS.length].name;
 
 /** Props you can use with E (see shared/props.js `interact`). */
-const CALENDAR_BESIDE_BED = 1.75; // how far to the side of a bed its calendar stands
+/** Where a bed's calendar hangs, in the bed's own space: on the wall behind it, beside the headboard (the table is at +x). */
+const CALENDAR_ON_WALL = { x: -1.3, z: -1.58 };
 
 export const interactions = {
   calendar(p) { this.send(p, { t: 'ui', kind: 'calendar', season: nextSeasonName(this.save.day), days: daysToNextSeason(this.save.day) }); },
@@ -116,11 +117,11 @@ export const methods = {
 
   /** The calendar standing beside a bed (its side away from the room's middle): sleep until the next season. */
   placeCalendar(loc, playerId, at) {
-    // (a bed facing the other way has its table on the far side; this one's table is right here, so stand by the middle of the bed: the hat goes on the table at bedtime)
-    const spot = { x: at.x + CALENDAR_BESIDE_BED, z: at.z + (at.rot ? 0.6 : 1.2), rot: at.rot ?? 0 };
+    const rot = at.rot ?? 0, s = Math.sin(rot), c = Math.cos(rot), { x, z } = CALENDAR_ON_WALL;
+    const spot = { x: at.x + x * c + z * s, z: at.z - x * s + z * c, rot, wall: true };
     const existing = [...loc.entities.values()].find((e) => e.type === 'furniture' && e.item === 'calendar' && e.owner === playerId);
     if (existing) { Object.assign(existing, spot); existing._dirty = true; return; }
-    loc.spawn({ type: 'furniture', item: 'calendar', owner: playerId, ...spot, r: FURNITURE.calendar.radius, interact: 'calendar', prompt: 'Look at the calendar', reach: 0.8 });
+    loc.spawn({ type: 'furniture', item: 'calendar', owner: playerId, ...spot, r: FURNITURE.calendar.radius, interact: 'calendar', prompt: 'Look at the calendar', reach: 1.2 });
   },
 
   /**
