@@ -192,3 +192,28 @@ test('helmets: a slot of their own; armor and helmet together soften each hit; o
   c.mom.say({ t: 'equip', item: null, slot: 'helmet' });
   assert.equal(p.mom.helmet, null, 'and comes off again');
 });
+
+test('economy: the world pays out half as much gold (GOLD_INCOME): drops, selling, duplicates', async () => {
+  const { GOLD_INCOME, income } = await import('../src/shared/config.js');
+  const { duplicateValue } = await import('../src/shared/items.js');
+  assert.equal(GOLD_INCOME, 0.5, 'twice as hard to get money');
+  assert.equal(income(10), 5);
+  assert.equal(income(1), 1, 'something is always worth at least 1');
+  assert.equal(income(0), 0);
+  // selling loot: half what the item lists, and the shop pays exactly what the HUD shows (sellValue)
+  const { isGear } = await import('../src/shared/items.js');
+  const loot = Object.keys(ITEMS).find((id) => ITEMS[id].sell >= 10 && !isGear(id));
+  assert.equal(sellValue(loot), Math.round(ITEMS[loot].sell / 2));
+  const { server, p, c } = world('income');
+  server.travel(p.a, 'town');
+  p.a.inventory[loot] = 3;
+  const before = p.a.gold;
+  c.a.say({ t: 'sell', item: loot, qty: 3 });
+  assert.equal(p.a.gold, before + sellValue(loot) * 3);
+  // a monster's gold: dropGold halves it
+  const town = server.locations.get('town');
+  server.dropGold(town, p.a, 40);
+  const pile = [...town.entities.values()].filter((e) => e.type === 'drop' && e.item === 'gold').at(-1);
+  assert.equal(pile.qty, 20);
+  assert.ok(duplicateValue('plate') >= income(10), 'a duplicate is still worth something');
+});

@@ -74,7 +74,7 @@ export const methods = {
     }
     const [lo] = ENEMIES[e.variant].gold;
     const gold = Math.round(lo * (e.goldMul ?? 1));
-    for (let i = 0; i < 6; i++) this.dropItem(loc, e, 'gold', Math.round(gold / 6));
+    for (let i = 0; i < 6; i++) this.dropGold(loc, e, Math.round(gold / 6));
     const fighters = loc.livePlayers().filter((p) => (p.x - SEASON_ARENA.x) ** 2 + (p.z - SEASON_ARENA.z) ** 2 < FIGHT_RANGE ** 2);
     for (let i = 0; i < Math.max(1, fighters.length); i++) this.dropItem(loc, e, s.loot[Math.floor(Math.random() * s.loot.length)], 1);
     this.dropBlueprint(loc, e, e._depth ?? 1);

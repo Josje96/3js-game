@@ -555,12 +555,12 @@ export class Hud {
       wrap.append(el('h3', null, 'Loot'));
       for (const [id, n] of loot) {
         const it = ITEMS[id];
-        const row = el('button', 'shop-row', `<span>${iconImg(itemIcon(id))}${esc(it.name)} ×${n}</span><span class="gold">${it.sell} each · ${it.sell * n}</span>`);
+        const row = el('button', 'shop-row', `<span>${iconImg(itemIcon(id))}${esc(it.name)} ×${n}</span><span class="gold">${sellValue(id)} each · ${sellValue(id) * n}</span>`);
         row.addEventListener('click', () => onSell(id, n));
         wrap.append(row);
       }
       if (loot.length > 1) {
-        const all = el('button', 'primary', `Sell all loot (${loot.reduce((a, [id, n]) => a + ITEMS[id].sell * n, 0)} gold)`);
+        const all = el('button', 'primary', `Sell all loot (${loot.reduce((a, [id, n]) => a + sellValue(id) * n, 0)} gold)`);
         all.addEventListener('click', () => loot.forEach(([id, n]) => onSell(id, n)));
         wrap.append(all);
       }
@@ -839,7 +839,7 @@ export class Hud {
     list.append(el('p', 'muted', `Melt down ${SMELT_ORE} ore into a bar: a bar sells for more than the ore did.`));
     for (const [ore, bar] of Object.entries(SMELT)) {
       const have = inv[ore] ?? 0, bars = Math.floor(have / SMELT_ORE);
-      const row = el('div', 'forge-row', `<b>${iconImg(itemIcon(bar))}${esc(ITEMS[bar].name)} <small class="muted">sells for <span class="gold">🪙 ${ITEMS[bar].sell}</span> (${SMELT_ORE} ore: ${ITEMS[ore].sell * SMELT_ORE})</small></b><span class="needs"><span class="${bars ? 'ok' : 'short'}">${esc(ITEMS[ore].name)} ${have}/${SMELT_ORE}</span></span>`);
+      const row = el('div', 'forge-row', `<b>${iconImg(itemIcon(bar))}${esc(ITEMS[bar].name)} <small class="muted">sells for <span class="gold">🪙 ${sellValue(bar)}</span> (${SMELT_ORE} ore: ${sellValue(ore) * SMELT_ORE})</small></b><span class="needs"><span class="${bars ? 'ok' : 'short'}">${esc(ITEMS[ore].name)} ${have}/${SMELT_ORE}</span></span>`);
       const one = el('button', bars ? 'primary' : '', 'Smelt 1');
       one.disabled = !bars;
       one.addEventListener('click', () => onSmelt(ore, false));

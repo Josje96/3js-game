@@ -36,6 +36,13 @@ export const LUCK_SECONDS = 120;     // the spring's luck: how long it lasts
 export const LUCK_GOLD = 1.25, LUCK_CRIT = 0.1, LUCK_GEAR = 2; // while lucky: more gold, a lucky crit now and then, gear drops twice as often
 export const FEAST_COST = 10;        // gold for food at the fort's feast table (heals half your health)
 export const AUTOSAVE_SECONDS = 30;
+/**
+ * How much gold the world pays out: drops, selling loot and gear, rewards (0.5 = twice as hard to get
+ * money as it used to be). Prices, the bank and gifts between players aren't touched.
+ */
+export const GOLD_INCOME = 0.5;
+/** Gold earned, scaled by GOLD_INCOME (at least 1 for anything worth something). */
+export const income = (n) => (n > 0 ? Math.max(1, Math.round(n * GOLD_INCOME)) : 0);
 /** After the last one into bed lies down, the night waits this long (their bedtime film: the hat on the table, good night). */
 export const BEDTIME_SECONDS = 3;
 

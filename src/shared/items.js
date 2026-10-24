@@ -3,6 +3,7 @@
 // Weapons are also your mining tool, so damage applies to rocks too.
 // `swing` picks the attack animation (see tools/blender/make_attacks.py).
 // `ranged` weapons shoot a projectile ('arrow' or 'magic') instead of hitting up close.
+import { income } from './config.js';
 
 export const ITEMS = {
   // --- weapons. `tier` = which shop tier sells it (a new tier every SHOP_TIER_LEVELS levels) ---
@@ -204,13 +205,13 @@ export function inShopFor(id, level) {
   return def?.tier != null && def.tier <= shopTier(level);
 }
 
-/** Gold the shop pays for one of these (loot, or a weapon/shield/armor/helmet from your bag). */
+/** Gold the shop pays for one of these (loot, or a weapon/shield/armor/helmet from your bag), after GOLD_INCOME. */
 export function sellValue(id) {
   const def = ITEMS[id];
   if (!def) return 0;
-  if (def.sell) return def.sell;
-  if (def.forged) return Math.max(10, Math.floor((FORGE_RECIPES[id]?.gold ?? 40) * 1.5));
-  if (GEAR_KINDS.includes(def.kind)) return Math.max(5, Math.floor((def.price ?? 0) * 0.3));
+  if (def.sell) return income(def.sell);
+  if (def.forged) return income(Math.max(10, Math.floor((FORGE_RECIPES[id]?.gold ?? 40) * 1.5)));
+  if (GEAR_KINDS.includes(def.kind)) return income(Math.max(5, Math.floor((def.price ?? 0) * 0.3)));
   return 0;
 }
 
@@ -289,7 +290,7 @@ export function rollGearDrop(depth, rand = Math.random) {
 
 /** Gold you get for finding a weapon/shield/armor you already own. */
 export function duplicateValue(id) {
-  return Math.max(10, sellValue(id));
+  return Math.max(income(10), sellValue(id));
 }
 
 export function weaponImpact(id) {

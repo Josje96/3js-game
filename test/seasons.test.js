@@ -5,7 +5,7 @@ import { world } from './helpers.js';
 import { SEASONS, SEASON_DAYS, SEASON_ARENA, seasonOf, dayOfSeason, isBossDay } from '../src/shared/seasons.js';
 import { ENEMIES } from '../src/shared/dungeons.js';
 import { ITEMS, SHOP_STOCK, DROP_TIERS } from '../src/shared/items.js';
-import { HATS } from '../src/shared/config.js';
+import { HATS, GOLD_INCOME } from '../src/shared/config.js';
 
 test('calendar: 120-day years of four 30-day seasons, "Year 2 · Day 86"', async () => {
   const { calendar, dateLabel, YEAR_DAYS, CALENDAR_NAME } = await import('../src/shared/seasons.js');
@@ -80,7 +80,7 @@ test('seasons: beating the boss drops epic loot and gold for the fighters; it do
   const epics = drops.filter((d) => ITEMS[d.item]?.epic);
   assert.equal(epics.length, 2, 'one epic piece per fighter');
   for (const d of epics) assert.ok(SEASONS[0].loot.includes(d.item), 'from spring’s loot');
-  assert.ok(drops.filter((d) => d.item === 'gold').reduce((n, d) => n + d.qty, 0) >= 3000, 'a pile of gold');
+  assert.ok(drops.filter((d) => d.item === 'gold').reduce((n, d) => n + d.qty, 0) >= 3000 * GOLD_INCOME, 'a pile of gold (what the world pays out: GOLD_INCOME)');
   assert.equal(save.flags.seasonBossBeaten, 1);
   server.syncSeasonBoss(town);
   assert.equal(bossIn(town), undefined, 'beaten for today');

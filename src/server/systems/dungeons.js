@@ -74,7 +74,7 @@ export const methods = {
     this.save.flags[biome.boss.flag] = true;
     for (const q of this.lootSharers(loc, boss)) { // a pile of gold for each fighter
       this._lootFor = q?.id;
-      for (let i = 0; i < 5; i++) this.dropItem(loc, boss, 'gold', Math.ceil((ENEMIES[boss.variant].gold[0] * (boss.goldMul ?? 1)) / 5));
+      for (let i = 0; i < 5; i++) this.dropGold(loc, boss, Math.ceil((ENEMIES[boss.variant].gold[0] * (boss.goldMul ?? 1)) / 5));
     }
     this._lootFor = null;
     let news = `${boss.name} was defeated!`;

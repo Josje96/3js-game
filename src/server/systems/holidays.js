@@ -3,7 +3,7 @@
 // door, once per house) and Christmas halfway through winter (Santa visits the town square with a
 // present for everyone; lights on every tree). Costumes, pumpkins and lights are client looks
 // (LocationView / views.js); this file puts the doors and Santa in town and hands out the goodies.
-import { CELL } from '../../shared/config.js';
+import { CELL, income } from '../../shared/config.js';
 import { holidayOf, SANTA_SPOT } from '../../shared/seasons.js';
 import { ITEMS } from '../../shared/items.js';
 import { STYLE_SLOTS } from '../../shared/config.js';
@@ -51,7 +51,7 @@ export const interactions = {
     (this.treated ??= new Set()).add(key);
     const item = TREATS[Math.floor(Math.random() * TREATS.length)];
     p.inventory[item] = (p.inventory[item] ?? 0) + 1;
-    const gold = 5 + Math.floor(Math.random() * 21);
+    const gold = income(5 + Math.floor(Math.random() * 21));
     this.earn(p, gold);
     if (Math.random() < 0.25) {
       this.sendToLocation(p.loc, { t: 'fx', kind: 'boo', x: door.x, z: door.z });
@@ -69,7 +69,7 @@ export const interactions = {
     const log = this.save.flags[BASKETS]?.day === this.save.day ? this.save.flags[BASKETS] : (this.save.flags[BASKETS] = { day: this.save.day, ids: [] });
     if (log.ids.includes(p.id)) return this.toast(p, '👵 You’ve had your basket, sweetheart! Happy Easter!');
     log.ids.push(p.id);
-    const eggs = 3 + Math.floor(Math.random() * 3), gold = 100 + (p.level ?? 1) * 5;
+    const eggs = 3 + Math.floor(Math.random() * 3), gold = income(100 + (p.level ?? 1) * 5);
     p.inventory.chocolateegg = (p.inventory.chocolateegg ?? 0) + eggs;
     p.inventory.honeycake = (p.inventory.honeycake ?? 0) + 1;
     this.earn(p, gold);
@@ -101,7 +101,7 @@ export const methods = {
     p.inventory[item]--;
     if (!p.inventory[item]) delete p.inventory[item];
     const santa = !!def.santa;
-    const gold = Math.round((santa ? 200 : 60) + Math.random() * (santa ? 300 : 180));
+    const gold = income((santa ? 200 : 60) + Math.random() * (santa ? 300 : 180));
     const treat = PRESENT_TREATS[Math.floor(Math.random() * PRESENT_TREATS.length)];
     this.earn(p, gold);
     p.inventory[treat] = (p.inventory[treat] ?? 0) + 1;

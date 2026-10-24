@@ -1,5 +1,5 @@
 // combat — part of the GameServer (see systems/index.js). Methods run with `this` = the GameServer.
-import { ATTACK_RANGE, SHOT_SPEED, SHOT_RANGE, ROLL_IFRAMES, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, SPELL_DAMAGE, DEATH_GOLD_PENALTY, LUCK_CRIT, LUCK_GOLD, LUCK_GEAR } from '../../shared/config.js';
+import { ATTACK_RANGE, SHOT_SPEED, SHOT_RANGE, ROLL_IFRAMES, ROLL_COOLDOWN, SPELL_COOLDOWN, SPELL_RADIUS, SPELL_DAMAGE, DEATH_GOLD_PENALTY, LUCK_CRIT, LUCK_GOLD, LUCK_GEAR, income } from '../../shared/config.js';
 import { ENEMIES, biomeFor, makeEnemy, oresFor } from '../../shared/dungeons.js';
 import { ITEMS, weaponCooldown, weaponImpact, rollGearDrop, rollBlueprint, isGear, PERK_CRIT, PERK_HEAL, PERK_FREEZE, PERK_GIANT, protection } from '../../shared/items.js';
 import { XP, attackDamage } from '../../shared/progression.js';
@@ -120,7 +120,7 @@ export const methods = {
     for (const q of this.lootSharers(loc, e, p)) {
       this._lootFor = q.id;
       const luckyQ = q.luckUntil > this.time;
-      this.dropItem(loc, e, 'gold', Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (e.goldMul ?? 1) * (luckyQ ? LUCK_GOLD : 1)));
+      this.dropGold(loc, e, Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (e.goldMul ?? 1) * (luckyQ ? LUCK_GOLD : 1)));
       if (Math.random() < 0.3) this.dropItem(loc, e, 'slimegoo', 1);
       if (e.boss || Math.random() < 0.035 * (luckyQ ? LUCK_GEAR : 1)) this.dropGear(loc, e, e.boss ? 4 : 0);
       if (e.boss) this.dropBlueprint(loc, e, 4);
@@ -146,7 +146,7 @@ export const methods = {
     const floor = loc.layout.floor ?? 1, depth = loc.layout.depth ?? floor;
     const roll = Math.random();
     if (roll < 0.04) this.dropGear(loc, e);
-    else if (roll < 0.45) this.dropItem(loc, e, 'gold', 1 + Math.floor(Math.random() * (3 + depth)));
+    else if (roll < 0.45) this.dropGold(loc, e, 1 + Math.floor(Math.random() * (3 + depth)));
     else if (roll < 0.62) this.dropItem(loc, e, rollOre(depth), 1 + Math.floor(Math.random() * 2));
     else if (roll < 0.74) this.dropItem(loc, e, 'slimegoo', 1);
     else if (roll < 0.84) this.dropItem(loc, e, 'potion', 1);
@@ -159,7 +159,7 @@ export const methods = {
 
   openChest(p, loc, e) {
     loc.remove(e.id);
-    for (let i = 0; i < 3; i++) this.dropItem(loc, e, 'gold', Math.ceil(e.gold / 3));
+    for (let i = 0; i < 3; i++) this.dropGold(loc, e, Math.ceil(e.gold / 3));
     if (Math.random() < 0.5) this.dropItem(loc, e, 'potion', 1);
     if (Math.random() < 0.35) this.dropGear(loc, e);
     if (Math.random() < 0.3) this.dropBlueprint(loc, e);
@@ -186,6 +186,11 @@ export const methods = {
   },
 
   /** A drop on the floor. While `_lootFor` is set (a kill's shared loot) it's that player's alone, for a while. */
+  /** A pile of gold on the floor (scaled by GOLD_INCOME: what the world pays out). */
+  dropGold(loc, at, qty) {
+    this.dropItem(loc, at, 'gold', income(qty));
+  },
+
   dropItem(loc, at, item, qty) {
     const a = Math.random() * Math.PI * 2, r = Math.random() * 0.8;
     loc.spawn({ type: 'drop', item, qty, x: at.x + Math.cos(a) * r, z: at.z + Math.sin(a) * r, ...this.lootTag() });
@@ -209,8 +214,8 @@ export const methods = {
         this.writeRecord(p);
         this.sendSelf(p);
       } else {
-        this.earn(p, 25);
-        this.toast(p, 'An old blueprint you already know. Sold it for 25 gold.');
+        this.earn(p, income(25));
+        this.toast(p, `An old blueprint you already know. Sold it for ${income(25)} gold.`);
       }
     } else {
       p.inventory[drop.item] = (p.inventory[drop.item] ?? 0) + drop.qty;

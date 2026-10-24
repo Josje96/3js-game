@@ -100,7 +100,7 @@ export const methods = {
     const [lo, hi] = ENEMIES[e.variant].gold;
     const gold = Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (e.goldMul ?? 1));
     const piles = e.boss ? 5 : 1;
-    for (let i = 0; i < piles; i++) this.dropItem(loc, e, 'gold', Math.round(gold / piles));
+    for (let i = 0; i < piles; i++) this.dropGold(loc, e, Math.round(gold / piles));
     if (e.boss) this.dropItem(loc, e, 'essence', this.essenceFrom(e, e._depth ?? 1));
     this.sendToLocation(loc.key, { t: 'fx', kind: 'pop', x: e.x, z: e.z, variant: e.variant });
     this.shareXp(loc, e.boss ? XP.boss * 2 : XP.slime(e.maxHp));

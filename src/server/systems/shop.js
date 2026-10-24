@@ -99,8 +99,8 @@ export const methods = {
     if (!def.sell || n <= 0) return;
     p.inventory[item] = have - n;
     if (!p.inventory[item]) delete p.inventory[item];
-    this.earn(p, def.sell * n);
-    this.toast(p, `Sold ${n} ${def.name} for ${def.sell * n} gold`);
+    this.earn(p, sellValue(item) * n);
+    this.toast(p, `Sold ${n} ${def.name} for ${sellValue(item) * n} gold`);
   },
 
   /** Standing at the Blacksmith's forge? */

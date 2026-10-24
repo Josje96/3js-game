@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { world } from './helpers.js';
 import { holidayOf, SANTA_SPOT, SEASON_DAYS } from '../src/shared/seasons.js';
 import { blocked } from '../src/shared/physics.js';
-import { PLAYER_RADIUS } from '../src/shared/config.js';
+import { PLAYER_RADIUS, income } from '../src/shared/config.js';
 import { ITEMS, SHOP_STOCK } from '../src/shared/items.js';
 
 const EASTER = 15, HALLOWEEN = SEASON_DAYS * 2 + 15, CHRISTMAS = SEASON_DAYS * 3 + 15;
@@ -62,7 +62,7 @@ test('holidays: on Christmas Santa is in the square, with one present for each o
   assert.equal(p.mom.inventory.santapresent, 1, 'one present each');
   const gold = p.mom.gold;
   c.mom.say({ t: 'openPresent', item: 'santapresent' });
-  assert.ok(!p.mom.inventory.santapresent && p.mom.gold >= gold + 200, 'opened: gold inside');
+  assert.ok(!p.mom.inventory.santapresent && p.mom.gold >= gold + income(200), 'opened: gold inside (GOLD_INCOME)');
   visit('kid');
   assert.equal(p.kid.inventory.santapresent, 1, 'the kid gets one too');
   // presents can be given to each other
