@@ -21,6 +21,8 @@ import { makeChristmasCorner, makeEasterCorner, makeSolsticeArena } from './town
 const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM = 0.5;
 // lying in bed: the body (feet first) sits this far towards the foot of the bed so the head lands on the pillow
 const SLEEP_FORWARD = 0.5;
+/** The dodge roll spins round this height (the middle of the curled-up body, ~2.55 tall), hopping this high. */
+const ROLL_PIVOT = 1.25, ROLL_HOP = 0.2;
 /** The free front corner of the bedside table on the bed model (dungeon/bed_decorated), in the bed's own space. */
 export const BEDSIDE_TABLE = new THREE.Vector3(1.52, 1.0, -0.76);
 const SKIRT_GAP = 0.15, SKIRT_MAX_FLARE = 1.7; // skirts: room left round a leg (in body widths), and how far they may flare
@@ -827,10 +829,12 @@ export class CharacterView {
     if (this.rollT != null) {
       this.rollT += dt;
       const u = Math.min(1, this.rollT / this.rollDur);
-      this.model.rotation.x = u * Math.PI * 2;
-      // spin around the middle of the body, not the feet
-      this.model.position.y = Math.sin(u * Math.PI) * 0.9;
-      this.model.position.z = -Math.sin(u * Math.PI * 2) * 0.35;
+      const a = (0.5 - 0.5 * Math.cos(u * Math.PI)) * Math.PI * 2; // (eased: tucks in, tumbles over, settles)
+      // spin round the middle of the curled-up body, not the feet (that swung the head through the floor),
+      // with a little hop so nothing scrapes the ground
+      this.model.rotation.x = a;
+      this.model.position.y = ROLL_PIVOT * (1 - Math.cos(a)) + Math.sin(u * Math.PI) * ROLL_HOP;
+      this.model.position.z = -ROLL_PIVOT * Math.sin(a);
       if (u >= 1) {
         this.rollT = null;
         this.model.rotation.x = 0;
