@@ -11,6 +11,7 @@
     "dev": "bun scripts/sync-assets.mjs && bun --bun vite --host",
     "build": "bun scripts/sync-assets.mjs && bun --bun vite build",
     "preview": "bun --bun vite preview --host",
+    "server": "bun run build && bun dedicated/server.mjs",
     "test": "bun test",
     "lint": "bun --bun eslint .",
     "check": "bun run lint && bun test && bun run build"

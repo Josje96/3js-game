@@ -5,11 +5,11 @@ import '@fontsource/nunito/400.css';
 import '@fontsource/nunito/700.css';
 import '@fontsource/nunito/800.css';
 import './style.css';
-import { CLASSES } from './shared/config.js';
+import { CLASSES, PROTOCOL_VERSION } from './shared/config.js';
 import { randomSeedString } from './shared/rng.js';
 import { GameServer } from './server/GameServer.js';
 import { SaveStore, newSave } from './server/saves.js';
-import { createLocalPair, hostPeer, joinPeer, hostTabs, joinTabs } from './net/transports.js';
+import { createLocalPair, hostPeer, joinPeer, hostTabs, joinTabs, joinServer, looksLikeAddress } from './net/transports.js';
 import { GameClient } from './client/GameClient.js';
 import { preloadAll } from './client/assets.js';
 import { applyUiTextures } from './client/ui-textures.js';
@@ -133,20 +133,43 @@ $('#import').onchange = async (e) => {
   }
 };
 
-$('#join').onclick = async () => {
+/**
+ * Join someone else's game: a family code (WebRTC), or a dedicated server's address (WebSocket),
+ * given as `server` so the HUD can show it to pass on.
+ */
+async function join(what, connect, server = null) {
   if (!readProfile()) return;
-  const code = $('#code').value.trim().toUpperCase();
-  if (!code) { $('#code').focus(); return; }
-  setBusy(`Joining ${code}…`);
+  setBusy(`Joining ${what}…`);
   try {
-    const [conn] = await Promise.all([NET.join(code), assetsReady]);
+    const [conn] = await Promise.all([connect(), assetsReady]);
     showGame();
-    window.game = { client: new GameClient(conn, profile, { isHost: false, onQuit: () => location.assign(location.pathname), onProfile: saveProfile }) };
+    const client = new GameClient(conn, profile, { isHost: false, server: !!server, onQuit: () => location.assign(location.pathname), onProfile: saveProfile });
+    if (server) client.hud.setInvite({ status: `🏰 Server: ${server}` });
+    window.game = { client };
   } catch (err) {
     setBusy(null);
     $('#title-error').textContent = err.message || String(err);
   }
+}
+
+$('#join').onclick = () => {
+  const typed = $('#code').value.trim();
+  if (!typed) { $('#code').focus(); return; }
+  if (looksLikeAddress(typed)) join(typed, () => joinServer(typed), typed);
+  else join(typed.toUpperCase(), () => NET.join(typed.toUpperCase()));
 };
+$('#code').addEventListener('input', () => $('#code').classList.toggle('address', looksLikeAddress($('#code').value)));
+
+// Opened from a dedicated server (dedicated/server.mjs)? Then its world is one click away.
+fetch('fdg-server').then((r) => (r.ok && r.headers.get('content-type')?.includes('json') ? r.json() : null)).then((info) => {
+  if (!info) return;
+  $('#server-play').classList.remove('hidden');
+  $('#server-world').textContent = info.world;
+  $('#server-info').textContent = info.protocol !== PROTOCOL_VERSION
+    ? 'The server was updated: refresh this page (Ctrl+F5) to get the new version.'
+    : `${dateLabel(info.day)} · ${info.online ? `${info.online} playing now` : 'nobody on yet'} · this world is always on`;
+  $('#server-join').onclick = () => join(info.world, () => joinServer(location.host), location.host);
+}).catch(() => {});
 
 function setBusy(text) {
   $('#title-error').textContent = '';

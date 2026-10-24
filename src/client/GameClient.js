@@ -121,7 +121,7 @@ export class GameClient {
     this.hud.onSpin = (dir) => { this.pos.rot += dir * Math.PI / 4; }; // dressing up: turn round to see the back
 
     conn.onMessage((msg) => this.onMessage(msg));
-    conn.onClose(() => this.hud.fatal('Disconnected', opts.isHost ? 'The game stopped.' : 'Lost connection to the host. Ask them to check their tab is still open.'));
+    conn.onClose(() => this.hud.fatal('Disconnected', opts.isHost ? 'The game stopped.' : opts.server ? 'Lost connection to the server. It may be restarting: refresh in a moment.' : 'Lost connection to the host. Ask them to check their tab is still open.'));
     conn.send({ t: 'hello', protocol: PROTOCOL_VERSION, playerId: profile.id, name: profile.name, cls: profile.cls, look: cleanLook(profile.look), isHost: !!opts.isHost });
 
     this.lastFrame = performance.now();

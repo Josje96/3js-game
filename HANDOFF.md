@@ -40,6 +40,10 @@ Enter chat · M sound · F3 stats · Esc menu. Gamepad: A attack, B roll, X inte
 
 ## Running it
 `bun install`, then `bun run dev`. Saves live in the host's browser (localStorage); back up with Esc → Download save file.
+**Dedicated server** (like a Minecraft server): `bun run server` on an always-on PC runs one world that's there whether or not
+anyone is playing, saved in `worlds/` (crash-safe writes, backups every 10 minutes while it changes). Everyone opens
+`http://<that-pc>:8080` and presses Play, or types the address into the join box. Bring a browser world over with
+`bun dedicated/server.mjs --import that-world.json` (from Esc → Download save file). Hosting from a tab still works as before.
 Don't open `dist/index.html` from disk; use `bun run build` + `bun run preview`, or upload `dist/` to a static host.
 
 ## Decisions made this round (see git log for details)

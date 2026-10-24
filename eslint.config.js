@@ -21,4 +21,5 @@ export default [
     languageOptions: { globals: { ...globals.es2024, performance: 'readonly', console: 'readonly', setInterval: 'readonly', clearInterval: 'readonly', setTimeout: 'readonly', queueMicrotask: 'readonly', structuredClone: 'readonly', Worker: 'readonly', URL: 'readonly', Blob: 'readonly', localStorage: 'readonly' } },
   },
   { files: ['test/**/*.js', 'scripts/**/*.mjs', '*.config.js'], languageOptions: { globals: { ...globals.node } } },
+  { files: ['dedicated/**/*.mjs'], languageOptions: { globals: { ...globals.node, Bun: 'readonly' } } }, // the dedicated server runs on Bun
 ];

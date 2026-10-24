@@ -23,9 +23,12 @@ export class GameServer {
    * @param {object} opts
    * @param {object} opts.save   world save (see saves.js)
    * @param {object} [opts.store] SaveStore used for autosaves (omit in tests)
+   * @param {boolean} [opts.worker] tick from a Web Worker (a browser tab, so background tabs don't
+   *   freeze the world); a dedicated server (dedicated/server.mjs) just uses a timer
    */
-  constructor({ save, store = null, log = console.log }) {
+  constructor({ save, store = null, log = console.log, worker = typeof document !== 'undefined' }) {
     this.save = save;
+    this.useWorker = worker;
     this.store = store;
     this.log = log;
     this.conns = new Map();       // connId -> { conn, playerId }
@@ -53,7 +56,7 @@ export class GameServer {
     // Browsers throttle timers in background tabs to ~1/s, which would freeze
     // the world for guests whenever the host switches tabs. Worker timers
     // aren't throttled, so tick from a tiny worker when we can.
-    if (typeof Worker !== 'undefined') {
+    if (this.useWorker && typeof Worker !== 'undefined') {
       const src = `setInterval(() => postMessage(0), ${1000 / TICK_HZ});`;
       this.worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
       this.worker.onmessage = tick;

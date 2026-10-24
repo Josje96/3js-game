@@ -9,6 +9,9 @@ Read this file first, then `HANDOFF.md` (what's in the game, how it plays), then
 ## Commands
 - `bun install` — once, or after package.json changes
 - `bun run dev` — dev server on the LAN (http://localhost:5173, others use http://<lan-ip>:5173)
+- `bun run server` — a **dedicated server** (the Minecraft way): builds the game, then runs one always-on world from
+  `worlds/` on :8080 (`--world`, `--port`, `--import save.json`). Everyone opens http://<that-pc>:8080 and presses Play.
+  Saves are crash-safe with rolling backups in `worlds/backups`; Ctrl+C saves and stops. See `dedicated/server.mjs`.
 - `bun run check` — **run before every commit**: lint + all tests + production build
 - `bun test` — tests only (`bun test --rerun-each 20` to hunt flaky ones)
 - `bun tools/smoke.mjs --url http://localhost:5173` — headless Chrome: makes a world, visits places,
@@ -22,7 +25,8 @@ Read this file first, then `HANDOFF.md` (what's in the game, how it plays), then
 |---|---|---|
 | `src/shared/` | rules + data used by host and clients: `config.js` (tunables, looks), `items.js`, `dungeons.js`, `furniture.js`, `townsfolk.js`, `maps.js` (ASCII maps), `fort.js` (the fort, drawn per family size), `mapgen.js`, `protocol.js` (every network message) | pure JS, no DOM/three. Anything that shapes a map uses the seeded rng, never `Math.random` |
 | `src/server/` | `GameServer.js` core (connections, loop, travel); `systems/*.js` one file per feature (combat, day, decor, dungeons, home, pets, progression, shop, town, wallet); `LiveLocation.js` entities + AI; `saves.js` | runs only on the host. Owns all outcomes (hp, gold, loot) |
-| `src/net/transports.js` | connections `{ send, sendFast?, onMessage, onClose, close }` | `sendFast` = unreliable lane for positions |
+| `src/net/transports.js` | connections `{ send, sendFast?, onMessage, onClose, close }`: in-tab, PeerJS (family code), WebSocket (`joinServer`) | `sendFast` = unreliable lane for positions |
+| `dedicated/` | `server.mjs` the dedicated server (Bun: the same `GameServer`, WebSockets, serves `dist/`), `filestore.mjs` saves on disk | runs on Bun, not in a browser; `bun tools/smoke.mjs --dedicated` tests it |
 | `src/client/` | rendering, input, HUD. `GameClient.js`, `LocationView.js`, `views.js`, `themes.js`, `town.js`, `decorations.js`, `furniture.js`, `pets.js` + `petkit.js`, `enemies.js`, `cosmetics.js`, `effects.js`, `icons.js`, `interp.js`, `hud.js` | never decides outcomes |
 | `test/` | `bun test`; `fixtures/` = old save files that must keep loading | add a test with every rule change |
 

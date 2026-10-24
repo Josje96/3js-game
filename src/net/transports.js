@@ -7,11 +7,13 @@
 // - LocalPair:        the host's own player <-> the GameServer in the same tab
 // - PeerJS (WebRTC):  family members joining over the internet with a room code
 // - BroadcastChannel: two tabs in the same browser, no network (dev/testing: ?net=tabs)
+// - WebSocket:        a dedicated server (dedicated/server.mjs), like a Minecraft server: an
+//                     always-on world everyone connects to by address
 
 import { PEER_PREFIX } from '../shared/config.js';
 
 /** Wrap something with a raw send + event hooks into a buffered Connection. */
-function makeConnection(rawSend, rawClose) {
+export function makeConnection(rawSend, rawClose) {
   let onMsg = null, onClose = null, closed = false;
   const queue = [];
   return {
@@ -153,5 +155,38 @@ export function joinTabs(code) {
       else if (data.kind === 'close') conn._closed();
     };
     bc.postMessage({ from: id, to: 'host', kind: 'open' });
+  });
+}
+
+// ---------------------------------------------------------------- WebSocket (a dedicated server)
+
+/** Does what someone typed in the join box look like a server address rather than a 5-letter code? */
+export function looksLikeAddress(text) {
+  const t = text.trim();
+  return /[.:/]/.test(t) || /^localhost$/i.test(t) || (t.length > 0 && t.length !== 5);
+}
+
+/** "192.168.0.22:8080", "http://myserver.net", "wss://..." -> the server's WebSocket URL. */
+export function serverSocketUrl(address, pageProtocol = globalThis.location?.protocol) {
+  let a = address.trim().replace(/\/+$/, '');
+  if (/^https?:\/\//i.test(a)) a = a.replace(/^http/i, 'ws');
+  if (!/^wss?:\/\//i.test(a)) a = `${pageProtocol === 'https:' ? 'wss' : 'ws'}://${a}`;
+  const url = new URL(a);
+  if (url.pathname === '/' || url.pathname === '') url.pathname = '/ws';
+  return url.href;
+}
+
+/** Connect to a dedicated server. Resolves with a Connection once it's open. */
+export function joinServer(address) {
+  const url = serverSocketUrl(address);
+  const unreachable = () => new Error(`Couldn’t reach the server at ${address}. Is it running?`);
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(url);
+    const conn = makeConnection((m) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m)); }, () => ws.close());
+    const timer = setTimeout(() => { ws.close(); reject(unreachable()); }, 10000);
+    ws.onopen = () => { clearTimeout(timer); resolve(conn); };
+    ws.onerror = () => { clearTimeout(timer); reject(unreachable()); };
+    ws.onmessage = (e) => { try { conn._deliver(JSON.parse(e.data)); } catch {} };
+    ws.onclose = () => conn._closed();
   });
 }

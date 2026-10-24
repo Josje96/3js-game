@@ -6,6 +6,8 @@
 //   bun tools/smoke.mjs --url http://localhost:5173 --out /tmp/shots --steps my-steps.mjs
 //   bun tools/smoke.mjs --guest peer      a second tab joins over real WebRTC (PeerJS, needs internet)
 //   bun tools/smoke.mjs --guest tabs      ...or over BroadcastChannel (no network)
+//   bun tools/smoke.mjs --url http://localhost:8080 --dedicated [--guest x]   play on a dedicated server (bun run server);
+//                                         `server(js)` is not available then (the world runs in another process)
 //
 // A steps file default-exports `async ({ ev, shot, wait, server, guest }) => {...}`:
 //   ev(js)      run JS in the page (async allowed), returns the value
@@ -68,26 +70,30 @@ const { send, ev, shot } = host;
 const server = (js) => ev(`const s = window.game.server; const me = [...s.players.values()][0]; ${js}`);
 
 try {
-  const netParam = args.guest === 'peer' ? '' : 'net=tabs';
+  const dedicated = args.dedicated !== undefined; // --dedicated: the URL is a dedicated server (bun run server): join its world
+  const netParam = args.guest === 'peer' || dedicated ? '' : 'net=tabs';
   await send('Page.navigate', { url: `${URL_}${URL_.includes('?') ? '&' : '?'}${netParam}` });
   await wait(3500);
   if (args.title !== undefined) await shot('title');
-  await ev(`document.querySelector('#name').value = 'Tester'; document.querySelector('details summary')?.click(); document.querySelector('#new-world').click();`);
+  if (dedicated) {
+    for (let i = 0; i < 40 && !(await ev(`return !document.querySelector('#server-play').classList.contains('hidden')`)); i++) await wait(250);
+    await ev(`document.querySelector('#name').value = 'Tester'; document.querySelector('#server-join').click();`);
+  } else await ev(`document.querySelector('#name').value = 'Tester'; document.querySelector('details summary')?.click(); document.querySelector('#new-world').click();`);
   for (let i = 0; i < 60 && !(await ev('return !!window.game?.client?.layout')); i++) await wait(250);
   await wait(1500);
   let guest = null;
   if (args.guest) {
     // a second player: a new tab that joins with the host's invite code
-    let code = null;
+    let code = dedicated ? 'the server' : null;
     for (let i = 0; i < 80 && !code; i++) { code = await ev('return document.querySelector(".hud-invite .code")?.textContent ?? null'); if (!code) await wait(250); }
     if (!code) throw new Error('the host never got an invite code');
-    const join = `${URL_}${URL_.includes('?') ? '&' : '?'}${netParam ? `${netParam}&` : ''}profile=2&join=${code}`;
+    const join = `${URL_}${URL_.includes('?') ? '&' : '?'}${netParam ? `${netParam}&` : ''}profile=2${dedicated ? '' : `&join=${code}`}`;
     const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
     const list = await (await fetch(`http://127.0.0.1:${PORT}/json`)).json();
     guest = await openTab(list.find((t) => t.id === targetId).webSocketDebuggerUrl, 'guest');
     await guest.send('Page.navigate', { url: join });
     await wait(3500);
-    await guest.ev(`document.querySelector('#name').value = 'Guest'; document.querySelector('#join').click();`);
+    await guest.ev(`document.querySelector('#name').value = 'Guest'; document.querySelector(${dedicated ? "'#server-join'" : "'#join'"}).click();`);
     for (let i = 0; i < 80 && !(await guest.ev('return !!window.game?.client?.layout')); i++) await wait(250);
     await wait(1500);
     console.log(`guest joined ${code} over ${args.guest}`);

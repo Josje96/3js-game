@@ -21,6 +21,12 @@
           <p class="muted small-note">Your class picks your starting skills and weapon. Later you can use any weapon and level any skill.</p>
         </section>
 
+        <section id="server-play" class="server-play hidden">
+          <h3>🏰 <span id="server-world"></span></h3>
+          <p class="muted" id="server-info"></p>
+          <button id="server-join" class="primary">Play</button>
+        </section>
+
         <div class="title-cols">
           <section>
             <h3>Host a world</h3>
@@ -36,8 +42,8 @@
 
           <section>
             <h3>Join family</h3>
-            <p class="muted">Ask the host for their invite code.</p>
-            <input id="code" placeholder="CODE" maxlength="5" autocomplete="off" class="code-input" />
+            <p class="muted">Ask the host for their invite code, or type a server’s address.</p>
+            <input id="code" placeholder="CODE" maxlength="80" autocomplete="off" class="code-input" />
             <button id="join" class="primary">Join</button>
           </section>
         </div>
