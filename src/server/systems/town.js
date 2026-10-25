@@ -1,11 +1,10 @@
 // town — Pebble Town's townsfolk (talk with E) and the training yard: a dummy that shows how hard
 // you hit, and a practice goblin that can't hurt you, never leaves the yard and comes back when beaten.
-import { TOWNSFOLK } from '../../shared/townsfolk.js';
+import { TOWNSFOLK, townsfolkLine } from '../../shared/townsfolk.js';
 import { ENEMIES } from '../../shared/dungeons.js';
 import { SEASONS, SEASON_DAYS, seasonOf, seasonBossFor, dayOfSeason, dateLabel } from '../../shared/seasons.js';
 
 const RESPAWN = 3; // seconds before a beaten practice goblin pops back
-const HERO_CHANCE = 0.35; // once the Goblin King is beaten, how often townsfolk talk about it
 
 export const interactions = {
   /** The notice board in the square: the date, and when the next seasonal boss is due. */
@@ -18,9 +17,7 @@ export const interactions = {
   talk(p, prop) {
     const who = TOWNSFOLK[prop.folk % TOWNSFOLK.length];
     if (!who) return;
-    const hero = this.save.flags.mineCleared && who.heroLines && Math.random() < HERO_CHANCE;
-    const lines = hero ? who.heroLines : who.lines;
-    const text = lines[Math.floor(Math.random() * lines.length)];
+    const text = townsfolkLine(who, { day: this.save.day, hero: !!this.save.flags.mineCleared }); // (about the season or today's holiday, often)
     this.send(p, { t: 'ui', kind: 'talk', name: who.name, text, x: prop.x, z: prop.z });
   },
 };

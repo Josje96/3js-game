@@ -279,3 +279,27 @@ test('town: a jetpack climbs over the market stalls instead of flying through th
   const fountain = L.props.find((p) => p.build === 'fountain');
   assert.equal(flyHeightAt(L.props, fountain.x, fountain.z, FLY_HEIGHT), FLY_HEIGHT, 'out in the square you fly at the usual height');
 });
+
+test('town: townsfolk talk about the season, and mostly about the holiday on a holiday', async () => {
+  const { townsfolkLine } = await import('../src/shared/townsfolk.js');
+  const { seasonOf, holidayOf } = await import('../src/shared/seasons.js');
+  const heard = (who, day) => new Set(Array.from({ length: 300 }, () => townsfolkLine(who, { day })));
+  for (const who of TOWNSFOLK) {
+    for (const day of [5, 35, 65, 95]) { // a plain day in spring, summer, autumn and winter
+      const season = seasonOf(day).id, lines = who.seasonLines?.[season] ?? [];
+      assert.ok(lines.length >= 2, `${who.name} has ${season} lines`);
+      const said = [...heard(who, day)];
+      assert.ok(said.some((t) => lines.includes(t)), `${who.name} talks about ${season}`);
+      assert.ok(said.some((t) => who.lines.includes(t)), `${who.name} still chats as usual in ${season}`);
+      for (const other of Object.keys(who.seasonLines)) if (other !== season) assert.ok(!said.some((t) => who.seasonLines[other].includes(t)), `${who.name} never talks about ${other} in ${season}`);
+    }
+    for (const day of [15, 45, 75, 105]) {
+      const holiday = holidayOf(day), lines = who.holidayLines?.[holiday] ?? [];
+      assert.ok(lines.length >= 1, `${who.name} has something to say on ${holiday}`);
+      const said = Array.from({ length: 300 }, () => townsfolkLine(who, { day }));
+      const share = said.filter((t) => lines.includes(t)).length / said.length;
+      assert.ok(share > 0.5 && share < 0.9, `${who.name} mostly talks about ${holiday} (${share})`);
+    }
+    assert.ok(!Object.values(who.holidayLines).flat().some((t) => [...heard(who, 5)].includes(t)), `${who.name} keeps holiday talk for the holiday`);
+  }
+});
