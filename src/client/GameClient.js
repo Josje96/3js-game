@@ -48,6 +48,8 @@ const SHARD_FILMS = [
   { intro: '💎 The second shard floats over the rooftops…', outro: '💎 Two shards! Pebble Town feels warmer already. (L: your Story book)' },
   { intro: '💎 The last shard… the Heartstone is whole again!', outro: '💎 The Heartstone shines over Pebble Town once more! Go and say hello to Corvin. (L: your Story book)' },
 ];
+/** The camera: how far back, and how steeply it looks down (radians; the old fixed view was 17 up, 15 back). Right-drag tilts it within limits. */
+const CAM_DIST = Math.hypot(17, 15), CAM_PITCH = Math.atan2(17, 15), CAM_PITCH_MIN = 0.55, CAM_PITCH_MAX = 1.35, CAM_PITCH_KEY = 'fdg.camPitch';
 const TREAT_HEARING = 18; // how near a cottage door you have to be to hear someone knock
 /** A point in a bed's own space (x across, z from headboard to foot), in the world. */
 function bedPoint(bed, x, y, z) {
@@ -131,6 +133,16 @@ export class GameClient {
     this.spellCooldown = 0;       // the area spell: seconds until it's ready again
     this.lastSent = '';
     this.zoom = 1.1;
+    // a seat's height for anyone sitting down (views.js setBase): the furniture under them, or a bench's
+    CharacterView.seatAt = (x, z) => {
+      for (const { data } of this.ents.values()) {
+        const seat = data.type === 'furniture' && FURNITURE[data.item]?.seat;
+        if (seat?.y != null && (data.x - x) ** 2 + (data.z - z) ** 2 < 0.8 ** 2) return seat.y;
+      }
+      return null;
+    };
+    this.camPitch = CAM_PITCH; // (right-drag tilts it: remembered in this browser)
+    try { const saved = Number(localStorage.getItem(CAM_PITCH_KEY)); if (saved >= CAM_PITCH_MIN && saved <= CAM_PITCH_MAX) this.camPitch = saved; } catch {}
     this.time = 0;
     this.world = null;
     this.self = null;
@@ -1339,11 +1351,16 @@ export class GameClient {
       return;
     }
     this.zoom = Math.max(0.55, Math.min(1.8, this.zoom + this.input.takeWheel() * 0.1));
+    const tilt = this.input.takeTilt?.() ?? 0;
+    if (tilt) { // right-drag: tip the camera down towards the ground, or up over your head
+      this.camPitch = Math.max(CAM_PITCH_MIN, Math.min(CAM_PITCH_MAX, this.camPitch + tilt * 0.004));
+      try { localStorage.setItem(CAM_PITCH_KEY, String(this.camPitch)); } catch {}
+    }
     const target = new THREE.Vector3(this.pos.x, 1, this.pos.z);
     if (this.closeUp && !this.hud.modalOpen) this.closeUp = false;
     // wardrobe: swing in close, and shift the view so we stand left of the panel
     const offset = this.closeUp === 'face' ? new THREE.Vector3(0, 2.2, 5.2)
-      : this.closeUp ? new THREE.Vector3(0, 5.5, 9) : new THREE.Vector3(0, 17, 15).multiplyScalar(this.zoom);
+      : this.closeUp ? new THREE.Vector3(0, 5.5, 9) : new THREE.Vector3(0, Math.sin(this.camPitch), Math.cos(this.camPitch)).multiplyScalar(CAM_DIST * this.zoom);
     if (this.closeUp === 'face') { target.x += 0.9; target.y = 1.9; }
     else if (this.closeUp) target.x += 1.6;
     const want = target.clone().add(offset);

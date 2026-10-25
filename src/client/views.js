@@ -22,6 +22,7 @@ import { makeChristmasCorner, makeEasterCorner, makeSolsticeArena } from './town
 const SIT_DROP = 0.12, SIT_BACK = -0.1, SIT_HIP = -1.5, SIT_KNEE = 1.5, SIT_ARM = 0.5;
 // lying in bed: the body (feet first) sits this far towards the foot of the bed so the head lands on the pillow
 const SLEEP_FORWARD = 0.5;
+const SEAT_Y = 0.5; // the seat height the sitting pose fits as it is (a stool, a bench); taller seats lift you up
 /** The dodge roll spins round this height (the middle of the curled-up body, ~2.55 tall), hopping this high. */
 const ROLL_PIVOT = 1.25, ROLL_HOP = 0.2;
 export { BEDSIDE_TABLE }; // (from furniture.js: where the hat goes at bedtime)
@@ -264,6 +265,8 @@ function windCape(material) {
 export class CharacterView {
   /** How high someone on a jetpack flies at (x, z): GameClient points this at the current place's stalls. */
   static flyHeight = () => FLY_HEIGHT;
+  /** How high the seat at (x, z) is (furniture's `seat.y`), or null: set by the game (GameClient). */
+  static seatAt = () => null;
 
   constructor({ cls, look, name, weapon, ench = 0, shield = null, armor = null, helmet = null, isLocal = false }) {
     this.root = new THREE.Group();
@@ -925,7 +928,7 @@ export class CharacterView {
       this.showHats();
     }
     this.model.rotation.x = asleep ? -Math.PI / 2 : 0;
-    this.model.position.set(0, asleep ? 1.05 : name === 'sit' ? SIT_DROP : 0, asleep ? SLEEP_FORWARD : name === 'sit' ? SIT_BACK : 0);
+    this.model.position.set(0, asleep ? 1.05 : name === 'sit' ? SIT_DROP : 0, asleep ? SLEEP_FORWARD : name === 'sit' ? SIT_BACK : 0); // (sitting: lifted to the seat's height in update)
     if (this.label) this.label.visible = !asleep;
     if (!this.oneShot) this.fadeTo(asleep ? 'idle' : name);
   }
@@ -1047,7 +1050,12 @@ export class CharacterView {
     }
     this.mixer.update(dt);
     if (this.swingAction && this.rollT == null) this.swingClear();
-    if (this.base === 'sit' && this.rollT == null) this.sitPose();
+    if (this.base === 'sit' && this.rollT == null) {
+      this.sitPose();
+      // down onto the seat under us, as high as it is (a sofa's cushion is higher than a stool); we may still be sliding onto it
+      const lift = ((CharacterView.seatAt(this.root.position.x, this.root.position.z) ?? SEAT_Y) - SEAT_Y) / (this.root.scale.y || 1);
+      this.model.position.y = SIT_DROP + lift;
+    }
     if (this.shootT != null) this.shootPose(dt);
     this.bookFx?.update(dt, this.time);
     if (this.skirt) { this.armsClearSkirt(dt); this.fitSkirt(dt); }

@@ -51,6 +51,12 @@ export class Input {
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
     canvas.addEventListener('mousedown', (e) => { if (e.button === 0) this.pressed.add(this.barMode ? 'bar' : 'attack'); }); // (clicking the world ends choosing in the bar)
+    // hold the right mouse button and drag up or down: tilt the camera (GameClient)
+    this.tilt = 0;
+    canvas.addEventListener('mousedown', (e) => { if (e.button === 2) this.tilting = true; });
+    addEventListener('mouseup', (e) => { if (e.button === 2) this.tilting = false; });
+    addEventListener('mousemove', (e) => { if (this.tilting) this.tilt += e.movementY; });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('wheel', (e) => { this.wheel += Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });
   }
 
@@ -90,6 +96,13 @@ export class Input {
     const had = this.pressed.has(action);
     this.pressed.delete(action);
     return had && (this.enabled || action.startsWith('cheat:') || action === 'menu' || action === 'sheet' || action === 'pets' || action === 'story' || action === 'stats' || (this.barMode && action.startsWith('bar')));
+  }
+
+  /** How far the mouse moved up/down with the right button held, since last asked (pixels). */
+  takeTilt() {
+    const t = this.tilt;
+    this.tilt = 0;
+    return t;
   }
 
   takeWheel() {

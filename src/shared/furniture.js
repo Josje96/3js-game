@@ -16,8 +16,8 @@ export const FURNITURE = {
   minetrophy:  { name: 'Old Mine trophy', build: 'minetrophy', radius: 0.5, notForSale: true, trophy: 'mine' },
   ruinstrophy: { name: 'Sunken Ruins trophy', build: 'ruinstrophy', radius: 0.5, notForSale: true, trophy: 'ruins' },
   keeptrophy:  { name: 'Shadow Keep trophy', build: 'keeptrophy', radius: 0.5, notForSale: true, trophy: 'keep' },
-  chair:      { name: 'Chair', model: 'dungeon/chair', price: 60, radius: 0.5, seat: { face: 0 } },
-  stool:      { name: 'Stool', model: 'dungeon/stool', price: 40, radius: 0.45, seat: { face: 0 } },
+  chair:      { name: 'Chair', model: 'dungeon/chair', price: 60, radius: 0.5, seat: { face: -Math.PI / 2, y: 0.52 } }, // (the model's back is on its +x side)
+  stool:      { name: 'Stool', model: 'dungeon/stool', price: 40, radius: 0.45, seat: { face: 0, y: 0.5 } },
   smalltable: { name: 'Small table', model: 'dungeon/table_small_decorated_A', price: 90, radius: 0.8 },
   table:      { name: 'Dining table', model: 'dungeon/table_medium_tablecloth_decorated_B', price: 180, radius: 1.1 },
   feasttable: { name: 'Feast table', model: 'dungeon/table_long_tablecloth_decorated_A', price: 320, radius: 1.6 },
@@ -34,7 +34,7 @@ export const FURNITURE = {
   rugblue:    { name: 'Blue rug', build: 'rug', color: 0x3b6fc0, price: 120, radius: 0 },
   plant:      { name: 'Potted plant', build: 'plant', price: 80, radius: 0.5 },
   lamp:       { name: 'Floor lamp', build: 'lamp', price: 150, radius: 0.4, light: true, use: 'light' },
-  sofa:       { name: 'Comfy sofa', build: 'sofa', price: 260, radius: 1.2, seat: { face: 0 } },
+  sofa:       { name: 'Comfy sofa', build: 'sofa', price: 260, radius: 1.2, seat: { face: 0, y: 0.87 } },
   fireplace:  { name: 'Fireplace', build: 'fireplace', price: 500, radius: 1.3, light: true, use: 'fire' },
   aquarium:   { name: 'Fish tank', build: 'aquarium', price: 450, radius: 0.9, use: 'aquarium' },
   petbed:     { name: 'Pet bed', build: 'petbed', price: 90, radius: 0 },
@@ -50,7 +50,7 @@ export const FURNITURE = {
   // more for every home (E does something on most of them: see USES)
   teddy:      { name: 'Giant teddy bear', build: 'teddy', price: 180, radius: 0.6, use: 'teddy' },
   easel:      { name: 'Painting easel', build: 'easel', price: 220, radius: 0.5, use: 'easel' },
-  beanbag:    { name: 'Squishy beanbag', build: 'beanbag', price: 160, radius: 0.6, seat: { face: 0 } },
+  beanbag:    { name: 'Squishy beanbag', build: 'beanbag', price: 160, radius: 0.6, seat: { face: 0, y: 0.62 } },
   lantern:    { name: 'Hanging lantern', build: 'lantern', price: 120, radius: 0.3, light: true, lightY: 2.2, use: 'light' },
   cauldron:   { name: 'Bubbling cauldron', build: 'cauldron', price: 340, radius: 0.7, use: 'cauldron' },
   bookstack:  { name: 'Stack of books', build: 'bookstack', price: 70, radius: 0.4 },
@@ -81,7 +81,7 @@ export const FURNITURE = {
   icesculpture:{ name: 'Ice swan', build: 'icesculpture', price: 900, radius: 0.6, seasonal: 'winter' },
   stocking:    { name: 'Hanging stockings', build: 'stocking', price: 300, radius: 0.3, seasonal: 'winter' },
   // the luxury collection: for families who've been saving up
-  armchair:   { name: 'Velvet armchair', build: 'armchair', color: 0x9a2a3a, price: 1900, radius: 0.7, seat: { face: 0 }, luxury: true },
+  armchair:   { name: 'Velvet armchair', build: 'armchair', color: 0x9a2a3a, price: 1900, radius: 0.7, seat: { face: 0, y: 0.7 }, luxury: true },
   vase:       { name: 'Porcelain vase', build: 'vase', price: 1800, radius: 0.4, luxury: true },
   candelabra: { name: 'Golden candelabra', build: 'candelabra', price: 2400, radius: 0.4, light: true, luxury: true, use: 'light' },
   globe:      { name: 'Explorer’s globe', build: 'globe', price: 2800, radius: 0.5, luxury: true, use: 'globe' },
@@ -91,7 +91,7 @@ export const FURNITURE = {
   statue:     { name: 'Marble knight statue', build: 'statue', price: 4400, radius: 0.8, luxury: true },
   fountain:   { name: 'Indoor fountain', build: 'fountain', price: 5600, radius: 1.2, luxury: true, use: 'fountain' },
   piano:      { name: 'Grand piano', build: 'piano', price: 7000, radius: 1.5, luxury: true, use: 'piano' },
-  throne:     { name: 'Golden throne', build: 'throne', price: 8000, radius: 0.9, seat: { face: 0 }, luxury: true },
+  throne:     { name: 'Golden throne', build: 'throne', price: 8000, radius: 0.9, seat: { face: 0, y: 0.63 }, luxury: true },
   // the luxury collection, part 2 (`lightY` / `lightColor` move or tint the glow)
   rockinghorse:{ name: 'Rocking horse', build: 'rockinghorse', price: 2000, radius: 0.7, luxury: true, use: 'rockinghorse' },
   mirror:     { name: 'Gilded mirror', build: 'mirror', price: 2200, radius: 0.5, luxury: true },
