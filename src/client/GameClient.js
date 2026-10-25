@@ -828,9 +828,35 @@ export class GameClient {
     let seen = this.storySeen;
     if (!seen) try { seen = JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { seen = null; }
     if (!seen) this.hud.toast('📖 Press L to read the story of Pebble Town!', true);
-    else for (const page of pages) if (!seen.includes(page.id)) this.hud.toast(`📖 A new page in your Story book: “${page.title}” (press L)`, true);
+    else for (const page of pages) if (!seen.includes(page.id)) {
+      this.hud.toast(`📖 A new page in your Story book: “${page.title}” (press L)`, true);
+      (this.storyFilms ??= []).push(page); // and a little film telling it (checkStoryFilm)
+    }
     this.storySeen = pages.map((page) => page.id);
     try { localStorage.setItem(key, JSON.stringify(this.storySeen)); } catch {}
+  }
+
+  /**
+   * A page of the story was just found (a boss beaten): a little film where you are, the camera slowly
+   * circling you while the page is told in a few captions. One after another if several came at once.
+   */
+  checkStoryFilm() {
+    if (this.cinematic || !this.storyFilms?.length || !this.layout || !this.me) return;
+    const page = this.storyFilms.shift(), you = new THREE.Vector3(this.pos.x, 0, this.pos.z);
+    const captions = [[0, `📖 ${page.title}`]];
+    let t = 2.5, chunk = '';
+    for (const sentence of page.text.match(/[^.!?…]+[.!?…]+[”’"]?\s*/g) ?? [page.text]) { // a caption every couple of sentences
+      if ((chunk + sentence).length > 150 && chunk) { captions.push([t, chunk.trim()]); t += Math.max(3.5, chunk.length / 30); chunk = ''; }
+      chunk += sentence;
+    }
+    if (chunk) { captions.push([t, chunk.trim()]); t += Math.max(3.5, chunk.length / 30); }
+    this.cinematic = {
+      kind: 'visit', where: this.layout.key, t: 0, waved: false, npcs: [], focus: you.clone(), arrive: t, end: t + 0.5, sound: 'chime',
+      captions, intro: captions[0][1], outro: captions.at(-1)[1], colors: [0xffe27a, 0xffffff, 0xb8a6e0], burstAt: you.clone().add(new THREE.Vector3(0, 0, -3)),
+      shot: (k) => { const a = 0.4 + k * 0.12; return { pos: new THREE.Vector3(you.x + Math.sin(a) * 7, 4.5, you.z + Math.cos(a) * 7), look: you.clone().add(new THREE.Vector3(0, 1.2, 0)) }; },
+      done: () => {},
+    };
+    this.hud.cinema(captions[0][1]);
   }
 
   /**
@@ -1086,6 +1112,7 @@ export class GameClient {
     this.checkIntro();
     this.checkVisit();
     this.checkShards();
+    this.checkStoryFilm();
     if (input.consume('menu')) {
       if (this.cinematic) this.cinematic.skip = true; // Esc skips a film
       else if (this.hud.modalOpen) this.hud.closeModal();
