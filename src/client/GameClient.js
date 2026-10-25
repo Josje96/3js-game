@@ -60,6 +60,7 @@ function turnWith(m, yaw) {
 }
 /** The camera: how far back, and how steeply it looks down (radians; the old fixed view was 17 up, 15 back). Right-drag tilts it within limits. */
 const CAM_DIST = Math.hypot(17, 15), CAM_PITCH = Math.atan2(17, 15), CAM_PITCH_MIN = 0.55, CAM_PITCH_MAX = 1.35, CAM_PITCH_KEY = 'fdg.camPitch', CAM_YAW_KEY = 'fdg.camYaw';
+const CAM_DRAG = 0.0028, CAM_EASE = 7; // how far a pixel of right-drag turns it, and how quickly the view follows
 const CAM_YAW_MAX = 0.8; // (about 45° either way: only the walls on the south side are cut down to see past)
 const TREAT_HEARING = 18; // how near a cottage door you have to be to hear someone knock
 /** A point in a bed's own space (x across, z from headboard to foot), in the world. */
@@ -1200,7 +1201,7 @@ export class GameClient {
     if (!canFly) this.flying = false;
 
     // movement (client-side, so it feels instant)
-    const m = turnWith(input.move(), this.camYaw); // (up the screen, however the camera is turned)
+    const m = turnWith(input.move(), this.viewYaw ?? this.camYaw); // (up the screen, however the camera is turned)
     let moving = m.x !== 0 || m.z !== 0;
     this.rollCooldown -= dt;
     if (input.consume('roll') && this.rolling <= 0 && this.rollCooldown <= 0 && this.self?.hp > 0) {
@@ -1425,19 +1426,23 @@ export class GameClient {
     this.zoom = Math.max(0.55, Math.min(1.8, this.zoom + this.input.takeWheel() * 0.1));
     const tilt = this.input.takeTilt?.() ?? 0;
     if (tilt) { // right-drag: tip the camera down towards the ground, or up over your head
-      this.camPitch = Math.max(CAM_PITCH_MIN, Math.min(CAM_PITCH_MAX, this.camPitch + tilt * 0.004));
+      this.camPitch = Math.max(CAM_PITCH_MIN, Math.min(CAM_PITCH_MAX, this.camPitch + tilt * CAM_DRAG));
       try { localStorage.setItem(CAM_PITCH_KEY, String(this.camPitch)); } catch {}
     }
     const turn = this.input.takeTurn?.() ?? 0;
     if (turn) { // right-drag sideways: round you
-      this.camYaw = Math.max(-CAM_YAW_MAX, Math.min(CAM_YAW_MAX, this.camYaw - turn * 0.004));
+      this.camYaw = Math.max(-CAM_YAW_MAX, Math.min(CAM_YAW_MAX, this.camYaw - turn * CAM_DRAG));
       try { localStorage.setItem(CAM_YAW_KEY, String(this.camYaw)); } catch {}
     }
+    // the view eases round to where the drag is taking it (straight there was jerky)
+    const ease = this.snapCamera || this.viewPitch == null ? 1 : 1 - Math.exp(-dt * CAM_EASE);
+    this.viewPitch = (this.viewPitch ?? this.camPitch) + (this.camPitch - (this.viewPitch ?? this.camPitch)) * ease;
+    this.viewYaw = (this.viewYaw ?? this.camYaw) + (this.camYaw - (this.viewYaw ?? this.camYaw)) * ease;
     const target = new THREE.Vector3(this.pos.x, 1, this.pos.z);
     if (this.closeUp && !this.hud.modalOpen) this.closeUp = false;
     // wardrobe: swing in close, and shift the view so we stand left of the panel
     const offset = this.closeUp === 'face' ? new THREE.Vector3(0, 2.2, 5.2)
-      : this.closeUp ? new THREE.Vector3(0, 5.5, 9) : new THREE.Vector3(0, Math.sin(this.camPitch), Math.cos(this.camPitch)).multiplyScalar(CAM_DIST * this.zoom).applyAxisAngle(UP, this.camYaw);
+      : this.closeUp ? new THREE.Vector3(0, 5.5, 9) : new THREE.Vector3(0, Math.sin(this.viewPitch), Math.cos(this.viewPitch)).multiplyScalar(CAM_DIST * this.zoom).applyAxisAngle(UP, this.viewYaw);
     if (this.closeUp === 'face') { target.x += 0.9; target.y = 1.9; }
     else if (this.closeUp) target.x += 1.6;
     const want = target.clone().add(offset);
