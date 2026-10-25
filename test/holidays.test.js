@@ -36,6 +36,8 @@ test('holidays: on Halloween you can trick-or-treat at every cottage door, once 
   knock(doors[0]);
   assert.equal(treats(), 1, 'a treat');
   assert.ok(p.kid.gold > gold, 'and some gold');
+  const fx = c.kid.last('fx');
+  assert.ok(['treat', 'boo'].includes(fx.kind) && fx.house === doors[0].house && fx.by === p.kid.id, 'everyone sees which door, and who knocked (the neighbour comes out: views.js DoorGreeter)');
   knock(doors[0]);
   assert.equal(treats(), 1, 'one treat per house');
   knock(doors[1]);

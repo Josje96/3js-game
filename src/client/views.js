@@ -1494,6 +1494,97 @@ export class NpcView {
   dispose() { this.root.removeFromParent(); }
 }
 
+const GREETER_CLASSES = ['Mage', 'Knight', 'Rogue', 'Barbarian', 'Ranger', 'Rogue_Hooded'];
+const GREETER_HAIR = ['bun', 'ponytail', 'spiky', 'pigtails', 'suave', 'bald'];
+const GREETER_HELLO = ['Happy Halloween!', 'Ooh, what a costume! Here you go!', 'Trick or treat? Treat, of course!', 'Take two, they’re small!'];
+const DOOR = { w: 0.9 * 1.9, h: 1.6 * 1.9, thick: 0.1 * 1.9, back: 0.43 }; // the cottage door (town.js makeCottage, scaled 1.9): its face is `back` behind the knocking spot
+
+/**
+ * Halloween at a cottage door (holidays.js treat): the door swings open, a neighbour in costume steps out
+ * with a bowl of candy, says hello and goes back in, and the door shuts. `boo`: they jump out in a ghost
+ * sheet instead. The cottage itself is merged into the town's static mesh, so an open doorway (dark, lit
+ * a little from inside) and the swung-open door are drawn over it while it plays. `say(text, voice)` speaks
+ * (null when we're too far away to hear); `onGive()` when the candy is handed over.
+ */
+export class DoorGreeter {
+  constructor(door, { boo = false, say = null, onGive = null } = {}) {
+    this.root = new THREE.Group();
+    this.root.position.set(door.x, 0, door.z - DOOR.back); // the door's face, at its middle
+    const house = door.house ?? 0, wood = new THREE.MeshStandardMaterial({ color: 0x6b4a2c, roughness: 0.8 });
+    const inside = new THREE.Mesh(new THREE.BoxGeometry(DOOR.w, DOOR.h, 0.02), new THREE.MeshStandardMaterial({ color: 0x1c120a, emissive: 0x3a2210, roughness: 1 }));
+    inside.position.set(0, DOOR.h / 2, 0.012);
+    this.hinge = new THREE.Group(); // the door hangs on its left edge (the knob is on the right) and swings out
+    this.hinge.position.set(-DOOR.w / 2, 0, 0);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(DOOR.w, DOOR.h, DOOR.thick), wood);
+    slab.position.set(DOOR.w / 2, DOOR.h / 2, DOOR.thick / 2);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffcf3f, metalness: 0.6 }));
+    knob.position.set(DOOR.w - 0.57, 1.62, DOOR.thick + 0.06);
+    this.hinge.add(slab, knob);
+    this.root.add(inside, this.hinge);
+    // the neighbour: the same person (and costume) at this house every Halloween
+    const r = (k) => ((Math.imul(house + 1, 2654435761) >>> k) & 0xffff) / 0x10000;
+    this.ch = new CharacterView({ cls: GREETER_CLASSES[house % GREETER_CLASSES.length], name: `Neighbour ${house}`, weapon: null,
+      look: { hat: 'none', hair: GREETER_HAIR[(house * 7 + 3) % GREETER_HAIR.length], hairColor: Object.keys(HAIR_COLORS)[(house * 5) % Object.keys(HAIR_COLORS).length] } });
+    this.ch.label?.removeFromParent(); // (a name only picks their costume: no label over a neighbour)
+    this.ch.root.visible = false;
+    this.ch.forceWear = 'halloween';
+    if (boo) this.ch.costume = 'ghost';
+    this.ch.lookKey = null;
+    this.ch.setLook(this.ch.look);
+    this.ch.hand?.add(candyBowl());
+    this.root.add(this.ch.root);
+    this.boo = boo;
+    this.say = say;
+    this.onGive = onGive;
+    this.voice = { pitch: 0.75 + r(3) * 0.6, rate: 0.95 + r(9) * 0.15 };
+    this.hello = boo ? 'Boo! Ha ha, happy Halloween!' : GREETER_HELLO[house % GREETER_HELLO.length];
+    this.t = 0;
+  }
+  get done() { return this.t > 6.2; }
+  update(dt) {
+    const t = (this.t += dt), ease = (u) => { u = Math.min(1, Math.max(0, u)); return u * u * (3 - 2 * u); };
+    // 0-0.9 the knock and "Trick or treat!" (GameClient), the door opens, they step out, give, step back, it shuts
+    const open = (this.boo ? ease((t - 0.8) / 0.25) : ease((t - 1.0) / 0.6)) * (1 - ease((t - 5.4) / 0.6)); // (BOO: flung open)
+    this.hinge.rotation.y = -open * 1.75;
+    const out = this.boo ? ease((t - 0.9) / 0.25) : ease((t - 1.4) / 0.9);
+    const back = ease((t - 4.4) / 0.9);
+    const z = -1.5 + 1.95 * out - 1.95 * back; // from inside the house to just out of the doorway, and back in
+    const ch = this.ch;
+    ch.root.visible = t > 0.9 && back < 0.9; // (gone inside before the door shuts: a ghost's sheet is wide)
+    ch.root.position.set(0, this.boo && t < 1.4 ? Math.sin(Math.min(1, (t - 0.9) / 0.5) * Math.PI) * 0.5 : 0, z);
+    ch.root.rotation.y = back > 0.05 ? Math.PI : 0;
+    const walking = (out > 0.02 && out < 0.98) || (back > 0.02 && back < 0.98);
+    if (ch.oneShot == null) ch.setBase(walking ? 'walk' : 'idle');
+    if (!this.greeted && t > (this.boo ? 1.3 : 2.4)) {
+      this.greeted = true;
+      this.say?.(this.hello, this.voice);
+      ch.play('cheer'); // holding the bowl out
+      this.onGive?.();
+    }
+    ch.update(dt);
+  }
+  dispose() { this.root.removeFromParent(); }
+}
+
+/** An orange plastic pumpkin bowl heaped with sweets, for the hand slot. */
+function candyBowl() {
+  const g = new THREE.Group();
+  const pts = [];
+  for (let i = 0; i <= 8; i++) { const a = (i / 8) * Math.PI * 0.55; pts.push(new THREE.Vector2(0.05 + Math.sin(a) * 0.26, -Math.cos(a) * 0.2 + 0.2)); }
+  const bowl = new THREE.Mesh(new THREE.LatheGeometry(pts, 14), new THREE.MeshStandardMaterial({ color: 0xff7a1a, roughness: 0.5, side: THREE.DoubleSide }));
+  g.add(bowl);
+  const colors = [0xff3a6a, 0xffe14a, 0x6ad06a, 0x7a5cff, 0xffffff, 0x8a4a24];
+  for (let i = 0; i < 9; i++) {
+    const a = i * 2.4, rr = 0.07 + (i % 3) * 0.06;
+    const sweet = new THREE.Mesh(new THREE.SphereGeometry(0.06, 7, 5), new THREE.MeshStandardMaterial({ color: colors[i % colors.length], roughness: 0.4 }));
+    sweet.position.set(Math.cos(a) * rr, 0.17 + (i % 2) * 0.04, Math.sin(a) * rr);
+    sweet.scale.set(1, 0.8, 1.4);
+    g.add(sweet);
+  }
+  g.position.set(0, 0.05, 0.12);
+  return g;
+}
+
 /**
  * The Solstice Arena's warriors: built like the family (the same characters, so the same size and shape,
  * running and swinging the same way) in armour: `cls` the body, `tint` gilds the outfit's own armour,

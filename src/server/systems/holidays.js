@@ -54,10 +54,10 @@ export const interactions = {
     const gold = income(5 + Math.floor(Math.random() * 21));
     this.earn(p, gold);
     if (Math.random() < 0.25) {
-      this.sendToLocation(p.loc, { t: 'fx', kind: 'boo', x: door.x, z: door.z });
+      this.sendToLocation(p.loc, { t: 'fx', kind: 'boo', x: door.x, z: door.z, house: door.house, by: p.id }); // (the neighbour comes out: client views.js DoorGreeter)
       this.toast(p, `👻 BOO! A trick! ...just kidding — here’s ${ITEMS[item].name} and ${gold} gold.`);
     } else {
-      this.sendToLocation(p.loc, { t: 'fx', kind: 'treat', x: door.x, z: door.z });
+      this.sendToLocation(p.loc, { t: 'fx', kind: 'treat', x: door.x, z: door.z, house: door.house, by: p.id });
       this.toast(p, `🍬 Trick or treat! You got ${ITEMS[item].name} and ${gold} gold.`);
     }
     this.sendSelf(p);

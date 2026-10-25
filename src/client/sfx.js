@@ -147,6 +147,34 @@ export class Sfx {
     for (let i = 0; i < 3; i++) this.tone({ type: 'triangle', from: 220 + Math.random() * 200, at: i * 0.05, dur: 0.1, vol: 0.09 });
   }
 
+  knock() { // knuckles on a wooden door: three dull raps
+    for (const at of [0, 0.2, 0.4]) {
+      this.tone({ type: 'triangle', from: 190, to: 120, at, dur: 0.09, vol: 0.28 });
+      this.noise({ at, dur: 0.05, vol: 0.2, type: 'bandpass', from: 900, to: 500, q: 1.5 });
+    }
+  }
+
+  /**
+   * Say something out loud with the browser's own voice (the one recording-free way to get words),
+   * at the volume slider and quiet when muted. `pitch`/`rate` make each speaker sound different; `at` waits
+   * that many seconds first. A no-op without speech (some browsers) or before the first click.
+   */
+  say(text, { pitch = 1, rate = 1, at = 0, vol = 1 } = {}) {
+    const music = this.music, speech = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
+    if (!speech || typeof SpeechSynthesisUtterance === 'undefined' || !music || music.muted || this.ctx?.state !== 'running') return;
+    const speak = () => {
+      try {
+        const u = new SpeechSynthesisUtterance(text);
+        u.pitch = pitch; u.rate = rate; u.volume = Math.min(1, music.volume * vol);
+        const english = speech.getVoices().find((v) => /^en/i.test(v.lang));
+        if (english) u.voice = english;
+        speech.speak(u);
+      } catch (err) { console.warn('speech failed', err); }
+    };
+    if (at > 0) setTimeout(speak, at * 1000);
+    else speak();
+  }
+
   caw() { // a crow: two harsh, falling calls
     for (const at of [0, 0.32]) {
       this.tone({ type: 'sawtooth', from: 760, to: 520, at, dur: 0.18, vol: 0.05 });

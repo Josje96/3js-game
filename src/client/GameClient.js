@@ -9,7 +9,7 @@ import { FurnitureView } from './furniture.js';
 import { moveCircle } from '../shared/physics.js';
 import { ITEMS, weaponCooldown, bestHeal } from '../shared/items.js';
 import { LocationView } from './LocationView.js';
-import { CharacterView, Debris, makeEntityView, BEDSIDE_TABLE } from './views.js';
+import { CharacterView, Debris, DoorGreeter, makeEntityView, BEDSIDE_TABLE } from './views.js';
 import { NovaBlast, SlamWarning } from './effects.js';
 import { Interpolator } from './interp.js';
 import { Input } from './input.js';
@@ -32,6 +32,7 @@ function houseKey(h) {
  */
 /** Where you stand to put your hat down at bedtime: beside the bed, in front of its table (bed space). */
 const BEDTIME_STAND = [1.25, 0, 0.5];
+const TREAT_HEARING = 18; // how near a cottage door you have to be to hear someone trick-or-treat
 /** A point in a bed's own space (x across, z from headboard to foot), in the world. */
 function bedPoint(bed, x, y, z) {
   const s = Math.sin(bed.rot), c = Math.cos(bed.rot);
@@ -494,8 +495,7 @@ export class GameClient {
       }
       case 'crit': this.floatAt(msg, msg.lucky ? '🍀 Lucky!' : 'Critical!', msg.lucky ? '#9aff9a' : '#ffd23f'); break; // a Keen forged weapon, or luck
       case 'feast': this.sfx.play('coin'); this.floatAt(msg, '🍗 Yum!', '#ffe9b0'); break;
-      case 'treat': this.sfx.play('coin'); this.floatAt(msg, '🍬 Treat!', '#ffb347'); break; // Halloween
-      case 'boo': this.sfx.play('coin'); this.floatAt(msg, '👻 BOO!', '#e8e8ff'); break;
+      case 'treat': case 'boo': this.trickOrTreat(msg); break; // Halloween
       case 'present': this.sfx.play('coin'); this.floatAt(msg, '🎁 Ho ho ho!', '#ff7a7a'); break; // Santa
       case 'basket': this.sfx.play('coin'); this.floatAt(msg, '🧺 Happy Easter!', '#ffb3d1'); break; // Grandma
       case 'decor': { // someone used a decoration: its show, and its sound
@@ -524,6 +524,20 @@ export class GameClient {
         break;
       }
     }
+  }
+
+  /** Halloween, someone knocked on a cottage door: knock knock, “Trick or treat!”, and a neighbour comes out with candy (or BOO!). */
+  trickOrTreat(msg) {
+    const boo = msg.kind === 'boo', hear = msg.by === this.you || Math.hypot(msg.x - this.pos.x, msg.z - this.pos.z) < TREAT_HEARING;
+    if (hear) {
+      this.sfx.play('knock');
+      this.sfx.say('Trick or treat!', { pitch: 1.45, rate: 1.05, at: 0.6 });
+    }
+    this.addEffect(new DoorGreeter(msg, {
+      boo,
+      say: hear ? (text, voice) => this.sfx.say(text, voice) : null,
+      onGive: () => { this.sfx.play('coin'); this.floatAt(msg, boo ? '👻 BOO!' : '🍬 Treat!', boo ? '#e8e8ff' : '#ffb347'); },
+    }));
   }
 
   addEffect(fx) {
