@@ -74,7 +74,8 @@ export function buildTownFun(layout, group, rand) {
     const at = (u) => new THREE.Vector3(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u - sag * 4 * u * (1 - u), a.z + (b.z - a.z) * u);
     for (let i = 0; i < 24; i++) linePts.push(at(i / 24), at((i + 1) / 24));
     const rot = Math.atan2(-(b.z - a.z), b.x - a.x);
-    for (let i = 1; i < n; i++) { const k = i + flags.length; flags.push({ p: at(i / n), rot, k, color: FLAG_COLORS[k % FLAG_COLORS.length] }); }
+    const start = flags.length; // (k counts up one flag at a time, so winter's two colours alternate along every string)
+    for (let i = 1; i < n; i++) { const k = start + i; flags.push({ p: at(i / n), rot, k, color: FLAG_COLORS[k % FLAG_COLORS.length] }); }
   }
   if (linePts.length) group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(linePts), new THREE.LineBasicMaterial({ color: 0x6b4a2c })));
   if (flags.length) {
