@@ -174,6 +174,7 @@ export const FACES = {
   mustache:   { name: 'Mustache' },
   beard:      { name: 'Beard' },
   blush:      { name: 'Rosy cheeks' },
+  lashes:     { name: 'Lashes & lipstick' },
   freckles:   { name: 'Freckles' },
   hearts:     { name: 'Heart glasses' },
   goggles:    { name: 'Goggles' },

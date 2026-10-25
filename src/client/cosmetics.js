@@ -1921,6 +1921,25 @@ const FACE_BUILDERS = {
     for (const s of [-1, 1]) g.add(onCheek(mesh(new THREE.CircleGeometry(0.075, 16), pink), s, cheek, 0, 0));
     return g;
   },
+  lashes(_, __, cheek, ___, eyeLine) { // long lashes flicking up off the outer corner of each eye, soft pink lips, rosy cheeks
+    const g = FACE_BUILDERS.blush(_, __, cheek);
+    const lash = mat(0x1a1218, { roughness: 0.5 });
+    for (const s of [-1, 1]) {
+      for (const [x, y, len, tilt] of [[0.195, 0.05, 0.028, 0.55], [0.21, 0.035, 0.03, 0.9], [0.218, 0.016, 0.026, 1.2]]) {
+        const l = mesh(new THREE.CapsuleGeometry(0.0055, len, 2, 4), lash, s * x, y, 0.015);
+        l.rotation.z = -s * tilt; // fanning out and up
+        l.position.x += s * Math.sin(tilt) * len * 0.5;
+        l.position.y += Math.cos(tilt) * len * 0.5;
+        g.add(l);
+      }
+    }
+    // the lips, on the skin under the nose (eyeLine: how far back the skin is at each height)
+    const MOUTH_Y = -0.19, near = (eyeLine ?? []).reduce((b, e) => (!b || Math.abs(e.y - MOUTH_Y) < Math.abs(b.y - MOUTH_Y) ? e : b), null);
+    const z = (near?.z ?? -0.04) + 0.03, lip = mat(0xe0607e, { roughness: 0.35 });
+    g.add(mesh(new THREE.SphereGeometry(1, 14, 8), lip, 0, MOUTH_Y + 0.01, z, 0.05, 0.014, 0.018));
+    g.add(mesh(new THREE.SphereGeometry(1, 14, 8), lip, 0, MOUTH_Y - 0.01, z, 0.044, 0.017, 0.018));
+    return g;
+  },
   freckles(_, __, cheek) {
     const g = new THREE.Group(), dot = new THREE.MeshBasicMaterial({ color: 0x9a5a34 });
     for (const s of [-1, 1]) for (const [dx, dy] of [[-0.06, 0.03], [0, -0.01], [0.06, 0.04], [-0.02, -0.05]]) g.add(onCheek(mesh(new THREE.CircleGeometry(0.015, 8), dot), s, cheek, dx, dy));

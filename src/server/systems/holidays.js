@@ -151,7 +151,7 @@ export const methods = {
     } else if (h === 'easter') {
       loc.spawn({
         type: 'npc', holiday: h, name: 'Grandma', cls: 'Mage', wear: 'grandma', decor: 'easter',
-        look: { hat: 'none', cape: 'none', hair: 'curly', hairColor: 'blonde', brows: 'arched', face: 'none' }, // friendly brows, no whiskers
+        look: { hat: 'none', cape: 'none', hair: 'bun', hairColor: 'white', brows: 'arched', face: 'lashes' }, // a silver bun, soft brows, lashes, rosy cheeks and pink lips
         x: SANTA_SPOT.x, z: SANTA_SPOT.z, rot: 0, r: 0.8, interact: 'easter', prompt: 'Talk to Grandma 🐣',
       });
       loc.spawn({ // and Grandpa, in his Sunday waistcoat
