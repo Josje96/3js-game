@@ -32,6 +32,7 @@ function houseKey(h) {
  */
 /** Where you stand to put your hat down at bedtime: beside the bed, in front of its table (bed space). */
 const BEDTIME_STAND = [1.25, 0, 0.5];
+const HAT_CLEAR = 0.6; // how high the hat lifts off your head before it goes over to the table
 const TREAT_HEARING = 18; // how near a cottage door you have to be to hear someone trick-or-treat
 /** A point in a bed's own space (x across, z from headboard to foot), in the world. */
 function bedPoint(bed, x, y, z) {
@@ -829,11 +830,13 @@ export class GameClient {
         c.hat.visible = true;
         c.hat.scale.copy(me.root.scale);
       }
-      // an arc from the head down onto the table, turning to how it'll sit there
-      const u = Math.min(1, (c.t - LIFT) / (DOWN - LIFT)), e = u * u * (3 - 2 * u);
-      c.hat.position.lerpVectors(c.start, table, e);
-      c.hat.position.y += Math.sin(e * Math.PI) * 0.45;
-      c.hat.rotation.y = c.startYaw + (c.bed.rot + 0.5 - c.startYaw) * e;
+      // straight up off the head, across above it, then down onto the table (a plain arc passed through the head),
+      // turning to how it'll sit there
+      const u = Math.min(1, (c.t - LIFT) / (DOWN - LIFT)), ease = (v) => { v = Math.min(1, Math.max(0, v)); return v * v * (3 - 2 * v); };
+      const up = ease(u / 0.3), across = ease((u - 0.2) / 0.55), down = ease((u - 0.7) / 0.3);
+      c.hat.position.lerpVectors(c.start, table, across);
+      c.hat.position.y = (c.start.y + HAT_CLEAR * up) * (1 - down) + table.y * down;
+      c.hat.rotation.y = c.startYaw + (c.bed.rot + 0.5 - c.startYaw) * across;
     }
     if (c.t >= LIE && !c.lain) { // into bed: the view puts its own copy on the table, just where this one landed
       c.lain = true;
