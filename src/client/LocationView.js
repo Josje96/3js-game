@@ -9,7 +9,7 @@ import { makeGrass, makeWater, makeTrees, makeSpringBanks, pondEdge } from './na
 import { wallpaperTexture } from './wallpaper.js';
 import { PetView } from './pets.js';
 import { DECORATIONS } from './decorations.js';
-import { makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard, makeFeastTable, makeSeasonalStall, makeJackOLantern, makeTreeLights, makeSnowman, makeCandyPile, makeBlueberryBush, makeLeafPile, makeRainbow, makeCottageSeasons } from './town.js';
+import { makeHeartstone, makeCottage, makeTowerTop, makeFence, makeStall, makeFountain, makeLampPost, makeFlowers, makeFairies, makeChains, makeBench, makeEnchanterTent, makeBankBooth, makePlanter, makeCart, makeNoticeBoard, makeFeastTable, makeSeasonalStall, makeJackOLantern, makeTreeLights, makeSnowman, makeCandyPile, makeBlueberryBush, makeLeafPile, makeRainbow, makeCottageSeasons } from './town.js';
 import { Villagers } from './villagers.js';
 import { TOWNSFOLK } from '../shared/townsfolk.js';
 import { FLOOR_STYLES, WALL_STYLES } from '../shared/furniture.js';
@@ -19,6 +19,7 @@ import { mergeStatic, dropTinyShadows } from './merge.js';
 import { buildTownFun, FLAG_SEASONS } from './townfun.js';
 import { makeWasteland } from './wasteland.js';
 import { seasonOf, holidayOf, isRainyDay, isSaleDay } from '../shared/seasons.js';
+import { storyProgress } from '../shared/story.js';
 import { SeasonParticles, SpringBirds, easeSeasonLook, SEASON_LOOK, WINTER, snowOnTops } from './seasonfx.js';
 
 /** Wooden signpost for the healing spring. */
@@ -570,6 +571,16 @@ export class LocationView {
     villagers.addTo(this.group);
     this.animated.push({ update: (dt) => villagers.update(dt), dispose: () => villagers.dispose() });
     const fun = buildTownFun(L, this.group, this.rand); // bunting, butterflies, chimney smoke
+    // the Heartstone over the fountain: a crystal lit for every shard brought home (shared/story.js). `holdShards`:
+    // the shard film (GameClient) shows the old count until the moment the new one lights up
+    const fountain = L.props.find((p) => p.build === 'fountain');
+    if (fountain) {
+      const heart = makeHeartstone();
+      heart.position.set(fountain.x, 0, fountain.z);
+      this.group.add(heart);
+      this.heartstoneAt = new THREE.Vector3(fountain.x, 3.15, fountain.z);
+      this.animated.push({ update: () => heart.userData.update(this.uTime.value, this.holdShards ?? storyProgress(this.world).shards) });
+    }
     this.animated.push({ update: () => fun.update(this.uTime.value) });
     let flagSeason = null;
     this.animated.push({ update: () => { // the bunting and the tower flags in the season's colours

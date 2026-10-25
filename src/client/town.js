@@ -786,6 +786,41 @@ function makeSleigh() {
   return g;
 }
 
+/**
+ * The Heartstone over the fountain's top bowl (shared/story.js): three crystals leaning together, each lit
+ * once its shard is home (a faint ghost of it until then); all three together shine. `userData.update(t, shards)`.
+ */
+export function makeHeartstone() {
+  const g = new THREE.Group(), spin = new THREE.Group();
+  spin.position.y = 3.15;
+  spin.scale.setScalar(1.7);
+  g.add(spin);
+  const COLORS = [0xff8ac8, 0xffd27a, 0x8ae8ff];
+  const crystals = COLORS.map((color, i) => {
+    const a = (i / 3) * Math.PI * 2, m = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.9, roughness: 0.2, metalness: 0.1, transparent: true }));
+    m.scale.set(0.7, 1.7, 0.7);
+    m.position.set(Math.cos(a) * 0.13, 0, Math.sin(a) * 0.13);
+    m.rotation.set(Math.sin(a) * 0.35, a, -Math.cos(a) * 0.35); // (leaning in at the top)
+    spin.add(m);
+    return m;
+  });
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffe2f0, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  glow.scale.setScalar(1.6);
+  spin.add(glow);
+  g.userData.update = (t, shards) => {
+    crystals.forEach((m, i) => {
+      const lit = i < shards;
+      m.material.opacity = lit ? 1 : 0.18;
+      m.material.emissiveIntensity = lit ? 0.7 + Math.sin(t * 2 + i) * 0.2 : 0;
+    });
+    glow.material.opacity = shards ? (0.25 + shards * 0.2) * (0.85 + Math.sin(t * 1.7) * 0.15) : 0;
+    glow.scale.setScalar(1.2 + shards * 0.6);
+    spin.rotation.y = t * 0.5;
+    spin.position.y = 3.15 + Math.sin(t * 1.3) * 0.08;
+  };
+  return g;
+}
+
 /** A blueberry bush (summer): a round dark-green bush dotted with blue berries. */
 export function makeBlueberryBush(r = 0.5) {
   const g = new THREE.Group(), leaf = std(0x2f6a32, { roughness: 0.9, flatShading: true }), berry = std(0x3a4ab8, { roughness: 0.3 });

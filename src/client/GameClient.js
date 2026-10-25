@@ -19,6 +19,7 @@ import { Sfx } from './sfx.js';
 import { ENCHANT_LOOKS } from '../shared/enchant.js';
 import { useDistance, flyHeightAt } from '../shared/props.js';
 import { holidayOf, seasonOf, SOLSTICE_ARENA, SLEIGH_PARKED, christmasSolids, christmasKeepOut } from '../shared/seasons.js';
+import { storyProgress, STORY_PAGES } from '../shared/story.js';
 import { SEASON_LOOK } from './seasonfx.js';
 
 /** What the fort looks like, reduced to what a re-render depends on (so a change re-dresses it). */
@@ -33,6 +34,12 @@ function houseKey(h) {
 /** Where you stand to put your hat down at bedtime: beside the bed, in front of its table (bed space). */
 const BEDTIME_STAND = [1.25, 0, 0.5];
 const HAT_CLEAR = 0.6; // how high the hat lifts off your head before it goes over to the table
+/** The Heartstone films (checkShards), one per shard. */
+const SHARD_FILMS = [
+  { intro: '💎 The first shard of the Heartstone comes home…', outro: '💎 One shard glows over the fountain! The fairies are coming back. (L: your Story book)' },
+  { intro: '💎 The second shard floats over the rooftops…', outro: '💎 Two shards! Pebble Town feels warmer already. (L: your Story book)' },
+  { intro: '💎 The last shard… the Heartstone is whole again!', outro: '💎 The Heartstone shines over Pebble Town once more! Go and say hello to Corvin. (L: your Story book)' },
+];
 const TREAT_HEARING = 18; // how near a cottage door you have to be to hear someone knock
 /** A point in a bed's own space (x across, z from headboard to foot), in the world. */
 function bedPoint(bed, x, y, z) {
@@ -209,6 +216,7 @@ export class GameClient {
         this.hud.setWorld(msg);
         this.locView?.setWorld(msg);
         this.checkUnlocks();
+        this.checkStoryPages();
         break;
       }
       case 'house': {
@@ -763,6 +771,42 @@ export class GameClient {
     this.hud.cinema(film.intro);
   }
 
+  /** New pages in the Story book (shared/story.js) since this browser last looked, per world: a toast each (L reads them). */
+  checkStoryPages() {
+    if (!this.world) return;
+    const key = `fdg.storySeen.${this.world.seed}.${this.world.name}`, { pages } = storyProgress(this.world);
+    let seen = this.storySeen;
+    if (!seen) try { seen = JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { seen = null; }
+    if (!seen) this.hud.toast('📖 Press L to read the story of Pebble Town!', true);
+    else for (const page of pages) if (!seen.includes(page.id)) this.hud.toast(`📖 A new page in your Story book: “${page.title}” (press L)`, true);
+    this.storySeen = pages.map((page) => page.id);
+    try { localStorage.setItem(key, JSON.stringify(this.storySeen)); } catch {}
+  }
+
+  /**
+   * A shard of the Heartstone came home (a dungeon done): the first time you're in town after that, a little
+   * film: the camera circles the fountain, and the new crystal lights up. Once per shard per world, this browser.
+   */
+  checkShards() {
+    if (this.cinematic || this.layout?.key !== 'town' || !this.world || !this.locView?.heartstoneAt) return;
+    const key = `fdg.shardsSeen.${this.world.seed}.${this.world.name}`, { shards } = storyProgress(this.world);
+    let seen = this.shardsSeen;
+    if (seen == null) try { seen = Number(localStorage.getItem(key) ?? 0) || 0; } catch { seen = 0; }
+    this.shardsSeen = seen;
+    if (shards <= seen) return;
+    const at = this.locView.heartstoneAt, view = this.locView, n = seen + 1;
+    view.holdShards = seen;
+    const words = SHARD_FILMS[n - 1];
+    this.cinematic = {
+      kind: 'visit', t: 0, waved: false, npcs: [], focus: at.clone(), arrive: 4.5, end: 9, sound: 'levelup',
+      intro: words.intro, outro: words.outro, colors: [0xff8ac8, 0xffd27a, 0x8ae8ff, 0xffffff],
+      shot: (t) => { const a = 0.6 + t * 0.35, r = 9 - Math.min(t, 4.5) * 0.6; return { pos: new THREE.Vector3(at.x + Math.sin(a) * r, 4.2 + t * 0.15, at.z + Math.cos(a) * r), look: at }; },
+      onWave: () => { view.holdShards = null; },
+      done: () => { view.holdShards = null; this.shardsSeen = n; try { localStorage.setItem(key, String(n)); } catch {} },
+    };
+    this.hud.cinema(words.intro);
+  }
+
   /** Holiday visitors (town npcs) matching `test`, set up to walk or fly in from `from(npc)`. */
   filmCast(test, from) {
     return [...this.ents.values()].filter((e) => e.data.type === 'npc' && test(e.data) && e.view?.ch)
@@ -792,6 +836,7 @@ export class GameClient {
     else mid.copy(c.focus);
     if (u >= 1 && !c.waved) {
       c.waved = true;
+      c.onWave?.();
       for (const n of c.npcs) n.view.ch.play('cheer');
       this.sfx.play(c.sound ?? 'chime');
       const at = c.burstAt ?? mid;
@@ -985,6 +1030,7 @@ export class GameClient {
       this.locView.villagers.keepOut(this.visitorAreas());
     }
     this.checkVisit();
+    this.checkShards();
     if (input.consume('menu')) {
       if (this.cinematic) this.cinematic.skip = true; // Esc skips a film
       else if (this.hud.modalOpen) this.hud.closeModal();
@@ -997,6 +1043,10 @@ export class GameClient {
         onSpend: (stat) => this.conn.send({ t: 'spend', stat }),
         onEquip: (item, slot) => this.conn.send({ t: 'equip', item, slot }),
       });
+    }
+    if (input.consume('story')) {
+      if (this.hud.modalOpen) this.hud.closeModal();
+      else this.hud.openStory({ ...storyProgress(this.world), total: STORY_PAGES.length });
     }
     if (input.consume('pets')) {
       if (this.hud.modalOpen) this.hud.closeModal();

@@ -7,6 +7,7 @@ import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost, TRAIN_TO, TRAIN_COST } from '../shared/pets.js';
 import { seasonOf, holidayOf, dayOfSeason, daysToNextSeason, SEASONS, isBossDay, calendar, dateLabel, CALENDAR_NAME, salePrice, isSaleDay, seasonBossFor } from '../shared/seasons.js';
+import { SHARD_DUNGEONS } from '../shared/story.js';
 import { ENCHANT_LOOKS, enchantCost, enchantedName, enchantDamage } from '../shared/enchant.js';
 import { seasonalPrice } from '../shared/seasonal.js';
 
@@ -65,7 +66,7 @@ export class Hud {
     this.floats = el('div', 'hud-floats');
     this.modal = el('div', 'modal-backdrop hidden');
     this.danger = el('div', 'hud-danger');
-    this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · J jump · V fly (jetpack) · E interact · Q potion · G feed pet · R area spell · Tab item bar · C character · P pets · Enter chat · M music · Esc menu');
+    this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · J jump · V fly (jetpack) · E interact · Q potion · G feed pet · R area spell · Tab item bar · C character · P pets · L story · Enter chat · M music · Esc menu');
     root.append(this.cinemaEl, this.danger, this.status, this.invite, this.xp, this.inv, this.barHint, this.promptEl, this.seasonSleepEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
     this.self = null;
     this.world = null;
@@ -600,6 +601,23 @@ export class Hud {
     }
     wrap.append(el('p', 'muted', 'Bought things wait for you in the wardrobe at home.'));
     return wrap;
+  }
+
+  /** The Story book (L): the pages found so far (shared/story.js), and the Heartstone's shards brought home. */
+  openStory({ pages, shards, total }) {
+    this.openModal((box) => {
+      const gems = '💎'.repeat(shards) + '◇'.repeat(SHARD_DUNGEONS.length - shards);
+      box.append(el('h2', null, '📖 The Story of Pebble Town'), el('p', 'muted', `The Heartstone: ${gems} (${shards} of ${SHARD_DUNGEONS.length} shards home)`));
+      const list = el('div', 'story-pages');
+      pages.forEach((page, i) => {
+        const card = el('div', 'story-page');
+        card.append(el('h3', null, `${i + 1}. ${esc(page.title)}`), el('p', null, esc(page.text)));
+        list.append(card);
+      });
+      const left = total - pages.length;
+      if (left > 0) list.append(el('p', 'muted', `🔒 ${left} more page${left === 1 ? '' : 's'} to find: beat the dungeons’ bosses to read on.`));
+      box.append(list, closeButton(this));
+    });
   }
 
   /** The mirror: hair, hair colour, face extras, skin. Free, change as often as you like. */

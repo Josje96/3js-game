@@ -3,7 +3,8 @@
 // `lines` = what they say when you talk to them (one at random); `heroLines` = what they sometimes
 // say instead once the family has beaten the Goblin King (the first dungeon's boss: it unlocks the next one);
 // `seasonLines` = what they often say in each season, `holidayLines` = what they mostly say on a holiday
-// (shared/seasons.js holidayOf). townsfolkLine() below picks one.
+// (shared/seasons.js holidayOf), `storyLines[chapter]` = what they say as the story goes on (story.js).
+// townsfolkLine() below picks one.
 import { seasonOf, holidayOf } from './seasons.js';
 
 export const TOWNSFOLK = [
@@ -16,6 +17,12 @@ export const TOWNSFOLK = [
       autumn: ['Autumn already! The town looks quite distinguished in orange, don’t you think?', 'Mind the leaves on the cobbles. I slipped on one in front of the whole market.'],
       winter: ['Red and green bunting for winter: my own idea, you know.', 'Snow on the rooftops! Pebble Town has never looked so dignified.'],
     },
+    storyLines: [ // what they say as the story goes on (story.js chapter: the Heartstone shards brought home)
+      ['The Heartstone used to sit in our fountain. Bring the shards home, brave family, and Pebble Town will shine again!'],
+      ['The first shard is home! Look at the fountain glow. I haven’t been this happy since… well, since I was a boy.'],
+      ['Corvin… my big brother. I should have noticed how lonely he was. Please, if you find him, don’t be too hard on him.'],
+      ['My brother is home. Corvin is HOME! Have you said hello? He makes the most terrible jokes. I missed them so much.'],
+    ],
     holidayLines: {
       easter: ['Happy Easter! Grandma has brought baskets for everyone. Even me, I hope.'],
       solstice: ['The Summer Solstice! The Arena is open. I shall cheer for you from a safe distance.'],
@@ -31,6 +38,12 @@ export const TOWNSFOLK = [
       autumn: ['Autumn’s here. Time for warm soup and woolly socks, dear.', 'The leaves are turning. Wrap up, it gets chilly in the evenings.'],
       winter: ['Brr! Put a scarf on, dear, you’ll catch your death out here.', 'A cup of cocoa by the fire, that’s what winter is for.'],
     },
+    storyLines: [ // what they say as the story goes on (story.js chapter: the Heartstone shards brought home)
+      ['Before the Heartstone was stolen, the fairies danced round the fountain every night. I do miss them, dear.'],
+      ['The fairies are back, dear! One sat on my teacup this morning. It’s the shard, I’m sure of it.'],
+      ['Two shards! My old bones feel warmer already. One more, dear. Wrap up warm in that Shadow Keep.'],
+      ['Corvin used to steal my jam tarts when he was little. Now he brings me a fresh one every morning. To say sorry.'],
+    ],
     holidayLines: {
       easter: ['Happy Easter, dear! Have you found your basket yet? Don’t eat all the chocolate at once.'],
       solstice: ['The longest day of the year, dear! Don’t you go fighting in that Arena without a good breakfast.'],
@@ -46,6 +59,12 @@ export const TOWNSFOLK = [
       autumn: ['I made the biggest leaf pile EVER and then I jumped in it!', 'Halloween is coming! I’m gonna get SO much candy.'],
       winter: ['Snowball fight! You’re it!', 'I made a snowman. He’s got a carrot nose and he’s called Gerald.'],
     },
+    storyLines: [ // what they say as the story goes on (story.js chapter: the Heartstone shards brought home)
+      ['Grown-ups say a Shadow King stole the town’s magic rock. I’m gonna find it! After lunch.'],
+      ['You found a piece of the magic rock?! Can I touch it? Just with one finger? Pleeease?'],
+      ['The Leviathan SNEEZED it out? That’s the best thing I ever heard! ACHOO! Ha ha!'],
+      ['Corvin showed me a magic trick! He pulled a frog out of my ear. I didn’t even know I had a frog in there.'],
+    ],
     holidayLines: {
       easter: ['I found SIX chocolate eggs! Well, I ate four of them. But I found six!'],
       solstice: ['The Arena is open! I’m gonna watch you fight ALL the warriors!'],
@@ -61,6 +80,12 @@ export const TOWNSFOLK = [
       autumn: ['The nights draw in quickly in autumn. Don’t get caught out after dark.', 'Shorter days, longer shadows. Keep your sword sharp, soldier.'],
       winter: ['Cold steel, colder fingers. Wear your gloves out there.', 'Snow hides the tracks of monsters. Stay alert.'],
     },
+    storyLines: [ // what they say as the story goes on (story.js chapter: the Heartstone shards brought home)
+      ['The monsters started coming up the night the Heartstone vanished. Find those shards, soldier.'],
+      ['One shard home, and the night patrols are quieter already. Good work.'],
+      ['The Mayor’s own brother, behind it all. I should have guessed: he always cheated at hide and seek.'],
+      ['The Shadow King, living in town. I’m keeping an eye on him… but he did polish everyone’s helmets. Every single one.'],
+    ],
     holidayLines: {
       easter: ['Easter or not, I’m on duty. But... I’ll take one chocolate egg.'],
       solstice: ['The Solstice Arena! Three rounds of warriors. Win them all and the Solar Blade is yours.'],
@@ -76,6 +101,12 @@ export const TOWNSFOLK = [
       autumn: ['Pumpkin season! I grew a pumpkin as big as a cart this year.', 'All the leaves are falling. I’ve swept the square three times today.'],
       winter: ['The garden is asleep under the snow. It’ll wake up again in spring.', 'I’m planning next spring’s flower beds. Tulips everywhere, I think!'],
     },
+    storyLines: [ // what they say as the story goes on (story.js chapter: the Heartstone shards brought home)
+      ['Nothing grows quite right since the Heartstone was taken. The flowers are sad, I can tell.'],
+      ['My roses opened overnight! The shard on the fountain must be helping them.'],
+      ['Two shards and the garden is singing! Well, the bees are. It’s nearly the same thing.'],
+      ['Corvin helps me in the garden now. He’s VERY good at shade. He was a shadow, you see.'],
+    ],
     holidayLines: {
       easter: ['Happy Easter! I hid a few eggs in the flower beds. Don’t trample the tulips looking for them!'],
       solstice: ['The longest day of the year! More sunshine for the sunflowers.'],
@@ -91,6 +122,12 @@ export const TOWNSFOLK = [
       autumn: ['Autumn. Best season. Nobody bothers you and the soup is good.', 'Chilly mornings. My beard keeps my chin warm, at least.'],
       winter: ['Call this cold? I once walked to the mine through snow up to my beard.', 'Winter. Stay by the fire, youngster. That’s what I do.'],
     },
+    storyLines: [ // what they say as the story goes on (story.js chapter: the Heartstone shards brought home)
+      ['I saw the shard once, deep in the mine. And something huge, curled round it. I ran, youngster. Don’t you run.'],
+      ['You beat the Ancient Dragon. Hmph. Well done. Truly. I’ve been waiting forty years to hear that.'],
+      ['A sneezing sea monster. In my day monsters had better manners. Well done anyway.'],
+      ['Corvin and I play chess on the bench now. He cheats. I cheat more. It’s lovely.'],
+    ],
     holidayLines: {
       easter: ['Easter eggs? In my day we got a boiled potato and we were grateful.'],
       solstice: ['Arena fights on the Solstice. I won it three years running, back in my day. Probably.'],
@@ -106,6 +143,12 @@ export const TOWNSFOLK = [
       autumn: ['Maple jumps in the leaf piles! Crunch crunch crunch!', 'I’m dressing Maple up for Halloween. She’s going to be a tiny pumpkin!'],
       winter: ['Maple’s paws got cold in the snow, so I knitted her little socks.', 'Maple and I made a snow cat! It looks just like her!'],
     },
+    storyLines: [ // what they say as the story goes on (story.js chapter: the Heartstone shards brought home)
+      ['Maple keeps staring at the fountain. I think she misses the magic rock too.'],
+      ['Maple sleeps next to the fountain now! The glowy shard keeps her toasty.'],
+      ['Maple hissed at a shadow today. A REAL shadow! Be careful in the Keep!'],
+      ['Corvin isn’t scary at all! Maple sat on his lap and he didn’t even mind the fur.'],
+    ],
     holidayLines: {
       easter: ['Happy Easter! Maple found an egg and now she won’t give it back.'],
       solstice: ['Are you fighting in the Arena? Maple and I will cheer really loud!'],
@@ -115,14 +158,16 @@ export const TOWNSFOLK = [
 ];
 
 const HOLIDAY_CHANCE = 0.7; // on a holiday, how often they talk about it
+const STORY_CHANCE = 0.3;   // how often they talk about the story so far
 const SEASON_CHANCE = 0.5;  // on any other day, how often they talk about the season
 const HERO_CHANCE = 0.35;   // once the Goblin King is beaten, how often the rest is about that
 
-/** What `who` says today: a holiday line, a season line, a hero line or one of their usual ones. `random` is Math.random or a test's. */
-export function townsfolkLine(who, { day, hero = false, random = Math.random }) {
+/** What `who` says today: a holiday line, the story so far (`chapter`), a season line, a hero line or one of their usual ones. `random` is Math.random or a test's. */
+export function townsfolkLine(who, { day, hero = false, chapter = null, random = Math.random }) {
   const pick = (lines) => lines[Math.floor(random() * lines.length)];
   const holiday = holidayOf(day), season = seasonOf(day).id;
   if (holiday && who.holidayLines?.[holiday] && random() < HOLIDAY_CHANCE) return pick(who.holidayLines[holiday]);
+  if (chapter != null && who.storyLines?.[chapter] && random() < STORY_CHANCE) return pick(who.storyLines[chapter]);
   if (who.seasonLines?.[season] && random() < SEASON_CHANCE) return pick(who.seasonLines[season]);
   if (hero && who.heroLines && random() < HERO_CHANCE) return pick(who.heroLines);
   return pick(who.lines);

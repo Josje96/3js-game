@@ -14,7 +14,7 @@ const KEY_ACTIONS = {
   Escape: 'menu',
   Enter: 'chat',
   KeyM: 'music',
-  KeyC: 'sheet', KeyI: 'sheet', KeyP: 'pets', KeyB: 'build', KeyX: 'pickup', F3: 'stats',
+  KeyC: 'sheet', KeyI: 'sheet', KeyP: 'pets', KeyL: 'story', KeyB: 'build', KeyX: 'pickup', F3: 'stats',
   ShiftLeft: 'roll', ShiftRight: 'roll', KeyK: 'roll',
   KeyV: 'fly',
   Tab: 'bar',
@@ -89,7 +89,7 @@ export class Input {
   consume(action) {
     const had = this.pressed.has(action);
     this.pressed.delete(action);
-    return had && (this.enabled || action.startsWith('cheat:') || action === 'menu' || action === 'sheet' || action === 'pets' || action === 'stats' || (this.barMode && action.startsWith('bar')));
+    return had && (this.enabled || action.startsWith('cheat:') || action === 'menu' || action === 'sheet' || action === 'pets' || action === 'story' || action === 'stats' || (this.barMode && action.startsWith('bar')));
   }
 
   takeWheel() {
