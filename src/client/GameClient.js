@@ -542,6 +542,17 @@ export class GameClient {
     }));
   }
 
+  /** Your own weapon, shield, armor and helmet on your character, with any of them swapped for `trying` ({ weapon: id }...). */
+  wearGear(trying) {
+    const me = this.me, s = this.self ?? {};
+    if (!me) return;
+    const weapon = trying.weapon ?? s.weapon;
+    me.setWeapon(weapon, trying.weapon ? 0 : s.enchants?.[weapon]);
+    me.setShield(trying.shield ?? s.shield);
+    me.setArmor(trying.armor ?? s.armor);
+    me.setHelmet(trying.helmet ?? s.helmet);
+  }
+
   addEffect(fx) {
     this.scene.add(fx.root);
     this.effects.push(fx);
@@ -600,12 +611,20 @@ export class GameClient {
   openUi(msg) {
     if (msg.kind === 'shop' || msg.kind === 'smith') {
       this.hud.tryOn = (slot, id) => { // a sneak peek in the shop: wear it for a moment, close up
-        if (this.me) this.me.noSeasonWear = true; // see the real thing, not a winter coat over it
-        this.me?.setLook({ ...cleanLook(this.profile.look), [slot]: id });
+        if (slot === 'gear') this.wearGear({ [ITEMS[id]?.kind]: id }); // the Blacksmith's: hold the sword, wear the armor
+        else {
+          if (this.me) this.me.noSeasonWear = true; // see the real thing, not a winter coat over it
+          this.me?.setLook({ ...cleanLook(this.profile.look), [slot]: id });
+        }
         this.closeUp = true;
         this.pos.rot = 0; // turn round to face the camera
       };
-      this.hud.untryOn = () => { if (this.me) this.me.noSeasonWear = false; this.me?.setLook(cleanLook(this.profile.look, this.self?.closet)); this.closeUp = false; };
+      this.hud.untryOn = () => {
+        if (this.me) this.me.noSeasonWear = false;
+        this.me?.setLook(cleanLook(this.profile.look, this.self?.closet));
+        this.wearGear({}); // back to your own
+        this.closeUp = false;
+      };
       this.hud.openShop({
         vendor: msg.kind,
         onForge: (recipe) => this.conn.send({ t: 'forge', recipe }),

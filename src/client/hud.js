@@ -379,7 +379,8 @@ export class Hud {
    */
   /**
    * Ask before buying. `preview` = a sneak peek: { img } (a picture, shown big next to the
-   * question) and/or { tryOn: { slot, id } } (clothes: put them on your character to see).
+   * question) and/or { tryOn: { slot, id } } (clothes, or slot 'gear': a weapon, shield, armor or helmet,
+   * put on your character to see).
    */
   askToBuy(label, price, run, preview = null) {
     this.endTryOn();
@@ -535,8 +536,10 @@ export class Hud {
           const owned = isGear(id) && (this.self?.gear ?? []).includes(id);
           const locked = it.tier > tier;
           const row = el('button', `shop-row${locked ? ' locked' : ''}`, `<span>${iconImg(itemIcon(id))}${esc(it.name)} <small>${itemStat(it)}</small></span><span class="gold">${owned ? '✓' : locked ? '🔒' : this.priceTag(it.price)}</span>`);
-          row.disabled = locked || owned || gold < this.sale(it.price);
-          row.addEventListener('click', () => this.askToBuy(it.name, this.sale(it.price), () => onBuy(id), { img: iconImg(itemIcon(id)) }));
+          // gear can be tried on, like clothes (even before you can afford it: the Buy button waits for the gold)
+          const wearable = isGear(id);
+          row.disabled = locked || owned || (!wearable && gold < this.sale(it.price));
+          row.addEventListener('click', () => this.askToBuy(it.name, this.sale(it.price), () => onBuy(id), wearable ? { tryOn: { slot: 'gear', id } } : { img: iconImg(itemIcon(id)) }));
           body.append(row);
         }
       }
