@@ -1060,73 +1060,113 @@ export function makeSolsticeArena(dz, r) {
 }
 
 /**
- * The Shadow King, for the intro (GameClient.checkIntro): a huge ghostly figure in a dark hooded robe,
- * an iron crown of spikes with violet gems, two burning red eyes in the hood. He looms up out of the
- * night, closes his claws round the glowing Heartstone, it cracks into three shards that streak away
- * down into the ground, and he fades away laughing. `userData.update(t, camera)`: t = seconds into
- * the film (SHADOW_KING_TIMES: when each part happens), turning to face the camera. About 2.3 tall: scale it up.
+ * The Shadow King, for the intro (GameClient.checkIntro): a towering, ghostly figure, epic and scary. A
+ * tattered black cloak rippling round him, spiked iron on his shoulders, great curved horns out of a
+ * pointed hood, a jagged crown with burning violet gems, and in the dark of the hood only two fiery slit
+ * eyes and a glowing jagged grin. Dark purple flames rise round him; he glows purple and red. He looms
+ * up out of the night, closes his long claws round the glowing Heartstone, it cracks into three shards
+ * that streak away down into the ground, and he fades away laughing. `userData.update(t, camera)`:
+ * t = seconds into the film (SHADOW_KING_TIMES: when each part happens), turning to face the camera.
+ * About 2.6 tall: scale it up.
  */
 export const SHADOW_KING_TIMES = { appear: 6, grab: 8, crack: 9.5, gone: 12.5 };
 export function makeShadowKing() {
   const g = new THREE.Group(), body = new THREE.Group();
   g.add(body);
   const fade = []; // [material, full opacity]
-  const m = (color, { full = 0.94, ...o } = {}) => {
-    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, transparent: true, opacity: 0, depthWrite: false, ...o });
+  const m = (color, { full = 0.96, ...o } = {}) => {
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.75, transparent: true, opacity: 0, depthWrite: false, ...o });
     fade.push([mat, full]);
     return mat;
   };
-  const add = (geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) => { const me = new THREE.Mesh(geo, mat); me.position.set(x, y, z); me.scale.set(sx, sy, sz); body.add(me); return me; };
-  const robe = m(0x1a1028, { emissive: 0x2a1048, emissiveIntensity: 0.55, side: THREE.DoubleSide });
-  const dark = m(0x120a1c, { emissive: 0x1a0a30, emissiveIntensity: 0.5 });
-  add(new THREE.CylinderGeometry(0.36, 0.85, 1.6, 22, 1, true), robe, 0, 0.8, 0); // the robe
-  for (let i = 0; i < 14; i++) { // its tattered hem, trailing into smoke
-    const a = (i / 14) * Math.PI * 2, rag = add(new THREE.ConeGeometry(0.16, 0.45, 5), robe, Math.cos(a) * 0.8, -0.12, Math.sin(a) * 0.8);
-    rag.rotation.x = Math.PI;
+  const glowMat = (color, full = 1) => { const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0 }); fade.push([mat, full]); return mat; };
+  const add = (parent, geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) => { const me = new THREE.Mesh(geo, mat); me.position.set(x, y, z); me.scale.set(sx, sy, sz); parent.add(me); return me; };
+  const robe = m(0x0e0816, { emissive: 0x24083a, emissiveIntensity: 0.5, side: THREE.DoubleSide });
+  const cloakMat = m(0x07040c, { emissive: 0x1a0630, emissiveIntensity: 0.45, side: THREE.DoubleSide, full: 0.92 });
+  const iron = m(0x2a2232, { metalness: 0.8, roughness: 0.3, emissive: 0x12061e, emissiveIntensity: 0.5 });
+  const dark = m(0x0a0610, { emissive: 0x14062a, emissiveIntensity: 0.4 });
+  // the robe: broad at the chest, in at the waist, flaring to the floor
+  const ROBE = [[0.92, 0], [0.8, 0.25], [0.6, 0.7], [0.46, 1.15], [0.52, 1.5], [0.6, 1.78], [0.3, 1.95], [0, 1.98]];
+  add(body, new THREE.LatheGeometry(ROBE.map(([r, y]) => new THREE.Vector2(r, y)), 28), robe, 0, 0, 0);
+  // the cloak: hanging from the shoulders behind and round him, its hem torn into points, rippling
+  const cloakGeo = new THREE.CylinderGeometry(0.72, 1.25, 1.95, 36, 10, true, Math.PI * 0.62, Math.PI * 1.76);
+  const cp = cloakGeo.attributes.position, base = cp.array.slice();
+  for (let i = 0; i < cp.count; i++) { // tatters: the bottom row ragged, deeper in places
+    const y = cp.getY(i);
+    if (y < -0.9) { const a = Math.atan2(cp.getX(i), cp.getZ(i)); base[i * 3 + 1] = y - (0.12 + 0.18 * Math.abs(Math.sin(a * 7.3)) + 0.1 * Math.abs(Math.sin(a * 3.1))); }
   }
-  add(new THREE.SphereGeometry(0.45, 18, 12), dark, 0, 1.6, 0, 1.4, 0.75, 0.95); // shoulders
-  add(new THREE.SphereGeometry(0.34, 18, 14), robe, 0, 1.98, -0.02, 1, 1.12, 1.02); // the hood
-  add(new THREE.SphereGeometry(0.25, 16, 12), m(0x020104, { emissive: 0x000000 }), 0, 1.94, 0.13, 1, 1.05, 0.8); // nothing inside it but dark...
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2a3a, transparent: true, opacity: 0 });
-  fade.push([eyeMat, 1]);
-  const eyeGlow = [];
+  const cloak = add(body, cloakGeo, cloakMat, 0, 0.98, -0.04);
+  // spiked iron shoulders
   for (const s of [-1, 1]) {
-    add(new THREE.SphereGeometry(0.045, 10, 8), eyeMat, s * 0.09, 1.97, 0.33, 1.5, 0.65, 0.5); // ...and two red eyes
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xff3040, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-    glow.position.set(s * 0.09, 1.97, 0.36);
-    glow.scale.setScalar(0.28);
+    const pad = add(body, new THREE.SphereGeometry(0.3, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), iron, s * 0.55, 1.72, 0, 1.15, 0.7, 1);
+    pad.rotation.z = -s * 0.35;
+    for (let k = 0; k < 3; k++) {
+      const spike = add(body, new THREE.ConeGeometry(0.05, 0.32 - k * 0.06, 6), iron, s * (0.5 + k * 0.12), 1.92 - k * 0.07, -0.05 + (k - 1) * 0.1);
+      spike.rotation.z = -s * (0.45 + k * 0.2);
+    }
+  }
+  // the hood: big, coming to a point at the back, the dark of it deep
+  const hood = add(body, new THREE.SphereGeometry(0.38, 22, 16), robe, 0, 2.18, -0.04, 1, 1.15, 1.05);
+  const peak = add(body, new THREE.ConeGeometry(0.22, 0.5, 14), robe, 0, 2.42, -0.22);
+  peak.rotation.x = -0.9;
+  add(body, new THREE.SphereGeometry(0.29, 18, 12), glowMat(0x010003), 0, 2.13, 0.12, 1, 1.08, 0.75); // nothing in there but dark...
+  void hood;
+  // ...two fiery slit eyes, tilted into a scowl...
+  const eyeMat = glowMat(0xff2a1a), eyeGlow = [];
+  for (const s of [-1, 1]) {
+    const eye = add(body, new THREE.SphereGeometry(0.05, 12, 8), eyeMat, s * 0.1, 2.17, 0.36, 1.9, 0.5, 0.5);
+    eye.rotation.z = s * 0.38;
+    add(body, new THREE.SphereGeometry(0.025, 8, 6), glowMat(0xffe2a0), s * 0.1, 2.17, 0.38, 1.4, 0.6, 0.5); // white-hot middles
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xff3020, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    glow.position.set(s * 0.1, 2.17, 0.42);
+    glow.scale.setScalar(0.36);
     body.add(glow);
     eyeGlow.push(glow);
   }
-  // the crown: an iron band, seven spikes, violet gems
-  const iron = m(0x2e2638, { metalness: 0.7, roughness: 0.35, emissive: 0x140a20, emissiveIntensity: 0.4 });
-  const band = add(new THREE.TorusGeometry(0.25, 0.04, 6, 24), iron, 0, 2.24, -0.02);
-  band.rotation.x = Math.PI / 2;
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * Math.PI * 2 + Math.PI / 2, spike = add(new THREE.ConeGeometry(0.05, i === 0 ? 0.34 : 0.24, 6), iron, Math.cos(a) * 0.25, 2.38 + (i === 0 ? 0.05 : 0), -0.02 + Math.sin(a) * 0.25);
-    spike.rotation.set(Math.sin(a) * 0.25, 0, -Math.cos(a) * 0.25);
+  // ...and a jagged glowing grin
+  const grin = [];
+  for (let i = 0; i <= 8; i++) { const u = i / 8, x = (u - 0.5) * 0.3; grin.push(new THREE.Vector3(x, 2.03 + (u - 0.5) ** 2 * 0.5 + (i % 2 ? -0.025 : 0.02), 0.35 - Math.abs(x) * 0.25)); }
+  add(body, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(grin, false, 'catmullrom', 0.1), 40, 0.011, 5), glowMat(0xff5a2a), 0, 0, 0);
+  // great curved horns out of the sides of the hood, sweeping up and back
+  const hornMat = m(0x1c1418, { roughness: 0.4, metalness: 0.2, emissive: 0x200a10, emissiveIntensity: 0.4 });
+  for (const s of [-1, 1]) {
+    const pts = [[0.26, 2.3, -0.02], [0.48, 2.42, -0.06], [0.6, 2.7, -0.16], [0.55, 3.0, -0.3], [0.42, 3.18, -0.42]].map(([x, y, z]) => new THREE.Vector3(s * x, y, z));
+    const curve = new THREE.CatmullRomCurve3(pts), geo = new THREE.TubeGeometry(curve, 24, 1, 10, false), hp = geo.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3();
+    for (let i = 0; i <= 24; i++) { const r = 0.09 * (1 - i / 24) + 0.006; curve.getPointAt(i / 24, c); for (let j = 0; j <= 10; j++) { const k = i * 11 + j; v.fromBufferAttribute(hp, k).sub(c).multiplyScalar(r); hp.setXYZ(k, c.x + v.x, c.y + v.y, c.z + v.z); } }
+    geo.computeVertexNormals();
+    add(body, geo, hornMat, 0, 0, 0);
+    for (let k = 0; k < 4; k++) { const p = curve.getPointAt(0.12 + k * 0.12); add(body, new THREE.TorusGeometry(0.085 * (1 - k * 0.16), 0.012, 5, 14), hornMat, p.x, p.y, p.z).lookAt(curve.getPointAt(0.13 + k * 0.12).add(curve.getTangentAt(0.12 + k * 0.12))); } // ridges
   }
-  for (const a of [Math.PI / 2 - 0.6, Math.PI / 2, Math.PI / 2 + 0.6]) add(new THREE.OctahedronGeometry(0.04), m(0xb06aff, { emissive: 0xb06aff, emissiveIntensity: 1, full: 1 }), Math.cos(a) * 0.27, 2.25, -0.02 + Math.sin(a) * 0.27);
-  // arms reaching forward to where the Heartstone hangs, clawed hands
-  const STONE = new THREE.Vector3(0, 1.45, 0.75);
+  // the crown: a jagged iron band, tall spikes, burning violet gems
+  const band = add(body, new THREE.CylinderGeometry(0.31, 0.33, 0.1, 20, 1, true), iron, 0, 2.43, -0.03);
+  band.material.side = THREE.DoubleSide;
+  const gemMat = glowMat(0xc070ff);
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2 + Math.PI / 2, tall = i === 0 ? 0.55 : i === 1 || i === 8 ? 0.4 : 0.28;
+    const spike = add(body, new THREE.ConeGeometry(0.05, tall, 5), iron, Math.cos(a) * 0.31, 2.48 + tall / 2, -0.03 + Math.sin(a) * 0.31);
+    spike.rotation.set(Math.sin(a) * 0.2, 0, -Math.cos(a) * 0.2);
+    if (i === 0 || i === 1 || i === 8) add(body, new THREE.OctahedronGeometry(0.05), gemMat, Math.cos(a) * 0.335, 2.45, -0.03 + Math.sin(a) * 0.335);
+  }
+  // long arms in tattered sleeves, reaching for the stone, long iron claws
+  const STONE = new THREE.Vector3(0, 1.55, 0.85);
   const arms = [-1, 1].map((s) => {
     const arm = new THREE.Group();
-    arm.position.set(s * 0.52, 1.62, 0.05);
+    arm.position.set(s * 0.58, 1.72, 0.05);
     body.add(arm);
     const reach = new THREE.Group();
     arm.add(reach);
-    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.2, 0.62, 10, 1, true), robe);
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.26, 0.72, 12, 1, true), cloakMat);
     sleeve.rotation.x = Math.PI / 2;
-    sleeve.position.z = 0.31;
+    sleeve.position.z = 0.36;
     reach.add(sleeve);
     const hand = new THREE.Group();
-    hand.position.z = 0.66;
+    hand.position.z = 0.76;
     reach.add(hand);
-    hand.add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), dark));
-    for (const k of [-1, 0, 1]) {
-      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.16, 5), iron);
-      claw.position.set(k * 0.05, 0, 0.1);
-      claw.rotation.set(Math.PI / 2, 0, 0);
+    hand.add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), dark));
+    for (const k of [-1.5, -0.5, 0.5, 1.5]) {
+      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.26, 5), iron);
+      claw.position.set(k * 0.045, -0.02, 0.15);
+      claw.rotation.set(Math.PI / 2 + 0.35, 0, k * 0.12);
       hand.add(claw);
     }
     return { arm, reach, side: s };
@@ -1137,25 +1177,43 @@ export function makeShadowKing() {
   stone.position.copy(STONE);
   g.add(stone);
   const shards = COLORS.map((color, i) => {
-    const a = (i / 3) * Math.PI * 2, s = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1, roughness: 0.2, transparent: true }));
-    s.scale.set(0.7, 1.7, 0.7);
-    s.userData.home = new THREE.Vector3(Math.cos(a) * 0.07, 0, Math.sin(a) * 0.07);
-    s.userData.away = new THREE.Vector3(Math.cos(a + 0.5) * 2.2, -1.7, Math.sin(a + 0.5) * 2.2 + 0.4); // off and down into the ground
-    s.rotation.set(Math.sin(a) * 0.35, a, -Math.cos(a) * 0.35);
-    stone.add(s);
-    return s;
+    const a = (i / 3) * Math.PI * 2, sh = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1, roughness: 0.2, transparent: true }));
+    sh.scale.set(0.7, 1.7, 0.7);
+    sh.userData.home = new THREE.Vector3(Math.cos(a) * 0.07, 0, Math.sin(a) * 0.07);
+    sh.userData.away = new THREE.Vector3(Math.cos(a + 0.5) * 2.2, -1.8, Math.sin(a + 0.5) * 2.2 + 0.4); // off and down into the ground
+    sh.rotation.set(Math.sin(a) * 0.35, a, -Math.cos(a) * 0.35);
+    stone.add(sh);
+    return sh;
   });
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffe2f0, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
   glow.scale.setScalar(0.9);
   stone.add(glow);
-  const smoke = []; // dark wisps curling round his feet
-  for (let i = 0; i < 12; i++) {
-    const mat = new THREE.MeshBasicMaterial({ color: 0x2a1a40, transparent: true, opacity: 0, depthWrite: false });
-    fade.push([mat, 0.45]);
-    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), mat);
+  // dark purple flames rising round him, and smoke curling at his feet
+  const flames = [];
+  for (let i = 0; i < 26; i++) {
+    const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: i % 3 ? 0x7a2aff : 0xb04aff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    body.add(f);
+    flames.push(f);
+  }
+  const smoke = [];
+  for (let i = 0; i < 14; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0x1a0a2a, transparent: true, opacity: 0, depthWrite: false });
+    fade.push([mat, 0.55]);
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.36, 10, 8), mat);
     body.add(puff);
     smoke.push(puff);
   }
+  // his light: a purple glow round him and the red of his eyes on the cloak; a white flash as he comes
+  const aura = new THREE.PointLight(0x9a4aff, 0, 9, 1.5);
+  aura.position.set(0, 1.4, 0.9);
+  body.add(aura);
+  const eyesLight = new THREE.PointLight(0xff3020, 0, 3, 2);
+  eyesLight.position.set(0, 2.15, 0.7);
+  body.add(eyesLight);
+  const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xe8d8ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  flash.position.set(0, 1.6, 0.2);
+  flash.scale.setScalar(7);
+  g.add(flash);
   const T = SHADOW_KING_TIMES, ease = (v) => { v = Math.min(1, Math.max(0, v)); return v * v * (3 - 2 * v); };
   const _cam = new THREE.Vector3();
   g.userData.update = (t, camera) => {
@@ -1163,37 +1221,56 @@ export function makeShadowKing() {
       g.getWorldPosition(_cam).sub(camera.position);
       g.rotation.y = Math.atan2(-_cam.x, -_cam.z);
     }
-    const shown = ease((t - T.appear) / 1.5) * (1 - ease((t - T.gone + 1.4) / 1.4));
+    const shown = ease((t - T.appear) / 0.9) * (1 - ease((t - T.gone + 1.4) / 1.4));
     for (const [mat, full] of fade) mat.opacity = full * shown;
     body.visible = shown > 0.001;
-    body.position.y = -0.4 * (1 - ease((t - T.appear) / 2)) + Math.sin(t * 1.3) * 0.04; // rising up out of the dark
-    const laugh = t > T.crack && t < T.gone ? Math.sin(t * 22) * 0.012 : 0; // shaking with laughter
+    body.position.y = -0.5 * (1 - ease((t - T.appear) / 1.6)) + Math.sin(t * 1.1) * 0.05; // rising up out of the dark
+    const laugh = t > T.crack && t < T.gone ? Math.sin(t * 24) * 0.014 : 0; // shaking with laughter
     body.position.x = laugh;
-    for (const e of eyeGlow) e.material.opacity = shown * (0.8 + Math.sin(t * 5) * 0.2);
+    hood.rotation.x = laugh * 6;
+    const flicker = 0.85 + Math.sin(t * 13) * 0.08 + Math.sin(t * 31) * 0.07;
+    for (const e of eyeGlow) e.material.opacity = shown * flicker;
+    eyesLight.intensity = 2.5 * shown * flicker;
+    aura.intensity = 6 * shown * (0.85 + Math.sin(t * 3) * 0.15);
+    flash.material.opacity = Math.max(0, 1 - Math.abs(t - T.appear - 0.05) / 0.35) * 0.9; // the lightning as he comes
+    // the cloak ripples, more at the hem
+    for (let i = 0; i < cp.count; i++) {
+      const bx = base[i * 3], by = base[i * 3 + 1], bz = base[i * 3 + 2], low = Math.max(0, (0.97 - by) / 2.2), a = Math.atan2(bx, bz);
+      const w = Math.sin(t * 2.2 + a * 3 + by * 2) * 0.09 * low + Math.sin(t * 3.7 + a * 5) * 0.04 * low;
+      cp.setXYZ(i, bx * (1 + w), by, bz * (1 + w));
+    }
+    cp.needsUpdate = true;
+    cloak.geometry.computeVertexNormals();
     // the arms: out wide, then reaching in to close round the stone
     const grab = ease((t - T.appear - 0.5) / (T.grab - T.appear - 0.5));
     for (const a of arms) {
       const to = STONE.clone().sub(a.arm.position);
       const yaw = Math.atan2(to.x, to.z), pitch = -Math.atan2(to.y, Math.hypot(to.x, to.z));
-      a.reach.rotation.set(pitch * grab + 0.5 * (1 - grab), yaw * grab + a.side * 0.9 * (1 - grab), 0);
+      a.reach.rotation.set(pitch * grab + 0.6 * (1 - grab), yaw * grab + a.side * 1.0 * (1 - grab), 0);
     }
     // the stone: glowing on its own, dimming in his grip, then the crack: three shards streaking away
     const crack = ease((t - T.crack) / 2), dim = ease((t - T.grab) / (T.crack - T.grab));
     stone.rotation.y = t * 0.6;
-    shards.forEach((s, i) => {
-      s.position.copy(s.userData.home).lerp(s.userData.away, crack);
-      s.position.y += Math.sin(crack * Math.PI) * 0.6; // up out of his hands first, then down
-      s.material.emissiveIntensity = t < T.crack ? 1 - dim * 0.6 : 1.3;
-      s.material.opacity = 1 - ease((t - T.crack - 1.6) / 0.5);
-      s.rotation.x += 0.02 * (i + 1) * crack;
+    shards.forEach((sh, i) => {
+      sh.position.copy(sh.userData.home).lerp(sh.userData.away, crack);
+      sh.position.y += Math.sin(crack * Math.PI) * 0.6; // up out of his hands first, then down
+      sh.material.emissiveIntensity = t < T.crack ? 1 - dim * 0.6 : 1.3;
+      sh.material.opacity = 1 - ease((t - T.crack - 1.6) / 0.5);
+      sh.rotation.x += 0.02 * (i + 1) * crack;
     });
     glow.material.opacity = t < T.crack ? 0.8 - dim * 0.5 + Math.sin(t * 2) * 0.1 : Math.max(0, 1 - (t - T.crack) * 2); // a flash as it breaks
     glow.scale.setScalar(t < T.crack ? 0.9 : 0.9 + (t - T.crack) * 3);
     stone.visible = t < T.crack + 2.3;
-    smoke.forEach((p, i) => {
-      const a = i * 0.52 + t * (0.3 + (i % 3) * 0.1), r = 0.7 + (i % 4) * 0.15;
-      p.position.set(Math.cos(a) * r, 0.05 + (i % 3) * 0.18 + Math.sin(t + i) * 0.05, Math.sin(a) * r);
-      p.scale.setScalar(0.8 + Math.sin(t * 0.8 + i) * 0.25);
+    flames.forEach((f, i) => { // licking up round him and fading as they rise
+      const u = (t * (0.35 + (i % 5) * 0.05) + i * 0.137) % 1, a = i * 2.39 + t * 0.4, r = 0.75 + (i % 4) * 0.12 - u * 0.25;
+      f.position.set(Math.cos(a) * r, u * 2.4, Math.sin(a) * r * 0.8 - 0.1);
+      f.scale.setScalar((0.55 + (i % 3) * 0.2) * (1 - u * 0.6));
+      f.material.opacity = shown * Math.sin(u * Math.PI) * 0.55;
+    });
+    smoke.forEach((pf, i) => {
+      const a = i * 0.45 + t * (0.3 + (i % 3) * 0.1), r = 0.9 + (i % 4) * 0.18;
+      pf.position.set(Math.cos(a) * r, 0.05 + (i % 3) * 0.16 + Math.sin(t + i) * 0.05, Math.sin(a) * r);
+      pf.scale.setScalar(0.8 + Math.sin(t * 0.8 + i) * 0.25);
     });
   };
   g.userData.update(0, null);

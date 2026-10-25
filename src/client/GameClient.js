@@ -822,7 +822,7 @@ export class GameClient {
     this.pos.rot = 0; // (facing the camera at the end)
     const ease = (v) => { v = Math.min(1, Math.max(0, v)); return v * v * (3 - 2 * v); };
     // the Shadow King looms up over the fort for his part of the legend (town.js makeShadowKing)
-    const KING = 5.5, T = SHADOW_KING_TIMES, king = makeShadowKing();
+    const KING = 4.8, T = SHADOW_KING_TIMES, king = makeShadowKing();
     king.scale.setScalar(KING);
     king.position.copy(middle);
     this.scene.add(king);
@@ -835,10 +835,16 @@ export class GameClient {
         const FROM = T.appear - 0.5, TO = T.gone + 1.5, paused = Math.min(Math.max(t - FROM, 0), TO - FROM);
         const k = ease((t - paused) / (INTRO_CAPTIONS.at(-1)[0] + 3 - (TO - FROM))), at = middle.clone().lerp(new THREE.Vector3(you.x, 0, you.z), k);
         const w = ease((t - T.appear + 0.5) / 1.5) * (1 - ease((t - T.gone) / 1.5));
-        const r = 26 - 21.5 * k, a = (1 - k) * 2.6 + paused * 0.06, h = 24 - 21.8 * k - 11 * w; // (slowly round him)
-        return { pos: new THREE.Vector3(at.x + Math.sin(a) * r, h, at.z + Math.cos(a) * r), look: at.clone().add(new THREE.Vector3(0, 1.2 * k + 1.5 * KING * w, 0)) };
+        const r = 26 - 21.5 * k, a = (1 - k) * 2.6 + paused * 0.06, h = 24 - 21.8 * k - 10 * w; // (slowly round him)
+        return { pos: new THREE.Vector3(at.x + Math.sin(a) * r, h, at.z + Math.cos(a) * r), look: at.clone().add(new THREE.Vector3(0, 1.2 * k + 1.95 * KING * w, 0)) };
       },
-      onFrame: (t) => king.userData.update(t, this.camera),
+      onFrame: (t) => {
+        king.userData.update(t, this.camera);
+        const c = this.cinematic;
+        if (c && !c.boomed && t >= T.appear) { c.boomed = true; this.sfx.play('thunder'); } // lightning as he comes...
+        if (c && !c.laughed && t >= T.crack + 0.2) { c.laughed = true; this.sfx.play('laugh'); } // ...and his laugh as the stone breaks
+        if (t > T.appear && t < T.appear + 0.7) { const k = (T.appear + 0.7 - t) * 0.5; this.camera.position.x += (Math.random() - 0.5) * k; this.camera.position.y += (Math.random() - 0.5) * k; } // the ground shakes
+      },
       done: () => {
         king.removeFromParent();
         king.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });

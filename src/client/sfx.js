@@ -201,6 +201,22 @@ export class Sfx {
     this.noise({ dur: 0.12, vol: 0.12, type: 'bandpass', from: 900, to: 2200, q: 1.5 });
   }
 
+  thunder() { // a crack of lightning and a long rolling rumble
+    this.noise({ dur: 0.25, vol: 0.4, type: 'highpass', from: 3000, to: 800 });
+    this.noise({ at: 0.05, dur: 2.4, vol: 0.38, from: 600, to: 40, q: 0.5 });
+    this.tone({ type: 'sine', from: 70, to: 30, at: 0.05, dur: 2.0, vol: 0.3 });
+    for (let i = 0; i < 4; i++) this.noise({ at: 0.4 + i * 0.35, dur: 0.6, vol: 0.15, from: 300 - i * 40, to: 60 });
+  }
+
+  laugh() { // an evil king's laugh: deep "ha"s, falling, echoing away
+    for (let i = 0; i < 6; i++) {
+      const at = i * 0.24, hz = 120 - i * 7, vol = 0.16 * (1 - i * 0.1);
+      for (const [mul, v] of [[1, 1], [2.02, 0.35], [3.01, 0.15]]) this.tone({ type: 'sawtooth', from: hz * mul * 1.08, to: hz * mul * 0.9, at, dur: 0.18, vol: vol * v * 0.5 });
+      this.noise({ at, dur: 0.14, vol: vol * 0.5, type: 'bandpass', from: 700, to: 500, q: 2 });
+      for (let e = 1; e <= 2; e++) this.tone({ type: 'sawtooth', from: hz * 1.08, to: hz * 0.9, at: at + e * 0.3, dur: 0.16, vol: vol * 0.18 / e }); // the echo
+    }
+  }
+
   nova() { // the area spell: a boom and a wash
     this.tone({ from: 160, to: 38, dur: 0.5, vol: 0.3 });
     this.noise({ dur: 0.6, vol: 0.22, from: 1600, to: 90 });
