@@ -66,7 +66,7 @@ export class Hud {
     this.floats = el('div', 'hud-floats');
     this.modal = el('div', 'modal-backdrop hidden');
     this.danger = el('div', 'hud-danger');
-    this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · J jump · V fly (jetpack) · E interact · Q potion · G feed pet · R area spell · Tab item bar · C character · P pets · L story · Right-drag tilt camera · Enter chat · M music · Esc menu');
+    this.help = el('div', 'hud-help', 'WASD move · Space/click attack · Shift roll · J jump · V fly (jetpack) · E interact · Q potion · G feed pet · R area spell · Tab item bar · C character · P pets · L story · Right-drag turn &amp; tilt camera · Enter chat · M music · Esc menu');
     root.append(this.cinemaEl, this.danger, this.status, this.invite, this.xp, this.inv, this.barHint, this.promptEl, this.seasonSleepEl, this.spell, this.toasts, this.chatLog, this.chatInput, this.floats, this.modal, this.help);
     this.self = null;
     this.world = null;

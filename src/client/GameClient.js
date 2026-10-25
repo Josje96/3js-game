@@ -16,6 +16,8 @@ import { Input } from './input.js';
 import { Hud } from './hud.js';
 import { Music, moodFor } from './music.js';
 import { Sfx } from './sfx.js';
+import { Narrator } from './narrator.js';
+import { makeShadowKing, SHADOW_KING_TIMES } from './town.js';
 import { ENCHANT_LOOKS } from '../shared/enchant.js';
 import { useDistance, flyHeightAt } from '../shared/props.js';
 import { holidayOf, seasonOf, SOLSTICE_ARENA, SLEIGH_PARKED, christmasSolids, christmasKeepOut } from '../shared/seasons.js';
@@ -37,10 +39,11 @@ const HAT_CLEAR = 0.6; // how high the hat lifts off your head before it goes ov
 /** The intro (checkIntro): the legend of the Heartstone, and why you've moved into the old fort. [from second, caption] */
 const INTRO_CAPTIONS = [
   [0, '✨ Long ago, a glowing stone sat in Pebble Town’s fountain: the Heartstone. It kept the town warm and safe…'],
-  [6, '🌑 Then one night the Shadow King stole it, broke it into three shards, and hid them deep under the ground.'],
-  [12, '👹 Ever since, monsters have crept up out of the dungeons… and the town needs heroes.'],
-  [18, '🏰 So the Mayor gave this empty old fort to a brave new family… YOU!'],
-  [24, '💎 Find the three shards, bring the Heartstone home, and make Pebble Town shine again! (L: your Story book)'],
+  [SHADOW_KING_TIMES.appear, '🌑 Then, one dark night, the Shadow King came. He took the Heartstone in his cold hands…'],
+  [SHADOW_KING_TIMES.crack, '💥 …broke it into three shards, and hid them deep under the ground.'],
+  [14, '👹 Ever since, monsters have crept up out of the dungeons… and the town needs heroes.'],
+  [20, '🏰 So the Mayor gave this empty old fort to a brave new family… YOU!'],
+  [26, '💎 Find the three shards, bring the Heartstone home, and make Pebble Town shine again! (L: your Story book)'],
 ];
 /** The Heartstone films (checkShards), one per shard. */
 const SHARD_FILMS = [
@@ -48,8 +51,16 @@ const SHARD_FILMS = [
   { intro: '💎 The second shard floats over the rooftops…', outro: '💎 Two shards! Pebble Town feels warmer already. (L: your Story book)' },
   { intro: '💎 The last shard… the Heartstone is whole again!', outro: '💎 The Heartstone shines over Pebble Town once more! Go and say hello to Corvin. (L: your Story book)' },
 ];
+const UP = new THREE.Vector3(0, 1, 0);
+/** A move on the keys ({x, z}, up the screen = -z) turned round to match the camera's turn. */
+function turnWith(m, yaw) {
+  if (!yaw || (!m.x && !m.z)) return m;
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  return { ...m, x: m.x * c + m.z * s, z: -m.x * s + m.z * c };
+}
 /** The camera: how far back, and how steeply it looks down (radians; the old fixed view was 17 up, 15 back). Right-drag tilts it within limits. */
-const CAM_DIST = Math.hypot(17, 15), CAM_PITCH = Math.atan2(17, 15), CAM_PITCH_MIN = 0.55, CAM_PITCH_MAX = 1.35, CAM_PITCH_KEY = 'fdg.camPitch';
+const CAM_DIST = Math.hypot(17, 15), CAM_PITCH = Math.atan2(17, 15), CAM_PITCH_MIN = 0.55, CAM_PITCH_MAX = 1.35, CAM_PITCH_KEY = 'fdg.camPitch', CAM_YAW_KEY = 'fdg.camYaw';
+const CAM_YAW_MAX = 0.8; // (about 45° either way: only the walls on the south side are cut down to see past)
 const TREAT_HEARING = 18; // how near a cottage door you have to be to hear someone knock
 /** A point in a bed's own space (x across, z from headboard to foot), in the world. */
 function bedPoint(bed, x, y, z) {
@@ -143,6 +154,8 @@ export class GameClient {
     };
     this.camPitch = CAM_PITCH; // (right-drag tilts it: remembered in this browser)
     try { const saved = Number(localStorage.getItem(CAM_PITCH_KEY)); if (saved >= CAM_PITCH_MIN && saved <= CAM_PITCH_MAX) this.camPitch = saved; } catch {}
+    this.camYaw = 0; // (right-drag sideways turns it round you; the keys turn with it, so W is always up the screen)
+    try { this.camYaw = Math.max(-CAM_YAW_MAX, Math.min(CAM_YAW_MAX, Number(localStorage.getItem(CAM_YAW_KEY)) || 0)); } catch {}
     this.time = 0;
     this.world = null;
     this.self = null;
@@ -153,6 +166,7 @@ export class GameClient {
     this.music = new Music();
     this.music.unlock(); // we're usually still inside the Play/Join click
     this.sfx = new Sfx(this.music);
+    this.narrator = new Narrator(this.music); // (reads the story films' captions out)
     this.setupRenderer();
     this.input = new Input(this.renderer.domElement);
     this.hud = new Hud(document.getElementById('hud'), { onModalChange: (open) => { this.input.enabled = !open; } });
@@ -807,16 +821,30 @@ export class GameClient {
     const L = this.layout, middle = new THREE.Vector3((L.w * CELL) / 2, 0, (L.h * CELL) / 2), you = this.pos;
     this.pos.rot = 0; // (facing the camera at the end)
     const ease = (v) => { v = Math.min(1, Math.max(0, v)); return v * v * (3 - 2 * v); };
+    // the Shadow King looms up over the fort for his part of the legend (town.js makeShadowKing)
+    const KING = 5.5, T = SHADOW_KING_TIMES, king = makeShadowKing();
+    king.scale.setScalar(KING);
+    king.position.copy(middle);
+    this.scene.add(king);
+    this.music.setMood('legend');
     this.cinematic = {
       kind: 'visit', where: 'house', t: 0, waved: false, npcs: [], focus: middle.clone(), arrive: INTRO_CAPTIONS.at(-1)[0] + 5, end: INTRO_CAPTIONS.at(-1)[0] + 8, sound: 'levelup',
-      captions: INTRO_CAPTIONS, intro: INTRO_CAPTIONS[0][1], outro: INTRO_CAPTIONS.at(-1)[1], colors: [0xff8ac8, 0xffd27a, 0x8ae8ff, 0xffffff],
+      captions: INTRO_CAPTIONS, intro: INTRO_CAPTIONS[0][1], outro: INTRO_CAPTIONS.at(-1)[1], colors: [0xff8ac8, 0xffd27a, 0x8ae8ff, 0xffffff], narrate: true,
       burstAt: new THREE.Vector3(you.x, 0, you.z - 2.5), // (sparkles behind you, not in your face)
-      shot: (t) => { // from high over the fort, circling down to you
-        const k = ease(t / (INTRO_CAPTIONS.at(-1)[0] + 3)), at = middle.clone().lerp(new THREE.Vector3(you.x, 0, you.z), k);
-        const r = 26 - 21.5 * k, a = (1 - k) * 2.6, h = 24 - 21.8 * k;
-        return { pos: new THREE.Vector3(at.x + Math.sin(a) * r, h, at.z + Math.cos(a) * r), look: at.clone().add(new THREE.Vector3(0, 1.2 * k, 0)) };
+      shot: (t) => { // from high over the fort, circling down to you; while he's there it stops coming down, drops low and looks up at him
+        const FROM = T.appear - 0.5, TO = T.gone + 1.5, paused = Math.min(Math.max(t - FROM, 0), TO - FROM);
+        const k = ease((t - paused) / (INTRO_CAPTIONS.at(-1)[0] + 3 - (TO - FROM))), at = middle.clone().lerp(new THREE.Vector3(you.x, 0, you.z), k);
+        const w = ease((t - T.appear + 0.5) / 1.5) * (1 - ease((t - T.gone) / 1.5));
+        const r = 26 - 21.5 * k, a = (1 - k) * 2.6 + paused * 0.06, h = 24 - 21.8 * k - 11 * w; // (slowly round him)
+        return { pos: new THREE.Vector3(at.x + Math.sin(a) * r, h, at.z + Math.cos(a) * r), look: at.clone().add(new THREE.Vector3(0, 1.2 * k + 1.5 * KING * w, 0)) };
       },
-      done: () => { try { localStorage.setItem(key, '1'); } catch {} },
+      onFrame: (t) => king.userData.update(t, this.camera),
+      done: () => {
+        king.removeFromParent();
+        king.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
+        this.music.setMood(moodFor(this.layout));
+        try { localStorage.setItem(key, '1'); } catch {}
+      },
     };
     this.hud.cinema(INTRO_CAPTIONS[0][1]);
   }
@@ -851,7 +879,7 @@ export class GameClient {
     }
     if (chunk) { captions.push([t, chunk.trim()]); t += Math.max(3.5, chunk.length / 30); }
     this.cinematic = {
-      kind: 'visit', where: this.layout.key, t: 0, waved: false, npcs: [], focus: you.clone(), arrive: t, end: t + 0.5, sound: 'chime',
+      kind: 'visit', where: this.layout.key, t: 0, waved: false, npcs: [], focus: you.clone(), arrive: t, end: t + 0.5, sound: 'chime', narrate: true,
       captions, intro: captions[0][1], outro: captions.at(-1)[1], colors: [0xffe27a, 0xffffff, 0xb8a6e0], burstAt: you.clone().add(new THREE.Vector3(0, 0, -3)),
       shot: (k) => { const a = 0.4 + k * 0.12; return { pos: new THREE.Vector3(you.x + Math.sin(a) * 7, 4.5, you.z + Math.cos(a) * 7), look: you.clone().add(new THREE.Vector3(0, 1.2, 0)) }; },
       done: () => {},
@@ -892,7 +920,12 @@ export class GameClient {
   /** A holiday film, frame by frame (from updateCamera). */
   playVisit(c, dt) {
     if (this.layout?.key !== (c.where ?? 'town')) return this.endVisit(c); // you left (town, or the fort for the intro) mid-film
-    c.t += dt;
+    // a narrated film waits for the voice to finish a line before the next caption (or the ending) comes up
+    // (at most 12 s on one line, in case a browser's speech never says it's done)
+    const due = c.narrate && this.narrator.speaking() ? [...(c.captions ?? []).map(([t]) => t), c.arrive ?? 6.5].find((t) => t > c.t) : null;
+    const hold = due != null && c.t + dt >= due && (c.held = (c.held ?? 0) + dt) < 12;
+    if (!hold) { c.t += dt; if (due == null || c.t < due) c.held = 0; }
+    c.onFrame?.(c.t, dt);
     const WALK_T = c.arrive ?? 6.5, END = c.end ?? 12.5;
     const u = Math.min(1, c.t / WALK_T), ease = u * u * (3 - 2 * u);
     const mid = new THREE.Vector3();
@@ -912,7 +945,7 @@ export class GameClient {
     else mid.copy(c.focus);
     if (c.captions) { // a film told in several captions: [[from t, text], ...]
       const cap = c.captions.filter(([t]) => c.t >= t).at(-1)?.[1];
-      if (cap && cap !== c.caption && !c.waved) { c.caption = cap; this.hud.cinema(cap); }
+      if (cap && cap !== c.caption && !c.waved) { c.caption = cap; this.hud.cinema(cap); if (c.narrate) this.narrator.say(cap); }
     }
     if (u >= 1 && !c.waved) {
       c.waved = true;
@@ -922,6 +955,7 @@ export class GameClient {
       const at = c.burstAt ?? mid;
       this.addEffect(new Debris(at.x, at.z, c.colors, 40));
       this.hud.cinema(c.outro);
+      if (c.narrate && c.outro !== c.caption) this.narrator.say(c.outro);
     }
     if (c.shot) { // a camera move of its own
       const { pos, look } = c.shot(c.t);
@@ -1032,6 +1066,7 @@ export class GameClient {
   }
 
   endVisit(c) {
+    if (c.narrate) this.narrator.stop();
     for (const n of c.npcs) { n.view.ch.root.position.set(0, 0, 0); n.view.ch.root.rotation.y = 0; n.view.ch.setBase('idle'); }
     if (c.ride) { // the sleigh back where it's parked
       const { sleigh } = c.ride;
@@ -1159,7 +1194,7 @@ export class GameClient {
     if (!canFly) this.flying = false;
 
     // movement (client-side, so it feels instant)
-    const m = input.move();
+    const m = turnWith(input.move(), this.camYaw); // (up the screen, however the camera is turned)
     let moving = m.x !== 0 || m.z !== 0;
     this.rollCooldown -= dt;
     if (input.consume('roll') && this.rolling <= 0 && this.rollCooldown <= 0 && this.self?.hp > 0) {
@@ -1387,11 +1422,16 @@ export class GameClient {
       this.camPitch = Math.max(CAM_PITCH_MIN, Math.min(CAM_PITCH_MAX, this.camPitch + tilt * 0.004));
       try { localStorage.setItem(CAM_PITCH_KEY, String(this.camPitch)); } catch {}
     }
+    const turn = this.input.takeTurn?.() ?? 0;
+    if (turn) { // right-drag sideways: round you
+      this.camYaw = Math.max(-CAM_YAW_MAX, Math.min(CAM_YAW_MAX, this.camYaw - turn * 0.004));
+      try { localStorage.setItem(CAM_YAW_KEY, String(this.camYaw)); } catch {}
+    }
     const target = new THREE.Vector3(this.pos.x, 1, this.pos.z);
     if (this.closeUp && !this.hud.modalOpen) this.closeUp = false;
     // wardrobe: swing in close, and shift the view so we stand left of the panel
     const offset = this.closeUp === 'face' ? new THREE.Vector3(0, 2.2, 5.2)
-      : this.closeUp ? new THREE.Vector3(0, 5.5, 9) : new THREE.Vector3(0, Math.sin(this.camPitch), Math.cos(this.camPitch)).multiplyScalar(CAM_DIST * this.zoom);
+      : this.closeUp ? new THREE.Vector3(0, 5.5, 9) : new THREE.Vector3(0, Math.sin(this.camPitch), Math.cos(this.camPitch)).multiplyScalar(CAM_DIST * this.zoom).applyAxisAngle(UP, this.camYaw);
     if (this.closeUp === 'face') { target.x += 0.9; target.y = 1.9; }
     else if (this.closeUp) target.x += 1.6;
     const want = target.clone().add(offset);

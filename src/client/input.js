@@ -51,11 +51,12 @@ export class Input {
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
     canvas.addEventListener('mousedown', (e) => { if (e.button === 0) this.pressed.add(this.barMode ? 'bar' : 'attack'); }); // (clicking the world ends choosing in the bar)
-    // hold the right mouse button and drag up or down: tilt the camera (GameClient)
+    // hold the right mouse button and drag: up or down tilts the camera, left or right turns it round you (GameClient)
     this.tilt = 0;
+    this.turn = 0;
     canvas.addEventListener('mousedown', (e) => { if (e.button === 2) this.tilting = true; });
     addEventListener('mouseup', (e) => { if (e.button === 2) this.tilting = false; });
-    addEventListener('mousemove', (e) => { if (this.tilting) this.tilt += e.movementY; });
+    addEventListener('mousemove', (e) => { if (this.tilting) { this.tilt += e.movementY; this.turn += e.movementX; } });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('wheel', (e) => { this.wheel += Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });
   }
@@ -102,6 +103,13 @@ export class Input {
   takeTilt() {
     const t = this.tilt;
     this.tilt = 0;
+    return t;
+  }
+
+  /** How far the mouse moved left/right with the right button held, since last asked (pixels). */
+  takeTurn() {
+    const t = this.turn;
+    this.turn = 0;
     return t;
   }
 

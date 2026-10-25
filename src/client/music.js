@@ -16,6 +16,8 @@ const MOODS = {
   spooky:{ scale: 'phrygian', root: 50, bpm: 56, lead: ['musicbox', 'bell'], arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.2,  sparkle: 0.06, dread: true },
   sea:   { scale: 'aeolian', root: 52, bpm: 62,  lead: ['flute', 'harp'],    arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.3,  sparkle: 0.1,  dread: true },
   keep:  { scale: 'harmonic', root: 52, bpm: 72, lead: ['flute', 'marimba'], arp: 'pluck', bass: true,  pad: true, drums: true,  density: 0.4,  sparkle: 0.04, dread: true },
+  // the intro's legend: slow and grand, a low harmonic-minor drone under a horn-like flute
+  legend:{ scale: 'harmonic', root: 50, bpm: 58, lead: ['flute', 'bell'],   arp: 'harp',  bass: true,  pad: true, drums: false, density: 0.32, sparkle: 0.1 },
   boss:  { scale: 'aeolian', root: 62, bpm: 128, lead: ['marimba', 'flute'], arp: 'pluck', bass: true,  pad: false, drums: true, density: 0.8,  sparkle: 0.05 },
 };
 

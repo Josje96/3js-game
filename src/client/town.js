@@ -1058,3 +1058,144 @@ export function makeSolsticeArena(dz, r) {
   };
   return g;
 }
+
+/**
+ * The Shadow King, for the intro (GameClient.checkIntro): a huge ghostly figure in a dark hooded robe,
+ * an iron crown of spikes with violet gems, two burning red eyes in the hood. He looms up out of the
+ * night, closes his claws round the glowing Heartstone, it cracks into three shards that streak away
+ * down into the ground, and he fades away laughing. `userData.update(t, camera)`: t = seconds into
+ * the film (SHADOW_KING_TIMES: when each part happens), turning to face the camera. About 2.3 tall: scale it up.
+ */
+export const SHADOW_KING_TIMES = { appear: 6, grab: 8, crack: 9.5, gone: 12.5 };
+export function makeShadowKing() {
+  const g = new THREE.Group(), body = new THREE.Group();
+  g.add(body);
+  const fade = []; // [material, full opacity]
+  const m = (color, { full = 0.94, ...o } = {}) => {
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, transparent: true, opacity: 0, depthWrite: false, ...o });
+    fade.push([mat, full]);
+    return mat;
+  };
+  const add = (geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) => { const me = new THREE.Mesh(geo, mat); me.position.set(x, y, z); me.scale.set(sx, sy, sz); body.add(me); return me; };
+  const robe = m(0x1a1028, { emissive: 0x2a1048, emissiveIntensity: 0.55, side: THREE.DoubleSide });
+  const dark = m(0x120a1c, { emissive: 0x1a0a30, emissiveIntensity: 0.5 });
+  add(new THREE.CylinderGeometry(0.36, 0.85, 1.6, 22, 1, true), robe, 0, 0.8, 0); // the robe
+  for (let i = 0; i < 14; i++) { // its tattered hem, trailing into smoke
+    const a = (i / 14) * Math.PI * 2, rag = add(new THREE.ConeGeometry(0.16, 0.45, 5), robe, Math.cos(a) * 0.8, -0.12, Math.sin(a) * 0.8);
+    rag.rotation.x = Math.PI;
+  }
+  add(new THREE.SphereGeometry(0.45, 18, 12), dark, 0, 1.6, 0, 1.4, 0.75, 0.95); // shoulders
+  add(new THREE.SphereGeometry(0.34, 18, 14), robe, 0, 1.98, -0.02, 1, 1.12, 1.02); // the hood
+  add(new THREE.SphereGeometry(0.25, 16, 12), m(0x020104, { emissive: 0x000000 }), 0, 1.94, 0.13, 1, 1.05, 0.8); // nothing inside it but dark...
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2a3a, transparent: true, opacity: 0 });
+  fade.push([eyeMat, 1]);
+  const eyeGlow = [];
+  for (const s of [-1, 1]) {
+    add(new THREE.SphereGeometry(0.045, 10, 8), eyeMat, s * 0.09, 1.97, 0.33, 1.5, 0.65, 0.5); // ...and two red eyes
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xff3040, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    glow.position.set(s * 0.09, 1.97, 0.36);
+    glow.scale.setScalar(0.28);
+    body.add(glow);
+    eyeGlow.push(glow);
+  }
+  // the crown: an iron band, seven spikes, violet gems
+  const iron = m(0x2e2638, { metalness: 0.7, roughness: 0.35, emissive: 0x140a20, emissiveIntensity: 0.4 });
+  const band = add(new THREE.TorusGeometry(0.25, 0.04, 6, 24), iron, 0, 2.24, -0.02);
+  band.rotation.x = Math.PI / 2;
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2 + Math.PI / 2, spike = add(new THREE.ConeGeometry(0.05, i === 0 ? 0.34 : 0.24, 6), iron, Math.cos(a) * 0.25, 2.38 + (i === 0 ? 0.05 : 0), -0.02 + Math.sin(a) * 0.25);
+    spike.rotation.set(Math.sin(a) * 0.25, 0, -Math.cos(a) * 0.25);
+  }
+  for (const a of [Math.PI / 2 - 0.6, Math.PI / 2, Math.PI / 2 + 0.6]) add(new THREE.OctahedronGeometry(0.04), m(0xb06aff, { emissive: 0xb06aff, emissiveIntensity: 1, full: 1 }), Math.cos(a) * 0.27, 2.25, -0.02 + Math.sin(a) * 0.27);
+  // arms reaching forward to where the Heartstone hangs, clawed hands
+  const STONE = new THREE.Vector3(0, 1.45, 0.75);
+  const arms = [-1, 1].map((s) => {
+    const arm = new THREE.Group();
+    arm.position.set(s * 0.52, 1.62, 0.05);
+    body.add(arm);
+    const reach = new THREE.Group();
+    arm.add(reach);
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.2, 0.62, 10, 1, true), robe);
+    sleeve.rotation.x = Math.PI / 2;
+    sleeve.position.z = 0.31;
+    reach.add(sleeve);
+    const hand = new THREE.Group();
+    hand.position.z = 0.66;
+    reach.add(hand);
+    hand.add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), dark));
+    for (const k of [-1, 0, 1]) {
+      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.16, 5), iron);
+      claw.position.set(k * 0.05, 0, 0.1);
+      claw.rotation.set(Math.PI / 2, 0, 0);
+      hand.add(claw);
+    }
+    return { arm, reach, side: s };
+  });
+  // the Heartstone, glowing, then cracking into three shards
+  const COLORS = [0xff8ac8, 0xffd27a, 0x8ae8ff];
+  const stone = new THREE.Group();
+  stone.position.copy(STONE);
+  g.add(stone);
+  const shards = COLORS.map((color, i) => {
+    const a = (i / 3) * Math.PI * 2, s = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1, roughness: 0.2, transparent: true }));
+    s.scale.set(0.7, 1.7, 0.7);
+    s.userData.home = new THREE.Vector3(Math.cos(a) * 0.07, 0, Math.sin(a) * 0.07);
+    s.userData.away = new THREE.Vector3(Math.cos(a + 0.5) * 2.2, -1.7, Math.sin(a + 0.5) * 2.2 + 0.4); // off and down into the ground
+    s.rotation.set(Math.sin(a) * 0.35, a, -Math.cos(a) * 0.35);
+    stone.add(s);
+    return s;
+  });
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffe2f0, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
+  glow.scale.setScalar(0.9);
+  stone.add(glow);
+  const smoke = []; // dark wisps curling round his feet
+  for (let i = 0; i < 12; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0x2a1a40, transparent: true, opacity: 0, depthWrite: false });
+    fade.push([mat, 0.45]);
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), mat);
+    body.add(puff);
+    smoke.push(puff);
+  }
+  const T = SHADOW_KING_TIMES, ease = (v) => { v = Math.min(1, Math.max(0, v)); return v * v * (3 - 2 * v); };
+  const _cam = new THREE.Vector3();
+  g.userData.update = (t, camera) => {
+    if (camera) { // face the camera
+      g.getWorldPosition(_cam).sub(camera.position);
+      g.rotation.y = Math.atan2(-_cam.x, -_cam.z);
+    }
+    const shown = ease((t - T.appear) / 1.5) * (1 - ease((t - T.gone + 1.4) / 1.4));
+    for (const [mat, full] of fade) mat.opacity = full * shown;
+    body.visible = shown > 0.001;
+    body.position.y = -0.4 * (1 - ease((t - T.appear) / 2)) + Math.sin(t * 1.3) * 0.04; // rising up out of the dark
+    const laugh = t > T.crack && t < T.gone ? Math.sin(t * 22) * 0.012 : 0; // shaking with laughter
+    body.position.x = laugh;
+    for (const e of eyeGlow) e.material.opacity = shown * (0.8 + Math.sin(t * 5) * 0.2);
+    // the arms: out wide, then reaching in to close round the stone
+    const grab = ease((t - T.appear - 0.5) / (T.grab - T.appear - 0.5));
+    for (const a of arms) {
+      const to = STONE.clone().sub(a.arm.position);
+      const yaw = Math.atan2(to.x, to.z), pitch = -Math.atan2(to.y, Math.hypot(to.x, to.z));
+      a.reach.rotation.set(pitch * grab + 0.5 * (1 - grab), yaw * grab + a.side * 0.9 * (1 - grab), 0);
+    }
+    // the stone: glowing on its own, dimming in his grip, then the crack: three shards streaking away
+    const crack = ease((t - T.crack) / 2), dim = ease((t - T.grab) / (T.crack - T.grab));
+    stone.rotation.y = t * 0.6;
+    shards.forEach((s, i) => {
+      s.position.copy(s.userData.home).lerp(s.userData.away, crack);
+      s.position.y += Math.sin(crack * Math.PI) * 0.6; // up out of his hands first, then down
+      s.material.emissiveIntensity = t < T.crack ? 1 - dim * 0.6 : 1.3;
+      s.material.opacity = 1 - ease((t - T.crack - 1.6) / 0.5);
+      s.rotation.x += 0.02 * (i + 1) * crack;
+    });
+    glow.material.opacity = t < T.crack ? 0.8 - dim * 0.5 + Math.sin(t * 2) * 0.1 : Math.max(0, 1 - (t - T.crack) * 2); // a flash as it breaks
+    glow.scale.setScalar(t < T.crack ? 0.9 : 0.9 + (t - T.crack) * 3);
+    stone.visible = t < T.crack + 2.3;
+    smoke.forEach((p, i) => {
+      const a = i * 0.52 + t * (0.3 + (i % 3) * 0.1), r = 0.7 + (i % 4) * 0.15;
+      p.position.set(Math.cos(a) * r, 0.05 + (i % 3) * 0.18 + Math.sin(t + i) * 0.05, Math.sin(a) * r);
+      p.scale.setScalar(0.8 + Math.sin(t * 0.8 + i) * 0.25);
+    });
+  };
+  g.userData.update(0, null);
+  return g;
+}
