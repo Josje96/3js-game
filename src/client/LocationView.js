@@ -646,7 +646,7 @@ export class LocationView {
         if (['wardrobe', 'springSign', 'bench', 'planter', 'cart', 'noticeboard'].includes(p.build)) this.still(obj);
         obj.position.set(p.x, p.y ?? 0, p.z);
         obj.rotation.y = p.rot ?? 0;
-        if (obj.userData.update) this.animated.push({ update: () => obj.userData.update(this.uTime.value) });
+        if (obj.userData.update) this.animated.push({ update: () => obj.userData.update(this.uTime.value, seasonOf(this.world?.day ?? 1).id) }); // (the banquet table dresses for the season)
       }
       const holder = new THREE.Group(); // so a stall + its keeper can be hidden together
       holder.add(obj);

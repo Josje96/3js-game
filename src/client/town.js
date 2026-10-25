@@ -503,8 +503,88 @@ export function makeFeastTable() {
     f.castShadow = false;
     flames.push(f);
   }
-  g.userData.update = (t) => flames.forEach((f, i) => f.scale.set(1, 1.2 + Math.sin(t * 11 + i * 2) * 0.3, 1));
+  // dressed for the season (userData.update(t, season)): the runner's colour, and a few things down the middle
+  const seasons = feastSeasons(), RUNNER = { spring: 0xf2a0c0, summer: 0xf2c43a, autumn: 0xd8642a, winter: 0x9a1e2a };
+  for (const look of Object.values(seasons)) g.add(look);
+  let shown = null;
+  g.userData.update = (t, season = 'spring') => {
+    flames.forEach((f, i) => f.scale.set(1, 1.2 + Math.sin(t * 11 + i * 2) * 0.3, 1));
+    if (season === shown || !seasons[season]) return;
+    shown = season;
+    for (const [id, look] of Object.entries(seasons)) look.visible = id === season;
+    runner.color.set(RUNNER[season]);
+  };
   return g;
+}
+
+/** The banquet table's seasonal things (makeFeastTable), one group per season, along the table (x -7..7, top at y 1.16). */
+function feastSeasons() {
+  const out = {}, grp = (id) => (out[id] = new THREE.Group());
+  const TOP = 1.17;
+  // spring: tulips in vases at each end, painted eggs, blossom petals
+  const spring = grp('spring');
+  for (const x of [-6.3, 6.3]) {
+    mesh(spring, new THREE.CylinderGeometry(0.14, 0.11, 0.36, 12), std(0xbfe0ff, { roughness: 0.3 }), x, TOP + 0.18, 0);
+    for (let i = 0; i < 5; i++) {
+      const a = i * 1.26, sx = x + Math.cos(a) * 0.08, sz = Math.sin(a) * 0.08;
+      mesh(spring, new THREE.CylinderGeometry(0.015, 0.015, 0.4, 5), std(0x4a9a3a), sx, TOP + 0.5, sz);
+      mesh(spring, new THREE.SphereGeometry(0.07, 8, 6), std([0xff5a7a, 0xffd23f, 0xff9ad0, 0xb48cff, 0xff7a3a][i]), sx, TOP + 0.72, sz).scale.set(1, 1.3, 1);
+    }
+  }
+  for (const [x, c] of [[-3.8, 0xff9ad0], [-0.9, 0x9ad8ff], [0.9, 0xfff07a], [3.8, 0xb8f0a0]]) mesh(spring, new THREE.SphereGeometry(0.1, 10, 8), std(c), x, TOP + 0.1, 0.1).scale.set(0.85, 1.15, 0.85);
+  for (let i = 0; i < 14; i++) mesh(spring, new THREE.CircleGeometry(0.05, 5), std(0xffc0d8, { side: THREE.DoubleSide }), -6 + i * 0.92, TOP + 0.012, Math.sin(i * 2.3) * 0.5).rotation.x = -Math.PI / 2;
+  // summer: sunflowers, watermelon slices, a jug of lemonade, berries
+  const summer = grp('summer');
+  for (const x of [-6.3, 6.3]) {
+    mesh(summer, new THREE.CylinderGeometry(0.14, 0.12, 0.34, 12), std(0xd9a066), x, TOP + 0.17, 0);
+    for (let i = 0; i < 3; i++) {
+      const sx = x + (i - 1) * 0.1;
+      mesh(summer, new THREE.CylinderGeometry(0.015, 0.015, 0.55, 5), std(0x4a9a3a), sx, TOP + 0.6, 0);
+      mesh(summer, new THREE.CylinderGeometry(0.13, 0.13, 0.03, 12), std(0xffc81a), sx, TOP + 0.9 + i * 0.05, 0.02).rotation.x = Math.PI / 2;
+      mesh(summer, new THREE.CylinderGeometry(0.06, 0.06, 0.04, 10), std(0x5a3a1a), sx, TOP + 0.9 + i * 0.05, 0.04).rotation.x = Math.PI / 2;
+    }
+  }
+  for (const x of [-3.8, 3.8]) {
+    const slice = mesh(summer, new THREE.CylinderGeometry(0.28, 0.28, 0.08, 16, 1, false, 0, Math.PI), std(0xff4a5a), x, TOP + 0.16, 0);
+    slice.rotation.x = Math.PI / 2;
+    mesh(summer, new THREE.CylinderGeometry(0.3, 0.3, 0.07, 16, 1, false, 0, Math.PI), std(0x3a9a3a), x, TOP + 0.15, -0.005).rotation.x = Math.PI / 2;
+  }
+  mesh(summer, new THREE.CylinderGeometry(0.14, 0.16, 0.42, 14), std(0xfff27a, { transparent: true, opacity: 0.85, roughness: 0.1 }), -0.9, TOP + 0.21, 0.1); // lemonade
+  mesh(summer, new THREE.SphereGeometry(0.22, 12, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), std(0xffffff), 0.9, TOP + 0.22, 0.1).rotation.x = Math.PI;
+  for (let i = 0; i < 6; i++) mesh(summer, new THREE.SphereGeometry(0.06, 6, 5), std(i % 2 ? 0x3a4ab8 : 0xd81e3a), 0.9 + Math.cos(i) * 0.1, TOP + 0.24, 0.1 + Math.sin(i) * 0.1);
+  // autumn: pumpkins, gourds, falling leaves
+  const autumn = grp('autumn');
+  for (const [x, r] of [[-6.3, 0.3], [6.3, 0.26], [-3.8, 0.18], [3.8, 0.2]]) {
+    const p = mesh(autumn, new THREE.SphereGeometry(r, 12, 8), std(0xf07a1a), x, TOP + r * 0.75, 0);
+    p.scale.set(1.15, 0.8, 1.15);
+    mesh(autumn, new THREE.CylinderGeometry(0.03, 0.04, 0.12, 6), std(0x5a7a2a), x, TOP + r * 1.45, 0);
+  }
+  for (const [x, c] of [[-0.9, 0xf2c02a], [0.9, 0x7aa83a]]) mesh(autumn, new THREE.CapsuleGeometry(0.08, 0.16, 4, 8), std(c), x, TOP + 0.08, 0.15).rotation.z = Math.PI / 2;
+  for (let i = 0; i < 16; i++) mesh(autumn, new THREE.CircleGeometry(0.08, 5), std([0xd84a1a, 0xf08a1a, 0xf2c02a][i % 3], { side: THREE.DoubleSide }), -6.2 + i * 0.82, TOP + 0.012, Math.cos(i * 1.9) * 0.55).rotation.x = -Math.PI / 2;
+  // winter: a pine garland down the middle with red berries, gingerbread, candy canes, a pudding
+  const winter = grp('winter');
+  for (let i = 0; i < 24; i++) {
+    const x = -6.6 + i * 0.57;
+    mesh(winter, new THREE.SphereGeometry(0.13, 7, 5), std(0x1f6a3a, { flatShading: true }), x, TOP + 0.1, Math.sin(i * 0.9) * 0.08).scale.set(1.4, 0.7, 1);
+    if (i % 3 === 0) mesh(winter, new THREE.SphereGeometry(0.04, 6, 5), std(0xd8202a), x + 0.1, TOP + 0.2, 0.08);
+  }
+  for (const x of [-3.8, 3.8]) {
+    const man = new THREE.Group();
+    man.position.set(x, TOP + 0.03, 0.35);
+    mesh(man, new THREE.SphereGeometry(0.07, 8, 6), std(0xb8702a), 0, 0.02, -0.12).scale.set(1, 0.4, 1);
+    mesh(man, new THREE.BoxGeometry(0.14, 0.04, 0.18), std(0xb8702a), 0, 0.02, 0.02);
+    winter.add(man);
+  }
+  for (const x of [-0.9, 0.9]) {
+    const cane = mesh(winter, new THREE.TorusGeometry(0.06, 0.018, 6, 10, Math.PI), std(0xffffff), x, TOP + 0.3, -0.3);
+    mesh(winter, new THREE.CylinderGeometry(0.018, 0.018, 0.3, 6), std(0xd8202a), x - 0.06, TOP + 0.15, -0.3);
+    cane.rotation.y = 0.3;
+  }
+  mesh(winter, new THREE.SphereGeometry(0.22, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), std(0x4a2a1a), 6.3, TOP, 0); // a Christmas pudding
+  mesh(winter, new THREE.SphereGeometry(0.16, 10, 6, 0, Math.PI * 2, 0, Math.PI / 3), std(0xfff6ea), 6.3, TOP + 0.08, 0);
+  mesh(winter, new THREE.SphereGeometry(0.035, 6, 5), std(0xd8202a), 6.3, TOP + 0.24, 0);
+  for (const g of Object.values(out)) g.visible = false;
+  return out;
 }
 
 /**
