@@ -229,6 +229,28 @@ export const STYLES = { // (exported for test/costumes.test.js)
     buttons(cl, [0.9, 0.78, 0.66], 0xffcf3f, 0, 0.016);
     for (const s of [-1, 1]) sleeve(cl, s, c, { cuff: true, cuffColor: lighter(c, 0.3) });
   },
+  // the circus ringmaster's tailcoat: a white waistcoat in the front, gold braid across the chest, gold buttons, a black collar
+  ringmaster(cl, c) {
+    torso(cl, c);
+    const gold = 0xf0c040, w = vee(0.9, 0.42);
+    panel(cl, 0.5, TOP - 0.03, (y) => FRONT - 0.32 + w(y) * 0.2, (y) => FRONT + 0.32 - w(y) * 0.2, 0.008, 0xf6f2ea, 14, 8); // the waistcoat
+    for (const y of [0.98, 0.88, 0.78, 0.68]) for (const s of [-1, 1]) cl.blob(surface(y, FRONT + s * 0.46, 0.014), [0.09, 0.016, 0.012], gold, torsoWeights(y)); // braid
+    buttons(cl, [0.98, 0.88, 0.78, 0.68], gold, 0, 0.018);
+    band(cl, () => TOP - 0.05, 0.07, 0.02, 0x1a1a1a); // the collar
+    for (const s of [-1, 1]) sleeve(cl, s, c, { cuff: true, cuffColor: gold });
+  },
+  // a clown suit: big spots of every colour, a frilly white ruff, pom-pom buttons, frilly cuffs
+  clown(cl, c) {
+    torso(cl, c);
+    const SPOTS = [0xff4a5a, 0x3a8aff, 0xffd23f, 0x4ac85a, 0xb06aff];
+    for (let i = 0; i < 26; i++) {
+      const y = 0.45 + ((i * 0.618) % 1) * 0.75, a = (i * 2.39996) % (Math.PI * 2);
+      cl.blob(surface(y, a, 0.01), [0.045, 0.045, 0.012], SPOTS[i % SPOTS.length], torsoWeights(y));
+    }
+    for (const [y, col] of [[0.95, 0xff4a5a], [0.8, 0x3a8aff], [0.65, 0xffd23f]]) cl.blob(surface(y, FRONT, 0.03), [0.05, 0.05, 0.04], col, torsoWeights(y), 10); // pom-poms
+    for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; cl.blob(surface(TOP - 0.02, a, 0.05), [0.08, 0.05, 0.08], 0xffffff, torsoWeights(TOP - 0.02)); } // the ruff
+    for (const s of [-1, 1]) sleeve(cl, s, c, { cuff: true, cuffColor: 0xffffff });
+  },
   // a pirate captain's coat: a gold sash from shoulder to hip, brass buttons, a lace jabot
   sash(cl, c) {
     torso(cl, c);

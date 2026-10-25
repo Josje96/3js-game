@@ -1017,6 +1017,66 @@ export const FURNITURE_BUILDERS = {
     g.add(palette);
     return g;
   },
+  bigtop() { // a little circus tent: red and white stripes, a flag on top, the door flaps tied open
+    const g = new THREE.Group(), N = 12;
+    for (let i = 0; i < N; i++) { // the striped roof: one wedge per stripe
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(1.4, 1.1, 2, 1, true, (i / N) * Math.PI * 2, Math.PI * 2 / N), mat(i % 2 ? 0xffffff : 0xd8202a, { side: THREE.DoubleSide }));
+      roof.position.y = 2.05;
+      roof.castShadow = true;
+      g.add(roof);
+      const wall = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 1.5, 2, 1, true, (i / N) * Math.PI * 2, Math.PI * 2 / N), mat(i % 2 ? 0xd8202a : 0xffffff, { side: THREE.DoubleSide }));
+      wall.position.y = 0.75;
+      wall.visible = !(i === 2 || i === 3); // (the doorway, facing out)
+      wall.castShadow = true;
+      g.add(wall);
+    }
+    box(g, 0.06, 0.6, 0.06, mat(0x8a5a34), 0, 2.85, 0);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.26), mat(0xffd23f, { side: THREE.DoubleSide }));
+    flag.position.set(0.2, 3.0, 0);
+    g.add(flag);
+    for (let i = 0; i < 12; i++) { // a scalloped trim round the roof's edge
+      const a = (i / 12) * Math.PI * 2, b = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), mat(0xffd23f));
+      b.position.set(Math.cos(a) * 1.38, 1.5, Math.sin(a) * 1.38);
+      g.add(b);
+    }
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(1.25, 24), mat(0xc89a5a, { roughness: 1 })); // sawdust
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = 0.02;
+    g.add(floor);
+    return g;
+  },
+  circusball() { // a big striped circus ball on a little star stand
+    const g = new THREE.Group(), cols = [0xd8202a, 0xffffff, 0x2a6ad8, 0xffd23f];
+    for (let i = 0; i < 8; i++) {
+      const seg = new THREE.Mesh(new THREE.SphereGeometry(0.55, 20, 14, (i / 8) * Math.PI * 2, Math.PI / 4), mat(cols[i % cols.length], { roughness: 0.35 }));
+      seg.position.y = 0.72;
+      seg.castShadow = true;
+      g.add(seg);
+    }
+    const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.2, 18), mat(0xffd23f, { metalness: 0.5, roughness: 0.3 }));
+    stand.position.y = 0.1;
+    g.add(stand);
+    return g;
+  },
+  podium() { // a circus podium: a drum in red and gold with stars round it, for standing on and taking a bow
+    const g = new THREE.Group();
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.7, 0.7, 24), mat(0xd8202a, { roughness: 0.5 }));
+    drum.position.y = 0.35;
+    drum.castShadow = true;
+    g.add(drum);
+    for (const y of [0.04, 0.68]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.04, 6, 28), mat(0xffd23f, { metalness: 0.6, roughness: 0.3 })); r.rotation.x = Math.PI / 2; r.position.y = y; g.add(r); }
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.04, 24), mat(0x2a6ad8)); top.position.y = 0.72; g.add(top);
+    const star = new THREE.Shape();
+    for (let i = 0; i < 10; i++) { const r = i % 2 ? 0.05 : 0.11, a = (i / 10) * Math.PI * 2; star[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, Math.cos(a) * r); }
+    const starGeo = new THREE.ShapeGeometry(star);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2, m = new THREE.Mesh(starGeo, mat(0xffe27a, { side: THREE.DoubleSide }));
+      m.position.set(Math.sin(a) * 0.67, 0.36, Math.cos(a) * 0.67);
+      m.rotation.y = a;
+      g.add(m);
+    }
+    return g;
+  },
   beanbag() { // a squishy beanbag
     const g = new THREE.Group();
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.62, 18, 12), mat(0xff7aa8, { roughness: 1 }));

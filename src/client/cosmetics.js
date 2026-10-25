@@ -308,6 +308,35 @@ const HAT_BUILDERS = {
     }
     return g;
   },
+  jester() { // a jester's hat: three floppy points in red, yellow and blue, a bell on each
+    const g = new THREE.Group(), cols = [0xd8202a, 0xffd23f, 0x2a6ad8];
+    g.add(mesh(new THREE.SphereGeometry(0.5, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(0xd8202a), 0, -0.12, 0));
+    g.add(mesh(new THREE.TorusGeometry(0.5, 0.06, 6, 24), mat(0xffd23f), 0, -0.1, 0)).children.at(-1).rotation.x = Math.PI / 2;
+    [-1, 0, 1].forEach((k, i) => {
+      const arm = new THREE.Group();
+      arm.position.set(k * 0.22, 0.25, k === 0 ? -0.1 : 0);
+      arm.rotation.z = -k * 0.9;
+      arm.rotation.x = k === 0 ? -0.5 : 0;
+      arm.add(mesh(new THREE.ConeGeometry(0.16, 0.62, 12), mat(cols[i]), 0, 0.28, 0));
+      arm.children.at(-1).rotation.z = -k * 0.35;
+      arm.add(mesh(new THREE.SphereGeometry(0.07, 10, 8), mat(0xffcf3f, { metalness: 0.7, roughness: 0.3 }), -k * 0.1, 0.6, 0)); // the bell
+      g.add(arm);
+    });
+    return g;
+  },
+  clownwig() { // a fluffy rainbow clown wig: big round puffs over the ears and on top
+    const g = new THREE.Group(), cols = [0xff4a5a, 0xff9a2a, 0xffd23f, 0x4ac85a, 0x3a8aff, 0xb06aff];
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2, ring = i % 3;
+      const r = 0.42 + ring * 0.04, y = -0.05 + ring * 0.14;
+      g.add(mesh(new THREE.SphereGeometry(0.2 - ring * 0.02, 10, 8), mat(cols[i % cols.length], { roughness: 1 }), Math.cos(a) * r * (ring === 2 ? 0.55 : 1), y, Math.sin(a) * r * (ring === 2 ? 0.55 : 1) - (Math.sin(a) > 0.6 && ring < 2 ? 0.25 : 0)));
+    }
+    for (let i = 0; i < 7; i++) { // down the back to the nape (over the hair tucked under it)
+      const a = Math.PI + 0.35 + (i / 6) * (Math.PI - 0.7);
+      g.add(mesh(new THREE.SphereGeometry(0.2, 10, 8), mat(cols[(i + 2) % cols.length], { roughness: 1 }), Math.cos(a) * 0.42, -0.32, Math.sin(a) * 0.4));
+    }
+    return g;
+  },
   tophat() {
     const g = new THREE.Group();
     const black = mat(0x26222e, { roughness: 0.4 });
@@ -1580,6 +1609,15 @@ function chestPanel(w, h, y, m, lift = 0.005, x = 0) {
 }
 
 const CLOTHES_BUILDERS = {
+  ringmaster(_, color = 0xc0202a) { // a tailcoat's two long tails at the back
+    const hips = new THREE.Group(), red = mat(color, { roughness: 0.6 });
+    for (const s of [-1, 1]) {
+      const tail = mesh(new THREE.BoxGeometry(0.22, 0.55, 0.05), red, s * 0.13, -0.24, -0.46);
+      tail.rotation.set(0.22, 0, s * 0.06);
+      hips.add(tail);
+    }
+    return { hips };
+  },
   tie(tieColor = 0xc0303a) {
     const g = new THREE.Group();
     g.add(chestPanel(0.24, 0.42, 0.12, mat(0xf4f4f4), 0.004)); // the shirt front, lying on the chest

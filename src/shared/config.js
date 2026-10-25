@@ -96,6 +96,8 @@ export const HATS = {
   leafcrown:  { name: 'Autumn leaf crown', price: 90, build: 'leafcrown' },
   icecrown:   { name: 'Ice crown', price: 300, build: 'icecrown' },
   santahat:   { name: 'Santa hat', price: 100, build: 'santahat' },
+  jester:     { name: 'Jester hat', price: 220, build: 'jester' },
+  clownwig:   { name: 'Rainbow clown wig', price: 180, build: 'clownwig' },
   // won, never sold: the Solstice Arena's second prize (shared/seasons.js ARENA_PRIZES)
   solarhelm:  { name: 'Solar Helmet', price: 90000, build: 'solarhelm', seasonal: 'solstice' },
 };
@@ -199,6 +201,8 @@ export const CLOTHES = {
   pirate: { name: 'Pirate captain', price: 420, jacket: 0x8a1a1a, legs: 0x2a2a2a, extra: 'sash', hat: 'captain' },
   princess: { name: 'Princess gown', price: 480, jacket: 0x9fd8ff, legs: 0x9fd8ff, extra: 'gown', hat: 'tiara' },
   wizard: { name: 'Wizard robe', price: 520, jacket: 0x2a2a7a, legs: 0x22225a, extra: 'robe', hat: 'wizard', pattern: 'stars' },
+  ringmaster: { name: 'Circus ringmaster', price: 900, jacket: 0xc0202a, legs: 0x1a1a1a, extra: 'ringmaster', hat: 'tophat' },
+  clown:  { name: 'Circus clown', price: 700, jacket: 0xf4f0e8, legs: 0x3a6ac0, extra: 'clown', hat: 'clownwig' },
   chef:   { name: 'Chef whites', price: 200, jacket: 0xf4f4f4, legs: 0x3a3a3a, extra: 'apron', hat: 'chef' },
   overalls: { name: 'Farmer overalls', price: 160, jacket: 0xd8402a, legs: 0x3b5f9a, extra: 'bib', hat: 'straw' },
   sundress: { name: 'Summer dress', price: 300, jacket: 0xffd23f, legs: 0xffd23f, extra: 'gown', hat: 'sunhat' },

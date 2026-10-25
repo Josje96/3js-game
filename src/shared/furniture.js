@@ -50,6 +50,9 @@ export const FURNITURE = {
   // more for every home (E does something on most of them: see USES)
   teddy:      { name: 'Giant teddy bear', build: 'teddy', price: 180, radius: 0.6, use: 'teddy' },
   easel:      { name: 'Painting easel', build: 'easel', price: 220, radius: 0.5, use: 'easel' },
+  bigtop:     { name: 'Mini circus tent', build: 'bigtop', price: 900, radius: 1.4 },
+  circusball: { name: 'Circus ball', build: 'circusball', price: 240, radius: 0.6 },
+  podium:     { name: 'Circus podium', build: 'podium', price: 320, radius: 0.7 },
   beanbag:    { name: 'Squishy beanbag', build: 'beanbag', price: 160, radius: 0.6, seat: { face: 0, y: 0.62 } },
   lantern:    { name: 'Hanging lantern', build: 'lantern', price: 120, radius: 0.3, light: true, lightY: 2.2, use: 'light' },
   cauldron:   { name: 'Bubbling cauldron', build: 'cauldron', price: 340, radius: 0.7, use: 'cauldron' },
