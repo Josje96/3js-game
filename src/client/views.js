@@ -25,8 +25,61 @@ const SLEEP_FORWARD = 0.5;
 /** The dodge roll spins round this height (the middle of the curled-up body, ~2.55 tall), hopping this high. */
 const ROLL_PIVOT = 1.25, ROLL_HOP = 0.2;
 export { BEDSIDE_TABLE }; // (from furniture.js: where the hat goes at bedtime)
-/** Where your weapon and shield are put down for the night, in the bed's own space (putGearDown). */
-const GEAR_SPOTS = { weapon: [1.95, 0, -0.42], shield: [1.12, 0, 0.95] };
+/** Where your weapon stand goes for the night, in the bed's own space (putGearDown): by the foot of the bed, facing the room. */
+const GEAR_STAND = { x: 1.55, z: 0.85, rot: Math.PI / 2 };
+
+/** A little wooden weapon stand: a base, two posts, a top rail to lean a weapon on, a peg for a shield. Its front is +z. */
+function weaponStand() {
+  const g = new THREE.Group(), wood = new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.8 }), dark = new THREE.MeshStandardMaterial({ color: 0x5e3a20, roughness: 0.8 });
+  const part = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+  part(new THREE.BoxGeometry(0.8, 0.08, 0.34), dark, 0, 0.04, 0); // the base
+  part(new THREE.BoxGeometry(0.2, 0.05, 0.16), wood, -0.16, 0.1, 0); // the weapon's cup
+  for (const x of [-0.36, 0.36]) part(new THREE.BoxGeometry(0.07, 1.15, 0.07), wood, x, 0.6, -0.08); // the posts
+  part(new THREE.BoxGeometry(0.8, 0.07, 0.08), wood, 0, 1.12, -0.08); // the top rail
+  part(new THREE.BoxGeometry(0.8, 0.05, 0.05), wood, 0, 0.5, -0.08); // a lower rail
+  part(new THREE.CylinderGeometry(0.025, 0.025, 0.16, 6), dark, 0.2, 0.95, 0).rotation.x = Math.PI / 2; // the shield's peg
+  return g;
+}
+
+/** The duvet over someone asleep (bed space, over the bed's own quilt): puffed up over them, flat past their feet, a white sheet folded over the top. */
+function duvet(color) {
+  const g = new THREE.Group();
+  const LOW = 0.92, TOP = 1.46, W = 1.8, Z0 = -0.6, Z1 = 1.45; // (the pillow end is -z; feet at about +0.5)
+  // over you it puffs up; past your feet it lies flat
+  const topAt = (x, z) => LOW + 0.1 + (TOP - LOW - 0.1) * (z < 0.5 ? 1 : Math.max(0, 1 - (z - 0.5) / 0.45)) * Math.cos(Math.min(1, Math.abs(x) / (W / 2)) * Math.PI / 2) ** 0.7;
+  const geo = new THREE.BoxGeometry(W, TOP - LOW, Z1 - Z0, 14, 3, 16), pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i) + (Z0 + Z1) / 2, up = (y + (TOP - LOW) / 2) / (TOP - LOW);
+    pos.setXYZ(i, x * (1 - 0.04 * up), LOW + (topAt(x, z) - LOW) * up, z);
+  }
+  geo.computeVertexNormals();
+  const cover = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.95 }));
+  cover.castShadow = cover.receiveShadow = true;
+  g.add(cover);
+  // the sheet folded back over the top, under your chin: a strip lying on the duvet's curve
+  const fold = new THREE.BoxGeometry(W * 0.96, 0.07, 0.26, 16, 1, 1), fp = fold.attributes.position;
+  for (let i = 0; i < fp.count; i++) fp.setY(i, fp.getY(i) + topAt(fp.getX(i), Z0 + 0.1) + 0.01);
+  fold.computeVertexNormals();
+  const sheet = new THREE.Mesh(fold, new THREE.MeshStandardMaterial({ color: 0xf6f2ea, roughness: 0.9 }));
+  sheet.position.set(0, 0, Z0 + 0.1);
+  g.add(sheet);
+  return g;
+}
+
+/** Closed eyes for sleeping (the face frame: the eyes at x ±0.17): skin over the painted eyes, and a curved line. */
+function closedEyes(skin) {
+  const g = new THREE.Group(), lid = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.8 }), line = new THREE.MeshBasicMaterial({ color: 0x2a1a14 });
+  for (const s of [-1, 1]) {
+    const patch = new THREE.Mesh(new THREE.CircleGeometry(1, 18), lid);
+    patch.scale.set(0.08, 0.11, 1);
+    patch.position.set(s * 0.17, -0.01, 0.014);
+    const shut = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.009, 5, 14, Math.PI), line);
+    shut.rotation.z = Math.PI; // ‿
+    shut.position.set(s * 0.17, 0.02, 0.02);
+    g.add(patch, shut);
+  }
+  return g;
+}
 const SKIRT_GAP = 0.15, SKIRT_MAX_FLARE = 1.7; // skirts: room left round a leg (in body widths), and how far they may flare
 const SKIRT_ARM_GAP = 0.06, SKIRT_ARM_MAX = 0.9; // ...room round what you hold (body widths), and how far an arm may swing out (radians)
 
@@ -451,6 +504,7 @@ export class CharacterView {
     if (headwear && (this.inBed || this.hatOff)) holder.visible = false;
     a.bone.add(holder);
     this.borrowed.push(holder);
+    return holder;
   }
 
   /**
@@ -525,31 +579,50 @@ export class CharacterView {
   }
 
   /**
-   * In bed, your weapon and shield are put down too (they went through the bed and the quilt): the weapon
-   * leans on the front of the bedside table, the shield against the side of the bed by its foot, the
-   * same size as in your hands. Bed space, like the hat (the root is at the bed while we sleep).
+   * In bed, your weapon and shield are put down too (they went through the bed and the quilt): on a little
+   * wooden weapon stand at the foot of the bed, the weapon standing in its rack and the shield hung on the
+   * front, the same size as in your hands. Bed space, like the hat (the root is at the bed while we sleep).
    */
   putGearDown(asleep) {
     for (const g of this.putDown ?? []) g.removeFromParent();
     this.putDown = [];
     if (this.weaponObj) this.weaponObj.visible = !asleep;
     if (this.shieldObj) this.shieldObj.visible = !asleep;
-    if (!asleep) return;
-    const lean = (obj, held, at, yaw, tilt) => {
-      const g = new THREE.Group(), s = new THREE.Vector3(), rs = this.root.getWorldScale(new THREE.Vector3());
-      held.getWorldScale(s).divide(rs);
+    if (!asleep || (!this.weaponObj && !this.shieldObj)) return;
+    const rs = this.root.getWorldScale(new THREE.Vector3());
+    const stand = weaponStand(); // (in world units: undo the character's own scale)
+    stand.scale.set(1 / rs.x, 1 / rs.y, 1 / rs.z);
+    stand.position.set(GEAR_STAND.x / this.root.scale.x, 0, GEAR_STAND.z / this.root.scale.z);
+    stand.rotation.y = GEAR_STAND.rot;
+    const place = (id, held, x, y, z, tilt, standing) => { // a copy the size it is in your hand, in the stand's space
+      const obj = itemObject(id), s = held.getWorldScale(new THREE.Vector3());
       obj.scale.copy(s);
       obj.rotation.x = tilt;
       const box = new THREE.Box3().setFromObject(obj);
-      obj.position.y = -box.min.y; // standing on the floor
-      g.add(obj);
-      g.position.set(at[0], 0, at[2]).divide(this.root.scale);
-      g.rotation.y = yaw;
-      this.root.add(g);
-      this.putDown.push(g);
+      obj.position.set(x, standing ? y - box.min.y : y - (box.min.y + box.max.y) / 2, z - box.min.z);
+      stand.add(obj);
     };
-    if (this.weaponObj) lean(itemObject(this.weaponId), this.weaponObj, GEAR_SPOTS.weapon, 0, -0.16);
-    if (this.shieldObj) lean(itemObject(this.shieldId), this.shieldObj, GEAR_SPOTS.shield, Math.PI / 2, -0.28);
+    if (this.weaponObj) place(this.weaponId, this.weaponObj, -0.16, 0.08, -0.06, -0.06, true); // standing in the rack, leaning on the top rail
+    if (this.shieldObj) place(this.shieldId, this.shieldObj, 0.2, 0.66, 0.06, -0.1, false); // hung on the front post's peg
+    this.root.add(stand);
+    this.putDown.push(stand);
+  }
+
+  /**
+   * Tucked in for the night: a puffy duvet in your bed's colour (`this.blanket`) pulled up to your chest
+   * with the sheet folded over the top, and your eyes closed. Bed space, like the hat.
+   */
+  tuckIn(asleep) {
+    this.duvet?.removeFromParent();
+    this.sleepEyes?.removeFromParent();
+    this.duvet = this.sleepEyes = null;
+    if (!asleep) return;
+    const g = new THREE.Group(), rs = this.root.scale;
+    g.scale.set(1 / rs.x, 1 / rs.y, 1 / rs.z);
+    g.add(duvet(this.blanket ?? 0xe0525a));
+    this.root.add(g);
+    this.duvet = g;
+    if (this.anchors.face && !COSTUMES[this.costume]?.mask) this.sleepEyes = this.attach('face', closedEyes(this.skinMat?.color.getHex() ?? 0xf2c8a0));
   }
 
   /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories, clothes and dye. */
@@ -847,6 +920,7 @@ export class CharacterView {
       if (asleep) this.model.rotation.x = 0; // (still standing: the table copy is taken upright)
       this.putHatOnTable(asleep);
       this.putGearDown(asleep);
+      this.tuckIn(asleep);
       this.inBed = asleep;
       this.showHats();
     }

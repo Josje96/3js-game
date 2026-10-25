@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { BACKS, FLY_HEIGHT, FLY_SPEED, CELL, PLAYER_RADIUS, PLAYER_SPEED, SEND_HZ, INTERACT_RANGE, PROTOCOL_VERSION, ROLL_TIME, ROLL_SPEED, ROLL_COOLDOWN, JUMP_TIME, SPELL_COOLDOWN, SPELL_RADIUS, cleanLook } from '../shared/config.js';
 import { buildLayout, roomIndexAt } from '../shared/locations.js';
 import { DUNGEONS } from '../shared/dungeons.js';
-import { FURNITURE, DECORATOR_FLAG, useVerb } from '../shared/furniture.js';
+import { FURNITURE, DECORATOR_FLAG, useVerb, blanketFor } from '../shared/furniture.js';
 import { FurnitureView } from './furniture.js';
 import { moveCircle } from '../shared/physics.js';
 import { ITEMS, weaponCooldown, bestHeal } from '../shared/items.js';
@@ -337,6 +337,7 @@ export class GameClient {
   makeMe() {
     const me = new CharacterView({ cls: this.profile.cls, look: this.profile.look, name: this.profile.name, weapon: this.self?.weapon, ench: this.self?.enchants?.[this.self?.weapon], shield: this.self?.shield, armor: this.self?.armor, helmet: this.self?.helmet, isLocal: true });
     if (this.self) me.setHealth(this.self.hp / this.self.maxHp);
+    me.blanket = blanketFor(this.you); // (your bed's colour: tucked in at night)
     return me;
   }
 
@@ -431,6 +432,7 @@ export class GameClient {
     if (v && v.cls !== p.cls) { v.dispose(); this.others.delete(p.id); v = null; } // changed outfit
     if (!v) {
       v = new CharacterView({ cls: p.cls, look: p.look, name: p.name, weapon: p.weapon, ench: p.ench, shield: p.shield });
+      v.blanket = blanketFor(p.id);
       v.lastAct = p.act;
       this.scene.add(v.root);
       this.others.set(p.id, v);
