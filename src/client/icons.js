@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { ITEMS } from '../shared/items.js';
 import { FURNITURE } from '../shared/furniture.js';
 import { cloneModel } from './assets.js';
-import { tintModel } from './views.js';
+import { itemObject } from './views.js';
 import { FURNITURE_BUILDERS } from './furniture.js';
 import { PetView } from './pets.js';
 import { buildHelmet } from './cosmetics.js';
@@ -61,9 +61,9 @@ function cached(key, make) {
 export function itemIcon(id) {
   const def = ITEMS[id];
   if (def?.kind === 'helmet') return cached(`item:${id}`, () => snapshot(buildHelmet(def), { yaw: 0.6, tilt: 0.35 })); // (no model: the one people wear)
-  if (!def?.model) return null;
+  if (!def?.model && !def?.build) return null;
   const weapon = def.kind === 'weapon';
-  return cached(`item:${id}`, () => snapshot(tintModel(cloneModel(def.model), def.tint), weapon ? { yaw: Math.PI / 2, tilt: 0.15, roll: -Math.PI / 4 } : { yaw: 0.6, tilt: 0.35 }));
+  return cached(`item:${id}`, () => snapshot(itemObject(id), weapon ? { yaw: Math.PI / 2, tilt: 0.15, roll: -Math.PI / 4 } : { yaw: 0.6, tilt: 0.35 }));
 }
 
 export function furnitureIcon(id) {

@@ -19,12 +19,18 @@ export const ITEMS = {
   wand:        { name: 'Magic Wand',      kind: 'weapon', damage: 4,  price: 300,  tier: 0, model: 'items/wand', swing: 'cast', ranged: 'magic' },
   heavybow:    { name: 'Heavy Crossbow',  kind: 'weapon', damage: 7,  price: 1140, tier: 0, model: 'items/crossbow_2handed', swing: 'cast', ranged: 'arrow' },
   spellbook:   { name: 'Spellbook',       kind: 'weapon', damage: 7,  price: 1140, tier: 0, model: 'items/spellbook_open', swing: 'cast', ranged: 'magic' },
+  // farm tools, made in code (no model: client/farmtools.js `build`); `tint` colours their metal
+  pitchfork:   { name: 'Pitchfork',       kind: 'weapon', damage: 4,  price: 220,  tier: 0, build: 'pitchfork', swing: 'stab' },
+  sickle:      { name: 'Sickle',          kind: 'weapon', damage: 4,  price: 260,  tier: 0, build: 'sickle', swing: 'slash' },
+  spade:       { name: 'Spade',           kind: 'weapon', damage: 5,  price: 520,  tier: 0, build: 'spade', swing: 'chop' },
+  scythe:      { name: 'Scythe',          kind: 'weapon', damage: 8,  price: 1300, tier: 0, build: 'scythe', swing: 'chop' },
   // level 20: steel
   steeldagger: { name: 'Steel Dirk',      kind: 'weapon', damage: 10, price: 3600, tier: 1, model: 'items/dagger', swing: 'stab', tint: 0xd6e2ee },
   steelblade:  { name: 'Steel Blade',     kind: 'weapon', damage: 13, price: 4000, tier: 1, model: 'items/sword_1handed', swing: 'slash', tint: 0xd6e2ee },
   steelaxe:    { name: 'Steel Greataxe',  kind: 'weapon', damage: 19, price: 5200, tier: 1, model: 'items/axe_2handed', swing: 'chop', tint: 0xd6e2ee },
   longbow:     { name: 'Elm Longbow',     kind: 'weapon', damage: 14, price: 4600, tier: 1, model: 'items/bow_withString', swing: 'cast', ranged: 'arrow', tint: 0xc98a4a },
   oakstaff:    { name: 'Oak Staff',       kind: 'weapon', damage: 14, price: 4600, tier: 1, model: 'items/staff', swing: 'cast', ranged: 'magic', tint: 0xa8e070 },
+  steelscythe: { name: 'Steel Scythe',    kind: 'weapon', damage: 18, price: 5000, tier: 1, build: 'scythe', swing: 'chop', tint: 0xe4eef8 },
   // level 40: mythril
   mythrildagger: { name: 'Mythril Dirk',  kind: 'weapon', damage: 15, price: 11000, tier: 2, model: 'items/dagger', swing: 'stab', tint: 0x7fd8ff },
   mythrilblade:  { name: 'Mythril Blade', kind: 'weapon', damage: 20, price: 12000, tier: 2, model: 'items/sword_1handed', swing: 'slash', tint: 0x7fd8ff },

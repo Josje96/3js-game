@@ -12,6 +12,7 @@ import { ENEMIES } from '../shared/dungeons.js';
 import { FurnitureView, BEDSIDE_TABLE } from './furniture.js';
 import { dropTinyShadows } from './merge.js';
 import { enchantWeapon } from './enchant.js';
+import { FARM_TOOLS } from './farmtools.js';
 import { spellbookFx } from './spellbook.js';
 import { glowTexture } from './effects.js';
 import { SOLSTICE_ARENA } from '../shared/seasons.js';
@@ -82,6 +83,12 @@ export function tintModel(obj, color) {
     o.material.color.set(color);
   });
   return obj;
+}
+
+/** An item as a 3D object: built in code (`build`: the farm tools) or its model, tinted. */
+export function itemObject(id) {
+  const def = ITEMS[id];
+  return def?.build ? FARM_TOOLS[def.build](def) : tintModel(cloneModel(def.model), def.tint);
 }
 
 export function makeGlow(color) {
@@ -247,8 +254,8 @@ export class CharacterView {
     this.bookFx?.dispose();
     this.bookFx = null;
     const model = ITEMS[id]?.model;
-    if (model && this.hand) {
-      this.weaponObj = tintModel(cloneModel(model), ITEMS[id].tint);
+    if ((model || ITEMS[id]?.build) && this.hand) {
+      this.weaponObj = itemObject(id);
       if (ench > 0) this.weaponFx = enchantWeapon(this.weaponObj, ench);
       this.hand.add(this.weaponObj);
       // the hand slot holds things pointing out to the side: a crossbow turns to point ahead (its +z, the
@@ -1241,7 +1248,7 @@ export class DropView {
   constructor(e) {
     this.root = new THREE.Group();
     const def = ITEMS[e.item];
-    const model = tintModel(cloneModel(def?.model ?? 'dungeon/coin'), def?.tint);
+    const model = def?.build ? itemObject(e.item) : tintModel(cloneModel(def?.model ?? 'dungeon/coin'), def?.tint);
     const s = e.item === 'gold' ? 2.2 : def?.kind === 'loot' && def.model.startsWith('blocks/') ? 0.28 : 0.9;
     model.scale.setScalar(s);
     this.inner = model;
