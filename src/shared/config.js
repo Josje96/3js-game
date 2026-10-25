@@ -5,7 +5,7 @@ export const WALL_PAD = 0.5;         // walls stick 0.5 units into neighbouring 
 export const PLAYER_RADIUS = 0.6;
 export const PLAYER_SPEED = 7;       // units / second
 export const FLY_HEIGHT = 2.2;       // a jetpack (V) lifts you this high...
-export const FLY_SPEED = 3.2;        // ...and you go this much faster
+export const FLY_SPEED = 1.6;        // ...and you go this much faster
 export const PLAYER_BASE_HP = 20;
 export const JUMP_TIME = 0.6, JUMP_HEIGHT = 1.1; // J: a hop up into the air and down again (just for fun)
 export const ROLL_TIME = 0.42;       // dodge roll: how long it lasts (seconds)...

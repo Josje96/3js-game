@@ -617,7 +617,11 @@ export class CharacterView {
       this.capeWind.push(windCape(m.material));
     }
     this.flashMats = null; // materials changed: collect them again for the low-health flash
+    // hats are many small pieces (bands, brims, crown points) scaled down to the head: their shadow is
+    // kept whole (without them it had holes in it)
+    const hatParts = this.headwearParts().filter((o) => o.castShadow);
     dropTinyShadows(this.root);
+    for (const o of hatParts) o.castShadow = true;
   }
 
   /** What the season (or a holiday) has this character wearing right now: see SEASON_WEAR. */

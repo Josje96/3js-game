@@ -94,3 +94,12 @@ test('holidays: at Easter Grandma is in the square with a basket for each of us'
   server.step(0.05);
   assert.equal(inTown(server, (e) => e.holiday).length, 0, 'Grandma has gone home');
 });
+
+test('holidays: Santa’s tree, sack and sleigh are solid, and you can still walk up to him', async () => {
+  const { christmasSolids, SANTA_SPOT } = await import('../src/shared/seasons.js');
+  const solids = christmasSolids(SANTA_SPOT);
+  const inside = (x, z) => solids.some((s) => Math.hypot(s.x - x, s.z - z) < s.r);
+  assert.ok(inside(SANTA_SPOT.x + 2.6, SANTA_SPOT.z - 1.2), 'the tree');
+  assert.ok(inside(SANTA_SPOT.x - 1.6, SANTA_SPOT.z - 3.7), 'the sleigh');
+  for (const [dx, dz] of [[0, 1.4], [0.8, 1.2], [-0.8, 1.2]]) assert.ok(!inside(SANTA_SPOT.x + dx, SANTA_SPOT.z + dz), 'room in front of Santa to talk to him');
+});

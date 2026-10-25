@@ -18,7 +18,7 @@ import { Music, moodFor } from './music.js';
 import { Sfx } from './sfx.js';
 import { ENCHANT_LOOKS } from '../shared/enchant.js';
 import { useDistance, flyHeightAt } from '../shared/props.js';
-import { holidayOf, seasonOf, SOLSTICE_ARENA } from '../shared/seasons.js';
+import { holidayOf, seasonOf, SOLSTICE_ARENA, SLEIGH_PARKED, christmasSolids } from '../shared/seasons.js';
 import { SEASON_LOOK } from './seasonfx.js';
 
 /** What the fort looks like, reduced to what a re-render depends on (so a change re-dresses it). */
@@ -79,11 +79,12 @@ const HOLIDAY_FILMS = {
       },
     };
   },
-  christmas() { // Santa floats down out of the sky onto his spot in the square
-    const npcs = this.filmCast((d) => d.name === 'Santa', (d) => ({ x: d.x + 3, y: 16, z: d.z - 6 }));
-    if (!npcs.length) return null;
+  christmas() { // Santa's sleigh comes down out of the sky, the reindeer galloping, and he hops out onto his spot
+    const npcs = this.filmCast((d) => d.name === 'Santa', (d) => ({ x: d.x, z: d.z }));
+    const sleigh = npcs[0]?.view.decor?.userData.sleigh;
+    if (!sleigh) return null;
     return {
-      npcs, fly: true, arrive: 7, end: 12.5, sound: 'evolve',
+      npcs, ride: { sleigh }, arrive: 8, end: 13, sound: 'evolve',
       intro: '🎄 Snow has fallen on Pebble Town… what’s that up in the sky?',
       outro: '🎅 Ho ho ho! Santa’s here with a present for everyone!',
       colors: [0xd8302a, 0x2a9a4a, 0xffffff, 0xffd23f],
@@ -760,7 +761,8 @@ export class GameClient {
     const WALK_T = c.arrive ?? 6.5, END = c.end ?? 12.5;
     const u = Math.min(1, c.t / WALK_T), ease = u * u * (3 - 2 * u);
     const mid = new THREE.Vector3();
-    for (const n of c.npcs) {
+    if (c.ride) mid.copy(this.rideIn(c, WALK_T));
+    else for (const n of c.npcs) {
       const ch = n.view.ch, fy = n.from.y ?? 0;
       const x = n.from.x + (n.at.x - n.from.x) * ease, z = n.from.z + (n.at.z - n.from.z) * ease, y = fy * (1 - ease);
       // move them along (their own spot is the view's root; any stall or corner stays put)
@@ -771,7 +773,7 @@ export class GameClient {
       ch.setBase(walking ? 'run' : 'idle');
       mid.add(new THREE.Vector3(x, y, z));
     }
-    if (c.npcs.length) mid.multiplyScalar(1 / c.npcs.length);
+    if (c.ride) { /* (where the sleigh, then Santa, is) */ } else if (c.npcs.length) mid.multiplyScalar(1 / c.npcs.length);
     else mid.copy(c.focus);
     if (u >= 1 && !c.waved) {
       c.waved = true;
@@ -865,8 +867,35 @@ export class GameClient {
     this.hud.cinema(null);
   }
 
+  /**
+   * Christmas: the sleigh glides down out of the sky onto where it's parked (behind Santa's spot), the
+   * reindeer galloping, Santa sitting in it; it lands and he hops out onto his spot. Returns where to look.
+   */
+  rideIn(c, arrive) {
+    const n = c.npcs[0], ch = n.view.ch, sleigh = c.ride.sleigh, P = SLEIGH_PARKED, LAND = arrive - 1.5;
+    const ease = (v) => { v = Math.min(1, Math.max(0, v)); return v * v * (3 - 2 * v); };
+    const u = Math.min(1, c.t / LAND), e = 1 - (1 - u) ** 2, away = 1 - e; // slowing down as it comes in to land
+    const s = Math.sin(P.rot), co = Math.cos(P.rot);
+    sleigh.position.set(P.x - s * away * 40, 18 * away ** 1.6 + Math.sin(c.t * 2.2) * 0.3 * away, P.z - co * away * 40);
+    sleigh.rotation.x = 0.14 * away; // nose down a little on the way in, level on the ground
+    sleigh.userData.gallop(c.t, u < 1);
+    // Santa: sat in the sleigh, then a hop down onto his spot, turning to face the square
+    const seat = new THREE.Vector3(0, 0.62, -0.3).applyAxisAngle(new THREE.Vector3(0, 1, 0), P.rot).add(sleigh.position);
+    const hop = ease((c.t - LAND - 0.3) / 1.0);
+    ch.root.position.set(seat.x * (1 - hop), seat.y * (1 - hop) + Math.sin(hop * Math.PI) * 0.9, seat.z * (1 - hop));
+    ch.root.rotation.y = P.rot * (1 - hop);
+    ch.setBase(hop > 0 ? 'idle' : 'sit');
+    return n.view.root.position.clone().add(ch.root.position);
+  }
+
   endVisit(c) {
     for (const n of c.npcs) { n.view.ch.root.position.set(0, 0, 0); n.view.ch.root.rotation.y = 0; n.view.ch.setBase('idle'); }
+    if (c.ride) { // the sleigh back where it's parked
+      const { sleigh } = c.ride;
+      sleigh.position.set(SLEIGH_PARKED.x, 0, SLEIGH_PARKED.z);
+      sleigh.rotation.x = 0;
+      sleigh.userData.gallop(0, false);
+    }
     c.done();
     this.cinematic = null;
     this.snapCamera = true;
@@ -906,6 +935,17 @@ export class GameClient {
     if (season === 'autumn') { this.sfx.play('caw'); this.ambientT = 18 + Math.random() * 25; } else if (season === 'spring' && !this.locView.raining) { this.sfx.play('tweet'); this.ambientT = 6 + Math.random() * 10; } else this.ambientT = 10;
   }
 
+  /** Holiday visitors in town and what they brought (Santa's tree and sleigh...): circles the strolling villagers walk round. */
+  visitorSolids() {
+    const out = [];
+    for (const { data } of this.ents.values()) {
+      if (data.type !== 'npc') continue;
+      out.push({ x: data.x, z: data.z, r: data.r ?? 0.5 });
+      if (data.decor === 'christmas') out.push(...christmasSolids(data));
+    }
+    return out;
+  }
+
   solids() {
     const out = [...this.layout.solids];
     for (const { data, view } of this.ents.values()) {
@@ -914,6 +954,7 @@ export class GameClient {
       else if ((data.type === 'slime' && data.hp > 0) || data.type === 'npc') {
         const at = view?.root?.position ?? data;
         out.push({ x: at.x, z: at.z, r: (data.r ?? 0.5) * 0.85 });
+        if (data.decor === 'christmas') out.push(...christmasSolids(data)); // his tree, sack and sleigh
       }
     }
     for (const w of this.locView?.villagers?.walkers ?? []) out.push({ x: w.view.root.position.x, z: w.view.root.position.z, r: 0.4 });
@@ -924,7 +965,10 @@ export class GameClient {
 
   updateLocal(dt) {
     const input = this.input;
-    if (this.locView?.villagers) this.locView.villagers.player = this.pos; // they wait for you to pass
+    if (this.locView?.villagers) { // they wait for you to pass, and walk round holiday visitors (Santa, his tree...)
+      this.locView.villagers.player = this.pos;
+      this.locView.villagers.obstacles = this.visitorSolids();
+    }
     this.checkVisit();
     if (input.consume('menu')) {
       if (this.cinematic) this.cinematic.skip = true; // Esc skips a film

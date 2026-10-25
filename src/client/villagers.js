@@ -70,10 +70,15 @@ export class Villagers {
       if (back) s = w.len * 2 - s;
       const i = Math.min(w.pts.length - 2, Math.floor(s / CELL)), u = (s - i * CELL) / CELL;
       const a = w.pts[i], b = w.pts[i + 1];
-      const x = a.x + (b.x - a.x) * u, z = a.z + (b.z - a.z) * u;
-      const dx = (b.x - a.x) * (back ? -1 : 1), dz = (b.z - a.z) * (back ? -1 : 1);
+      let x = a.x + (b.x - a.x) * u, z = a.z + (b.z - a.z) * u;
+      // round anything that wasn't there when the routes were made (Santa, his tree and sleigh): out to its edge
+      for (const o of this.obstacles ?? []) {
+        const ox = x - o.x, oz = z - o.z, d = Math.hypot(ox, oz), R = o.r + 0.45;
+        if (d < R) { const k = d > 1e-3 ? R / d : 0; x = o.x + (d > 1e-3 ? ox * k : R); z = o.z + oz * k; }
+      }
+      const dx = x - p.x, dz = z - p.z; // face the way they're actually going
       w.view.root.position.set(x, 0, z);
-      if (dx || dz) w.view.root.rotation.y = Math.atan2(dx, dz);
+      if (dx * dx + dz * dz > 1e-6) w.view.root.rotation.y = Math.atan2(dx, dz);
       w.view.update(dt);
     }
   }

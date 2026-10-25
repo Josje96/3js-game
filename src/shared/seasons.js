@@ -165,6 +165,22 @@ export function isRainyDay(day) {
 /** Where Santa (Christmas) and Grandma (Easter) stand: in the town square, east of the fountain. */
 export const SANTA_SPOT = { x: 84, z: 62 };
 
+/** Where Santa's sleigh is parked, from where he stands (client/town.js makeChristmasCorner; its front, the reindeer, is +z). */
+export const SLEIGH_PARKED = { x: -1.6, z: -3.7, rot: Math.PI / 2 }; // (side on behind him, the reindeer behind his tree: not in front of him)
+
+/**
+ * What you bump into round Santa at Christmas (he's solid himself, as a town npc): the tree with the
+ * presents under it, his sack, and the sleigh with its two reindeer. Circles `{ x, z, r }` in the world.
+ */
+export function christmasSolids(santa) {
+  const out = [{ x: santa.x + 2.6, z: santa.z - 0.8, r: 1.75 }, { x: santa.x - 1.1, z: santa.z - 0.3, r: 0.55 }];
+  const s = Math.sin(SLEIGH_PARKED.rot), c = Math.cos(SLEIGH_PARKED.rot);
+  for (const [along, r] of [[-0.8, 0.95], [0.5, 0.95], [3.0, 0.55], [4.8, 0.55]]) {
+    out.push({ x: santa.x + SLEIGH_PARKED.x + s * along, z: santa.z + SLEIGH_PARKED.z + c * along, r });
+  }
+  return out;
+}
+
 /** The first day of every season is a sale: everything in the town's shops is half price (the shopkeepers shout it). */
 export const SALE_OFF = 0.5;
 export const isSaleDay = (day) => dayOfSeason(day) === 1;

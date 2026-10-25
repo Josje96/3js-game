@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { cloneModel } from './assets.js';
 import { glowTexture } from './effects.js';
 import { WINTER } from './seasonfx.js';
+import { SLEIGH_PARKED } from '../shared/seasons.js';
 
 const std = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, ...extra });
 function mesh(parent, geo, m, x = 0, y = 0, z = 0) {
@@ -611,10 +612,11 @@ export function makeChristmasCorner() {
     mesh(box, new THREE.BoxGeometry(0.06, s + 0.01, s + 0.01), std(ribbon), 0, 0, 0);
     for (const sx of [-1, 1]) mesh(box, new THREE.TorusGeometry(0.06, 0.02, 6, 10), std(ribbon), sx * 0.06, s / 2 + 0.04, 0).rotation.y = Math.PI / 2;
   }
-  const sleigh = makeSleigh(); // his sleigh and reindeer, behind him
-  sleigh.position.set(-2.4, 0, -3.2);
-  sleigh.rotation.y = 0.5;
+  const sleigh = makeSleigh(); // his sleigh and reindeer, behind him (he flies in on it: GameClient's Christmas film)
+  sleigh.position.set(SLEIGH_PARKED.x, 0, SLEIGH_PARKED.z);
+  sleigh.rotation.y = SLEIGH_PARKED.rot;
   g.add(sleigh);
+  g.userData.sleigh = sleigh;
   // Santa's sack, bulging with more presents
   const sack = mesh(g, new THREE.SphereGeometry(0.5, 14, 12), std(0xa0302a, { roughness: 0.95 }), -1.1, 0.48, -0.3);
   sack.scale.set(1, 1.1, 0.9);
@@ -737,7 +739,7 @@ export function makeCandyPile(r = 0.5) {
 
 /** Santa's sleigh behind him, and two reindeer harnessed to it (Rudolph at the front). */
 function makeSleigh() {
-  const g = new THREE.Group(), red = std(0xb81e26, { roughness: 0.5 }), gold = std(0xffcf3f, { metalness: 0.7, roughness: 0.3 });
+  const g = new THREE.Group(), legs = [], red = std(0xb81e26, { roughness: 0.5 }), gold = std(0xffcf3f, { metalness: 0.7, roughness: 0.3 });
   mesh(g, new THREE.BoxGeometry(1.6, 0.6, 2.4), red, 0, 0.75, 0);
   mesh(g, new THREE.BoxGeometry(1.6, 0.8, 0.3), red, 0, 1.1, -1.1); // the high back
   for (const sx of [-1, 1]) {
@@ -753,7 +755,13 @@ function makeSleigh() {
     const d = new THREE.Group(), fur = std(0x8a5a34, { roughness: 1 }), dark = std(0x4a2e1a);
     d.position.set(x, 0, z);
     mesh(d, new THREE.CapsuleGeometry(0.28, 0.7, 4, 10), fur, 0, 1.0, 0).rotation.x = Math.PI / 2;
-    for (const [lx, lz] of [[-0.18, 0.35], [0.18, 0.35], [-0.18, -0.35], [0.18, -0.35]]) mesh(d, new THREE.CylinderGeometry(0.06, 0.05, 0.85, 6), fur, lx, 0.45, lz);
+    for (const [lx, lz] of [[-0.18, 0.35], [0.18, 0.35], [-0.18, -0.35], [0.18, -0.35]]) { // legs hang from the hip (they gallop when flying)
+      const hip = new THREE.Group();
+      hip.position.set(lx, 0.88, lz);
+      mesh(hip, new THREE.CylinderGeometry(0.06, 0.05, 0.85, 6), fur, 0, -0.43, 0);
+      d.add(hip);
+      legs.push({ hip, phase: (lz > 0 ? 0 : Math.PI) + (lx > 0 ? 0.6 : 0) + z }); // (the two deer a little out of step)
+    }
     mesh(d, new THREE.CylinderGeometry(0.12, 0.16, 0.5, 8), fur, 0, 1.35, 0.5).rotation.x = -0.5; // neck
     const head = mesh(d, new THREE.SphereGeometry(0.2, 10, 8), fur, 0, 1.65, 0.72);
     head.scale.set(0.9, 0.9, 1.3);
@@ -773,6 +781,8 @@ function makeSleigh() {
   };
   g.add(deer(0, 3.0, false), deer(0, 4.8, true));
   for (const sx of [-1, 1]) mesh(g, new THREE.BoxGeometry(0.03, 0.03, 3.2), std(0x6b4a2c), sx * 0.3, 0.95, 2.6); // the reins
+  /** The reindeer gallop through the air (`on`), or stand still. */
+  g.userData.gallop = (t, on) => { for (const l of legs) l.hip.rotation.x = on ? Math.sin(t * 11 + l.phase) * 0.7 : 0; };
   return g;
 }
 
