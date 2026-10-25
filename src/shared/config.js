@@ -197,7 +197,7 @@ export const CLOTHES = {
   sunday: { name: 'Sunday best', price: 180, jacket: 0x5b86c9, legs: 0xe9e2cf, extra: 'vest', hat: 'boater' },
   pirate: { name: 'Pirate captain', price: 420, jacket: 0x8a1a1a, legs: 0x2a2a2a, extra: 'sash', hat: 'captain' },
   princess: { name: 'Princess gown', price: 480, jacket: 0x9fd8ff, legs: 0x9fd8ff, extra: 'gown', hat: 'tiara' },
-  wizard: { name: 'Wizard robe', price: 520, jacket: 0x2a2a7a, legs: 0x22225a, extra: 'robe', hat: 'wizard' },
+  wizard: { name: 'Wizard robe', price: 520, jacket: 0x2a2a7a, legs: 0x22225a, extra: 'robe', hat: 'wizard', pattern: 'stars' },
   chef:   { name: 'Chef whites', price: 200, jacket: 0xf4f4f4, legs: 0x3a3a3a, extra: 'apron', hat: 'chef' },
   overalls: { name: 'Farmer overalls', price: 160, jacket: 0xd8402a, legs: 0x3b5f9a, extra: 'bib', hat: 'straw' },
   sundress: { name: 'Summer dress', price: 300, jacket: 0xffd23f, legs: 0xffd23f, extra: 'gown', hat: 'sunhat' },

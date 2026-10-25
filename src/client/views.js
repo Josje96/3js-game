@@ -28,6 +28,25 @@ export { BEDSIDE_TABLE }; // (from furniture.js: where the hat goes at bedtime)
 /** Where your weapon and shield are put down for the night, in the bed's own space (putGearDown). */
 const GEAR_SPOTS = { weapon: [1.95, 0, -0.42], shield: [1.12, 0, 0.95] };
 const SKIRT_GAP = 0.15, SKIRT_MAX_FLARE = 1.7; // skirts: room left round a leg (in body widths), and how far they may flare
+const SKIRT_ARM_GAP = 0.06, SKIRT_ARM_MAX = 0.9; // ...room round what you hold (body widths), and how far an arm may swing out (radians)
+
+/** Turn a bone by `angle` round a world-space `axis` (its parents may be turned any way). */
+function turnInWorld(bone, axis, angle) {
+  const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+  bone.quaternion.premultiply(pq.clone().invert().multiply(new THREE.Quaternion().setFromAxisAngle(axis, angle)).multiply(pq));
+}
+
+/** An object's bounding box in its own space (its meshes' boxes, as they sit inside it). */
+function localBox(obj) {
+  obj.updateMatrixWorld(true);
+  const inv = obj.matrixWorld.clone().invert(), box = new THREE.Box3();
+  obj.traverse((o) => {
+    if (!o.isMesh) return;
+    o.geometry.computeBoundingBox();
+    box.union(o.geometry.boundingBox.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)));
+  });
+  return box;
+}
 
 // how a crossbow sits in the hand slot (which holds things pointing out to the side): its +z ahead, its top up
 const CROSSBOW_GRIP = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0)));
@@ -716,9 +735,53 @@ export class CharacterView {
       body.parent.add(top);
       this.tailored = top;
     }
-    const extra = buildClothes(def.extra, def.jacket, tieColor);
+    const extra = buildClothes(def.extra, def.jacket, tieColor, def.pattern);
     if (extra.hips) this.attach('hips', extra.hips);
     if (extra.hips?.userData.cone && extra.hips.parent) this.skirt = extra.hips;
+  }
+
+  /**
+   * In a gown or robe, what you hold (sword, shield) and your hands hang down into the wide skirt: each
+   * arm swings out sideways from the shoulder just as far as it takes for them to clear it (the skirt's
+   * cone, as flared right now), easing back in when they're clear.
+   */
+  armsClearSkirt(dt) {
+    const sk = this.skirt, { topY, hemY, rTop, rBot } = sk.userData.cone;
+    this.armBones ??= ['l', 'r'].map((side) => this.model.getObjectByName(`upperarm${side}`) ?? this.model.getObjectByName(`upperarm.${side}`));
+    if (this.armBones.some((b) => !b)) return;
+    this.armOut ??= [0, 0];
+    this.root.updateMatrixWorld(true);
+    const holder = sk.parent, inv = holder.matrixWorld.clone().invert(), flare = sk.scale.x;
+    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.model.getWorldQuaternion(new THREE.Quaternion()));
+    const held = [[this.offHand, this.shieldObj], [this.hand, this.weaponObj]]; // (left arm: the shield; right: the weapon)
+    const inside = (side) => { // is anything on this arm inside the skirt?
+      const [hand, obj] = held[side];
+      const pts = [hand ? new THREE.Vector3().setFromMatrixPosition(hand.matrixWorld) : null];
+      if (obj?.visible) {
+        obj.userData.localBox ??= localBox(obj);
+        const bx = obj.userData.localBox;
+        for (let k = 0; k < 8; k++) pts.push(new THREE.Vector3(k & 1 ? bx.max.x : bx.min.x, k & 2 ? bx.max.y : bx.min.y, k & 4 ? bx.max.z : bx.min.z).applyMatrix4(obj.matrixWorld));
+      }
+      return pts.some((w) => {
+        if (!w) return false;
+        const q = w.applyMatrix4(inv);
+        if (q.y > topY || q.y < hemY) return false;
+        return Math.hypot(q.x, q.z) < (rTop + (rBot - rTop) * (topY - q.y) / (topY - hemY)) * flare + SKIRT_ARM_GAP;
+      });
+    };
+    this.armBones.forEach((arm, side) => {
+      const start = arm.quaternion.clone(), dir = side === 0 ? 1 : -1;
+      let need = 0;
+      while (need < SKIRT_ARM_MAX && inside(side)) { // out a little more until it clears
+        need += 0.06;
+        turnInWorld(arm, forward, dir * 0.06);
+        arm.updateMatrixWorld(true);
+      }
+      arm.quaternion.copy(start);
+      const now = this.armOut[side] = need > this.armOut[side] ? need : this.armOut[side] + (need - this.armOut[side]) * Math.min(1, dt * 5);
+      if (now > 0.001) turnInWorld(arm, forward, dir * now);
+    });
+    this.root.updateMatrixWorld(true);
   }
 
   /**
@@ -913,7 +976,7 @@ export class CharacterView {
     if (this.base === 'sit' && this.rollT == null) this.sitPose();
     if (this.shootT != null) this.shootPose(dt);
     this.bookFx?.update(dt, this.time);
-    if (this.skirt) this.fitSkirt(dt);
+    if (this.skirt) { this.armsClearSkirt(dt); this.fitSkirt(dt); }
   }
 
   /** Sitting (no clip for it either): bend the idle pose at the hips and knees, hands in the lap. */

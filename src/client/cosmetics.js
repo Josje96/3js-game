@@ -1682,18 +1682,61 @@ const CLOTHES_BUILDERS = {
     hips.userData.cone = { topY: 0.05, hemY: -0.33, rTop: 0.47, rBot: 0.6 };
     return { front, hips };
   },
-  robe() {
+  robe(_, color = 0x6a35b8, pattern = null) { // a long robe: soft folds, open down the front over a cream lining, gold trim, an ermine collar
     const front = new THREE.Group();
     const gold = mat(0xffcf3f, { metalness: 0.7, roughness: 0.3 });
     front.add(mesh(new THREE.BoxGeometry(0.08, 0.6, 0.04), gold, 0, 0, 0.01));
-    const fur = mat(0xffffff, { roughness: 1 });
-    for (let i = 0; i < 7; i++) front.add(mesh(new THREE.SphereGeometry(0.09, 8, 6), fur, -0.3 + i * 0.1, 0.3, -0.02 - Math.abs(i - 3) * 0.02));
+    const fur = mat(0xffffff, { roughness: 1 }), tip = mat(0x1a1a1a, { roughness: 1 });
+    for (let i = 0; i < 11; i++) { // a plump fur collar, a little black tip on every other tuft (ermine)
+      const x = -0.32 + i * 0.064, z = 0.03 - ((i - 5) / 5) ** 2 * 0.1;
+      front.add(mesh(new THREE.SphereGeometry(0.075, 8, 6), fur, x, 0.3 + Math.sin(i * 1.7) * 0.01, z));
+      if (i % 2) front.add(mesh(new THREE.SphereGeometry(0.018, 5, 4), tip, x, 0.29, z + 0.07));
+    }
     const hips = new THREE.Group();
-    const hem = mesh(new THREE.CylinderGeometry(0.47, 0.7, 0.66, 20, 1, true), mat(0x6a35b8), 0, -0.24, 0); // (down to the ground: ~0.58 below the hips)
-    hem.material.side = THREE.DoubleSide;
-    hips.add(hem, mesh(new THREE.TorusGeometry(0.7, 0.035, 6, 24), gold, 0, -0.56, 0));
+    const TOP = 0.09, HEM = -0.57, R0 = 0.47, R1 = 0.7, H = TOP - HEM, slant = Math.atan2(R1 - R0, H);
+    // the skirt: a cone hanging in soft folds, deeper towards the hem (its first child: buildClothes colours it)
+    const geo = new THREE.CylinderGeometry(R0, R1, H, 48, 8, true), pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), a = Math.atan2(x, z), down = (H / 2 - y) / H;
+      const k = 1 + Math.sin(a * 9) * 0.045 * down * (Math.abs(Math.sin(a / 2)) > 0.12 ? 1 : 0.2); // (flatter at the front opening)
+      pos.setXYZ(i, x * k, y, z * k);
+    }
+    geo.computeVertexNormals();
+    const skirt = mesh(geo, mat(color, { roughness: 0.75 }), 0, (TOP + HEM) / 2, 0);
+    skirt.material.side = THREE.DoubleSide;
+    hips.add(skirt);
+    const along = (y) => R0 + (R1 - R0) * (TOP - y) / H; // the skirt's radius at a height
+    // open down the front: a cream lining between two gold edges, the cone's slope
+    const lining = mesh(new THREE.BoxGeometry(0.13, H / Math.cos(slant), 0.01), mat(0xf4ead0, { roughness: 0.8 }), 0, (TOP + HEM) / 2, along((TOP + HEM) / 2) + 0.008);
+    lining.rotation.x = -slant; // (leaning back with the skirt's slope: it's narrower at the top)
+    hips.add(lining);
+    for (const s of [-1, 1]) {
+      const edge = mesh(new THREE.BoxGeometry(0.035, H / Math.cos(slant), 0.02), gold, s * 0.08, (TOP + HEM) / 2, along((TOP + HEM) / 2) + 0.01);
+      edge.rotation.x = -slant;
+      edge.rotation.y = s * 0.12;
+      hips.add(edge);
+    }
+    // a gold belt with a buckle, two bands round the hem
+    hips.add(mesh(new THREE.TorusGeometry(R0 + 0.01, 0.03, 6, 32), gold, 0, TOP - 0.02, 0));
     hips.children.at(-1).rotation.x = Math.PI / 2;
-    hips.userData.cone = { topY: 0.09, hemY: -0.57, rTop: 0.47, rBot: 0.7 };
+    hips.add(mesh(new THREE.BoxGeometry(0.12, 0.09, 0.03), gold, 0, TOP - 0.02, R0 + 0.03));
+    for (const [y, t] of [[HEM + 0.01, 0.035], [HEM + 0.09, 0.014]]) {
+      hips.add(mesh(new THREE.TorusGeometry(along(y) * 1.02, t, 6, 40), gold, 0, y, 0));
+      hips.children.at(-1).rotation.x = Math.PI / 2;
+    }
+    if (pattern === 'stars') { // a wizard's: little gold stars all over
+      const star = new THREE.Shape();
+      for (let i = 0; i < 10; i++) { const r = i % 2 ? 0.022 : 0.052, a = (i / 10) * Math.PI * 2; star[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, Math.cos(a) * r); }
+      const starGeo = new THREE.ShapeGeometry(star), shiny = mat(0xffe27a, { metalness: 0.6, roughness: 0.3, side: THREE.DoubleSide });
+      for (let i = 0; i < 38; i++) {
+        const a = 0.45 + (i * 2.39996) % (Math.PI * 2 - 0.9), y = HEM + 0.14 + ((i * 0.618) % 1) * (H - 0.24), r = along(y) + 0.012;
+        const m = mesh(starGeo, shiny, Math.sin(a) * r, y, Math.cos(a) * r);
+        m.rotation.set(0, a, 0);
+        m.rotateX(-slant);
+        hips.add(m);
+      }
+    }
+    hips.userData.cone = { topY: TOP, hemY: HEM, rTop: R0, rBot: R1 * 1.05 };
     return { front, hips };
   },
 };
@@ -1729,8 +1772,8 @@ export function buildArmor(color, tier = 0) {
 }
 
 /** A fancy outfit's extras: `color` = its jacket colour (skirts follow it), `tie` = the tie colour. */
-export function buildClothes(extra, color, tie) {
-  const built = CLOTHES_BUILDERS[extra]?.(tie, color) ?? {};
+export function buildClothes(extra, color, tie, pattern = null) {
+  const built = CLOTHES_BUILDERS[extra]?.(tie, color, pattern) ?? {};
   if (color != null && (extra === 'robe' || extra === 'coat')) built.hips?.children[0]?.material.color.set(color); // (a gown is built in its colour)
   return built;
 }
