@@ -957,6 +957,146 @@ function hairShell(m, down = 0.42, open = 1.0, r = HEAD_R) {
   return g;
 }
 
+let strandTex = null;
+/**
+ * Hair's strands: fine streaks of lighter and darker hair running one way (down the head, along a lock),
+ * a grey map the hair colour multiplies, so every colour gets them. (Plain colour looked like plastic.)
+ */
+function strandTexture() {
+  if (strandTex || typeof document === 'undefined') return strandTex;
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = 'rgb(222,222,222)';
+  x.fillRect(0, 0, 128, 128);
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 70; i++) { // strands down the tile (it wraps round, so they join up)
+    const sx = rnd() * 128, w = 0.6 + rnd() * 1.8, l = 150 + rnd() * 105 | 0, a = 0.25 + rnd() * 0.45;
+    x.strokeStyle = `rgba(${l},${l},${l},${a})`;
+    x.lineWidth = w;
+    x.beginPath();
+    for (let y = -4; y <= 132; y += 8) { const px = sx + Math.sin(y * 0.05 + i) * 1.2; y < 0 ? x.moveTo(px, y) : x.lineTo(px, y); }
+    x.stroke();
+    if (sx < 4 || sx > 124) { x.save(); x.translate(sx < 4 ? 128 : -128, 0); x.stroke(); x.restore(); }
+  }
+  strandTex = new THREE.CanvasTexture(c);
+  strandTex.wrapS = strandTex.wrapT = THREE.RepeatWrapping;
+  strandTex.colorSpace = THREE.SRGBColorSpace;
+  strandTex.anisotropy = 4;
+  return strandTex;
+}
+
+/**
+ * Hair's material: the strands, a soft sheen and a silky highlight that runs across them like real hair
+ * (anisotropic: a band of shine round the head). `along`: the same for locks (their strands run along
+ * the tube, not down the sphere's texture). Shine: glossier and a little golden-bright.
+ */
+function hairMaterial(color, shine) {
+  const tex = strandTexture();
+  const make = (rotate) => {
+    let map = null;
+    if (tex) { map = tex.clone(); map.needsUpdate = true; map.repeat.set(rotate ? 1 : 5, rotate ? 2 : 1); if (rotate) { map.center.set(0.5, 0.5); map.rotation = Math.PI / 2; } }
+    const sheen = new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.45);
+    return new THREE.MeshPhysicalMaterial({
+      color, map, roughness: shine ? 0.34 : 0.52, metalness: shine ? 0.25 : 0.02,
+      sheen: 0.6, sheenColor: sheen, sheenRoughness: 0.4, anisotropy: 0.75, anisotropyRotation: rotate ? 0 : Math.PI / 2,
+      emissive: shine ? color : 0x000000, emissiveIntensity: shine ? 0.1 : 0,
+    });
+  };
+  const m = make(false);
+  m.userData.along = make(true);
+  return m;
+}
+
+/**
+ * A point on the head (the hair frame): `th` down from the top, `ph` round from the face (pi = the back), `out` off
+ * the skin. (The skull itself, which the shell is fitted round, is a little inside the shell's HEAD_R ball: pieces
+ * placed on that ball stood off the head.)
+ */
+const SKULL_R = 0.5;
+const onHead = (th, ph, out = 0) => new THREE.Vector3(Math.sin(th) * Math.sin(ph) * (SKULL_R + out), HEAD_Y + Math.cos(th) * (SKULL_R + out), Math.sin(th) * Math.cos(ph) * (SKULL_R + out));
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+/**
+ * A lock of hair: a smooth tube along `pts` (hair frame) tapering from `r0` at its root to `r1` at its
+ * rounded tip, a little fuller in the middle (`bulge`), its strands running along it. The mesh sits at
+ * its root (so buildHair's under-a-hat cut goes by where it grows from).
+ */
+function lock(m, pts, r0, r1, { bulge = 0.15, flat = 1 } = {}) {
+  const start = pts[0].clone(), curve = new THREE.CatmullRomCurve3(pts.map((p) => p.clone().sub(start)));
+  const TUB = 22, RAD = 10, geo = new THREE.TubeGeometry(curve, TUB, 1, RAD, false), pos = geo.attributes.position;
+  const c = new THREE.Vector3(), v = new THREE.Vector3();
+  for (let i = 0; i <= TUB; i++) {
+    const t = i / TUB, r = (r0 + (r1 - r0) * t) * (1 + bulge * Math.sin(Math.PI * t));
+    curve.getPointAt(t, c);
+    for (let j = 0; j <= RAD; j++) {
+      const k = i * (RAD + 1) + j;
+      v.fromBufferAttribute(pos, k).sub(c).multiplyScalar(r);
+      v.x *= flat; // (flatter side to side: hair lies in sheets)
+      pos.setXYZ(k, c.x + v.x, c.y + v.y, c.z + v.z);
+    }
+  }
+  geo.computeVertexNormals();
+  const along = m.userData.along ?? m, o = mesh(geo, along, start.x, start.y, start.z);
+  const end = curve.getPointAt(1);
+  o.add(mesh(new THREE.SphereGeometry(r1, 10, 8), along, end.x, end.y, end.z, flat, 1, 1)); // a rounded tip (the root grows out of the head)
+  return o;
+}
+
+/** A plait along `pts`: crossing twists leaning left and right, getting thinner, a bow at the end. */
+function plait(g, m, pts, w0, ribbonColor = 0xff6b8a, n = 8) {
+  const curve = new THREE.CatmullRomCurve3(pts), along = m.userData.along ?? m;
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n, p = curve.getPointAt(t), tan = curve.getTangentAt(t), s = i % 2 ? 1 : -1, w = w0 * (1 - t * 0.35);
+    const twist = mesh(new THREE.SphereGeometry(w, 12, 8), along, p.x, p.y, p.z, 1.0, 1.45, 0.85);
+    twist.quaternion.setFromUnitVectors(V(0, 1, 0), tan.clone().negate());
+    twist.rotateZ(s * 0.55);
+    g.add(twist);
+  }
+  const end = curve.getPointAt(1), ribbon = mat(ribbonColor, { roughness: 0.5 });
+  g.add(mesh(new THREE.SphereGeometry(0.035, 8, 6), ribbon, end.x, end.y, end.z));
+  for (const s of [-1, 1]) {
+    const loop = mesh(new THREE.ConeGeometry(0.055, 0.12, 8), ribbon, end.x + s * 0.065, end.y, end.z, 1, 1, 0.5);
+    loop.rotation.z = s * Math.PI / 2;
+    g.add(loop);
+  }
+  g.add(lock(m, [end.clone().add(V(0, -0.02, 0)), end.clone().add(V(0, -0.1, 0.01)), end.clone().add(V(0, -0.17, 0.02))], w0 * 0.55, w0 * 0.25, { bulge: 0.3 })); // the tuft below the bow
+}
+
+/** A big bow (hair frame) at `at`, facing out along `face` (a unit vector). */
+function bow(g, at, color, face = V(0, 0, -1), size = 1) {
+  const b = new THREE.Group(), ribbon = mat(color, { roughness: 0.45 });
+  b.add(mesh(new THREE.SphereGeometry(0.05 * size, 10, 8), ribbon, 0, 0, 0));
+  for (const s of [-1, 1]) {
+    const loop = mesh(new THREE.SphereGeometry(0.11 * size, 12, 8), ribbon, s * 0.11 * size, 0.02 * size, 0, 1.1, 0.75, 0.4);
+    loop.rotation.z = s * 0.35;
+    b.add(loop);
+    const tail = mesh(new THREE.BoxGeometry(0.05 * size, 0.16 * size, 0.015), ribbon, s * 0.05 * size, -0.1 * size, 0.01);
+    tail.rotation.z = s * 0.35;
+    b.add(tail);
+  }
+  b.position.copy(at);
+  b.lookAt(at.clone().add(face));
+  g.add(b);
+  return b;
+}
+
+/** Long hair down the back: a curtain of locks from round the shell's lower edge, over a fuller middle (no gaps between). */
+function backCurtain(g, m, { n = 9, spread = 1.25, to = -1.3, r0 = 0.085, r1 = 0.05, wave = 0, curl = 0 } = {}) {
+  g.add(mesh(new THREE.SphereGeometry(0.36, 16, 10), m, 0, -0.86, -0.3, 1.15, 1.25, 0.5)); // the fuller middle
+  for (let k = 0; k < n; k++) {
+    const ph = Math.PI + (k / (n - 1) - 0.5) * 2 * spread, root = onHead(1.4, ph, -0.04), mid = onHead(2.0, ph, 0.035); // (from up under the cap)
+    const zLow = Math.min(mid.z, -0.32), xLow = mid.x * 0.92;
+    const pts = [root, mid];
+    for (let i = 1; i <= 3; i++) {
+      const u = i / 3, y = mid.y + (to - mid.y) * u - (Math.abs(ph - Math.PI) * 0.12) * u; // (the side locks a little shorter)
+      pts.push(V(xLow + Math.sin(u * 5 + k) * wave + Math.sign(mid.x) * curl * u * u, y, zLow - 0.02 * u + Math.cos(u * 4 + k) * wave * 0.4));
+    }
+    g.add(lock(m, pts, r0, r1, { bulge: 0.55, flat: 0.85 }));
+  }
+}
+
 const HAIR_BUILDERS = {
   bald() {
     return new THREE.Group(); // just the scalp
@@ -984,25 +1124,28 @@ const HAIR_BUILDERS = {
     g.add(hairShell(m, 0.62, 0.85));
     return g;
   },
-  long(m) {
+  long(m) { // long and straight: a curtain of locks down the back
     const g = new THREE.Group();
     g.add(hairShell(m, 0.62, 0.85));
-    g.add(mesh(new THREE.SphereGeometry(0.42, 16, 10), m, 0, -0.85, -0.22, 1.15, 1.2, 0.55));
+    backCurtain(g, m);
     return g;
   },
-  ponytail(m) {
+  ponytail(m) { // gathered at the back with a scrunchie, the tail swinging out and down
     const g = new THREE.Group();
     g.add(hairShell(m, 0.56)); // down over the ears, like the others
-    g.add(mesh(new THREE.SphereGeometry(0.1, 10, 8), mat(0xff6b8a), 0, -0.3, -0.5));
-    for (let i = 0; i < 4; i++) g.add(mesh(new THREE.SphereGeometry(0.15 - i * 0.02, 12, 8), m, 0, -0.38 - i * 0.16, -0.6 - i * 0.04));
+    const at = onHead(1.95, Math.PI, -0.03);
+    const band = mesh(new THREE.TorusGeometry(0.08, 0.035, 8, 18), mat(0xff6b8a, { roughness: 0.6 }), at.x, at.y, at.z - 0.06);
+    g.add(band);
+    for (const [dx, r] of [[0, 0.12], [-0.045, 0.08], [0.045, 0.08]]) g.add(lock(m, [at.clone().add(V(dx, 0, 0)), V(dx, at.y - 0.05, at.z - 0.18), V(dx * 1.4, at.y - 0.3, at.z - 0.26), V(dx * 1.6, at.y - 0.62, at.z - 0.2), V(dx, at.y - 0.85, at.z - 0.1)], r, 0.03, { bulge: 0.45 }));
     return g;
   },
-  pigtails(m) {
+  pigtails(m) { // two bunches tied at the sides, each with a band, falling to the shoulders
     const g = new THREE.Group();
     g.add(hairShell(m, 0.56)); // down over the ears, like the others
     for (const s of [-1, 1]) {
-      g.add(mesh(new THREE.SphereGeometry(0.08, 8, 6), mat(0x7fd4ff), s * 0.52, -0.42, -0.08));
-      for (let i = 0; i < 3; i++) g.add(mesh(new THREE.SphereGeometry(0.14 - i * 0.02, 12, 8), m, s * (0.6 + i * 0.05), -0.52 - i * 0.15, -0.1));
+      const at = onHead(1.85, Math.PI - s * 2.05, -0.02); // behind each ear
+      g.add(mesh(new THREE.SphereGeometry(0.075, 10, 8), mat(0x7fd4ff, { roughness: 0.5 }), at.x + s * 0.04, at.y, at.z));
+      for (const [dz, r] of [[0, 0.085], [0.04, 0.06]]) g.add(lock(m, [at.clone().add(V(0, 0, dz)), V(at.x + s * 0.1, at.y - 0.06, at.z + dz), V(at.x + s * 0.13, at.y - 0.3, at.z + dz * 0.5), V(at.x + s * 0.1, at.y - 0.58, at.z + 0.03)], r, 0.035, { bulge: 0.35 }));
     }
     return g;
   },
@@ -1042,17 +1185,10 @@ const HAIR_BUILDERS = {
     }
     return g;
   },
-  wavy(m) { // long hair falling in waves down the back
+  wavy(m) { // long hair falling in soft waves down the back
     const g = new THREE.Group();
     g.add(hairShell(m, 0.62, 0.85));
-    g.add(mesh(new THREE.SphereGeometry(0.4, 16, 10), m, 0, -0.72, -0.26, 1.1, 0.9, 0.5));
-    for (let k = 0; k < 5; k++) { // five locks, each a column of curls swaying side to side
-      const x0 = (k - 2) * 0.17, zb = -0.3 - Math.cos((k - 2) * 0.5) * 0.12;
-      for (let i = 0; i < 4; i++) {
-        const y = -0.78 - i * 0.15, x = x0 + Math.sin(i * 1.7 + k) * 0.04;
-        g.add(mesh(new THREE.SphereGeometry(0.12 - i * 0.012, 10, 8), m, x * (1 - i * 0.05), y, zb + i * 0.02, 1, 1, 0.75));
-      }
-    }
+    backCurtain(g, m, { r0: 0.09, r1: 0.06, wave: 0.05, curl: 0.06, to: -1.32 });
     return g;
   },
   braid(m) { // one long plait down the back with a hair tie and a bow at the end
@@ -1083,6 +1219,68 @@ const HAIR_BUILDERS = {
       const band = mesh(new THREE.TorusGeometry(0.12, 0.025, 6, 16), mat(0x7fd4ff, { roughness: 0.5 }), s * 0.25, -0.12, -0.05);
       band.rotation.set(Math.PI / 2, 0, s * 0.6);
       g.add(band);
+    }
+    return g;
+  },
+  highpony(m) { // a high ponytail from the crown with a big bow, swishing down the back
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.56));
+    const at = onHead(0.62, Math.PI, -0.02);
+    bow(g, at.clone().add(V(0, 0.02, -0.06)), 0xff5a8a, V(0, 0.25, -1).normalize(), 1.05);
+    for (const [dx, r] of [[0, 0.12], [-0.05, 0.08], [0.05, 0.08]]) g.add(lock(m, [at.clone().add(V(dx, 0, 0)), V(dx, at.y + 0.1, at.z - 0.12), V(dx * 1.4, at.y - 0.12, at.z - 0.3), V(dx * 1.6, at.y - 0.5, at.z - 0.36), V(dx, at.y - 0.88, at.z - 0.3)], r, 0.03, { bulge: 0.5 })); // (close down the back of the head)
+    return g;
+  },
+  sidebraid(m) { // swept over to one side and plaited, the braid lying over the shoulder
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.6, 0.9));
+    const at = onHead(1.95, Math.PI - 1.75, -0.01); // from behind the ear, down over the shoulder
+    plait(g, m, [at, V(at.x + 0.04, at.y - 0.22, at.z + 0.06), V(at.x + 0.04, at.y - 0.45, at.z + 0.14), V(at.x, at.y - 0.66, at.z + 0.18)], 0.1, 0xb06aff, 7);
+    return g;
+  },
+  twinbraids(m) { // two plaits from behind the ears, a bow at each end
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.6, 0.88));
+    for (const s of [-1, 1]) {
+      const at = onHead(1.95, Math.PI - s * 1.9, -0.01);
+      plait(g, m, [at, V(at.x + s * 0.03, at.y - 0.18, at.z - 0.04), V(at.x + s * 0.02, at.y - 0.4, at.z - 0.02), V(at.x, at.y - 0.62, at.z + 0.02)], 0.085, 0xff6b8a, 7);
+    }
+    return g;
+  },
+  ringlets(m) { // long ringlet curls, each a spring of hair, all down the back
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.62, 0.85));
+    g.add(mesh(new THREE.SphereGeometry(0.34, 16, 10), m, 0, -0.84, -0.3, 1.15, 1.2, 0.5));
+    for (let k = 0; k < 9; k++) {
+      const ph = Math.PI + (k / 8 - 0.5) * 2.5, root = onHead(1.4, ph, -0.04), mid = onHead(2.0, ph, 0.035), pts = [root, mid]; // (from up under the cap)
+      const z0 = Math.min(mid.z, -0.34), len = 0.55 - Math.abs(ph - Math.PI) * 0.1;
+      for (let i = 1; i <= 14; i++) { const u = i / 14, a = u * Math.PI * 6 + k; pts.push(V(mid.x * 0.92 + Math.cos(a) * 0.045, mid.y - u * len, z0 + Math.sin(a) * 0.045)); }
+      g.add(lock(m, pts, 0.06, 0.04, { bulge: 0.2 }));
+    }
+    return g;
+  },
+  halfup(m) { // long hair with the top half pulled back into a big bow
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.62, 0.85));
+    backCurtain(g, m, { wave: 0.02 });
+    bow(g, onHead(1.32, Math.PI, 0.06), 0xff5a8a, V(0, 0.1, -1).normalize(), 1.2); // the top half pulled back into it
+    return g;
+  },
+  buzz(m) { // a very short buzz cut, close to the head
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.5, 1.05, HEAD_R * 0.995));
+    return g;
+  },
+  shaggy(m) { // a shaggy mop: messy layered locks round the sides and back, a scruffy fringe
+    const g = new THREE.Group();
+    g.add(hairShell(m, 0.56, 1.0, HEAD_R * 1.03));
+    for (let k = 0; k < 13; k++) { // jagged layers round the sides and back
+      const ph = Math.PI + (k / 12 - 0.5) * 2 * 2.1, th = 1.45 + (k % 2) * 0.12;
+      const root = onHead(th - 0.25, ph, -0.04), tip = onHead(th + 0.34, ph, 0.05); // (out from under the cap, lying on the head, the tips flicking out)
+      g.add(lock(m, [root, onHead(th + 0.08, ph, 0.04), tip], 0.07, 0.018, { bulge: 0.35, flat: 0.8 }));
+    }
+    for (const [ph, len] of [[-0.45, 0.24], [-0.15, 0.3], [0.15, 0.26], [0.42, 0.22]]) { // the fringe flicking down over the forehead
+      const root = onHead(0.62, ph, 0.03), tip = onHead(0.62 + len * 1.6, ph * 1.15, 0.05);
+      g.add(lock(m, [root, root.clone().lerp(tip, 0.5).add(V(0, 0, 0.03)), tip], 0.065, 0.02, { bulge: 0.2 }));
     }
     return g;
   },
@@ -1501,7 +1699,7 @@ export function fitHair(hair, cranium, dome, underHat = false, bangs = 'none') {
   ];
   // Cut each triangle against each test (Sutherland-Hodgman), so the edges are smooth lines along the
   // head instead of the stair-steps of whole triangles.
-  const out = [], norms = [], idx = cranium.index.array;
+  const out = [], norms = [], uvs = [], idx = cranium.index.array;
   const corner = (i) => ({ p: new THREE.Vector3().fromBufferAttribute(src, i), n: new THREE.Vector3().fromBufferAttribute(nrm, i) });
   for (let t = 0; t < idx.length; t += 3) {
     let poly = [corner(idx[t]), corner(idx[t + 1]), corner(idx[t + 2])];
@@ -1522,18 +1720,22 @@ export function fitHair(hair, cranium, dome, underHat = false, bangs = 'none') {
       if (poly.length < 3) break;
     }
     for (let i = 1; i + 1 < poly.length; i++) {
-      for (const q of [poly[0], poly[i], poly[i + 1]]) {
+      const tri = [poly[0], poly[i], poly[i + 1]], tuv = tri.map((q) => { const [th, ph] = angles(q.p.x, q.p.y, q.p.z); return [ph / (P * 2) + 0.5, 1 - th / P]; });
+      if (Math.max(...tuv.map((t) => t[0])) - Math.min(...tuv.map((t) => t[0])) > 0.5) for (const t of tuv) if (t[0] < 0.5) t[0] += 1; // (across the seam at the back)
+      tri.forEach((q, k) => {
         v.copy(q.p).sub(c); // pushed out from the dome's centre, off the skin
         const d = v.length() || 1;
         v.multiplyScalar(1 + lift / d).add(c);
         out.push(v.x, v.y, v.z);
         norms.push(q.n.x, q.n.y, q.n.z);
-      }
+        uvs.push(...tuv[k]);
+      });
     }
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(out, 3));
   geo.setAttribute('normal', new THREE.Float32BufferAttribute(norms, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   const m = new THREE.Mesh(geo, material.clone());
   m.material.side = THREE.DoubleSide; // (seen from below, the inside shows: hair, not a hole)
   m.castShadow = true;
@@ -1856,7 +2058,7 @@ export function buildBrows(color, style = 'soft') {
  */
 export function buildHair(style, color, underHat = false, shine = false) {
   const b = HAIR_BUILDERS[style];
-  const g = b ? b(mat(color, shine ? { roughness: 0.28, metalness: 0.35, emissive: color, emissiveIntensity: 0.12 } : { roughness: 0.8 })) : null; // (shine: glossy, catching the light)
+  const g = b ? b(hairMaterial(color, shine)) : null; // (strands, sheen and a silky highlight; shine: glossier)
   if (!g || !underHat) return g;
   const BRIM = Math.PI * 0.38; // how far down from the top of the head a hat covers
   const cut = [];

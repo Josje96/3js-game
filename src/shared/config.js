@@ -148,6 +148,13 @@ export const HAIRS = {
   braid:    { name: 'Braid' },
   spacebuns:{ name: 'Space buns' },
   afro:     { name: 'Afro' },
+  highpony: { name: 'High ponytail & bow' },
+  sidebraid:{ name: 'Side braid' },
+  twinbraids:{ name: 'Twin braids' },
+  ringlets: { name: 'Long ringlets' },
+  halfup:   { name: 'Half-up with a bow' },
+  buzz:     { name: 'Buzz cut' },
+  shaggy:   { name: 'Shaggy' },
 };
 /** The front of the hair (mirror): how it falls over the forehead. Free. (client/cosmetics.js hairline) */
 export const BANGS = {
