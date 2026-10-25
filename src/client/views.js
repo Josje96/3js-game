@@ -5,7 +5,7 @@ import { ITEMS, SWING_COOLDOWN, SWING_IMPACT } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
 import { buildTailored, bindBones, handOnly } from './tailor.js';
-import { browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildHelmet, buildBack, buildHair, buildFace, buildScalp, buildJaw, beardlessHead, craniumOf, cuteNose, faceSpotsOf, fitHair, buildClothes, buildArmor, hairlessHead, scalpOf, skinColour, skinSplit, smoothSkin, sweptCape, buildBrows } from './cosmetics.js';
+import { buildLashes, browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildHelmet, buildBack, buildHair, buildFace, buildScalp, buildJaw, beardlessHead, craniumOf, cuteNose, faceSpotsOf, fitHair, buildClothes, buildArmor, hairlessHead, scalpOf, skinColour, skinSplit, smoothSkin, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -633,6 +633,7 @@ export class CharacterView {
     this.duvet = this.sleepEyes = null;
     // a gown's or robe's skirt, a tailcoat's tails: they stuck up through the duvet (and it's all under it anyway)
     if (this.hipsWear) this.hipsWear.visible = !asleep;
+    if (this.lashWear) this.lashWear.visible = !asleep; // (the shut lids have their own lashes)
     if (!asleep) return;
     const g = new THREE.Group(), rs = this.root.scale;
     g.scale.set(1 / rs.x, 1 / rs.y, 1 / rs.z);
@@ -658,7 +659,7 @@ export class CharacterView {
     if (wear === 'winter' || costume) look = { ...look, hat: 'none' }; // the bobble hat (or costume) goes on instead
     const helm = !costume && ITEMS[this.helmetId]?.kind === 'helmet' ? ITEMS[this.helmetId] : null; // a helmet goes on instead of any hat
     if (helm) look = { ...look, hat: 'none' };
-    const { hat: picked = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', bangs = 'none', hairColor = 'brown', face: faceSet = 'none', skin = 'none', tie = 'red', brows = 'soft', beard: beardSet = 'own' } = look ?? {};
+    const { hat: picked = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', bangs = 'none', hairColor = 'brown', face: faceSet = 'none', skin = 'none', tie = 'red', brows = 'soft', beard: beardSet = 'own', lashes = 'none' } = look ?? {};
     // facial hair has its own spot now; a look saved before that has its beard in the face slot
     const oldBeard = BEARDS[faceSet] ? faceSet : null, face = oldBeard ? 'none' : faceSet;
     const beard = beardSet === 'own' && oldBeard ? oldBeard : beardSet; // 'own', 'none' (clean-shaven) or a BEARDS id
@@ -669,7 +670,7 @@ export class CharacterView {
     // so it goes, and a neat tucked-in style in your hair colour shows under the brim instead
     const covered = COVERING_HATS.has(hat) || !!helm || (wear === 'winter' && this.winterHat !== 'earmuffs') || (!!costume && costume !== 'grandma'); // (Grandma's flower crown sits on her curls)
     const hairStyle = masked ? 'none' : hair === 'none' && covered && this.anchors.scalp ? 'bob' : hair;
-    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${bangs}/${hairColor}/${face}/${skin}/${tie}/${brows}/${beard}/${wear}/${this.helmetId}`;
+    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${bangs}/${hairColor}/${face}/${skin}/${tie}/${brows}/${beard}/${lashes}/${wear}/${this.helmetId}`;
     if (key === this.lookKey) return;
     this.lookKey = key;
     for (const m of this.borrowed) m.removeFromParent();
@@ -746,6 +747,9 @@ export class CharacterView {
     if (face !== 'none' && !masked) this.attach('face', buildFace(face, hc, this.faceCheek, this.skinMat?.color.getHex(), this.faceEyeLine)); // (skin: a scarred eye's lid)
     if (this.shaved?.jaw && this.anchors.jaw) this.attach('jaw', buildJaw(this.skinMat)); // a chin where the beard was
     if (BEARDS[beard] && !masked) this.attach('face', buildFace(beard, hc, this.faceCheek, this.skinMat?.color.getHex(), this.faceEyeLine));
+    const lashWear = !masked && buildLashes(lashes);
+    this.lashWear = lashWear ? this.attach('face', lashWear) : null;
+    if (this.lashWear && this.inBed) this.lashWear.visible = false; // (eyes shut: the lids have their own lash line)
     // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
     this.setClothes(C ? C.clothes : CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'parka' } : undefined), TIE_COLORS[tie]?.color);
     const hatSlot = hairStyle !== 'none' && this.anchors.hair ? 'hair' : 'hat'; // (round the skull, over the tucked hair)

@@ -2023,9 +2023,9 @@ const FACE_BUILDERS = {
     }
     return g;
   },
-  blush(_, __, cheek) {
-    const g = new THREE.Group(), pink = new THREE.MeshBasicMaterial({ color: 0xff8aa8, transparent: true, opacity: 0.7, depthWrite: false });
-    for (const s of [-1, 1]) g.add(onCheek(mesh(new THREE.CircleGeometry(0.075, 16), pink), s, cheek, 0, 0));
+  blush(_, __, cheek) { // soft rosy cheeks: a blush fading out at its edges, in on the cheek (not out at the edge of the face)
+    const g = new THREE.Group(), pink = new THREE.MeshBasicMaterial({ color: 0xff7a98, map: softSpot(), transparent: true, opacity: 0.62, depthWrite: false });
+    for (const s of [-1, 1]) g.add(onCheek(mesh(new THREE.CircleGeometry(0.095, 24), pink, 0, 0, 0, 1.15, 0.85, 1), s, cheek, -0.045, -0.005));
     return g;
   },
   lashes(_, __, cheek, ___, eyeLine) { // long lashes flicking up off the outer corner of each eye, soft pink lips, rosy cheeks
@@ -2058,6 +2058,65 @@ const FACE_BUILDERS = {
  * Lay a flat thing on a cheek (face frame): `cheek` = { x, y, z, yaw } from faceSpotsOf, already in the
  * face frame; (dx, dy) moves it across the cheek. Without a measured cheek: the old spot.
  */
+let softSpotTex = null;
+/** A round spot, solid in the middle and fading to nothing at its edge (for blush). */
+function softSpot() {
+  if (softSpotTex || typeof document === 'undefined') return softSpotTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const x = c.getContext('2d'), grad = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.45, 'rgba(255,255,255,0.75)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = grad;
+  x.fillRect(0, 0, 64, 64);
+  softSpotTex = new THREE.CanvasTexture(c);
+  softSpotTex.colorSpace = THREE.SRGBColorSpace;
+  return softSpotTex;
+}
+
+/**
+ * Eyelashes (config LASHES), in the face frame (the eyes at x ±0.17, y 0 their middle): little curved
+ * strokes growing out of the rim of each eye, the outer ones longer and sweeping out.
+ */
+const LASH_STYLES = {
+  flutter: { top: [12, 32, 52], len: 0.03 },
+  long:    { top: [10, 28, 46, 64, 82, 100, 118], len: 0.036 },
+  doll:    { top: [10, 30, 50, 70, 90, 110], len: 0.034, bottom: [-35, -60, -85, -110], bottomLen: 0.016 },
+  wispy:   { top: [8, 28], len: 0.048, thin: true },
+  winged:  { top: [30, 60], len: 0.024, wing: true },
+};
+export function buildLashes(style) {
+  const def = LASH_STYLES[style];
+  if (!def) return null;
+  const g = new THREE.Group(), black = mat(0x1a1218, { roughness: 0.5, side: THREE.DoubleSide });
+  const RX = 0.05, RY = 0.062, CY = -0.004, Z = 0.016, w = def.thin ? 0.0038 : 0.005;
+  const rim = (deg) => { const a = (deg * Math.PI) / 180; return [Math.cos(a) * RX, CY + Math.sin(a) * RY, a]; };
+  const eye = new THREE.Group(); // the right eye, round its own middle (+x = the outer corner); the left is its mirror
+  const lash = (deg, len, down) => { // growing out of the rim there, leaning up (or down, under the eye) like a fringe
+    const [bx, by, a] = rim(deg), dir = a + ((down ? -Math.PI / 2 : Math.PI / 2) - a) * 0.4;
+    const l = mesh(new THREE.CapsuleGeometry(w, len, 2, 4), black, bx + Math.cos(dir) * len * 0.5, by + Math.sin(dir) * len * 0.5, Z);
+    l.rotation.z = dir - Math.PI / 2;
+    eye.add(l);
+  };
+  def.top.forEach((deg, i) => lash(deg, def.len * (1.25 - 0.45 * (i / Math.max(1, def.top.length - 1))), false)); // longest at the outer corner
+  for (const deg of def.bottom ?? []) lash(deg, def.bottomLen, true);
+  if (def.wing) { // liner along the top of the eye, flicking out past the outer corner like a cat's eye
+    const pts = [];
+    for (let deg = 150; deg >= 0; deg -= 15) { const [x, y] = rim(deg); pts.push(new THREE.Vector3(x, y, Z)); }
+    pts.push(new THREE.Vector3(RX + 0.022, CY + 0.018, Z), new THREE.Vector3(RX + 0.04, CY + 0.034, Z));
+    eye.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.006, 5), black));
+  }
+  for (const side of [-1, 1]) {
+    const one = side > 0 ? eye : eye.clone();
+    one.position.set(side * 0.17, 0, -0.004);
+    one.scale.x = side;
+    one.rotation.y = side * 0.32; // (turned with the face as it curves back to the sides)
+    g.add(one);
+  }
+  return g;
+}
+
 function onCheek(m, s, cheek, dx, dy) {
   const c = cheek ?? { x: 0.26, y: -0.13, z: 0, yaw: 0 };
   const x = c.x + dx;

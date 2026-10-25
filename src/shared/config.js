@@ -222,6 +222,14 @@ export const CLOTHES = {
   wintercoat:   { name: 'Festive red coat', price: 1200, jacket: 0xd8302a, legs: 0x2a2a2a, extra: 'robe', hat: 'santahat', seasonal: 'winter' },
 };
 /** Eyebrow shapes (the mirror). All free; they take the hair colour. */
+/** Eyelashes (the mirror), worn with any face extra. Built in client/cosmetics.js buildLashes. */
+export const LASHES = {
+  flutter: { name: 'Flutter' },
+  long:    { name: 'Long & full' },
+  doll:    { name: 'Doll' },
+  wispy:   { name: 'Wispy' },
+  winged:  { name: 'Winged liner' },
+};
 export const BROWS = {
   soft:    { name: 'Soft' },
   thick:   { name: 'Thick' },
@@ -267,7 +275,7 @@ export const BEARDS = {
   goatee:      { name: 'Goatee' },
   piratebeard: { name: 'Braided pirate beard' },
 };
-export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, bangs: BANGS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS, tie: TIE_COLORS, brows: BROWS, beard: BEARDS };
+export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, bangs: BANGS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS, tie: TIE_COLORS, brows: BROWS, beard: BEARDS, lashes: LASHES };
 
 /** Is this style free, or already in the closet (a list like ['hat:crown', 'dye:sky'])? */
 export function ownsStyle(closet, slot, id) {
@@ -277,7 +285,7 @@ export function ownsStyle(closet, slot, id) {
 
 /** Sanitise a look from the network or a profile; with a closet, also drops things not owned. */
 export function cleanLook(look, closet = null) {
-  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', clothes: 'none', hair: 'none', bangs: 'none', hairColor: 'brown', face: 'none', skin: 'none', tie: 'red', brows: 'soft', beard: 'own' };
+  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', clothes: 'none', hair: 'none', bangs: 'none', hairColor: 'brown', face: 'none', skin: 'none', tie: 'red', brows: 'soft', beard: 'own', lashes: 'none' };
   const out = {};
   for (const slot of Object.keys(fallback)) {
     const v = look?.[slot];
