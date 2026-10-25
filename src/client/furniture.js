@@ -1261,6 +1261,201 @@ export const FURNITURE_BUILDERS = {
     for (const [x, y, z, r] of [[0, 2.0, 0, 0.5], [0.35, 1.8, 0.1, 0.38], [-0.35, 1.85, -0.1, 0.4], [0.1, 1.7, 0.35, 0.35], [-0.1, 2.25, -0.2, 0.32]]) add(g, ball(r), mat(0xffb3cc, { roughness: 1 }), x, y, z);
     return g;
   },
+  heartrug() { // a fluffy pink heart-shaped rug with a white scalloped edge
+    const g = new THREE.Group(), heart = new THREE.Shape(), r = 1;
+    heart.moveTo(0, -r);
+    heart.bezierCurveTo(-r * 0.2, -r * 0.6, -r * 1.2, -r * 0.2, -r * 1.2, r * 0.4);
+    heart.bezierCurveTo(-r * 1.2, r * 1.1, -r * 0.3, r * 1.3, 0, r * 0.65);
+    heart.bezierCurveTo(r * 0.3, r * 1.3, r * 1.2, r * 1.1, r * 1.2, r * 0.4);
+    heart.bezierCurveTo(r * 1.2, -r * 0.2, r * 0.2, -r * 0.6, 0, -r);
+    for (const [scale, color, y] of [[1.12, 0xffffff, 0.06], [1, 0xff9ac0, 0.065], [0.55, 0xffc4da, 0.07]]) {
+      const m = new THREE.Mesh(new THREE.ShapeGeometry(heart, 24), mat(color, { roughness: 1 }));
+      m.rotation.x = -Math.PI / 2;
+      m.scale.setScalar(scale);
+      m.position.set(0, y, 0.15 * scale - 0.15); // (point towards the front)
+      m.receiveShadow = true;
+      g.add(m);
+    }
+    return g;
+  },
+  unicornplush() { // a squishy white unicorn plush: a golden horn, a rainbow mane and tail, sleepy pink cheeks
+    const g = new THREE.Group(), fur = mat(0xfaf6f2, { roughness: 1 }), gold = mat(0xffd76a, { metalness: 0.4, roughness: 0.35 });
+    const RAINBOW = [0xff8aa8, 0xffb36a, 0xffe27a, 0x8ee8a8, 0x8ac8ff, 0xc8a0ff];
+    add(g, ball(0.34), fur, 0, 0.36, -0.05, [1, 0.88, 1.15]); // body, sitting
+    for (const [x, z] of [[-0.18, 0.2], [0.18, 0.2], [-0.2, -0.25], [0.2, -0.25]]) add(g, ball(0.1), fur, x, 0.1, z, [1, 0.8, 1.2]); // stubby legs
+    for (const [x, z] of [[-0.18, 0.31], [0.18, 0.31]]) add(g, ball(0.06), mat(0xffc4da, { roughness: 1 }), x, 0.08, z, [1, 0.6, 0.5]); // pink hooves
+    const head = new THREE.Group();
+    head.position.set(0, 0.78, 0.12);
+    g.add(head);
+    add(head, ball(0.25), fur, 0, 0, 0);
+    add(head, ball(0.15), fur, 0, -0.06, 0.18, [1, 0.8, 0.9]); // snout
+    for (const s of [-1, 1]) {
+      add(head, ball(0.035), mat(0x2a1a22), s * 0.11, 0.04, 0.21); // eyes
+      add(head, new THREE.CircleGeometry(0.045, 14), mat(0xff9ab8, { transparent: true, opacity: 0.6, roughness: 1 }), s * 0.15, -0.05, 0.215).rotation.y = s * 0.5; // cheeks
+      const ear = add(head, new THREE.ConeGeometry(0.06, 0.15, 8), fur, s * 0.13, 0.22, -0.04);
+      ear.rotation.z = -s * 0.35;
+    }
+    const horn = add(head, new THREE.ConeGeometry(0.05, 0.3, 10), gold, 0, 0.3, 0.06);
+    horn.rotation.x = 0.25;
+    RAINBOW.forEach((c, i) => { // the mane: puffs down the back of the head and neck, and the tail
+      add(head, ball(0.08), mat(c, { roughness: 1 }), 0, 0.17 - i * 0.07, -0.18 - Math.sin(i * 0.5) * 0.05);
+      add(g, ball(0.07), mat(c, { roughness: 1 }), 0, 0.45 - i * 0.06, -0.47 - i * 0.02);
+    });
+    return g;
+  },
+  canopy() { // a princess reading nook: sheer pink drapes from a golden crown, a big round floor cushion, a little heart pillow
+    const g = new THREE.Group(), gold = mat(0xf0c040, { metalness: 0.6, roughness: 0.3 });
+    const drape = mat(0xffc4da, { roughness: 0.8, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+    add(g, cyl(0.85, 0.9, 0.22, 24), mat(0xff9ac0, { roughness: 1 }), 0, 0.11, 0); // the floor cushion
+    add(g, new THREE.TorusGeometry(0.85, 0.08, 8, 28), mat(0xffffff, { roughness: 1 }), 0, 0.2, 0).rotation.x = Math.PI / 2; // its piping
+    for (const [x, z, c] of [[-0.3, -0.35, 0xffffff], [0.3, -0.4, 0xc8a0ff]]) add(g, ball(0.22), mat(c, { roughness: 1 }), x, 0.38, z, [1, 0.8, 0.6]); // pillows
+    add(g, cyl(0.03, 0.03, 2.8), gold, 0, 1.4, -0.95); // the stand at the back
+    const crown = new THREE.Group();
+    crown.position.set(0, 2.75, -0.35);
+    g.add(crown);
+    add(crown, new THREE.TorusGeometry(0.28, 0.04, 6, 20), gold, 0, 0, 0).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; add(crown, new THREE.ConeGeometry(0.05, 0.16, 6), gold, Math.cos(a) * 0.28, 0.1, Math.sin(a) * 0.28); add(crown, ball(0.03), mat(0xff6aa8, { emissive: 0xff6aa8, emissiveIntensity: 0.4 }), Math.cos(a) * 0.28, 0.2, Math.sin(a) * 0.28); }
+    add(crown, cyl(0.03, 0.03, 0.62), gold, 0, 0, -0.3).rotation.x = Math.PI / 2; // joined to the stand
+    // the drapes: an open-fronted cone of sheer cloth, gathered at the crown and flaring out round the cushion
+    const N = 10;
+    for (let i = 0; i < N; i++) {
+      const a0 = Math.PI * 0.62 + (i / N) * Math.PI * 1.76, len = 2.65;
+      const panel = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.95, len, 3, 6, true, a0, (Math.PI * 1.76) / N), drape);
+      panel.position.set(0, 2.75 - len / 2, -0.35 + 0.1);
+      panel.castShadow = true;
+      g.add(panel);
+    }
+    return g;
+  },
+  cloudlamp() { // a fluffy cloud lamp glowing softly, a rainbow arching out of it, on a little white stand
+    const g = new THREE.Group(), cloud = mat(0xffffff, { roughness: 1, emissive: 0xfff2e8, emissiveIntensity: 0.55 });
+    add(g, cyl(0.2, 0.26, 0.08), mat(0xf6f2ea), 0, 0.04, 0);
+    add(g, cyl(0.025, 0.025, 1.0), mat(0xf6f2ea), 0, 0.55, 0);
+    for (const [x, y, r] of [[0, 1.2, 0.28], [-0.28, 1.12, 0.21], [0.28, 1.12, 0.22], [-0.14, 1.34, 0.2], [0.16, 1.32, 0.21]]) add(g, ball(r), cloud, x, y, 0, [1, 0.85, 0.8]);
+    const RAINBOW = [0xff6a7a, 0xffb34a, 0xffe25a, 0x6ad88a, 0x5aa8ff, 0xa87aff];
+    RAINBOW.forEach((c, i) => { // an arc from cloud to cloud... (half of one, over the top)
+      const arc = add(g, new THREE.TorusGeometry(0.5 - i * 0.035, 0.018, 6, 24, Math.PI), mat(c, { emissive: c, emissiveIntensity: 0.35 }), 0, 1.25, -0.05);
+      arc.scale.y = 0.9;
+    });
+    return g;
+  },
+  vanity() { // a princess vanity: a white table with curvy legs, a heart mirror, perfume bottles, a pink stool
+    const g = new THREE.Group(), white = mat(0xfaf6f2, { roughness: 0.5 }), gold = mat(0xf0c040, { metalness: 0.6, roughness: 0.3 }), pink = mat(0xffb3cc, { roughness: 0.6 });
+    box(g, 1.2, 0.08, 0.55, white, 0, 0.8, -0.1);
+    box(g, 1.1, 0.18, 0.5, pink, 0, 0.68, -0.1); // the drawer
+    add(g, ball(0.03), gold, 0, 0.68, 0.16);
+    for (const [x, z] of [[-0.52, 0.12], [0.52, 0.12], [-0.52, -0.32], [0.52, -0.32]]) add(g, cyl(0.035, 0.025, 0.6), white, x, 0.3, z).rotation.z = Math.sign(x) * 0.08;
+    // the heart mirror on a stand
+    const heart = new THREE.Shape(), r = 0.3;
+    heart.moveTo(0, -r);
+    heart.bezierCurveTo(-r * 0.2, -r * 0.6, -r * 1.2, -r * 0.2, -r * 1.2, r * 0.4);
+    heart.bezierCurveTo(-r * 1.2, r * 1.1, -r * 0.3, r * 1.3, 0, r * 0.65);
+    heart.bezierCurveTo(r * 0.3, r * 1.3, r * 1.2, r * 1.1, r * 1.2, r * 0.4);
+    heart.bezierCurveTo(r * 1.2, -r * 0.2, r * 0.2, -r * 0.6, 0, -r);
+    const frame = add(g, new THREE.ExtrudeGeometry(heart, { depth: 0.04, bevelEnabled: false, curveSegments: 16 }), gold, 0, 1.22, -0.32);
+    frame.scale.setScalar(1.12);
+    add(g, new THREE.ShapeGeometry(heart, 16), mat(0xd8ecfa, { metalness: 0.1, roughness: 0.08, emissive: 0x6a8aa8, emissiveIntensity: 0.25 }), 0, 1.22, -0.27);
+    box(g, 0.06, 0.4, 0.04, gold, 0, 0.95, -0.34);
+    [[-0.4, 0xff8ac8], [-0.28, 0xc8a0ff], [0.38, 0x8ae8ff]].forEach(([x, c]) => { // perfume bottles
+      add(g, ball(0.06), mat(c, { transparent: true, opacity: 0.8, roughness: 0.1 }), x, 0.9, 0.02);
+      add(g, ball(0.025), gold, x, 0.97, 0.02);
+    });
+    add(g, ball(0.05), mat(0xffd2e0), 0.22, 0.88, 0.05, [1, 0.5, 1]); // a powder puff
+    add(g, cyl(0.2, 0.18, 0.12, 18), pink, 0, 0.48, 0.55); // the stool's cushion
+    add(g, cyl(0.12, 0.14, 0.42, 14), white, 0, 0.21, 0.55);
+    return g;
+  },
+  rockingunicorn() { // a unicorn rocking horse: pastel, a rainbow mane, a gold horn, rocking gently
+    const g = new THREE.Group(), horse = new THREE.Group(), white = mat(0xfaf6f2, { roughness: 0.6 }), wood = mat(0xffc4da, { roughness: 0.5 }), gold = mat(0xffd76a, { metalness: 0.4, roughness: 0.35 });
+    g.add(horse);
+    for (const s of [-1, 1]) { // the rockers
+      const rocker = add(horse, new THREE.TorusGeometry(1.1, 0.04, 6, 30, 1.1), wood, s * 0.2, 1.15, 0);
+      rocker.rotation.set(0, Math.PI / 2, Math.PI + (Math.PI - 1.1) / 2 + Math.PI / 2 - Math.PI / 2);
+      rocker.rotation.z = -Math.PI / 2 - 0.55;
+    }
+    for (const [x, z] of [[-0.18, 0.3], [0.18, 0.3], [-0.18, -0.3], [0.18, -0.3]]) add(horse, cyl(0.045, 0.04, 0.42), white, x, 0.27, z);
+    add(horse, ball(0.3), white, 0, 0.6, 0, [0.75, 0.7, 1.4]); // body
+    add(horse, cyl(0.1, 0.13, 0.42), white, 0, 0.86, 0.34).rotation.x = 0.55; // the neck, leaning forward
+    add(horse, ball(0.15), white, 0, 1.08, 0.5, [0.85, 0.9, 1]); // the head
+    add(horse, ball(0.1), white, 0, 1.02, 0.66, [0.8, 0.75, 1.1]); // the snout
+    add(horse, ball(0.03), mat(0xffb3cc), 0, 1.0, 0.77, [1.4, 0.8, 0.6]); // a pink nose
+    add(horse, new THREE.ConeGeometry(0.035, 0.24, 8), gold, 0, 1.3, 0.55).rotation.x = 0.35;
+    for (const s of [-1, 1]) {
+      add(horse, ball(0.025), mat(0x2a1a22), s * 0.1, 1.12, 0.6);
+      add(horse, new THREE.ConeGeometry(0.04, 0.1, 6), white, s * 0.08, 1.24, 0.44).rotation.z = -s * 0.3; // ears
+    }
+    const RAINBOW = [0xff8aa8, 0xffb36a, 0xffe27a, 0x8ee8a8, 0x8ac8ff, 0xc8a0ff];
+    RAINBOW.forEach((c, i) => { add(horse, ball(0.065), mat(c, { roughness: 1 }), 0, 1.2 - i * 0.065, 0.4 - i * 0.05); add(horse, ball(0.055), mat(c, { roughness: 1 }), 0, 0.66 - i * 0.06, -0.42 - i * 0.02); }); // mane down the neck, and the tail
+    add(horse, cyl(0.2, 0.2, 0.05, 16), mat(0xff6aa8), 0, 0.82, -0.02); // the saddle
+    add(horse, cyl(0.015, 0.015, 0.36), gold, 0, 1.0, 0.46).rotation.z = Math.PI / 2; // the handle through the head
+    g.userData.update = (t) => { horse.rotation.x = Math.sin(t * 1.6) * 0.1; };
+    return g;
+  },
+  heartballoons() { // a bunch of heart balloons on ribbons, tied to a little gift box, bobbing about
+    const g = new THREE.Group(), heart = new THREE.Shape(), r = 0.18;
+    heart.moveTo(0, -r);
+    heart.bezierCurveTo(-r * 0.2, -r * 0.6, -r * 1.2, -r * 0.2, -r * 1.2, r * 0.4);
+    heart.bezierCurveTo(-r * 1.2, r * 1.1, -r * 0.3, r * 1.3, 0, r * 0.65);
+    heart.bezierCurveTo(r * 0.3, r * 1.3, r * 1.2, r * 1.1, r * 1.2, r * 0.4);
+    heart.bezierCurveTo(r * 1.2, -r * 0.2, r * 0.2, -r * 0.6, 0, -r);
+    const geo = new THREE.ExtrudeGeometry(heart, { depth: 0.08, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 3, curveSegments: 14 });
+    geo.center();
+    box(g, 0.24, 0.2, 0.24, mat(0xff9ac0), 0, 0.1, 0);
+    box(g, 0.26, 0.04, 0.05, mat(0xffffff), 0, 0.2, 0);
+    const balloons = [[0xff4a6a, -0.3, 1.7, 0], [0xff9ac0, 0.25, 1.85, 0.1], [0xffffff, 0, 2.05, -0.15], [0xc8a0ff, 0.35, 1.5, -0.2], [0xff6aa8, -0.15, 1.45, 0.25]].map(([c, x, y, z], i) => {
+      const b = new THREE.Group();
+      b.position.set(x, y, z);
+      g.add(b);
+      add(b, geo, mat(c, { roughness: 0.25, metalness: 0.1 }), 0, 0, 0);
+      const tie = add(g, cyl(0.006, 0.006, 1), mat(0xffffff, { roughness: 1 }), 0, 0, 0);
+      return { b, tie, x, y, z, i };
+    });
+    const up = new THREE.Vector3(0, 1, 0), from = new THREE.Vector3(0, 0.22, 0), to = new THREE.Vector3();
+    g.userData.update = (t) => balloons.forEach(({ b, tie, x, y, z, i }) => {
+      b.position.set(x + Math.sin(t * 0.9 + i) * 0.05, y + Math.sin(t * 1.3 + i * 2) * 0.04, z);
+      b.rotation.set(0, Math.sin(t * 0.7 + i) * 0.5, Math.sin(t * 0.8 + i) * 0.12);
+      to.copy(b.position).y -= 0.2; // the ribbon: from the box to the balloon's tip
+      tie.position.copy(from).add(to).multiplyScalar(0.5);
+      tie.scale.y = from.distanceTo(to);
+      tie.quaternion.setFromUnitVectors(up, to.clone().sub(from).normalize());
+    });
+    g.userData.update(0);
+    return g;
+  },
+  pram() { // a doll's pram: a pink hood and body on four white wheels, a baby doll tucked in under a blanket
+    const g = new THREE.Group(), pink = mat(0xff9ac0, { roughness: 0.5 }), white = mat(0xfaf6f2, { roughness: 0.5 }), chrome = mat(0xd8dde4, { metalness: 0.8, roughness: 0.25 });
+    for (const [x, z] of [[-0.25, 0.3], [0.25, 0.3], [-0.25, -0.3], [0.25, -0.3]]) {
+      const wheel = add(g, new THREE.TorusGeometry(0.13, 0.03, 6, 18), white, x, 0.16, z);
+      wheel.rotation.y = Math.PI / 2;
+      add(g, cyl(0.03, 0.03, 0.05), chrome, x, 0.16, z).rotation.z = Math.PI / 2;
+    }
+    box(g, 0.5, 0.04, 0.7, chrome, 0, 0.3, 0);
+    add(g, ball(0.34, 18), pink, 0, 0.55, 0, [0.85, 0.7, 1.15]); // the body (a bowl)
+    const hood = add(g, new THREE.SphereGeometry(0.33, 18, 10, 0, Math.PI, 0, Math.PI / 2), mat(0xffc4da, { roughness: 0.6, side: THREE.DoubleSide }), 0, 0.68, -0.12, [0.95, 1, 1]);
+    hood.rotation.set(0, -Math.PI / 2, -0.25);
+    add(g, ball(0.1), mat(0xf4d2b8, { roughness: 0.6 }), 0, 0.8, 0.02); // the doll's head
+    add(g, ball(0.105, 12), mat(0xffe27a, { roughness: 0.9 }), 0, 0.84, -0.02, [1, 0.8, 1]); // her golden hair
+    for (const s of [-1, 1]) add(g, ball(0.012), mat(0x2a1a22), s * 0.035, 0.81, 0.11);
+    add(g, ball(0.3, 16), mat(0xffffff, { roughness: 1 }), 0, 0.72, 0.18, [0.8, 0.25, 0.75]); // the blanket
+    for (const s of [-1, 1]) add(g, cyl(0.018, 0.018, 0.7), chrome, s * 0.18, 0.78, -0.5).rotation.x = -0.6; // the handle, at the hood end
+    add(g, cyl(0.03, 0.03, 0.44), white, 0, 1.07, -0.7).rotation.z = Math.PI / 2;
+    return g;
+  },
+  strawberrypouf() { // a big squishy strawberry to sit on: red with yellow seeds, a leafy green top
+    const g = new THREE.Group(), red = mat(0xff3a4e, { roughness: 0.6 });
+    const PROFILE = [[0, 0], [0.2, 0.01], [0.32, 0.08], [0.41, 0.22], [0.46, 0.38], [0.46, 0.52], [0.4, 0.64], [0.24, 0.72], [0, 0.74]];
+    add(g, new THREE.LatheGeometry(PROFILE.map(([r, y]) => new THREE.Vector2(r, y)), 28), red);
+    const radiusAt = (y) => { for (let i = 1; i < PROFILE.length; i++) { const [r0, y0] = PROFILE[i - 1], [r1, y1] = PROFILE[i]; if (y <= y1) return r0 + ((r1 - r0) * (y - y0)) / (y1 - y0); } return 0; };
+    const seed = mat(0xffe25a, { roughness: 0.5 });
+    for (let i = 0; i < 60; i++) { // seeds in staggered rows all round, on the skin
+      const row = Math.floor(i / 10), y = 0.1 + row * 0.1, a = ((i % 10) + (row % 2) * 0.5) * (Math.PI / 5), r = radiusAt(y);
+      const sd = add(g, ball(0.02, 6), seed, Math.cos(a) * r, y, Math.sin(a) * r, [0.8, 1.4, 0.8]);
+      sd.lookAt(0, y, 0);
+    }
+    for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2, leaf = add(g, ball(0.13, 8), mat(0x3ab84a, { roughness: 0.8 }), Math.cos(a) * 0.18, 0.74, Math.sin(a) * 0.18, [1.6, 0.22, 0.6]); leaf.rotation.y = -a; }
+    add(g, cyl(0.03, 0.045, 0.14), mat(0x2e8a3e), 0, 0.82, 0);
+    return g;
+  },
   bunnyplush() { // a floppy-eared bunny plush
     const g = new THREE.Group(), fur = mat(0xf4ece4, { roughness: 1 }), pink = mat(0xffb3cc);
     add(g, ball(0.32), fur, 0, 0.32, 0, [1, 0.9, 0.9]);
