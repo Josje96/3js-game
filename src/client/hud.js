@@ -1,7 +1,7 @@
 // HTML overlay on top of the 3D canvas.
 import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_SHOP_STOCK, shopTier, sellValue, isGear, PERKS, SMELT, SMELT_ORE } from '../shared/items.js';
 import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
-import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle, BANK_OPEN_FEE, TIE_COLORS, BROWS, BANGS } from '../shared/config.js';
+import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle, BANK_OPEN_FEE, TIE_COLORS, BROWS, BANGS, BEARDS } from '../shared/config.js';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
 import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
@@ -620,7 +620,11 @@ export class Hud {
       row('Bangs', opts(BANGS, 'None'), 'bangs');
       row('Hair colour', opts(HAIR_COLORS), 'hairColor', true);
       row('Eyebrows', opts(BROWS), 'brows');
-      row('Face', opts(FACES, 'Nothing'), 'face');
+      // (an old look keeps its beard in the face slot: it shows as the facial hair, and picking one there clears it)
+      cur.beard ??= 'own';
+      if (BEARDS[cur.face]) { cur.beard = cur.beard && cur.beard !== 'own' ? cur.beard : cur.face; cur.face = 'none'; }
+      row('Face', opts(Object.fromEntries(Object.entries(FACES).filter(([k]) => !BEARDS[k])), 'Nothing'), 'face');
+      row('Facial hair', [['own', 'Outfit’s own'], ['none', 'Clean-shaven'], ...opts(BEARDS)], 'beard');
       row('Skin', opts(SKINS, 'Pale'), 'skin', true);
       box.append(el('p', 'muted', 'Tip: a new hairstyle replaces your outfit’s own hair. Hats sit on top, so pick "None" for your hat in the wardrobe to show it off.'));
       box.append(this.spinButtons());

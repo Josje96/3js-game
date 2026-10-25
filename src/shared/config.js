@@ -251,7 +251,18 @@ export const SKINS = {
   lilac:  { name: 'Fairy lilac', color: 0xc9aaf2 },
 };
 
-export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, bangs: BANGS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS, tie: TIE_COLORS, brows: BROWS };
+/**
+ * Facial hair, its own spot in the mirror (worn with glasses or anything else on your face). 'own' = the
+ * outfit's own (the Barbarian's big beard; nothing for the rest), 'none' = clean-shaven. The ids are the
+ * same as the old face extras (FACES mustache/beard...), which a look saved before this still uses.
+ */
+export const BEARDS = {
+  mustache:    { name: 'Mustache' },
+  beard:       { name: 'Beard' },
+  goatee:      { name: 'Goatee' },
+  piratebeard: { name: 'Braided pirate beard' },
+};
+export const STYLE_SLOTS = { hat: HATS, cape: CAPES, back: BACKS, dye: DYES, clothes: CLOTHES, hair: HAIRS, bangs: BANGS, hairColor: HAIR_COLORS, face: FACES, skin: SKINS, tie: TIE_COLORS, brows: BROWS, beard: BEARDS };
 
 /** Is this style free, or already in the closet (a list like ['hat:crown', 'dye:sky'])? */
 export function ownsStyle(closet, slot, id) {
@@ -261,7 +272,7 @@ export function ownsStyle(closet, slot, id) {
 
 /** Sanitise a look from the network or a profile; with a closet, also drops things not owned. */
 export function cleanLook(look, closet = null) {
-  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', clothes: 'none', hair: 'none', bangs: 'none', hairColor: 'brown', face: 'none', skin: 'none', tie: 'red', brows: 'soft' };
+  const fallback = { hat: 'own', cape: 'own', back: 'none', dye: 'none', clothes: 'none', hair: 'none', bangs: 'none', hairColor: 'brown', face: 'none', skin: 'none', tie: 'red', brows: 'soft', beard: 'own' };
   const out = {};
   for (const slot of Object.keys(fallback)) {
     const v = look?.[slot];

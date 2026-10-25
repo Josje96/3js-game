@@ -1100,7 +1100,7 @@ function pixels(image) {
   return pixelCache.get(image);
 }
 
-function triangleColours(geo, image) {
+export function triangleColours(geo, image) {
   if (colourCache.has(geo)) return colourCache.get(geo);
   const { data, w, h } = pixels(image);
   const uv = geo.attributes.uv, idx = geo.index.array, out = [];
@@ -1384,6 +1384,32 @@ export function hairlessHead(geo, image, outfit) {
     hairlessCache.set(geo, { geo: kept, scalp });
   }
   return hairlessCache.get(geo).geo;
+}
+
+/**
+ * A head shaved clean (Facial hair: Clean-shaven): the Barbarian's own beard is part of his head mesh, so
+ * the hair-coloured triangles below his eyes go (not his skin, not his dark eyes). `geo` may be already
+ * carved (hairlessHead / browlessHead: they share the head's vertices). A skin jaw fills the gap (buildJaw).
+ */
+const BEARD_TOP = 0.45; // (of head height, from the bottom: his beard reaches up the cheeks to his eyes)
+const beardlessCache = new WeakMap();
+export function beardlessHead(geo, image) {
+  if (!beardlessCache.has(geo)) {
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox, height = bb.max.y - bb.min.y;
+    const dark = ([r, g, b]) => r < 70 && g < 70 && b < 90;
+    beardlessCache.set(geo, filterTriangles(geo, image, (t, col, [, y]) => (y - bb.min.y) / height > BEARD_TOP || SKIN(col) || dark(col)));
+  }
+  return beardlessCache.get(geo);
+}
+
+/** A clean-shaven chin and jaw in the skin's colour, where a beard was (beardlessHead); head widths, from the jaw anchor. */
+export function buildJaw(material) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), material);
+  m.scale.set(0.45, 0.27, 0.42);
+  m.position.set(0, 0, 0.02);
+  m.castShadow = true;
+  return m;
 }
 
 /** The head with its own hair, minus its own eyebrows (they're replaced by the mirror's, see browsOf). */

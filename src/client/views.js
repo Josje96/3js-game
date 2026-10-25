@@ -1,11 +1,11 @@
 // 3D views for things that move or change: characters, slimes, rocks, drops...
 import * as THREE from 'three';
-import { FLY_HEIGHT, JUMP_TIME, JUMP_HEIGHT, CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COLORS } from '../shared/config.js';
+import { FLY_HEIGHT, JUMP_TIME, JUMP_HEIGHT, CLASSES, HATS, CAPES, BACKS, DYES, HAIR_COLORS, SKINS, CLOTHES, TIE_COLORS, BEARDS } from '../shared/config.js';
 import { ITEMS, SWING_COOLDOWN, SWING_IMPACT } from '../shared/items.js';
 import { ROLL_TIME } from '../shared/config.js';
 import { cloneCharacter, cloneModel, characterClips, characterScene } from './assets.js';
 import { buildTailored, bindBones, handOnly } from './tailor.js';
-import { browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildHelmet, buildBack, buildHair, buildFace, buildScalp, craniumOf, cuteNose, faceSpotsOf, fitHair, buildClothes, buildArmor, hairlessHead, scalpOf, skinColour, skinSplit, smoothSkin, sweptCape, buildBrows } from './cosmetics.js';
+import { browsOf, browlessHead, buildCostumeHat, COSTUMES, HALLOWEEN_COSTUMES, buildWinterWear, buildHat, buildHelmet, buildBack, buildHair, buildFace, buildScalp, buildJaw, beardlessHead, craniumOf, cuteNose, faceSpotsOf, fitHair, buildClothes, buildArmor, hairlessHead, scalpOf, skinColour, skinSplit, smoothSkin, sweptCape, buildBrows } from './cosmetics.js';
 import { PetEntityView } from './pets.js';
 import { MobView, hasMobBody } from './enemies.js';
 import { ENEMIES } from '../shared/dungeons.js';
@@ -347,6 +347,8 @@ export class CharacterView {
       if (head.material.map?.image) cuteNose(head.geometry, head.material.map.image); // first: everything below measures the face
       const b = new THREE.Box3().setFromObject(head);
       out.hat = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.max.y - 0.05, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
+      // the chin, for a shaved head (cosmetics.js buildJaw): the bottom of the head, in head widths
+      out.jaw = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * JAW_HEIGHT, (b.min.z + b.max.z) / 2), b.max.x - b.min.x);
       // the face: front of the head, a bit below the middle (where the eyes are on these chibi heads)
       out.face = anchor('head', new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y + (b.max.y - b.min.y) * FACE_EYE_HEIGHT, b.max.z - 0.02), b.max.x - b.min.x);
       // better: right on the outfit's own eyes (glasses over them, blush on the cheeks; cosmetics.js faceSpotsOf)
@@ -541,7 +543,10 @@ export class CharacterView {
     if (wear === 'winter' || costume) look = { ...look, hat: 'none' }; // the bobble hat (or costume) goes on instead
     const helm = !costume && ITEMS[this.helmetId]?.kind === 'helmet' ? ITEMS[this.helmetId] : null; // a helmet goes on instead of any hat
     if (helm) look = { ...look, hat: 'none' };
-    const { hat: picked = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', bangs = 'none', hairColor = 'brown', face = 'none', skin = 'none', tie = 'red', brows = 'soft' } = look ?? {};
+    const { hat: picked = 'own', cape = 'own', back = 'none', dye = 'none', clothes = 'none', hair = 'none', bangs = 'none', hairColor = 'brown', face: faceSet = 'none', skin = 'none', tie = 'red', brows = 'soft', beard: beardSet = 'own' } = look ?? {};
+    // facial hair has its own spot now; a look saved before that has its beard in the face slot
+    const oldBeard = BEARDS[faceSet] ? faceSet : null, face = oldBeard ? 'none' : faceSet;
+    const beard = beardSet === 'own' && oldBeard ? oldBeard : beardSet; // 'own', 'none' (clean-shaven) or a BEARDS id
     // fancy clothes come with their own matching hat (a chef's hat with the chef whites...), worn instead of the outfit's
     const matching = picked === 'own' && !costume ? CLOTHES[clothes]?.hat ?? null : null;
     const hat = matching ?? picked;
@@ -549,7 +554,7 @@ export class CharacterView {
     // so it goes, and a neat tucked-in style in your hair colour shows under the brim instead
     const covered = COVERING_HATS.has(hat) || !!helm || (wear === 'winter' && this.winterHat !== 'earmuffs') || (!!costume && costume !== 'grandma'); // (Grandma's flower crown sits on her curls)
     const hairStyle = masked ? 'none' : hair === 'none' && covered && this.anchors.scalp ? 'bob' : hair;
-    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${bangs}/${hairColor}/${face}/${skin}/${tie}/${brows}/${wear}/${this.helmetId}`;
+    const key = `${hat}/${cape}/${back}/${dye}/${clothes}/${hair}/${bangs}/${hairColor}/${face}/${skin}/${tie}/${brows}/${beard}/${wear}/${this.helmetId}`;
     if (key === this.lookKey) return;
     this.lookKey = key;
     for (const m of this.borrowed) m.removeFromParent();
@@ -583,7 +588,11 @@ export class CharacterView {
       hm.userData.baseGeo ??= hm.geometry;
       const image = (hm.userData.baseMat ?? hm.material).map?.image, outfit = hm.name.replace(/_Head$/, '');
       // a new hairstyle carves the outfit's hair away; either way its own brows go (yours are drawn instead)
-      const geo = !image ? hm.userData.baseGeo : hairStyle !== 'none' || masked ? hairlessHead(hm.userData.baseGeo, image, outfit) : browlessHead(hm.userData.baseGeo, image);
+      const carved = !image ? hm.userData.baseGeo : hairStyle !== 'none' || masked ? hairlessHead(hm.userData.baseGeo, image, outfit) : browlessHead(hm.userData.baseGeo, image);
+      // the outfit's own beard (the Barbarian's) comes off for any other facial hair, or a clean shave
+      const shave = image && beard !== 'own' && OWN_BEARD.has(outfit);
+      const geo = shave ? beardlessHead(carved, image) : carved;
+      this.shaved = shave;
       hm.visible = true; // (a ghost's sheet hides it: below)
       hm.userData.baseMat ??= hm.material;
       for (const m of [hm.material].flat()) if (m !== hm.userData.baseMat) m.dispose();
@@ -620,6 +629,8 @@ export class CharacterView {
     if (masked) { /* under the mask */ } else if (this.anchors.brow0 && this.anchors.brow1) for (const one of [...pair.children]) { one.position.set(0, 0, 0); this.attach(one.userData.side < 0 ? 'brow0' : 'brow1', one); }
     else this.attach('face', pair);
     if (face !== 'none' && !masked) this.attach('face', buildFace(face, hc, this.faceCheek, this.skinMat?.color.getHex(), this.faceEyeLine)); // (skin: a scarred eye's lid)
+    if (this.shaved && this.anchors.jaw) this.attach('jaw', buildJaw(this.skinMat)); // a chin where the beard was
+    if (BEARDS[beard] && !masked) this.attach('face', buildFace(beard, hc, this.faceCheek, this.skinMat?.color.getHex(), this.faceEyeLine));
     // winter: a warm coat (unless you're in fancy clothes, which stay on), a bobble hat and a scarf
     this.setClothes(C ? C.clothes : CLOTHES[clothes] ?? (wear === 'winter' && !fancy ? { jacket: this.coatColor, extra: 'parka' } : undefined), TIE_COLORS[tie]?.color);
     const hatSlot = hairStyle !== 'none' && this.anchors.hair ? 'hair' : 'hat'; // (round the skull, over the tucked hair)
@@ -1537,6 +1548,10 @@ export class NpcView {
   }
   dispose() { this.root.removeFromParent(); }
 }
+
+const JAW_HEIGHT = 0.3; // (of the head's height, from its bottom)
+/** Outfits whose head mesh has a beard of its own (shaved off for Facial hair: Clean-shaven or another beard). */
+const OWN_BEARD = new Set(['Barbarian']);
 
 const GREETER_CLASSES = ['Mage', 'Knight', 'Rogue', 'Barbarian', 'Ranger', 'Rogue_Hooded'];
 const GREETER_HAIR = ['bun', 'ponytail', 'spiky', 'pigtails', 'suave', 'bald'];
