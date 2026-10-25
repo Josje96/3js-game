@@ -103,3 +103,12 @@ test('holidays: Santa’s tree, sack and sleigh are solid, and you can still wal
   assert.ok(inside(SANTA_SPOT.x - 1.6, SANTA_SPOT.z - 3.7), 'the sleigh');
   for (const [dx, dz] of [[0, 1.4], [0.8, 1.2], [-0.8, 1.2]]) assert.ok(!inside(SANTA_SPOT.x + dx, SANTA_SPOT.z + dz), 'room in front of Santa to talk to him');
 });
+
+test('holidays: the villagers keep out of Santa’s corner and the sleigh’s way in', async () => {
+  const { christmasKeepOut, SANTA_SPOT, SLEIGH_PARKED } = await import('../src/shared/seasons.js');
+  const zones = christmasKeepOut(SANTA_SPOT);
+  const kept = (x, z) => zones.some((s) => Math.hypot(s.x - x, s.z - z) < s.r);
+  assert.ok(kept(SANTA_SPOT.x, SANTA_SPOT.z) && kept(SANTA_SPOT.x + 2.6, SANTA_SPOT.z - 1.2), 'Santa and his tree');
+  const s = Math.sin(SLEIGH_PARKED.rot), c = Math.cos(SLEIGH_PARKED.rot);
+  for (let back = 0; back <= 14; back += 1) assert.ok(kept(SANTA_SPOT.x + SLEIGH_PARKED.x - s * back, SANTA_SPOT.z + SLEIGH_PARKED.z - c * back), `the sleigh's way in, ${back} back`);
+});

@@ -18,7 +18,7 @@ import { Music, moodFor } from './music.js';
 import { Sfx } from './sfx.js';
 import { ENCHANT_LOOKS } from '../shared/enchant.js';
 import { useDistance, flyHeightAt } from '../shared/props.js';
-import { holidayOf, seasonOf, SOLSTICE_ARENA, SLEIGH_PARKED, christmasSolids } from '../shared/seasons.js';
+import { holidayOf, seasonOf, SOLSTICE_ARENA, SLEIGH_PARKED, christmasSolids, christmasKeepOut } from '../shared/seasons.js';
 import { SEASON_LOOK } from './seasonfx.js';
 
 /** What the fort looks like, reduced to what a re-render depends on (so a change re-dresses it). */
@@ -950,13 +950,13 @@ export class GameClient {
     if (season === 'autumn') { this.sfx.play('caw'); this.ambientT = 18 + Math.random() * 25; } else if (season === 'spring' && !this.locView.raining) { this.sfx.play('tweet'); this.ambientT = 6 + Math.random() * 10; } else this.ambientT = 10;
   }
 
-  /** Holiday visitors in town and what they brought (Santa's tree and sleigh...): circles the strolling villagers walk round. */
-  visitorSolids() {
+  /** Holiday visitors in town and their corners (Santa's, with his sleigh's way in): where the strolling villagers keep out of. */
+  visitorAreas() {
     const out = [];
     for (const { data } of this.ents.values()) {
       if (data.type !== 'npc') continue;
-      out.push({ x: data.x, z: data.z, r: data.r ?? 0.5 });
-      if (data.decor === 'christmas') out.push(...christmasSolids(data));
+      out.push({ x: data.x, z: data.z, r: (data.r ?? 0.5) + 1.5 });
+      if (data.decor === 'christmas') out.push(...christmasKeepOut(data));
     }
     return out;
   }
@@ -982,7 +982,7 @@ export class GameClient {
     const input = this.input;
     if (this.locView?.villagers) { // they wait for you to pass, and walk round holiday visitors (Santa, his tree...)
       this.locView.villagers.player = this.pos;
-      this.locView.villagers.obstacles = this.visitorSolids();
+      this.locView.villagers.keepOut(this.visitorAreas());
     }
     this.checkVisit();
     if (input.consume('menu')) {

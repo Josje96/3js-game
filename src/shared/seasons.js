@@ -169,6 +169,17 @@ export const SANTA_SPOT = { x: 84, z: 62 };
 export const SLEIGH_PARKED = { x: -1.6, z: -3.7, rot: Math.PI / 2 }; // (side on behind him, the reindeer behind his tree: not in front of him)
 
 /**
+ * Where the strolling villagers keep out of at Christmas (client/villagers.js keepOut): Santa's whole corner,
+ * and the last stretch of the sleigh's way in, low over the square (GameClient's Christmas film), so it
+ * never lands on anyone. Circles `{ x, z, r }` in the world.
+ */
+export function christmasKeepOut(santa) {
+  const s = Math.sin(SLEIGH_PARKED.rot), c = Math.cos(SLEIGH_PARKED.rot), out = [{ x: santa.x + 0.5, z: santa.z - 1.6, r: 5 }];
+  for (const back of [3, 7, 11, 15]) out.push({ x: santa.x + SLEIGH_PARKED.x - s * back, z: santa.z + SLEIGH_PARKED.z - c * back, r: 3 });
+  return out;
+}
+
+/**
  * What you bump into round Santa at Christmas (he's solid himself, as a town npc): the tree with the
  * presents under it, his sack, and the sleigh with its two reindeer. Circles `{ x, z, r }` in the world.
  */
