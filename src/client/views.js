@@ -67,17 +67,21 @@ function duvet(color) {
   return g;
 }
 
-/** Closed eyes for sleeping (the face frame: the eyes at x ±0.17): skin over the painted eyes, and a curved line. */
+/**
+ * Closed eyes for sleeping (the face frame: the eyes at x ±0.17): a rounded eyelid sunk into the face over
+ * each painted eye (like the scar's shut eye, cosmetics.js), and a curved line of lashes on it. (Flat skin
+ * patches stood off the curved face: from the side the open eyes showed under them, flickering by the brows.)
+ */
 function closedEyes(skin) {
   const g = new THREE.Group(), lid = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.8 }), line = new THREE.MeshBasicMaterial({ color: 0x2a1a14 });
   for (const s of [-1, 1]) {
-    const patch = new THREE.Mesh(new THREE.CircleGeometry(1, 18), lid);
-    patch.scale.set(0.08, 0.11, 1);
-    patch.position.set(s * 0.17, -0.01, 0.014);
-    const shut = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.009, 5, 14, Math.PI), line);
+    const cover = new THREE.Mesh(new THREE.SphereGeometry(0.105, 16, 10), lid);
+    cover.scale.set(1.05, 1.15, 0.55); // (sunk deep, so its edge meets the skin as the face curves back)
+    cover.position.set(s * 0.17, -0.025, -0.032);
+    const shut = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.01, 6, 16, Math.PI), line);
     shut.rotation.z = Math.PI; // ‿
-    shut.position.set(s * 0.17, 0.02, 0.02);
-    g.add(patch, shut);
+    shut.position.set(s * 0.17, -0.005, 0.024);
+    g.add(cover, shut);
   }
   return g;
 }
@@ -619,13 +623,21 @@ export class CharacterView {
     this.duvet?.removeFromParent();
     this.sleepEyes?.removeFromParent();
     this.duvet = this.sleepEyes = null;
+    // a gown's or robe's skirt, a tailcoat's tails: they stuck up through the duvet (and it's all under it anyway)
+    if (this.hipsWear) this.hipsWear.visible = !asleep;
     if (!asleep) return;
     const g = new THREE.Group(), rs = this.root.scale;
     g.scale.set(1 / rs.x, 1 / rs.y, 1 / rs.z);
     g.add(duvet(this.blanket ?? 0xe0525a));
     this.root.add(g);
     this.duvet = g;
-    if (this.anchors.face && !COSTUMES[this.costume]?.mask) this.sleepEyes = this.attach('face', closedEyes(this.skinMat?.color.getHex() ?? 0xf2c8a0));
+    const face = this.anchors.face;
+    if (face && !COSTUMES[this.costume]?.mask) { // (not through attach: a new look clears those, and the open eyes showed again)
+      const eyes = this.sleepEyes = new THREE.Group();
+      face.local.decompose(eyes.position, eyes.quaternion, eyes.scale);
+      eyes.add(closedEyes(this.skinMat?.color.getHex() ?? 0xf2c8a0));
+      face.bone.add(eyes);
+    }
   }
 
   /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories, clothes and dye. */
@@ -654,7 +666,7 @@ export class CharacterView {
     this.lookKey = key;
     for (const m of this.borrowed) m.removeFromParent();
     this.borrowed = [];
-    this.skirt = null;
+    this.skirt = this.hipsWear = null;
     this.model.traverse((o) => {
       if (!o.isMesh) return;
       // the outfit's own hat — but picking a hairstyle takes it off, so the style shows (a hat you pick
@@ -812,7 +824,8 @@ export class CharacterView {
       this.tailored = top;
     }
     const extra = buildClothes(def.extra, def.jacket, tieColor, def.pattern);
-    if (extra.hips) this.attach('hips', extra.hips);
+    if (extra.hips) this.hipsWear = this.attach('hips', extra.hips);
+    if (this.hipsWear && this.inBed) this.hipsWear.visible = false; // (under the duvet: tuckIn)
     if (extra.hips?.userData.cone && extra.hips.parent) this.skirt = extra.hips;
   }
 
@@ -1058,7 +1071,7 @@ export class CharacterView {
     }
     if (this.shootT != null) this.shootPose(dt);
     this.bookFx?.update(dt, this.time);
-    if (this.skirt) { this.armsClearSkirt(dt); this.fitSkirt(dt); }
+    if (this.skirt && !this.inBed) { this.armsClearSkirt(dt); this.fitSkirt(dt); }
   }
 
   /** Sitting (no clip for it either): bend the idle pose at the hips and knees, hands in the lap. */

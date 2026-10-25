@@ -32,7 +32,7 @@ function houseKey(h) {
  * captions and colours, or null while the cast isn't in town yet. Called with `this` = the GameClient.
  */
 /** Where you stand to put your hat down at bedtime: beside the bed, in front of its table (bed space). */
-const BEDTIME_STAND = [1.25, 0, 0.5];
+const BEDTIME_STAND = [1.6, 0, 0.4]; // (out past the bed's edge: closer in, the arm by the bed went into it)
 const HAT_CLEAR = 0.6; // how high the hat lifts off your head before it goes over to the table
 /** The intro (checkIntro): the legend of the Heartstone, and why you've moved into the old fort. [from second, caption] */
 const INTRO_CAPTIONS = [
@@ -945,16 +945,18 @@ export class GameClient {
    * Bedtime: you get into bed with something on your head, so first a little film: standing by the
    * bed you reach out and set your hat (helmet, bobble hat...) down on the bedside table, then lie
    * down. It stays there all night (CharacterView.putHatOnTable) and goes back on when you get up.
-   * Only on your own screen (everyone sees the hat on the table); Esc skips it.
+   * Only on your own screen (everyone sees the hat on the table); Esc skips it. Nothing on your head:
+   * the same film, just a big stretch by the bed before lying down.
    */
   startBedtime(bed) {
     if (this.cinematic || !this.me) return;
     const copy = this.me.headwearCopy();
-    if (!copy) return; // nothing on your head: straight into bed
-    copy.group.visible = false;
-    this.scene.add(copy.group);
-    this.cinematic = { kind: 'bedtime', t: 0, bed, hat: copy.group, from: copy.from, lain: false };
-    this.hud.cinema('🎩 Hat off for the night…');
+    if (copy) {
+      copy.group.visible = false;
+      this.scene.add(copy.group);
+    }
+    this.cinematic = { kind: 'bedtime', t: 0, bed, hat: copy?.group ?? null, from: copy?.from ?? null, lain: false };
+    this.hud.cinema(copy ? '🎩 Hat off for the night…' : '😴 Time for bed…');
   }
 
   /** The bedtime film, frame by frame (from updateCamera). */
@@ -963,7 +965,7 @@ export class GameClient {
     const REACH = 0.3, LIFT = 0.55, DOWN = 1.45, LIE = 1.85, END = 3.4;
     const me = this.me, table = bedPoint(c.bed, BEDSIDE_TABLE.x, BEDSIDE_TABLE.y, BEDSIDE_TABLE.z);
     if (c.t >= REACH && !c.reached) { c.reached = true; me.play('cheer'); } // (the rig's reach-out clip)
-    if (c.t >= LIFT && !c.lain) {
+    if (c.t >= LIFT && !c.lain && c.hat) {
       if (!me.hatOff) { // off the head and into the hand
         c.start = me.root.localToWorld(c.from.clone());
         c.startYaw = me.root.rotation.y;
@@ -994,6 +996,7 @@ export class GameClient {
   }
 
   dropBedtimeHat(c) {
+    if (!c.hat) return;
     c.hat.removeFromParent();
     for (const m of c.hat.children) m.geometry.dispose();
     this.me.hatOff = false;
@@ -1199,7 +1202,8 @@ export class GameClient {
     this.me.flying = this.flying;
     this.me.root.position.set(this.pos.x, this.flyY + (this.flying ? Math.sin(performance.now() / 400) * 0.08 : 0) + (this.me.jumpY ?? 0), this.pos.z);
     const r = this.me.root.rotation;
-    r.y += (((this.pos.rot - r.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 18);
+    if (this.sleeping && !standing) r.y = this.pos.rot; // (in bed: straight away, or the hat on the table and the weapon stand swung round with us)
+    else r.y += (((this.pos.rot - r.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 18);
     if (standing) { // beside the bed, facing the bedside table
       const at = bedPoint(bedtime.bed, ...BEDTIME_STAND), table = bedPoint(bedtime.bed, BEDSIDE_TABLE.x, 0, BEDSIDE_TABLE.z);
       this.me.root.position.copy(at);
