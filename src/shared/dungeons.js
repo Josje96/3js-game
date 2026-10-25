@@ -180,6 +180,9 @@ export const ENEMIES = {
   sunpaladin:    { hp: 120, damage: 7, speed: 3.0, gold: [26, 36], ai: 'pounce', body: 'warrior', r: 0.85 },
   // the arena's last round: slams the ground and charges like a seasonal boss (`bigMoves`, LiveLocation bossMoves)
   sunking:       { hp: 1900, damage: 12, speed: 3.2, gold: [3000, 3000], ai: 'chase', body: 'warrior', scale: 2.1, r: 1.0, summon: 'flamegladiator', champion: 'The Sun King', bigMoves: true },
+  // the Shadow Raid (server/systems/raid.js): the Shadow King's knights, fairly easy, and their Captain
+  shadowknight:  { hp: 34,  damage: 3, speed: 2.7, gold: [10, 16], ai: 'chase', body: 'warrior', r: 0.8 },
+  shadowcaptain: { hp: 260, damage: 5, speed: 2.6, gold: [300, 300], ai: 'chase', body: 'warrior', scale: 1.45, r: 0.95, champion: 'Captain of the Shadow Knights' },
 };
 export const SLIME_STATS = ENEMIES; // older name
 

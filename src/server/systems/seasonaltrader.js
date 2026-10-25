@@ -22,7 +22,7 @@ export const methods = {
     const def = on.kind === 'item' ? ITEMS[item] : on.kind === 'clothes' ? CLOTHES[item] : FURNITURE[item];
     if (!def) return;
     if (on.kind === 'clothes' && p.closet.includes(`clothes:${item}`)) return this.toast(p, 'You already have that outfit — it’s in your wardrobe.');
-    if (!this.spend(p, salePrice(seasonalPrice(def), this.save.day), def.name)) return;
+    if (!this.spend(p, salePrice(seasonalPrice(def), this.save.day, this.save.flags), def.name)) return;
     if (on.kind === 'clothes') {
       p.closet.push(`clothes:${item}`);
       this.toast(p, `Bought ${def.name}! Try it on at the wardrobe at home.`);

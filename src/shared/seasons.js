@@ -195,7 +195,21 @@ export function christmasSolids(santa) {
 /** The first day of every season is a sale: everything in the town's shops is half price (the shopkeepers shout it). */
 export const SALE_OFF = 0.5;
 export const isSaleDay = (day) => dayOfSeason(day) === 1;
-export const salePrice = (price, day) => (isSaleDay(day) ? Math.ceil(price * (1 - SALE_OFF)) : price);
+/** What something costs today: half on sale day; the Shadow tax on top after a lost raid (flags.shadowTax: its last day). */
+export const salePrice = (price, day, flags = null) => {
+  const p = isSaleDay(day) ? Math.ceil(price * (1 - SALE_OFF)) : price;
+  return (flags?.shadowTax ?? 0) >= day ? Math.ceil(p * (1 + SHADOW_TAX)) : p;
+};
+
+/**
+ * The Shadow Raid (server/systems/raid.js): on the 5th day of every month (a season is a month) the Shadow
+ * King's knights march out of the Shadow Keep gate, along the road and up to the fountain. RAID_ROUTE: where
+ * they come in and the turns on the way (then the fountain). Lose and the shops charge the Shadow tax.
+ */
+export const RAID_DAY = 5;
+export const isRaidDay = (day) => dayOfSeason(day) === RAID_DAY;
+export const RAID_ROUTE = [{ x: 124, z: 66 }, { x: 80, z: 66 }];
+export const SHADOW_TAX = 0.25, SHADOW_TAX_DAYS = 3;
 
 /** The seasonal boss is in town on the first day of every season. */
 export function isBossDay(day) {

@@ -73,6 +73,7 @@ export const CLIENT_MESSAGES = {
  *   chat     { from, text }
  *   ui       { kind, ... }                   open a window (shop, forge, pets, wardrobe, mirror, chest, elevator)
  *   fx       { kind, x, z, id?, ... }        one-off effects (damage numbers, level ups, debris...)
+ *   raid     { phase, x, z }                 the Shadow Raid (systems/raid.js): start | won | lost, for its films
  *   chestState { storage, ench }             the family chest changed (`ench`: enchant levels of the weapons in it)
  *   night    { day, reason, fainted }        the day ended: show the night screen
  *   house    { owned, styles, wall, floor }  the family's furniture and fort styles changed

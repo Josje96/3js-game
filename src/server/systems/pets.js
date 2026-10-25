@@ -33,7 +33,7 @@ export const methods = {
     if (!def) return;
     if (def.unlock && !this.save.flags[def.unlock]) return this.toast(p, `Beat ${def.unlockBy} first — then a little one will want to come home with you!`);
     if (p.pets.some((x) => x.species === species)) return this.toast(p, `You already have a ${def.name.toLowerCase()}!`);
-    if (!this.spend(p, salePrice(def.price, this.save.day), `a ${def.name.toLowerCase()}`)) return;
+    if (!this.spend(p, salePrice(def.price, this.save.day, this.save.flags), `a ${def.name.toLowerCase()}`)) return;
     const pet = newPet(species, name);
     p.pets.push(pet);
     p.pet = pet.id;

@@ -47,7 +47,7 @@ export const income = (n) => (n > 0 ? Math.max(1, Math.round(n * GOLD_INCOME)) :
 export const BEDTIME_SECONDS = 3;
 
 export const SAVE_VERSION = 14;
-export const PROTOCOL_VERSION = 51;
+export const PROTOCOL_VERSION = 52;
 export const PEER_PREFIX = 'famdungeon-v1-'; // PeerJS ids are global; namespace ours
 
 export const CLASSES = {

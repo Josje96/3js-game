@@ -625,6 +625,7 @@ export class LocationView {
         npc.root.position.set(p.x, 0, p.z);
         npc.root.rotation.y = folk ? this.rand(Math.round(p.x), Math.round(p.z), 'face') * 1.2 - 0.6 : p.rot;
         this.animated.push(npc);
+        if (folk) (this.folkViews ??= []).push({ view: npc, x: p.x, z: p.z, rot: npc.root.rotation.y }); // (the raid's cheer film gathers them)
         if (p.npc && !folk) { // a shopkeeper: on the first day of a season, shouting about the sale
           const shout = makeLabel(SALE_SHOUTS[(this.saleShouts = (this.saleShouts ?? 0) + 1) % SALE_SHOUTS.length], '#ffe14a');
           shout.position.y = 3.7;

@@ -115,6 +115,7 @@ export const methods = {
     }
     if (e.seasonal) return this.seasonBossDefeated(loc, e, p); // the season's boss in town: its own loot
     if (e._home?.arena) return this.arenaFoeDefeated(loc, e, p); // the Solstice Arena's warriors
+    if (e._home?.raid) return this.raidFoeDefeated(loc, e, p); // the Shadow Raid's knights
     const [lo, hi] = ENEMIES[e.variant].gold;
     // co-op: everyone fighting nearby gets their own loot, rolled for them (only they see and pick it up)
     for (const q of this.lootSharers(loc, e, p)) {

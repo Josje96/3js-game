@@ -121,7 +121,7 @@ export class Hud {
   setWorld(world) { this.world = world; this.renderStatus(); this.refreshModal?.(); }
   /** The first day of a season is half price in every shop (shared/seasons.js salePrice). */
   onSale() { return isSaleDay(this.world?.day ?? 0); }
-  sale(price) { return salePrice(price, this.world?.day ?? 0); }
+  sale(price) { return salePrice(price, this.world?.day ?? 0, this.world?.flags); }
   priceTag(price) { return this.onSale() ? `<s class="was">${price}</s> ${this.sale(price)}` : `${price}`; }
   setLocation(title) { this.locTitle = title; this.renderStatus(); }
 

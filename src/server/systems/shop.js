@@ -24,7 +24,7 @@ export const methods = {
     const gear = isGear(item);
     if (gear && !this.atForge(p)) return this.toast(p, 'Weapons and armor are sold by the Blacksmith, at the forge.');
     if (gear && p.gear.includes(item)) return this.toast(p, 'You already have that one. Press C to equip it.');
-    if (!this.spend(p, salePrice(def.price, this.save.day), def.name)) return;
+    if (!this.spend(p, salePrice(def.price, this.save.day, this.save.flags), def.name)) return;
     if (gear) {
       p.gear.push(item);
       p[def.kind] = item; // just bought it: put it on (weapon / shield / armor / helmet slot)
@@ -39,7 +39,7 @@ export const methods = {
   on_buyStyle(p, { slot, id }) {
     const def = STYLE_SLOTS[slot]?.[id];
     if (!def?.price || def.seasonal || ownsStyle(p.closet, slot, id) || p.loc !== 'town') return;
-    if (!this.spend(p, salePrice(def.price, this.save.day), def.name)) return;
+    if (!this.spend(p, salePrice(def.price, this.save.day, this.save.flags), def.name)) return;
     p.closet.push(`${slot}:${id}`);
     this.toast(p, `Bought ${def.name}! Try it on at the wardrobe at home.`);
     this.writeRecord(p);
@@ -54,7 +54,7 @@ export const methods = {
     for (const [item, n] of Object.entries(r.needs)) {
       if ((p.inventory[item] ?? 0) < n) return this.toast(p, `You need ${n} ${ITEMS[item].name}.`);
     }
-    if (!this.spend(p, salePrice(r.gold, this.save.day), ITEMS[recipe].name)) return;
+    if (!this.spend(p, salePrice(r.gold, this.save.day, this.save.flags), ITEMS[recipe].name)) return;
     for (const [item, n] of Object.entries(r.needs)) {
       p.inventory[item] -= n;
       if (!p.inventory[item]) delete p.inventory[item];

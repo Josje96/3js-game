@@ -85,6 +85,7 @@ export class Villagers {
   }
 
   update(dt) {
+    if (this.paused) { for (const w of this.walkers) w.view.update(dt); return; } // (a film has them: GameClient raidFilm)
     const you = this.player; // (set by the game: villagers wait while you're in their way)
     for (const w of this.walkers) {
       if (w.len <= 0) continue;

@@ -279,6 +279,7 @@ export class GameClient {
       case 'pos': this.onPos(msg); break;
       case 'pong': this.net.ping = performance.now() - (this.net.pings.get(msg.id) ?? performance.now()); this.net.pings.delete(msg.id); break;
       case 'fx': this.onFx(msg); break;
+      case 'raid': this.raidFilm(msg); break; // the Shadow Raid (server/systems/raid.js): its films
       case 'toast': this.hud.toast(msg.text, msg.big); break;
       case 'night': this.sleeping = false; this.sfx.play('night'); this.hud.nightScreen(msg); break;
       case 'chestState': this.hud.setChest(msg.storage, msg.ench); break;
@@ -875,6 +876,84 @@ export class GameClient {
    * A page of the story was just found (a boss beaten): a little film where you are, the camera slowly
    * circling you while the page is told in a few captions. One after another if several came at once.
    */
+  raidFilm(msg) {
+    if (this.layout?.key !== 'town' || !this.me) return;
+    if (this.cinematic?.kind === 'visit') this.endVisit(this.cinematic); // (this one matters more)
+    if (this.cinematic) return;
+    const at = new THREE.Vector3(msg.x, 0, msg.z), ease = (v) => { v = Math.min(1, Math.max(0, v)); return v * v * (3 - 2 * v); };
+    const base = { kind: 'visit', where: 'town', t: 0, waved: false, npcs: [], focus: at.clone(), done: () => {} };
+    if (msg.phase === 'start') { // they march out of the Shadow Keep gate: the camera ahead of the column, backing away from it
+      const captain = () => [...this.ents.values()].find((e) => e.data.type === 'slime' && e.data.variant === 'shadowcaptain');
+      const centre = new THREE.Vector3().copy(at);
+      this.sfx.play('thunder');
+      this.cinematic = {
+        ...base, arrive: 7, end: 7.6, sound: 'chime', colors: [0x8a2aff, 0x3a1a5a, 0x14081e], burstAt: at.clone().add(new THREE.Vector3(-30, 0, 0)),
+        captions: [[0, '⚔️ The Shadow King’s knights march out of the Shadow Keep…'], [3.5, '🛡️ They’re going for the fountain! Rally, and drive them off!']],
+        intro: '⚔️ The Shadow King’s knights march out of the Shadow Keep…', outro: '🛡️ Defend the fountain!',
+        shot: (t) => { // ahead of the column (the Captain leads it), backing away as it comes on
+          const c = captain(), cp = c?.view?.root?.position ?? c?.data;
+          if (cp) centre.set(cp.x + 1.5, 0, cp.z); // (the camera itself eases after him)
+          return { pos: centre.clone().add(new THREE.Vector3(-10 + t * 0.3, 3.4 + t * 0.25, 6 - t * 0.25)), look: centre.clone().add(new THREE.Vector3(0, 1.5, 0)) };
+        },
+      };
+      this.hud.cinema(this.cinematic.intro);
+      return;
+    }
+    if (msg.phase === 'won') { // the townsfolk come running to the fountain and cheer their heroes; confetti
+      // (only on our screen: each one walks from its own spot to a ring round the fountain, turned to face in)
+      // (the townsfolk by their stalls and houses, and the villagers strolling about: in the scene where they stand)
+      const strollers = this.locView?.villagers;
+      if (strollers) strollers.paused = true;
+      const folk = [...(this.locView?.folkViews ?? []), ...(strollers?.walkers ?? []).filter((w) => w.view.root.visible).map((w) => ({ view: w.view, x: w.view.root.position.x, z: w.view.root.position.z, rot: w.view.root.rotation.y, stroller: true }))]
+        .sort((a, b) => ((a.x - at.x) ** 2 + (a.z - at.z) ** 2) - ((b.x - at.x) ** 2 + (b.z - at.z) ** 2)).slice(0, 12)
+        .map((f, i, all) => { const a = (i / all.length) * Math.PI * 2 + 0.3, r = 6.5 + (i % 2) * 1.2; return { ch: f.view, home: f, to: { x: at.x + Math.sin(a) * r, z: at.z + Math.cos(a) * r } }; });
+      const named = (this.locView?.folkViews ?? []).map((f) => f.view.label).filter(Boolean);
+      for (const l of named) l.visible = false; // (everyone's names, close up, filled the screen)
+      const place = (u) => folk.forEach(({ ch, home, to }) => {
+        ch.root.position.set(home.x + (to.x - home.x) * u, 0, home.z + (to.z - home.z) * u);
+        ch.root.rotation.y = u < 1 ? Math.atan2(to.x - home.x, to.z - home.z) : Math.atan2(at.x - to.x, at.z - to.z);
+        ch.setBase(u < 1 ? 'run' : 'idle');
+      });
+      const cheer = () => {
+        for (const f of folk) f.ch.play('cheer');
+        this.me.play('cheer');
+        for (const v of this.others.values()) v.play?.('cheer');
+      };
+      let next = 1.2;
+      this.cinematic = {
+        ...base, arrive: 3, end: 9, sound: 'levelup', colors: [0xff5a8a, 0xffd23f, 0x5ab4ff, 0x6ad86a, 0xffffff], burstAt: at.clone(),
+        captions: [[0, '🎉 The Shadow Knights are beaten! Pebble Town is saved!'], [3.2, '🙌 The townsfolk cheer for their heroes!']],
+        intro: '🎉 The Shadow Knights are beaten! Pebble Town is saved!', outro: '🙌 Hooray for the heroes of Pebble Town!',
+        shot: (t) => { const a = 0.5 + t * 0.22, r = 13 - ease(t / 5) * 3; return { pos: new THREE.Vector3(at.x + Math.sin(a) * r, 5.5 - ease(t / 5) * 1.5, at.z + Math.cos(a) * r), look: at.clone().add(new THREE.Vector3(0, 1.5, 0)) }; },
+        onFrame: (t) => {
+          place(ease(t / 2.4));
+          if (t < next) return;
+          next = t + 1.4;
+          cheer();
+          this.addEffect(new Debris(at.x + (Math.random() - 0.5) * 8, at.z + (Math.random() - 0.5) * 8, [0xff5a8a, 0xffd23f, 0x5ab4ff, 0x6ad86a, 0xffffff], 30));
+          if (t > 0.5) this.sfx.play('coin');
+        },
+        done: () => { // back to their own spots (the strollers carry on strolling)
+          for (const { ch, home } of folk) { ch.root.position.set(home.x, 0, home.z); ch.root.rotation.y = home.rot; ch.setBase(home.stroller ? 'walk' : 'idle'); }
+          for (const l of named) l.visible = true;
+          if (strollers) strollers.paused = false;
+        },
+      };
+      this.hud.cinema(this.cinematic.intro);
+      return;
+    }
+    if (msg.phase === 'lost') { // they hold the fountain and make off with the town's takings
+      this.sfx.play('laugh');
+      this.cinematic = {
+        ...base, arrive: 5, end: 6.5, sound: 'night', colors: [0x3a1a5a, 0x14081e, 0x8a2aff], burstAt: at.clone(),
+        captions: [[0, '🌑 The Shadow Knights hold the fountain…'], [2.8, '💰 …and carry off the town’s takings. The Shadow tax is on!']],
+        intro: '🌑 The Shadow Knights hold the fountain…', outro: '🌑 Next time, rally the whole family!',
+        shot: (t) => { const a = 2.2 - t * 0.12; return { pos: new THREE.Vector3(at.x + Math.sin(a) * 12, 9.5 - t * 0.4, at.z + Math.cos(a) * 12), look: at.clone().add(new THREE.Vector3(0, 1.2, 0)) }; }, // (above the bunting)
+      };
+      this.hud.cinema(this.cinematic.intro);
+    }
+  }
+
   checkStoryFilm() {
     if (this.cinematic || !this.storyFilms?.length || !this.layout || !this.me) return;
     const page = this.storyFilms.shift(), you = new THREE.Vector3(this.pos.x, 0, this.pos.z);

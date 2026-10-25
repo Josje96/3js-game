@@ -667,6 +667,9 @@ const WARRIOR_KIT = {
   sunarcher:     { metal: 0xe8c45a, cloth: 0xf2ead2, crest: null, skin: 0xc8906a, gear: 'bow' },
   sunknight:     { metal: 0xf0e6c8, cloth: 0xf2b830, crest: 0xffd23f, skin: 0xe0b090, gear: 'sword', shield: 'tower', visor: true },
   solarchampion: { metal: 0xffc83a, cloth: 0xc8301a, crest: 0xff7a1a, skin: 0xe0b090, gear: 'greatsword', visor: true, halo: true },
+  // the Shadow Raid: blackened iron, purple cloth, a violet glow in the visor and on the badge
+  shadowknight:  { metal: 0x2e2838, cloth: 0x4a1a6a, crest: null, skin: 0xb8a8c8, gear: 'sword', shield: 'tower', visor: true, glow: 0xb06aff },
+  shadowcaptain: { metal: 0x1e1a28, cloth: 0x6a1a8a, crest: 0x9a3aff, skin: 0xb8a8c8, gear: 'greatsword', visor: true, glow: 0xc070ff, blade: [0xd8b0ff, 0x8a2aff] },
 };
 BODIES.warrior = function warrior(fire, variant = 'gladiator') {
   const K = WARRIOR_KIT[variant] ?? WARRIOR_KIT.gladiator, g = new THREE.Group();
@@ -688,8 +691,9 @@ BODIES.warrior = function warrior(fire, variant = 'gladiator') {
   add(g, new THREE.CylinderGeometry(0.3, 0.27, 0.12, 12), leather, 0, 0.95, 0); // belt
   const chest = add(g, new THREE.CylinderGeometry(0.33, 0.29, 0.62, 12), metal, 0, 1.3, 0, 1, 1, 0.82);
   chest.castShadow = true;
-  add(g, new THREE.CircleGeometry(0.11, 12), glow(0xffd23f), 0, 1.36, 0.28); // the sun badge
-  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; add(g, new THREE.ConeGeometry(0.03, 0.09, 4), glow(0xffd23f), Math.cos(a) * 0.15, 1.36 + Math.sin(a) * 0.15, 0.275).rotation.z = a - Math.PI / 2; }
+  const badge = K.glow ?? 0xffd23f; // (a sun; on the Shadow Knights, a violet star)
+  add(g, new THREE.CircleGeometry(0.11, 12), glow(badge), 0, 1.36, 0.28); // the badge
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; add(g, new THREE.ConeGeometry(0.03, 0.09, 4), glow(badge), Math.cos(a) * 0.15, 1.36 + Math.sin(a) * 0.15, 0.275).rotation.z = a - Math.PI / 2; }
   // a cape
   const cape = add(g, new THREE.PlaneGeometry(0.6, 1.0, 1, 4), mat(K.cloth, { side: THREE.DoubleSide, roughness: 1 }), 0, 1.1, -0.27);
   cape.rotation.x = 0.1;
@@ -702,7 +706,7 @@ BODIES.warrior = function warrior(fire, variant = 'gladiator') {
   if (K.visor) {
     add(head, new THREE.CylinderGeometry(0.25, 0.24, 0.42, 14), metal, 0, 0.04, 0);
     add(head, ball(0.25, 14), metal, 0, 0.24, 0, 1, 0.55, 1);
-    add(head, new THREE.BoxGeometry(0.34, 0.035, 0.05), glow(fire || variant === 'solarchampion' ? 0xff8a2a : 0xffe08a), 0, 0.08, 0.23); // eye slit
+    add(head, new THREE.BoxGeometry(0.34, 0.035, 0.05), glow(K.glow ?? (fire || variant === 'solarchampion' ? 0xff8a2a : 0xffe08a)), 0, 0.08, 0.23); // eye slit
   } else {
     add(head, new THREE.SphereGeometry(0.25, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), metal, 0, 0.04, 0);
     for (const sx of [-1, 1]) add(head, new THREE.BoxGeometry(0.04, 0.2, 0.14), metal, sx * 0.22, -0.06, 0.06); // cheek guards
@@ -740,11 +744,12 @@ BODIES.warrior = function warrior(fire, variant = 'gladiator') {
     add(R, new THREE.BoxGeometry(0.22, 0.05, 0.06), metal, 0, 0, 0.06);
     add(R, new THREE.CylinderGeometry(0.03, 0.03, 0.14, 6), leather, 0, 0, -0.03).rotation.x = Math.PI / 2;
   } else if (K.gear === 'greatsword') { // a blade of sunfire
-    const blade = add(R, new THREE.BoxGeometry(0.12, 1.25, 0.03), mat(0xffe8a0, { emissive: 0xff8a1a, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.25 }), 0, 0.02, 0.7);
+    const [bladeColor, bladeGlow] = K.blade ?? [0xffe8a0, 0xff8a1a];
+    const blade = add(R, new THREE.BoxGeometry(0.12, 1.25, 0.03), mat(bladeColor, { emissive: bladeGlow, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.25 }), 0, 0.02, 0.7);
     blade.rotation.x = Math.PI / 2;
     add(R, new THREE.BoxGeometry(0.4, 0.07, 0.09), metal, 0, 0, 0.07);
     add(R, new THREE.CylinderGeometry(0.035, 0.035, 0.24, 6), leather, 0, 0, -0.08).rotation.x = Math.PI / 2;
-    flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: softGlow(), color: 0xff9a2a, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+    flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: softGlow(), color: K.blade ? K.blade[1] : 0xff9a2a, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
     flame.scale.set(0.5, 1.6, 1);
     flame.position.set(0, 0.02, 0.75);
     R.add(flame);
@@ -761,7 +766,7 @@ BODIES.warrior = function warrior(fire, variant = 'gladiator') {
     add(L, new THREE.SphereGeometry(0.09, 10, 8), glow(0xffd23f), 0.17, 0.15, 0.12); // a sun boss
   } else if (K.shield === 'tower') {
     add(L, new THREE.BoxGeometry(0.06, 0.95, 0.55), metal, 0.12, 0.1, 0.14);
-    add(L, new THREE.BoxGeometry(0.02, 0.3, 0.3), glow(0xffd23f), 0.16, 0.18, 0.14);
+    add(L, new THREE.BoxGeometry(0.02, 0.3, 0.3), glow(badge), 0.16, 0.18, 0.14);
   }
   return { group: g, parts: { arms, legs, head, halo, flame, gear: K.gear }, height: 2.3 };
 };

@@ -77,7 +77,7 @@ export const methods = {
   on_buyFurniture(p, { item }) {
     const def = FURNITURE[item];
     if (!def || def.notForSale || def.seasonal || p.loc !== 'town' || !this.decoratorOpen()) return;
-    if (!this.spend(p, salePrice(def.price, this.save.day), def.name)) return;
+    if (!this.spend(p, salePrice(def.price, this.save.day, this.save.flags), def.name)) return;
     const owned = this.save.house.owned;
     owned[item] = (owned[item] ?? 0) + 1;
     this.toast(p, `Bought ${def.name}! Go home and press B to place it.`);
@@ -91,7 +91,7 @@ export const methods = {
     if (!def || p.loc !== 'town' || !this.decoratorOpen()) return;
     h.styles ??= [];
     if (!def.price || h.styles.includes(`${kind}:${id}`)) return this.toast(p, 'The family already has that one.');
-    if (!this.spend(p, salePrice(def.price, this.save.day), def.name)) return;
+    if (!this.spend(p, salePrice(def.price, this.save.day, this.save.flags), def.name)) return;
     h.styles.push(`${kind}:${id}`);
     this.toast(p, `Bought ${def.name}! At home, press B and pick ${kind === 'wall' ? 'Walls' : 'Floors'} to put it up in your room.`);
     this.sendHouse();

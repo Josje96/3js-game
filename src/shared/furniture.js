@@ -16,6 +16,7 @@ export const FURNITURE = {
   minetrophy:  { name: 'Old Mine trophy', build: 'minetrophy', radius: 0.5, notForSale: true, trophy: 'mine' },
   ruinstrophy: { name: 'Sunken Ruins trophy', build: 'ruinstrophy', radius: 0.5, notForSale: true, trophy: 'ruins' },
   keeptrophy:  { name: 'Shadow Keep trophy', build: 'keeptrophy', radius: 0.5, notForSale: true, trophy: 'keep' },
+  raidbanner:  { name: 'Captured Shadow banner', build: 'raidbanner', radius: 0.5, notForSale: true }, // the first Shadow Raid beaten off (server/systems/raid.js)
   chair:      { name: 'Chair', model: 'dungeon/chair', price: 60, radius: 0.5, seat: { face: -Math.PI / 2, y: 0.52 } }, // (the model's back is on its +x side)
   stool:      { name: 'Stool', model: 'dungeon/stool', price: 40, radius: 0.45, seat: { face: 0, y: 0.5 } },
   smalltable: { name: 'Small table', model: 'dungeon/table_small_decorated_A', price: 90, radius: 0.8 },

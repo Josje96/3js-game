@@ -1261,6 +1261,27 @@ export const FURNITURE_BUILDERS = {
     for (const [x, y, z, r] of [[0, 2.0, 0, 0.5], [0.35, 1.8, 0.1, 0.38], [-0.35, 1.85, -0.1, 0.4], [0.1, 1.7, 0.35, 0.35], [-0.1, 2.25, -0.2, 0.32]]) add(g, ball(r), mat(0xffb3cc, { roughness: 1 }), x, y, z);
     return g;
   },
+  raidbanner() { // the Shadow Knights' banner, captured: torn purple cloth with a violet star on a broken black pole, a dented visored helm at its foot
+    const g = new THREE.Group(), iron = mat(0x2e2838, { metalness: 0.7, roughness: 0.35 }), cloth = mat(0x4a1a6a, { roughness: 0.95, side: THREE.DoubleSide });
+    add(g, cyl(0.32, 0.38, 0.12, 14), mat(0x6b4a2c), 0, 0.06, 0); // the stand
+    const pole = add(g, cyl(0.04, 0.045, 2.2, 8), iron, 0, 1.15, 0);
+    pole.rotation.z = 0.08;
+    add(g, cyl(0.03, 0.03, 0.9, 6), iron, 0.13, 2.05, 0).rotation.z = Math.PI / 2; // the crossbar
+    const geo = new THREE.PlaneGeometry(0.85, 1.1, 6, 8), p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i); p.setZ(i, Math.sin(x * 5 + y * 2) * 0.04); if (y < -0.45) p.setY(i, y - Math.abs(Math.sin(x * 9)) * 0.18); } // torn at the bottom
+    geo.computeVertexNormals();
+    const flag = add(g, geo, cloth, 0.15, 1.5, 0.02);
+    for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2, r = i % 2 ? 0.08 : 0.2; add(g, ball(0.03, 6), mat(0xc070ff, { emissive: 0x9a3aff, emissiveIntensity: 0.8 }), 0.15 + Math.sin(a) * r, 1.62 + Math.cos(a) * r, 0.06); } // the star
+    const helm = new THREE.Group();
+    helm.position.set(-0.18, 0.3, 0.2);
+    helm.rotation.set(0.3, 0.5, 0.25);
+    g.add(helm);
+    add(helm, cyl(0.2, 0.19, 0.32, 14), iron, 0, 0, 0);
+    add(helm, ball(0.2, 12), iron, 0, 0.16, 0, [1, 0.55, 1]);
+    add(helm, new THREE.BoxGeometry(0.26, 0.03, 0.05), mat(0x14081e), 0, 0.04, 0.18); // the dark slit
+    g.userData.update = (t) => { flag.rotation.y = Math.sin(t * 0.9) * 0.08; };
+    return g;
+  },
   heartrug() { // a fluffy pink heart-shaped rug with a white scalloped edge
     const g = new THREE.Group(), heart = new THREE.Shape(), r = 1;
     heart.moveTo(0, -r);
