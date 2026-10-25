@@ -154,27 +154,6 @@ export class Sfx {
     }
   }
 
-  /**
-   * Say something out loud with the browser's own voice (the one recording-free way to get words),
-   * at the volume slider and quiet when muted. `pitch`/`rate` make each speaker sound different; `at` waits
-   * that many seconds first. A no-op without speech (some browsers) or before the first click.
-   */
-  say(text, { pitch = 1, rate = 1, at = 0, vol = 1 } = {}) {
-    const music = this.music, speech = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
-    if (!speech || typeof SpeechSynthesisUtterance === 'undefined' || !music || music.muted || this.ctx?.state !== 'running') return;
-    const speak = () => {
-      try {
-        const u = new SpeechSynthesisUtterance(text);
-        u.pitch = pitch; u.rate = rate; u.volume = Math.min(1, music.volume * vol);
-        const english = speech.getVoices().find((v) => /^en/i.test(v.lang));
-        if (english) u.voice = english;
-        speech.speak(u);
-      } catch (err) { console.warn('speech failed', err); }
-    };
-    if (at > 0) setTimeout(speak, at * 1000);
-    else speak();
-  }
-
   caw() { // a crow: two harsh, falling calls
     for (const at of [0, 0.32]) {
       this.tone({ type: 'sawtooth', from: 760, to: 520, at, dur: 0.18, vol: 0.05 });

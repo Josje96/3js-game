@@ -33,7 +33,7 @@ function houseKey(h) {
 /** Where you stand to put your hat down at bedtime: beside the bed, in front of its table (bed space). */
 const BEDTIME_STAND = [1.25, 0, 0.5];
 const HAT_CLEAR = 0.6; // how high the hat lifts off your head before it goes over to the table
-const TREAT_HEARING = 18; // how near a cottage door you have to be to hear someone trick-or-treat
+const TREAT_HEARING = 18; // how near a cottage door you have to be to hear someone knock
 /** A point in a bed's own space (x across, z from headboard to foot), in the world. */
 function bedPoint(bed, x, y, z) {
   const s = Math.sin(bed.rot), c = Math.cos(bed.rot);
@@ -528,16 +528,12 @@ export class GameClient {
     }
   }
 
-  /** Halloween, someone knocked on a cottage door: knock knock, “Trick or treat!”, and a neighbour comes out with candy (or BOO!). */
+  /** Halloween, someone knocked on a cottage door: knock knock, and a neighbour comes out with candy (or BOO!). */
   trickOrTreat(msg) {
     const boo = msg.kind === 'boo', hear = msg.by === this.you || Math.hypot(msg.x - this.pos.x, msg.z - this.pos.z) < TREAT_HEARING;
-    if (hear) {
-      this.sfx.play('knock');
-      this.sfx.say('Trick or treat!', { pitch: 1.45, rate: 1.05, at: 0.6 });
-    }
+    if (hear) this.sfx.play('knock');
     this.addEffect(new DoorGreeter(msg, {
       boo,
-      say: hear ? (text, voice) => this.sfx.say(text, voice) : null,
       onGive: () => { this.sfx.play('coin'); this.floatAt(msg, boo ? '👻 BOO!' : '🍬 Treat!', boo ? '#e8e8ff' : '#ffb347'); },
     }));
   }

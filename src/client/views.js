@@ -1618,33 +1618,76 @@ const OWN_BEARD = new Set(['Barbarian']);
 
 const GREETER_CLASSES = ['Mage', 'Knight', 'Rogue', 'Barbarian', 'Ranger', 'Rogue_Hooded'];
 const GREETER_HAIR = ['bun', 'ponytail', 'spiky', 'pigtails', 'suave', 'bald'];
-const GREETER_HELLO = ['Happy Halloween!', 'Ooh, what a costume! Here you go!', 'Trick or treat? Treat, of course!', 'Take two, they’re small!'];
-const DOOR = { w: 0.9 * 1.9, h: 1.6 * 1.9, thick: 0.1 * 1.9, back: 0.43 }; // the cottage door (town.js makeCottage, scaled 1.9): its face is `back` behind the knocking spot
+const DOOR = { w: 0.9 * 1.9, h: 1.6 * 1.9, thick: 0.1 * 1.9, back: 0.43, out: 0.17 }; // the cottage door (town.js makeCottage, scaled 1.9): its face is `back` behind the knocking spot; `out`: the open doorway stands this far out of the wall (in front of a wreath on the door)
+
+/**
+ * The inside of a cottage, seen through its open front door (painted: the cottage is one merged mesh, so
+ * there's no real room in there): cream walls and ceiling, floorboards running back, a rug, a picture over a
+ * glowing fireplace, lamplight. One shared texture.
+ */
+let roomTexture = null;
+function cottageRoom() {
+  if (roomTexture || typeof document === 'undefined') return roomTexture;
+  const W = 256, H = 456, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const quad = (pts, fill) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.fillStyle = fill; g.fill(); };
+  const L = W * 0.24, R = W * 0.76, T = H * 0.2, B = H * 0.64; // the back wall
+  quad([[0, 0], [W, 0], [R, T], [L, T]], '#d9b98a');           // ceiling
+  quad([[0, 0], [L, T], [L, B], [0, H]], '#e8c993');           // left wall
+  quad([[W, 0], [R, T], [R, B], [W, H]], '#dfbd86');           // right wall
+  quad([[L, T], [R, T], [R, B], [L, B]], '#f3dcae');           // back wall
+  quad([[0, H], [W, H], [R, B], [L, B]], '#8a5a34');           // the floor
+  g.strokeStyle = '#6e4626'; g.lineWidth = 2;
+  for (let i = 1; i < 7; i++) { const u = i / 7; g.beginPath(); g.moveTo(u * W, H); g.lineTo(L + (R - L) * u, B); g.stroke(); } // floorboards
+  g.fillStyle = '#b8303a'; g.beginPath(); g.ellipse(W / 2, H * 0.83, W * 0.3, H * 0.06, 0, 0, Math.PI * 2); g.fill(); // a rug
+  g.strokeStyle = '#f0c040'; g.lineWidth = 3; g.beginPath(); g.ellipse(W / 2, H * 0.83, W * 0.25, H * 0.045, 0, 0, Math.PI * 2); g.stroke();
+  quad([[W * 0.38, B], [W * 0.62, B], [W * 0.62, H * 0.47], [W * 0.38, H * 0.47]], '#8a8278'); // the fireplace
+  quad([[W * 0.42, B], [W * 0.58, B], [W * 0.58, H * 0.52], [W * 0.42, H * 0.52]], '#2a1a12');
+  const fire = g.createRadialGradient(W / 2, B - 6, 2, W / 2, B - 6, 22);
+  fire.addColorStop(0, '#fff2a0'); fire.addColorStop(0.4, '#ff9a2a'); fire.addColorStop(1, 'rgba(255,80,20,0)');
+  g.fillStyle = fire; g.fillRect(W * 0.4, H * 0.5, W * 0.2, B - H * 0.5);
+  quad([[W * 0.4, H * 0.3], [W * 0.6, H * 0.3], [W * 0.6, H * 0.42], [W * 0.4, H * 0.42]], '#c89a3a'); // a picture in a gold frame
+  quad([[W * 0.42, H * 0.31], [W * 0.58, H * 0.31], [W * 0.58, H * 0.41], [W * 0.42, H * 0.41]], '#7ab8e0');
+  quad([[W * 0.42, H * 0.38], [W * 0.58, H * 0.36], [W * 0.58, H * 0.41], [W * 0.42, H * 0.41]], '#5a9a4a'); // (a hill under a blue sky)
+  const lamp = g.createRadialGradient(W * 0.5, H * 0.12, 4, W * 0.5, H * 0.3, H * 0.55); // warm light from a lamp up top
+  lamp.addColorStop(0, 'rgba(255,230,160,0.55)'); lamp.addColorStop(1, 'rgba(255,200,120,0)');
+  g.fillStyle = lamp; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#ffe9a0'; g.beginPath(); g.arc(W * 0.5, H * 0.1, 9, 0, Math.PI * 2); g.fill();
+  roomTexture = new THREE.CanvasTexture(c);
+  roomTexture.colorSpace = THREE.SRGBColorSpace;
+  return roomTexture;
+}
 
 /**
  * Halloween at a cottage door (holidays.js treat): the door swings open, a neighbour in costume steps out
- * with a bowl of candy, says hello and goes back in, and the door shuts. `boo`: they jump out in a ghost
- * sheet instead. The cottage itself is merged into the town's static mesh, so an open doorway (dark, lit
- * a little from inside) and the swung-open door are drawn over it while it plays. `say(text, voice)` speaks
- * (null when we're too far away to hear); `onGive()` when the candy is handed over.
+ * with a bowl of candy, holds it out and goes back in, and the door shuts. `boo`: they jump out in a ghost
+ * sheet instead. The cottage itself is merged into the town's static mesh, so an open doorway (a frame round
+ * their home inside: cottageRoom) and the swung-open door are drawn over it while it plays.
+ * `onGive()` when the candy is handed over.
  */
 export class DoorGreeter {
-  constructor(door, { boo = false, say = null, onGive = null } = {}) {
+  constructor(door, { boo = false, onGive = null } = {}) {
     this.root = new THREE.Group();
     this.root.position.set(door.x, 0, door.z - DOOR.back); // the door's face, at its middle
     const house = door.house ?? 0, wood = new THREE.MeshStandardMaterial({ color: 0x6b4a2c, roughness: 0.8 });
-    const inside = new THREE.Mesh(new THREE.BoxGeometry(DOOR.w, DOOR.h, 0.02), new THREE.MeshStandardMaterial({ color: 0x1c120a, emissive: 0x3a2210, roughness: 1 }));
-    inside.position.set(0, DOOR.h / 2, 0.012);
+    // the open doorway: their home inside, in a wooden frame standing out of the wall (over the closed door and any wreath)
+    const room = cottageRoom();
+    const inside = new THREE.Mesh(new THREE.PlaneGeometry(DOOR.w, DOOR.h), room ? new THREE.MeshBasicMaterial({ map: room }) : new THREE.MeshBasicMaterial({ color: 0xe8c993 }));
+    inside.position.set(0, DOOR.h / 2, DOOR.out);
+    const frame = new THREE.Group(), jamb = 0.12;
+    const part = (g, geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+    for (const sx of [-1, 1]) part(frame, new THREE.BoxGeometry(jamb, DOOR.h + jamb, DOOR.out + 0.04), wood, sx * (DOOR.w + jamb) / 2, (DOOR.h + jamb) / 2, DOOR.out / 2);
+    part(frame, new THREE.BoxGeometry(DOOR.w + jamb * 2, jamb, DOOR.out + 0.04), wood, 0, DOOR.h + jamb / 2, DOOR.out / 2);
     this.hinge = new THREE.Group(); // the door hangs on its left edge (the knob is on the right) and swings out
-    this.hinge.position.set(-DOOR.w / 2, 0, 0);
+    this.hinge.position.set(-DOOR.w / 2, 0, DOOR.out);
     const slab = new THREE.Mesh(new THREE.BoxGeometry(DOOR.w, DOOR.h, DOOR.thick), wood);
     slab.position.set(DOOR.w / 2, DOOR.h / 2, DOOR.thick / 2);
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffcf3f, metalness: 0.6 }));
     knob.position.set(DOOR.w - 0.57, 1.62, DOOR.thick + 0.06);
     this.hinge.add(slab, knob);
-    this.root.add(inside, this.hinge);
+    this.root.add(inside, frame, this.hinge);
     // the neighbour: the same person (and costume) at this house every Halloween
-    const r = (k) => ((Math.imul(house + 1, 2654435761) >>> k) & 0xffff) / 0x10000;
     this.ch = new CharacterView({ cls: GREETER_CLASSES[house % GREETER_CLASSES.length], name: `Neighbour ${house}`, weapon: null,
       look: { hat: 'none', hair: GREETER_HAIR[(house * 7 + 3) % GREETER_HAIR.length], hairColor: Object.keys(HAIR_COLORS)[(house * 5) % Object.keys(HAIR_COLORS).length] } });
     this.ch.label?.removeFromParent(); // (a name only picks their costume: no label over a neighbour)
@@ -1656,21 +1699,18 @@ export class DoorGreeter {
     this.ch.hand?.add(candyBowl());
     this.root.add(this.ch.root);
     this.boo = boo;
-    this.say = say;
     this.onGive = onGive;
-    this.voice = { pitch: 0.75 + r(3) * 0.6, rate: 0.95 + r(9) * 0.15 };
-    this.hello = boo ? 'Boo! Ha ha, happy Halloween!' : GREETER_HELLO[house % GREETER_HELLO.length];
     this.t = 0;
   }
   get done() { return this.t > 6.2; }
   update(dt) {
     const t = (this.t += dt), ease = (u) => { u = Math.min(1, Math.max(0, u)); return u * u * (3 - 2 * u); };
-    // 0-0.9 the knock and "Trick or treat!" (GameClient), the door opens, they step out, give, step back, it shuts
+    // 0-0.9 the knock (GameClient), the door opens, they step out, give, step back, it shuts
     const open = (this.boo ? ease((t - 0.8) / 0.25) : ease((t - 1.0) / 0.6)) * (1 - ease((t - 5.4) / 0.6)); // (BOO: flung open)
     this.hinge.rotation.y = -open * 1.75;
     const out = this.boo ? ease((t - 0.9) / 0.25) : ease((t - 1.4) / 0.9);
     const back = ease((t - 4.4) / 0.9);
-    const z = -1.5 + 1.95 * out - 1.95 * back; // from inside the house to just out of the doorway, and back in
+    const z = -1.5 + 2.3 * out - 2.3 * back; // from inside the house to just out of the doorway, and back in
     const ch = this.ch;
     ch.root.visible = t > 0.9 && back < 0.9; // (gone inside before the door shuts: a ghost's sheet is wide)
     ch.root.position.set(0, this.boo && t < 1.4 ? Math.sin(Math.min(1, (t - 0.9) / 0.5) * Math.PI) * 0.5 : 0, z);
@@ -1679,7 +1719,6 @@ export class DoorGreeter {
     if (ch.oneShot == null) ch.setBase(walking ? 'walk' : 'idle');
     if (!this.greeted && t > (this.boo ? 1.3 : 2.4)) {
       this.greeted = true;
-      this.say?.(this.hello, this.voice);
       ch.play('cheer'); // holding the bowl out
       this.onGive?.();
     }
