@@ -3,7 +3,7 @@ import { ITEMS, FORGE_RECIPES, SHOP_STOCK, SHOP_SECTIONS, SHOP_TIER_LEVELS, PET_
 import { STATS, attackDamage, weaponStat } from '../shared/progression.js';
 import { CLASSES, HATS, CAPES, BACKS, DYES, CLOTHES, HAIRS, HAIR_COLORS, FACES, SKINS, STYLE_SLOTS, ownsStyle, BANK_OPEN_FEE, TIE_COLORS, BROWS, BANGS, BEARDS } from '../shared/config.js';
 import { FURNITURE, WALL_STYLES, FLOOR_STYLES } from '../shared/furniture.js';
-import { itemIcon, furnitureIcon, petIcon, iconImg } from './icons.js';
+import { itemIcon, furnitureIcon, petIcon, iconImg, storyIcon } from './icons.js';
 import { wallpaperSwatch } from './wallpaper.js';
 import { PET_SPECIES, EVOLVE_AT, TIER_EVERY, TIER_LOOKS, petFormName, petStage, petTier, petDamage, petXpToNext, petMaxHp, reviveCost, TRAIN_TO, TRAIN_COST } from '../shared/pets.js';
 import { seasonOf, holidayOf, dayOfSeason, daysToNextSeason, SEASONS, isBossDay, calendar, dateLabel, CALENDAR_NAME, salePrice, isSaleDay, seasonBossFor } from '../shared/seasons.js';
@@ -610,8 +610,11 @@ export class Hud {
       box.append(el('h2', null, '📖 The Story of Pebble Town'), el('p', 'muted', `The Heartstone: ${gems} (${shards} of ${SHARD_DUNGEONS.length} shards home)`));
       const list = el('div', 'story-pages');
       pages.forEach((page, i) => {
-        const card = el('div', 'story-page');
-        card.append(el('h3', null, `${i + 1}. ${esc(page.title)}`), el('p', null, esc(page.text)));
+        const card = el('div', 'story-page'), pic = storyIcon(page.pic), words = el('div', 'story-words');
+        words.append(el('h3', null, `${i + 1}. ${esc(page.title)}`), el('p', null, esc(page.text)));
+        if (pic) card.append(el('img', 'story-pic')); // (the Heartstone, or the boss the page is about)
+        if (pic) card.lastChild.src = pic;
+        card.append(words);
         list.append(card);
       });
       const left = total - pages.length;

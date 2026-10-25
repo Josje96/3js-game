@@ -34,6 +34,14 @@ function houseKey(h) {
 /** Where you stand to put your hat down at bedtime: beside the bed, in front of its table (bed space). */
 const BEDTIME_STAND = [1.25, 0, 0.5];
 const HAT_CLEAR = 0.6; // how high the hat lifts off your head before it goes over to the table
+/** The intro (checkIntro): the legend of the Heartstone, and why you've moved into the old fort. [from second, caption] */
+const INTRO_CAPTIONS = [
+  [0, '✨ Long ago, a glowing stone sat in Pebble Town’s fountain: the Heartstone. It kept the town warm and safe…'],
+  [6, '🌑 Then one night the Shadow King stole it, broke it into three shards, and hid them deep under the ground.'],
+  [12, '👹 Ever since, monsters have crept up out of the dungeons… and the town needs heroes.'],
+  [18, '🏰 So the Mayor gave this empty old fort to a brave new family… YOU!'],
+  [24, '💎 Find the three shards, bring the Heartstone home, and make Pebble Town shine again! (L: your Story book)'],
+];
 /** The Heartstone films (checkShards), one per shard. */
 const SHARD_FILMS = [
   { intro: '💎 The first shard of the Heartstone comes home…', outro: '💎 One shard glows over the fountain! The fairies are coming back. (L: your Story book)' },
@@ -771,6 +779,34 @@ export class GameClient {
     this.hud.cinema(film.intro);
   }
 
+  /**
+   * The start of the game: why you're here (shared/story.js). The first time this browser sees a world, at home:
+   * the camera comes down out of the sky over the old fort to you, telling the legend of the Heartstone.
+   */
+  checkIntro() {
+    if (this.cinematic || this.layout?.key !== 'house' || !this.world || !this.me || this.introShown) return;
+    const key = `fdg.introSeen.${this.world.seed}.${this.world.name}`;
+    let seen = null;
+    try { seen = localStorage.getItem(key); } catch {}
+    this.introShown = true;
+    if (seen) return;
+    const L = this.layout, middle = new THREE.Vector3((L.w * CELL) / 2, 0, (L.h * CELL) / 2), you = this.pos;
+    this.pos.rot = 0; // (facing the camera at the end)
+    const ease = (v) => { v = Math.min(1, Math.max(0, v)); return v * v * (3 - 2 * v); };
+    this.cinematic = {
+      kind: 'visit', where: 'house', t: 0, waved: false, npcs: [], focus: middle.clone(), arrive: INTRO_CAPTIONS.at(-1)[0] + 5, end: INTRO_CAPTIONS.at(-1)[0] + 8, sound: 'levelup',
+      captions: INTRO_CAPTIONS, intro: INTRO_CAPTIONS[0][1], outro: INTRO_CAPTIONS.at(-1)[1], colors: [0xff8ac8, 0xffd27a, 0x8ae8ff, 0xffffff],
+      burstAt: new THREE.Vector3(you.x, 0, you.z - 2.5), // (sparkles behind you, not in your face)
+      shot: (t) => { // from high over the fort, circling down to you
+        const k = ease(t / (INTRO_CAPTIONS.at(-1)[0] + 3)), at = middle.clone().lerp(new THREE.Vector3(you.x, 0, you.z), k);
+        const r = 26 - 21.5 * k, a = (1 - k) * 2.6, h = 24 - 21.8 * k;
+        return { pos: new THREE.Vector3(at.x + Math.sin(a) * r, h, at.z + Math.cos(a) * r), look: at.clone().add(new THREE.Vector3(0, 1.2 * k, 0)) };
+      },
+      done: () => { try { localStorage.setItem(key, '1'); } catch {} },
+    };
+    this.hud.cinema(INTRO_CAPTIONS[0][1]);
+  }
+
   /** New pages in the Story book (shared/story.js) since this browser last looked, per world: a toast each (L reads them). */
   checkStoryPages() {
     if (!this.world) return;
@@ -815,7 +851,7 @@ export class GameClient {
 
   /** A holiday film, frame by frame (from updateCamera). */
   playVisit(c, dt) {
-    if (this.layout?.key !== 'town') return this.endVisit(c); // you left town mid-film
+    if (this.layout?.key !== (c.where ?? 'town')) return this.endVisit(c); // you left (town, or the fort for the intro) mid-film
     c.t += dt;
     const WALK_T = c.arrive ?? 6.5, END = c.end ?? 12.5;
     const u = Math.min(1, c.t / WALK_T), ease = u * u * (3 - 2 * u);
@@ -834,6 +870,10 @@ export class GameClient {
     }
     if (c.ride) { /* (where the sleigh, then Santa, is) */ } else if (c.npcs.length) mid.multiplyScalar(1 / c.npcs.length);
     else mid.copy(c.focus);
+    if (c.captions) { // a film told in several captions: [[from t, text], ...]
+      const cap = c.captions.filter(([t]) => c.t >= t).at(-1)?.[1];
+      if (cap && cap !== c.caption && !c.waved) { c.caption = cap; this.hud.cinema(cap); }
+    }
     if (u >= 1 && !c.waved) {
       c.waved = true;
       c.onWave?.();
@@ -1029,6 +1069,7 @@ export class GameClient {
       this.locView.villagers.player = this.pos;
       this.locView.villagers.keepOut(this.visitorAreas());
     }
+    this.checkIntro();
     this.checkVisit();
     this.checkShards();
     if (input.consume('menu')) {

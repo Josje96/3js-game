@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { ITEMS } from '../shared/items.js';
 import { FURNITURE } from '../shared/furniture.js';
 import { cloneModel } from './assets.js';
-import { itemObject } from './views.js';
+import { itemObject, makeEntityView } from './views.js';
+import { makeHeartstone } from './town.js';
 import { FURNITURE_BUILDERS } from './furniture.js';
 import { PetView } from './pets.js';
 import { buildHelmet } from './cosmetics.js';
@@ -55,6 +56,28 @@ function cached(key, make) {
     try { cache.set(key, make()); } catch (err) { console.warn('icon failed', key, err); cache.set(key, null); }
   }
   return cache.get(key);
+}
+
+/** A Story book page's picture (shared/story.js `pic`): the Heartstone with so many shards lit, or a boss. */
+export function storyIcon(pic) {
+  if (pic?.shards != null) return cached(`story:heart:${pic.shards}`, () => {
+    const heart = makeHeartstone();
+    heart.userData.update(1, pic.shards);
+    const glows = [];
+    heart.traverse((o) => { if (o.isSprite) glows.push(o); });
+    for (const o of glows) o.removeFromParent(); // (its glow would fill the picture: just the crystals)
+    return snapshot(heart, { yaw: 0.3, tilt: 0.1 });
+  });
+  if (pic?.enemy) return cached(`story:${pic.enemy}`, () => {
+    const view = makeEntityView({ type: 'slime', variant: pic.enemy, x: 0, z: 0, hp: 1, maxHp: 1, r: 1 });
+    if (!view) return null;
+    view.update?.(0.016);
+    view.label?.removeFromParent?.();
+    const url = snapshot(view.root, { yaw: -0.5, tilt: 0.15 });
+    view.dispose?.();
+    return url;
+  });
+  return null;
 }
 
 /** An item's picture (a data: URL), or null if its model isn't loaded. */
