@@ -1792,17 +1792,22 @@ function trophyPlinth(g, stone) {
 /** The middle of the bedside table's top (bedsideTable below), in the bed's own space: the hat goes here at bedtime. */
 export const BEDSIDE_TABLE = new THREE.Vector3(1.62, 1.02, -1.08);
 
-/** The bed model (dungeon/bed_decorated) minus its bedside table and what stands on it (+x of the pillow end). */
+/** The bed model (dungeon/bed_decorated) minus its bedside table and what stands on it (+x of the pillow end), and the crate of plates by its foot. */
 const trimmedBeds = new Map();
 function withoutBedsideTable(geo) {
   if (!trimmedBeds.has(geo.uuid)) {
     const pos = geo.attributes.position, idx = geo.index ? geo.index.array : [...Array(pos.count).keys()];
     const keep = [];
     for (let t = 0; t < idx.length; t += 3) {
-      let x = 0, y = 0, z = 0;
-      for (let k = 0; k < 3; k++) { x += pos.getX(idx[t + k]) / 3; y += pos.getY(idx[t + k]) / 3; z += pos.getZ(idx[t + k]) / 3; }
+      let x = 0, y = 0, z = 0, minX = Infinity, minZ = Infinity;
+      for (let k = 0; k < 3; k++) {
+        const i = idx[t + k];
+        x += pos.getX(i) / 3; y += pos.getY(i) / 3; z += pos.getZ(i) / 3;
+        minX = Math.min(minX, pos.getX(i)); minZ = Math.min(minZ, pos.getZ(i));
+      }
       const table = x > 1.02 && z < -0.4, bottle = x > 0.88 && z < -0.4 && y > 1.0; // (the bottle leans in towards the pillow)
-      if (!table && !bottle) keep.push(idx[t], idx[t + 1], idx[t + 2]);
+      const crate = minX > 0.84 && minZ > 0.4; // the crate of plates by the foot of the bed
+      if (!table && !bottle && !crate) keep.push(idx[t], idx[t + 1], idx[t + 2]);
     }
     const out = geo.clone();
     out.setIndex(keep);
