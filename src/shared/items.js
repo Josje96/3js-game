@@ -24,6 +24,7 @@ export const ITEMS = {
   sickle:      { name: 'Sickle',          kind: 'weapon', damage: 4,  price: 260,  tier: 0, build: 'sickle', swing: 'slash' },
   spade:       { name: 'Spade',           kind: 'weapon', damage: 5,  price: 520,  tier: 0, build: 'spade', swing: 'chop' },
   scythe:      { name: 'Scythe',          kind: 'weapon', damage: 8,  price: 1300, tier: 0, build: 'scythe', swing: 'chop' },
+  purse:       { name: 'Designer Purse',  kind: 'weapon', damage: 12, price: 9999, tier: 0, build: 'purse', swing: 'slash' }, // (very fancy, very expensive, very silly)
   // level 20: steel
   steeldagger: { name: 'Steel Dirk',      kind: 'weapon', damage: 10, price: 3600, tier: 1, model: 'items/dagger', swing: 'stab', tint: 0xd6e2ee },
   steelblade:  { name: 'Steel Blade',     kind: 'weapon', damage: 13, price: 4000, tier: 1, model: 'items/sword_1handed', swing: 'slash', tint: 0xd6e2ee },
