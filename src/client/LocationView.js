@@ -122,6 +122,9 @@ const EDGE_ROT = new Map([[N, 0], [S, Math.PI], [W, Math.PI / 2], [E, -Math.PI /
 
 const SALE_SHOUTS = ['🎉 Half price today!', 'Everything ½ off!', '🛍️ Season sale!', 'Bargains! ½ price!', '✨ 50% off today!'];
 
+/** How far in front of a wall's middle its wallpaper or paint goes (the wall's face is at 0.5): far enough not to flicker on tablets' coarser depth. */
+const PAPER_OUT = 0.535;
+
 export class LocationView {
   constructor(layout, world) {
     this.layout = layout;
@@ -279,13 +282,15 @@ export class LocationView {
         if (!straight) pillars.push({ x, z, sy });
         for (const p of pieces) {
           const along = p.d[0] !== 0; // runs east-west
-          b.add(p.path, { x: p.x, z: p.z, rot: along ? 0 : Math.PI / 2, sx: p.len / CELL, sy });
           // each side: the paint or wallpaper of the room it faces
+          let papered = false;
           for (const s of along ? [N, S] : [E, W]) {
             const r = straight ? (walk(cx + s[0], cz + s[1]) ? [cx + s[0], cz + s[1]] : null) : regionOf(cx, cz, s, p.d);
             const ws = r && styleAt(r[0], r[1])?.wall;
-            if (ws && (ws.pattern || (ws.tint != null && ws.tint !== 0xffffff))) papers.push({ style: ws, x: p.x, z: p.z, rot: Math.atan2(s[0], s[1]), sy, len: p.len });
+            if (ws && (ws.pattern || (ws.tint != null && ws.tint !== 0xffffff))) { papers.push({ style: ws, x: p.x, z: p.z, rot: Math.atan2(s[0], s[1]), sy, len: p.len }); papered = true; }
           }
+          // a papered (or painted) wall is a plain one: shelves stuck out through the paper and flickered brown
+          b.add(papered ? 'dungeon/wall' : p.path, { x: p.x, z: p.z, rot: along ? 0 : Math.PI / 2, sx: p.len / CELL, sy });
         }
       }
     }
@@ -326,12 +331,12 @@ export class LocationView {
     for (const [style, list] of byStyle) {
       // a wallpaper pattern, or (thin walls) just the room's paint colour
       const inst = new THREE.InstancedMesh(plane, new THREE.MeshStandardMaterial(style.pattern ? { map: wallpaperTexture(style.pattern), roughness: 0.85 } : { color: style.tint, roughness: 0.9 }), list.length);
-      place(inst, list, 0.52, (p) => p.sy);
+      place(inst, list, PAPER_OUT, (p) => p.sy);
       inst.receiveShadow = true;
       this.group.add(inst);
     }
     const skirting = new THREE.InstancedMesh(skirt, new THREE.MeshStandardMaterial({ color: 0x5e3a20, roughness: 0.7 }), papers.length);
-    place(skirting, papers, 0.56, (p) => Math.min(1, p.sy * 4));
+    place(skirting, papers, PAPER_OUT + 0.04, (p) => Math.min(1, p.sy * 4));
     this.group.add(skirting);
   }
 
