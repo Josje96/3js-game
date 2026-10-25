@@ -158,6 +158,7 @@ export const HAIR_COLORS = {
   brown:  { name: 'Brown', color: 0x6b4423 },
   black:  { name: 'Black', color: 0x262222 },
   blonde: { name: 'Blonde', color: 0xf2cf6b },
+  golden: { name: 'Shiny golden', color: 0xf0b43a, shine: true },
   ginger: { name: 'Ginger', color: 0xd9662b },
   white:  { name: 'Snowy', color: 0xf0f0f0 },
   pink:   { name: 'Pink', color: 0xff8ac6 },

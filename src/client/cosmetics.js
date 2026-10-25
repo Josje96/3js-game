@@ -1816,9 +1816,9 @@ export function buildBrows(color, style = 'soft') {
  * A hairstyle. `underHat`: tucked under a hat — the crown of it (top, spikes, bun, mohawk, top curls)
  * is left off so nothing pokes through the hat; the sides, fringe and anything hanging down stay.
  */
-export function buildHair(style, color, underHat = false) {
+export function buildHair(style, color, underHat = false, shine = false) {
   const b = HAIR_BUILDERS[style];
-  const g = b ? b(mat(color, { roughness: 0.8 })) : null;
+  const g = b ? b(mat(color, shine ? { roughness: 0.28, metalness: 0.35, emissive: color, emissiveIntensity: 0.12 } : { roughness: 0.8 })) : null; // (shine: glossy, catching the light)
   if (!g || !underHat) return g;
   const BRIM = Math.PI * 0.38; // how far down from the top of the head a hat covers
   const cut = [];
