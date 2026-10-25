@@ -48,9 +48,13 @@ function duvet(color) {
   const LOW = 0.92, TOP = 1.46, W = 1.8, Z0 = -0.6, Z1 = 1.45; // (the pillow end is -z; feet at about +0.5)
   // over you it puffs up; past your feet it lies flat
   const topAt = (x, z) => LOW + 0.1 + (TOP - LOW - 0.1) * (z < 0.5 ? 1 : Math.max(0, 1 - (z - 0.5) / 0.45)) * Math.cos(Math.min(1, Math.abs(x) / (W / 2)) * Math.PI / 2) ** 0.7;
-  const geo = new THREE.BoxGeometry(W, TOP - LOW, Z1 - Z0, 14, 3, 16), pos = geo.attributes.position;
+  // the top edge curves up over the shoulders (they showed either side of the neck), the neck and chin left out
+  const smooth = (a, b, v) => { v = Math.min(1, Math.max(0, (v - a) / (b - a))); return v * v * (3 - 2 * v); };
+  const SHOULDERS = 0.2, shoulder = (x) => SHOULDERS * smooth(0.12, 0.42, Math.abs(x));
+  const geo = new THREE.BoxGeometry(W, TOP - LOW, Z1 - Z0, 18, 3, 16), pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i) + (Z0 + Z1) / 2, up = (y + (TOP - LOW) / 2) / (TOP - LOW);
+    const x = pos.getX(i), y = pos.getY(i), z0 = pos.getZ(i) + (Z0 + Z1) / 2, up = (y + (TOP - LOW) / 2) / (TOP - LOW);
+    const z = z0 - shoulder(x) * Math.max(0, 1 - (z0 - Z0) / 0.6);
     pos.setXYZ(i, x * (1 - 0.04 * up), LOW + (topAt(x, z) - LOW) * up, z);
   }
   geo.computeVertexNormals();
@@ -58,8 +62,12 @@ function duvet(color) {
   cover.castShadow = cover.receiveShadow = true;
   g.add(cover);
   // the sheet folded back over the top, under your chin: a strip lying on the duvet's curve
-  const fold = new THREE.BoxGeometry(W * 0.96, 0.07, 0.26, 16, 1, 1), fp = fold.attributes.position;
-  for (let i = 0; i < fp.count; i++) fp.setY(i, fp.getY(i) + topAt(fp.getX(i), Z0 + 0.1) + 0.01);
+  const fold = new THREE.BoxGeometry(W * 0.96, 0.07, 0.26, 20, 1, 1), fp = fold.attributes.position;
+  for (let i = 0; i < fp.count; i++) {
+    const x = fp.getX(i), dz = -shoulder(x) * (1 - 0.1 / 0.6); // (along the curved edge)
+    fp.setZ(i, fp.getZ(i) + dz);
+    fp.setY(i, fp.getY(i) + topAt(x, Z0 + 0.1 + dz) + 0.01);
+  }
   fold.computeVertexNormals();
   const sheet = new THREE.Mesh(fold, new THREE.MeshStandardMaterial({ color: 0xf6f2ea, roughness: 0.9 }));
   sheet.position.set(0, 0, Z0 + 0.1);
