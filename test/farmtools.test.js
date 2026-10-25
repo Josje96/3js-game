@@ -15,7 +15,7 @@ test('farm tools: pitchfork, sickle, spade and scythe, sold in the shop and buil
     assert.ok(!def.model, `${id}: built or a model, not both`);
     const box = new THREE.Box3().setFromObject(FARM_TOOLS[def.build](def));
     // like the KayKit weapons: the grip at the origin, the head up +y, flat in x-y
-    assert.ok(box.min.y < 0 && box.max.y > 0.8 && box.max.y < 2.2, `${id}: held at the grip, weapon-sized (${box.min.y.toFixed(2)}..${box.max.y.toFixed(2)})`);
+    assert.ok(box.min.y < 0 && box.max.y > (def.build === 'purse' ? 0.5 : 0.8) && box.max.y < 2.2, `${id}: held at the grip, weapon-sized (${box.min.y.toFixed(2)}..${box.max.y.toFixed(2)})`);
     assert.ok(box.max.z - box.min.z < 0.3, `${id}: flat like a blade`);
   }
 });

@@ -26,29 +26,28 @@ function flat(points, depth) {
 }
 
 export const FARM_TOOLS = {
-  purse(def) { // (not a farm tool: a very fancy handbag, swung by its strap) pink quilted leather, a gold clasp and a bow
+  purse(def) { // (not a farm tool: a very fancy handbag, held by its handle) pink quilted leather, a gold clasp and a bow
     const g = new THREE.Group(), pink = new THREE.MeshStandardMaterial({ color: def.tint ?? 0xff6fb0, roughness: 0.45 });
     const gold = new THREE.MeshStandardMaterial({ color: 0xffcf3f, roughness: 0.25, metalness: 0.8 });
-    for (const x of [-0.2, 0.2]) { // the strap: two gold chains from your hand down to the bag
-      const strap = part(g, new THREE.CylinderGeometry(0.018, 0.018, 0.86, 6), gold, x / 2, 0.38, 0);
-      strap.rotation.z = -Math.atan2(x, 0.76);
-    }
-    part(g, new THREE.TorusGeometry(0.06, 0.02, 6, 12), gold, 0, 0, 0); // a ring in your hand
-    const body = part(g, new THREE.CapsuleGeometry(0.17, 0.32, 4, 12), pink, 0, 1.0, 0);
+    const B = 0.32; // the middle of the bag, just past your hand
+    const handle = part(g, new THREE.TorusGeometry(0.15, 0.028, 8, 20, Math.PI), pink, 0, 0.15, 0); // an arch of pink leather: your hand holds its bottom
+    handle.rotation.z = Math.PI; // (the arch round your fist, its ends down into the bag)
+    for (const x of [-0.15, 0.15]) part(g, new THREE.CylinderGeometry(0.035, 0.035, 0.04, 8), gold, x, 0.16, 0); // gold rings where it meets the bag
+    const body = part(g, new THREE.CapsuleGeometry(0.17, 0.32, 4, 12), pink, 0, B + 0.03, 0);
     body.rotation.z = Math.PI / 2;
     body.scale.set(1.25, 1, 0.55); // a wide, flat bag
     for (let i = -2; i <= 2; i++) { // quilting
-      const q = part(g, new THREE.BoxGeometry(0.01, 0.34, 0.012), new THREE.MeshStandardMaterial({ color: 0xe0559a, roughness: 0.5 }), i * 0.11, 1.0, 0.1);
+      const q = part(g, new THREE.BoxGeometry(0.01, 0.3, 0.012), new THREE.MeshStandardMaterial({ color: 0xe0559a, roughness: 0.5 }), i * 0.11, B + 0.05, 0.1);
       q.rotation.z = 0.5;
     }
-    part(g, new THREE.BoxGeometry(0.62, 0.05, 0.2), pink, 0, 1.2, 0); // the flap's edge
-    part(g, new THREE.TorusGeometry(0.045, 0.014, 6, 12), gold, 0, 1.13, 0.1); // the clasp
-    part(g, new THREE.OctahedronGeometry(0.035, 0), new THREE.MeshStandardMaterial({ color: 0x9ae8ff, emissive: 0x3a7aa0, roughness: 0.1, metalness: 0.3 }), 0, 1.13, 0.12);
-    for (const s of [-1, 1]) { // a little bow on top
-      const loop = part(g, new THREE.SphereGeometry(0.06, 8, 6), pink, s * 0.07, 1.27, 0.02);
+    part(g, new THREE.BoxGeometry(0.62, 0.05, 0.2), pink, 0, B - 0.15, 0); // the flap's edge, under the handle
+    part(g, new THREE.TorusGeometry(0.045, 0.014, 6, 12), gold, 0, B - 0.08, 0.1); // the clasp
+    part(g, new THREE.OctahedronGeometry(0.035, 0), new THREE.MeshStandardMaterial({ color: 0x9ae8ff, emissive: 0x3a7aa0, roughness: 0.1, metalness: 0.3 }), 0, B - 0.08, 0.12);
+    for (const s of [-1, 1]) { // a little bow at the corner
+      const loop = part(g, new THREE.SphereGeometry(0.05, 8, 6), pink, 0.24 + s * 0.05, B + 0.2, 0.06);
       loop.scale.set(1.2, 0.7, 0.5);
     }
-    part(g, new THREE.SphereGeometry(0.03, 6, 5), gold, 0, 1.27, 0.03);
+    part(g, new THREE.SphereGeometry(0.025, 6, 5), gold, 0.24, B + 0.2, 0.07);
     return g;
   },
   pitchfork(def) { // three long tines on a crossbar, a long ash handle
