@@ -25,6 +25,8 @@ const SLEEP_FORWARD = 0.5;
 /** The dodge roll spins round this height (the middle of the curled-up body, ~2.55 tall), hopping this high. */
 const ROLL_PIVOT = 1.25, ROLL_HOP = 0.2;
 export { BEDSIDE_TABLE }; // (from furniture.js: where the hat goes at bedtime)
+/** Where your weapon and shield are put down for the night, in the bed's own space (putGearDown). */
+const GEAR_SPOTS = { weapon: [1.95, 0, -0.42], shield: [1.12, 0, 0.95] };
 const SKIRT_GAP = 0.15, SKIRT_MAX_FLARE = 1.7; // skirts: room left round a leg (in body widths), and how far they may flare
 
 // how a crossbow sits in the hand slot (which holds things pointing out to the side): its +z ahead, its top up
@@ -258,6 +260,7 @@ export class CharacterView {
       this.weaponObj = itemObject(id);
       if (ench > 0) this.weaponFx = enchantWeapon(this.weaponObj, ench);
       this.hand.add(this.weaponObj);
+      this.weaponObj.visible = !this.inBed; // (put down for the night)
       // the hand slot holds things pointing out to the side: a crossbow turns to point ahead (its +z, the
       // bolt end, forwards; its top up), and a book is held a little out from the body, not in it
       if (/crossbow/.test(model)) this.weaponObj.quaternion.copy(CROSSBOW_GRIP);
@@ -309,6 +312,7 @@ export class CharacterView {
     if (model && this.offHand) {
       this.shieldObj = tintModel(cloneModel(model), ITEMS[id].tint);
       this.offHand.add(this.shieldObj);
+      this.shieldObj.visible = !this.inBed;
     }
   }
 
@@ -497,6 +501,34 @@ export class CharacterView {
     this.tableHat.position.copy(BEDSIDE_TABLE).divide(this.root.scale);
     this.tableHat.rotation.y = 0.5; // (set down a little askew)
     this.root.add(this.tableHat);
+  }
+
+  /**
+   * In bed, your weapon and shield are put down too (they went through the bed and the quilt): the weapon
+   * leans on the front of the bedside table, the shield against the side of the bed by its foot, the
+   * same size as in your hands. Bed space, like the hat (the root is at the bed while we sleep).
+   */
+  putGearDown(asleep) {
+    for (const g of this.putDown ?? []) g.removeFromParent();
+    this.putDown = [];
+    if (this.weaponObj) this.weaponObj.visible = !asleep;
+    if (this.shieldObj) this.shieldObj.visible = !asleep;
+    if (!asleep) return;
+    const lean = (obj, held, at, yaw, tilt) => {
+      const g = new THREE.Group(), s = new THREE.Vector3(), rs = this.root.getWorldScale(new THREE.Vector3());
+      held.getWorldScale(s).divide(rs);
+      obj.scale.copy(s);
+      obj.rotation.x = tilt;
+      const box = new THREE.Box3().setFromObject(obj);
+      obj.position.y = -box.min.y; // standing on the floor
+      g.add(obj);
+      g.position.set(at[0], 0, at[2]).divide(this.root.scale);
+      g.rotation.y = yaw;
+      this.root.add(g);
+      this.putDown.push(g);
+    };
+    if (this.weaponObj) lean(itemObject(this.weaponId), this.weaponObj, GEAR_SPOTS.weapon, 0, -0.16);
+    if (this.shieldObj) lean(itemObject(this.shieldId), this.shieldObj, GEAR_SPOTS.shield, Math.PI / 2, -0.28);
   }
 
   /** Show/hide the outfit's own hat & cape, borrow other characters' pieces, add accessories, clothes and dye. */
@@ -740,6 +772,7 @@ export class CharacterView {
     if (asleep !== !!this.inBed) {
       if (asleep) this.model.rotation.x = 0; // (still standing: the table copy is taken upright)
       this.putHatOnTable(asleep);
+      this.putGearDown(asleep);
       this.inBed = asleep;
       this.showHats();
     }
